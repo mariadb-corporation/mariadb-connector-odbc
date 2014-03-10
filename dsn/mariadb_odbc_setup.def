@@ -1,0 +1,5 @@
+LIBRARY maodbcs.dll 
+EXPORTS
+  ConfigDSN
+  DSNDialog
+  DSNPrompt
