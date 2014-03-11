@@ -82,6 +82,7 @@ ENDIF()
 
 IF(WIN32)
   OPTION(WITH_SIGNCODE "Digitally sign excutables and libraries" OFF)
+  OPTION(WITH_REVNO "Add revision number in msi packages" OFF)
 ENDIF()
 
 

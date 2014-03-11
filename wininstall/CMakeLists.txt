@@ -1,11 +1,16 @@
 SET(ODBC_BINARY_DIR ${CMAKE_SOURCE_DIR}/${CMAKE_BUILD_TYPE})
 MESSAGE(STATUS "BINARY_DIR ${ODBC_BINARY_DIR}")
+
+
+
 # Get revision number
-EXECUTE_PROCESS(COMMAND bzr log -l1
-                COMMAND FINDSTR revno
+IF(WITH_REVNO)
+  EXECUTE_PROCESS(COMMAND bzr log -l1
+                  COMMAND FINDSTR revno
   OUTPUT_VARIABLE revno)
-STRING(REPLACE "revno: " "" revno ${revno})
-STRING(REPLACE "\n" "" revno ${revno})
+  STRING(REPLACE "revno: " "" revno ${revno})
+  STRING(REPLACE "\n" "" revno ${revno})
+ENDIF()
 SET(WIX_DIR "$ENV{WIX}/bin/")
 SET(PRODUCT_NAME "MariaDB ODBC Driver")
 SET(PRODUCT_MANUFACTURER "MariaDB")
@@ -42,7 +47,7 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
 IF(${revno})
   SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-r${revno}-${PLATFORM}.msi")
 ELSE()
-  SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-${PLATFORM}.msi")
+  SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-beta-${PLATFORM}.msi")
 ENDIF()
 
 IF(WITH_SIGNCODE)
