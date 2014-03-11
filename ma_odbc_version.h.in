@@ -1,0 +1,14 @@
+/*
+ *
+ */
+
+#ifndef _ma_odbc_version_h_
+#define _ma_odbc_version_h_
+
+#define MARIADB_ODBC_VERSION_MAJOR @MARIADB_ODBC_VERSION_MAJOR@
+#define MARIADB_ODBC_VERSION_MINOR @MARIADB_ODBC_VERSION_MINOR@
+#define MARIADB_ODBC_VERSION_PATCH @MARIADB_ODBC_VERSION_PATCH@
+
+#define MARIADB_ODBC_VERSION "@MARIADB_ODBC_VERSION@"
+
+#endif /* _ma_odbc_version_h_ */
