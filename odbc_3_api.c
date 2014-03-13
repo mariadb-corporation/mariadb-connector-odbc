@@ -361,7 +361,7 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
   ret= Stmt->Methods->ColAttribute(Stmt, ColumnNumber, FieldIdentifier, CharacterAttributePtr,
                                      BufferLength, StringLengthPtr, NumericAttributePtr, TRUE);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
-  MDBUG_C_RETURN(Stmt->Connection, ret)
+  MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
 
@@ -409,7 +409,7 @@ SQLRETURN SQL_API SQLColumnPrivileges(SQLHSTMT StatementHandle,
   ret= Stmt->Methods->ColumnPrivileges(Stmt, (char *)CatalogName, NameLength1, (char *)SchemaName, NameLength2,
                                          (char *)TableName, NameLength3, (char *)ColumnName, NameLength4);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
-  MDBUG_C_RETURN(Stmt->Connection, ret)
+  MDBUG_C_RETURN(Stmt->Connection, ret);
  }
 /* }}} */
 
@@ -451,8 +451,7 @@ SQLRETURN SQL_API SQLColumnPrivilegesW(SQLHSTMT StatementHandle,
   MADB_FREE(CpColumn);
 
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
-  MDBUG_C_RETURN(Stmt->Connection, ret)
-  return ret;
+  MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
 
@@ -477,7 +476,7 @@ SQLRETURN SQL_API SQLColumns(SQLHSTMT StatementHandle,
   ret= Stmt->Methods->Columns(Stmt, (char *)CatalogName,NameLength1, (char *)SchemaName, NameLength2,
                                 (char *)TableName, NameLength3, (char *)ColumnName, NameLength4);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
-  MDBUG_C_RETURN(Stmt->Connection, ret)
+  MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
 
@@ -519,8 +518,7 @@ SQLRETURN SQL_API SQLColumnsW(SQLHSTMT StatementHandle,
   MADB_FREE(CpColumn);
 
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
-  MDBUG_C_RETURN(Stmt->Connection, ret)
-
+  MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
 

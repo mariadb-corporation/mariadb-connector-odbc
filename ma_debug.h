@@ -21,11 +21,11 @@
 
 #ifndef MAODBC_DEBUG
 
-#define MDBUG__C_ENTER(C,A) {}
+#define MDBUG_C_ENTER(C,A) {}
 #define MDBUG_C_RETURN(C,A) return (A)
 #define MDBUG_C_PRINT(C, format, args) {}
 #define MDBUG_C_VOID_RETURN(C) {}
-#define MDBUG_C_DUMP(A,B) {}
+#define MDBUG_C_DUMP(C,A,B) {}
 
 #else
 
