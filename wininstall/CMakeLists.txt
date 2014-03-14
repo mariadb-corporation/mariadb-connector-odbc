@@ -19,7 +19,7 @@ SET(PRODUCT_VERSION "${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}
 IF(WITH_SIGNCODE)
 ENDIF()
 
-IF(${MSI_64})
+IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(PRODUCT_NAME "${PRODUCT_NAME} 64-bit")
   SET(PLATFORM "win64")
   SET(IS_WIN64 "yes")
@@ -61,17 +61,15 @@ IF(WITH_SIGNCODE)
 ENDIF()
 
 ADD_CUSTOM_TARGET(
-        MSI_PACKAGE_ALL
-        DEPENDS ${MSI_PACKAGE} maodbca maodbcu maodbcs)
+        ${MSI_PACKAGE}
+        COMMAND ${WIX_DIR}light.exe -ext WixUIExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
 
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${MSI_PACKAGE}
-        DEPENDS mariadb_odbc.wixobj
-                mariadb_odbc_fragment.wixobj
-                COMMAND ${WIX_DIR}light.exe -ext WixUIExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
+SET_TARGET_PROPERTIES(${MSI_PACKAGE} PROPERTIES EXCLUDE_FROM_ALL OFF)
 
-ADD_CUSTOM_COMMAND(
-        OUTPUT mariadb_odbc.wixobj
+ADD_CUSTOM_TARGET(
+        ODBC_WIX
         DEPENDS mariadb_odbc.xml
         COMMAND ${WIX_DIR}candle.exe mariadb_odbc.xml -o mariadb_odbc.wixobj)
+
+ADD_DEPENDENCIES(${MSI_PACKAGE} ODBC_WIX)
 
