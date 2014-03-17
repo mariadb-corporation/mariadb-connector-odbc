@@ -9,9 +9,9 @@
     <MediaTemplate EmbedCab="yes"/>
 
     <UIRef Id="WixUI_Mondo" />
-    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
-    <WixVariable Id="WixUIBannerBmp" Value="WixUIBannerBmp.jpg" />
-    <WixVariable Id="WixUIDialogBmp" Value="WixUIDialogBmp.jpg" />
+    <WixVariable Id="WixUILicenseRtf" Value="@ODBC_SOURCE_WIX_DIR@/license.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIBannerBmp.jpg" />
+    <WixVariable Id="WixUIDialogBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIDialogBmp.jpg" />
 
     <Feature Id="ProductFeature" Title="@PRODUCT_NAME@ @PRODUCT_VERSION@" Level="1">
       <ComponentRef Id="RegistryKeys" />

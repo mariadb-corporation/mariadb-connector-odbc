@@ -1,4 +1,5 @@
-SET(ODBC_BINARY_DIR ${CMAKE_SOURCE_DIR}/${CMAKE_BUILD_TYPE})
+SET(ODBC_BINARY_DIR ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/wininstall)
 MESSAGE(STATUS "BINARY_DIR ${ODBC_BINARY_DIR}")
 
 
@@ -45,7 +46,7 @@ ELSE()
 ENDIF()
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
-               ${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml)
+               ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)
 IF(${revno})
   SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-r${revno}-${PLATFORM}.msi")
 ELSE()
