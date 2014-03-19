@@ -4,7 +4,7 @@
 #
 # Try to find the include directory
 
-IF(${MSI_64})
+IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(PFILES $ENV{ProgramW6432})   
 ELSE()
   SET(PFILES $ENV{ProgramFiles})   
