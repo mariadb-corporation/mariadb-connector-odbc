@@ -53,16 +53,6 @@ ELSE()
   SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-beta-${PLATFORM}.msi")
 ENDIF()
 
-IF(WITH_SIGNCODE)
-  SET(SIGN_OPTIONS " /a /t http://timestamp.verisign.com/scripts/timstamp.dll ")
-  EXECUTE_PROCESS(
-	  COMMAND signtool sign ${SIGN_OPTIONS} ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/maodbca.dll)
-  EXECUTE_PROCESS(
-	  COMMAND signtool sign ${SIGN_OPTIONS} ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/maodbcs.dll)
-  EXECUTE_PROCESS(
-	  COMMAND signtool sign ${SIGN_OPTIONS} ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/maodbcu.dll)
-ENDIF()
-
 ADD_CUSTOM_TARGET(
         ${MSI_PACKAGE}
         COMMAND ${WIX_DIR}light.exe -ext WixUIExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
