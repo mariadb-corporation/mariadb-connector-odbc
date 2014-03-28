@@ -137,7 +137,7 @@ ODBC_TEST(t_bug39878)
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &row_count, 0, NULL));
 
-  for (i=1, row_count= 2; i < 14; ++i, row_count *= 2)
+  for (i=1, row_count= 2; i < 5; ++i, row_count *= 2)
     CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   diag("inserted %d rows.", row_count);
@@ -159,6 +159,7 @@ ODBC_TEST(t_bug39878)
   while (SQL_SUCCEEDED(rc= SQLFetch(Stmt)))
   {
     row_count--;
+    if (!(row_count % 1000)) diag("%d", row_count);
   }
 
   //print_diag(rc, SQL_HANDLE_STMT, Stmt, "SQLFetch()", __FILE__, __LINE__);

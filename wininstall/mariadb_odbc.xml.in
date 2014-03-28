@@ -16,8 +16,7 @@
     <Feature Id="ProductFeature" Title="@PRODUCT_NAME@ @PRODUCT_VERSION@" Level="1">
       <ComponentRef Id="RegistryKeys" />
       <ComponentRef Id="Setup" />
-      <ComponentRef Id="DriverA" />
-      <ComponentRef Id="DriverU" />
+      <ComponentRef Id="Driver" />
     </Feature>
     <Feature Id="DebugFeature" Title="Debug Information" Level="2">
       <ComponentRef Id="Debug" />
@@ -45,21 +44,14 @@
         <File Id="mariadb_odbc_setup" Name="maodbcs.dll"  DiskId="1"  Source="@ODBC_BINARY_DIR@/maodbcs.dll" />
         <File Id="mariadb_odbc_setup_lib" Name="maodbcs.lib" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbcs.lib" />
       </Component>  
-      <Component Id="DriverA" Guid="@GUID_DRIVERA@" SharedDllRefCount="yes" Directory="INSTALLFOLDER" Win64="@IS_WIN64@">
-        <File Id="mariadb_odbc_a_dll" Name="maodbca.dll" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbca.dll">
-          <ODBCDriver Id="madb_odbc_driver_a" Name="MariaDB ODBC Ansi Driver" SetupFile="mariadb_odbc_setup" />
+      <Component Id="Driver" Guid="@GUID_DRIVERA@" SharedDllRefCount="yes" Directory="INSTALLFOLDER" Win64="@IS_WIN64@">
+        <File Id="mariadb_odbc_dll" Name="maodbc.dll" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbc.dll">
+          <ODBCDriver Id="madb_odbc_driver" Name="MariaDB ODBC 1.0 Driver" SetupFile="mariadb_odbc_setup" />
         </File>
-        <File Id="mariadb_odbc_a_lib" Name="maodbca.lib" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbca.lib" />
-      </Component>
-      <Component Id="DriverU" Guid="@GUID_DRIVERU@" SharedDllRefCount="yes" Directory="INSTALLFOLDER" Win64="@IS_WIN64@">
-        <File Id="mariadb_odbc_u_dll" Name="maodbcu.dll" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbcu.dll">
-          <ODBCDriver Id="madb_odbc_driver_u" Name="MariaDB ODBC Unicode Driver" SetupFile="mariadb_odbc_setup" />
-        </File>
-        <File Id="mariadb_odbc_u_lib" Name="maodbu.lib" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbcu.lib" />
+        <File Id="mariadb_odbc_lib" Name="maodbc.lib" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbc.lib" />
       </Component>
     <Component Id="Debug" Guid="2EA8B4DD-F470-4362-8D87-59090D255981" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
-      <File Id="mariadb_odbc_dll_a_pdb" Name="maodbca.pdb" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbca.pdb" />
-      <File Id="mariadb_odbc_dll_u_pdb" Name="maodbcu.pdb" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbcu.pdb" />
+      <File Id="mariadb_odbc_dll_pdb" Name="maodbc.pdb" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbc.pdb" />
       <File Id="mariadb_odbc_setup_pdb" Name="maodbcs.pdb"  DiskId="1"  Source="@ODBC_BINARY_DIR@/maodbcs.pdb" />  
     </Component>
   <!--  </ComponentGroup> -->

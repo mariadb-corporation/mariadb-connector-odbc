@@ -696,7 +696,7 @@ ODBC_TEST(t_driverconnect_outstring)
   SQLWCHAR conn_out[1024], exp_out[1024];
   SQLSMALLINT conn_out_len, exp_conn_out_len;
 
-  SQLWCHAR *conn= L"Driver={MariaDB ODBC Unicode Driver};UID=root;CHARSET=utf8";
+  SQLWCHAR *conn= L"Driver={MariaDB ODBC 1.0 Driver};UID=root;CHARSET=utf8";
         
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));

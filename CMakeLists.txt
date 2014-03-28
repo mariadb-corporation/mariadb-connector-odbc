@@ -166,29 +166,18 @@ SET(MARIADB_ODBC_VERSION "00.90.1000")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
 
-SET(LIBRARY_NAME "maodbca")
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
-               ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-asc.def)
-
-ADD_LIBRARY(maodbca SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-asc.def maodbca.rc)
-SET_TARGET_PROPERTIES(maodbca PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbca ${MARIADB_LIB} ${ODBC_INSTLIBS} ws2_32)
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)                                      
-ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
-SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
-# TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} ${ODBC_LIBS} ${ODBC_INSTLIBS} maodbca)
-TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbca)
-
 
 SET(UNICODE "W")
-SET(LIBRARY_NAME "maodbcu")
+SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
-ADD_LIBRARY(maodbcu SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
-#SET_TARGET_PROPERTIES(maodbcu PROPERTIES DEFINE_SYMBOL UNICODE)
-SET_TARGET_PROPERTIES(maodbcu PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbcu ${MARIADB_LIB} ${ODBC_INSTLIBS} ws2_32)
+ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
+SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
+TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ws2_32)
+
+ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
+SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
+TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc)
 
 IF(WIN32)
   ADD_EXECUTABLE(dsn_test WIN32 dsn_test.c)
