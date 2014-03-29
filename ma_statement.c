@@ -2229,11 +2229,6 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
   case SQL_DESC_PRECISION:
     NumericAttribute= (SQLLEN)Record->Precision;
     break;
-  case SQL_DESC_LABEL:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->Label, strlen(Record->Label), &Stmt->Error);
-    break;
   case SQL_DESC_LENGTH:
     NumericAttribute= (SQLLEN)Record->Length;
     break;
@@ -2252,6 +2247,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      "", 0, &Stmt->Error);
     break;
+  case SQL_DESC_LABEL:
   case SQL_DESC_NAME:
     StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,

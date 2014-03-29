@@ -350,7 +350,7 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
   SQLRETURN ret;
   if (!Stmt)
     return SQL_INVALID_HANDLE;
-  MDBUG_C_ENTER(Stmt->Connection, "SQLColAttribute");
+  MDBUG_C_ENTER(Stmt->Connection, "SQLColAttributeW");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
   MDBUG_C_DUMP(Stmt->Connection, ColumnNumber, u);
   MDBUG_C_DUMP(Stmt->Connection, FieldIdentifier, u);
@@ -385,7 +385,7 @@ SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt,
 	SQLSMALLINT * pcbDesc,
 	SQLLEN * pfDesc)
 {
-  return SQLColAttribute(hstmt, icol, fDescType, rgbDesc, cbDescMax, pcbDesc, pfDesc);
+  return SQLColAttributeW(hstmt, icol, fDescType, rgbDesc, cbDescMax, pcbDesc, pfDesc);
 }
 
 
