@@ -56,6 +56,17 @@ ODBC_TEST(test_CONO1)
   return OK;
 }
 
+ODBC_TEST(cono_3)
+{
+  SQLRETURN rc;
+  int i;
+
+  OK_SIMPLE_STMT(stmt, "SET @a:=1");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, i, 0, NULL));
+
+  return OK;
+}
+
 ODBC_TEST(simple_test)
 {
   SQLRETURN rc= SQL_SUCCESS;

@@ -922,7 +922,10 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   
-  if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || (Stmt->stmt->state > MYSQL_STMT_PREPARED && ColumnNumber > mysql_stmt_field_count(Stmt->stmt)))
+  if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || 
+      (mysql_stmt_field_count(Stmt->stmt) &&
+       Stmt->stmt->state > MYSQL_STMT_PREPARED && 
+       ColumnNumber > mysql_stmt_field_count(Stmt->stmt)))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
     return SQL_ERROR;
