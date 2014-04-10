@@ -56,12 +56,12 @@ ODBC_TEST(test_CONO1)
   return OK;
 }
 
-ODBC_TEST(cono_3)
+ODBC_TEST(test_CONO3)
 {
   SQLRETURN rc;
-  int i;
+  int i= 0;
 
-  OK_SIMPLE_STMT(stmt, "SET @a:=1");
+  OK_SIMPLE_STMT(Stmt, "SET @a:=1");
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, i, 0, NULL));
 
   return OK;
@@ -1232,6 +1232,7 @@ MA_ODBC_TESTS my_tests[]=
 /*  {t_disconnect, "t_disconnect"},
   {t_describe_nulti, "t_describe_nulti"}, */
   {test_CONO1, "test_CONO1"},
+  {test_CONO3, "test_CONO3"},
   {t_count, "t_count"},
   {simple_test, "Simple test"},
   {simple_test1, "Simple test1"},
