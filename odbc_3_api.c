@@ -295,7 +295,9 @@ SQLRETURN SQL_API SQLCloseCursor(SQLHSTMT StatementHandle)
   MDBUG_C_ENTER(Stmt->Connection, "SQLCloseCursor");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
 
-  if (!Stmt->stmt || !mysql_stmt_field_count(Stmt->stmt))
+  if (!Stmt->stmt || 
+     (!mysql_stmt_field_count(Stmt->stmt) && 
+       Stmt->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
     ret= Stmt->Error.ReturnValue;
