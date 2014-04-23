@@ -899,10 +899,10 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                                 SQL_CV_CREATE_VIEW, StringLengthPtr);
     break;
   case SQL_CURSOR_COMMIT_BEHAVIOR:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_CB_PRESERVE, StringLengthPtr);
+    MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_CB_PRESERVE, StringLengthPtr);
     break;
   case SQL_CURSOR_ROLLBACK_BEHAVIOR:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_CB_PRESERVE, StringLengthPtr);
+    MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_CB_PRESERVE, StringLengthPtr);
     break;
   case SQL_CURSOR_SENSITIVITY:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_UNSPECIFIED, StringLengthPtr);
