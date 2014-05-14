@@ -656,7 +656,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 MADB_FREE(ApdRecord->InternalBuffer);
 
                 ApdRecord->InternalBuffer= MADB_ConvertFromWChar(
-                              (SQLWCHAR *)DataPtr, Length, 
+                              (SQLWCHAR *)DataPtr, Length / sizeof(SQLWCHAR), 
                               &mbLength, Stmt->Connection->CodePage, NULL);
                 ApdRecord->InternalLength= mbLength;
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
