@@ -261,6 +261,8 @@ char *MADB_GetTypeName(MYSQL_FIELD Field)
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
     return "decimal";
+  case MYSQL_TYPE_NULL:
+    return "null";
   case MYSQL_TYPE_TINY:
     return (Field.flags & NUM_FLAG) ? "tinyint" : "char";
   case MYSQL_TYPE_SHORT:
@@ -569,6 +571,8 @@ SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field)
       if (field->length > 1)
         return SQL_BINARY;
       return SQL_C_BIT;
+    case MYSQL_TYPE_NULL:
+      return SQL_VARCHAR;
     case MYSQL_TYPE_TINY:
       return field->flags & NUM_FLAG ? SQL_TINYINT : SQL_CHAR;
     case MYSQL_TYPE_YEAR:
