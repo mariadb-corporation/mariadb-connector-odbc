@@ -273,8 +273,6 @@ char *MADB_GetTypeName(MYSQL_FIELD Field)
     return "float";
   case MYSQL_TYPE_DOUBLE:
     return "double";
-  case MYSQL_TYPE_NULL:
-    return "nul";
   case MYSQL_TYPE_TIMESTAMP:
     return "timestamp";
   case MYSQL_TYPE_LONGLONG:
@@ -721,11 +719,13 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
 
 void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
 {
+  void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
+
   switch(Type) {
   case SQL_C_TIMESTAMP:
   case SQL_C_TYPE_TIMESTAMP:
     {
-      SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber);
+      SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
       /* if (!tm->year)
       {
         time_t sec_time;
@@ -754,7 +754,7 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
     case SQL_C_TIME:
     case SQL_TYPE_TIME:
     {
-      SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber);
+      SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
       ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
@@ -766,7 +766,7 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
     case SQL_C_DATE:
     case SQL_TYPE_DATE:
     {
-      SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber);
+      SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)DataPtr;
       ts->year= tm->year;
       ts->month= tm->month;
       ts->day= tm->day;
@@ -778,30 +778,24 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
   }
 }
 
-
-void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, unsigned long RowNumber)
+void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, unsigned long RowNumber, size_t PtrSize)
 {
-  unsigned long BindOffset= 0;
+  size_t BindOffset= 0;
 
   if (!Ptr)
     return NULL;
+
   if (Desc->Header.BindOffsetPtr)
-    BindOffset= *Desc->Header.BindOffsetPtr;
+    BindOffset= (size_t)*Desc->Header.BindOffsetPtr;
   /* row wise binding */
-  if (Desc->Header.BindType)
-    return (char *)Ptr + RowNumber * Desc->Header.BindType + BindOffset;
-  /* column wise binding */
-  if(Desc->Header.BindOffsetPtr)
-    return (char *)Ptr + *Desc->Header.BindOffsetPtr;
-  if (!RowNumber || Desc->Header.ArraySize < 2)
-    return Ptr;
-  if (Desc->Header.ArraySize)
-    if (Ptr != Record->OctetLengthPtr)
-      return (char *)Ptr + RowNumber * Record->OctetLength;
-    else
-      return (char *)Ptr + RowNumber * sizeof(SQLLEN);
-  return Ptr;
+  if (Desc->Header.BindType == SQL_BIND_BY_COLUMN ||
+      Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+    BindOffset+= PtrSize * RowNumber;
+  else
+    BindOffset+= Desc->Header.BindType * RowNumber;
+  return (char *)Ptr + BindOffset;
 }
+
 
 void MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard)
 {
@@ -816,7 +810,7 @@ void MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard)
 int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, unsigned long RowNumber)
 {
   char *p;
-  SQL_NUMERIC_STRUCT *number= (SQL_NUMERIC_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber);
+  SQL_NUMERIC_STRUCT *number= (SQL_NUMERIC_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
   int ret= 0;
 
   if (!buffer || !number)

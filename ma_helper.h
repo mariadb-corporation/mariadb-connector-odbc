@@ -19,7 +19,6 @@
 #ifndef _ma_helper_h_
 #define _ma_helper_h_
 
-
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
@@ -47,7 +46,8 @@ size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
 char *MADB_GetTypeName(MYSQL_FIELD Field);
 char *trim(char *Str);
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
-void *GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, unsigned long RowNumber);
+void *GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, unsigned long RowNumber, size_t PtrSize);
+
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
 MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
 char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);

@@ -97,7 +97,7 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     SQLINTEGER *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1));
+      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
  /*   if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
     {
       IgnoredColumns++;
@@ -148,7 +148,7 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     SQLINTEGER *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1));
+      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
     
     if ((i) && 
         (dynstr_append(DynString, ",") || dynstr_append(&ColVals, ",")))

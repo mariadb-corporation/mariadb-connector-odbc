@@ -655,6 +655,7 @@ ODBC_TEST(sqlgetdiagrec)
 
   CHECK_STMT_RC(Stmt, SQLGetDiagRecW(SQL_HANDLE_STMT, hstmt1, 1, sqlstate,
                                 &native_err, message, 255, &msglen));
+  diag("%s %s", sqlstate, message);
 
   /* it has to comply to the bugfix for bug 14285620  */
   FAIL_IF(SQLGetDiagRecW(SQL_HANDLE_STMT, hstmt1, 1, sqlstate,
