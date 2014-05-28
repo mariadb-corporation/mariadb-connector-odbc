@@ -821,11 +821,12 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
 
   if (!(number->sign= (*p=='-') ? 0 : 1))
     p++;
-  number->precision= ArdRecord->Precision ? ArdRecord->Precision : 38;
-  number->scale= (SQLCHAR)ArdRecord->Scale;
-   
   if (!*p)
     return FALSE;
+
+  number->precision= strlen(p);
+  number->scale= (SQLCHAR)ArdRecord->Scale;
+   
   while (*p=='0')
     p++;
   if (*p)

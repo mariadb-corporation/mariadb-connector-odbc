@@ -1417,7 +1417,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             
             if ((rc= MADB_CharToSQLNumeric(ArdRecord->InternalBuffer, Stmt->Ard, ArdRecord, j)))
               MADB_SetError(&Stmt->Error, rc, NULL, 0);
-            ArdRecord->InternalBuffer= GetBindOffset(Stmt->Ard, ArdRecord, ArdRecord->InternalBuffer, j, ArdRecord->OctetLength);
             if (Stmt->Ard->Header.ArrayStatusPtr)
               Stmt->Ard->Header.ArrayStatusPtr[j]= Stmt->Error.ReturnValue;
           }
