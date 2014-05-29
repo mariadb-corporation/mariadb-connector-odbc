@@ -256,9 +256,9 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
                    Err->SqlErrorMsg, strlen(Err->SqlErrorMsg), &InternalError);
    if (TextLengthPtr)
      *TextLengthPtr= strlen(Err->SqlErrorMsg);
-   else 
-     if (BufferLength==0 && MessageText == NULL)
-       return SQL_SUCCESS_WITH_INFO;
+   
+   if (!MessageText || !BufferLength)
+     return SQL_SUCCESS;
    return InternalError.ReturnValue;
 }
 /* }}} */

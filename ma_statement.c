@@ -654,7 +654,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 MADB_FREE(ApdRecord->InternalBuffer);
 
                 ApdRecord->InternalBuffer= MADB_ConvertFromWChar(
-                              (SQLWCHAR *)DataPtr, Length / sizeof(SQLWCHAR), 
+                              (SQLWCHAR *)DataPtr, Length, 
                               &mbLength, Stmt->Connection->CodePage, NULL);
                 ApdRecord->InternalLength= mbLength;
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
@@ -1424,10 +1424,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
           case SQL_C_WCHAR:
           {
             int Length=
-            MultiByteToWideChar(Stmt->Connection->CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length + 1,
+            MultiByteToWideChar(Stmt->Connection->CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
                                 (SQLWCHAR *)DataPtr, ArdRecord->OctetLength);
             if (IndicatorPtr)
-              *IndicatorPtr= (SQLLEN)*Stmt->stmt->bind[i].length * sizeof(SQLWCHAR *);
+              *IndicatorPtr= Length * sizeof(SQLWCHAR);
           }
           break;
           default:
@@ -2007,7 +2007,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
 
 
-      memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
+     // memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
       if (Stmt->stmt->fields[Offset].max_length)
         Length= MADB_SetString(Stmt->Connection->CodePage, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
                                    ClientValue, Stmt->stmt->fields[i].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
