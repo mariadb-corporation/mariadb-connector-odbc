@@ -639,10 +639,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
           {
             /* If no OctetLengthPtr was specified, or OctetLengthPtr is SQL_NTS character
                 or binary data are null terminated */
-            if (!OctetLengthPtr || *OctetLengthPtr == SQL_NTS)
+            if (ApdRecord->OctetLength)
+              Length= ApdRecord->OctetLength;
+            else if (!OctetLengthPtr || *OctetLengthPtr == SQL_NTS)
             {
               if (ApdRecord->ConciseType == SQL_C_WCHAR)
-                Length= wcslen((SQLWCHAR *)ApdRecord->DataPtr);
+                Length= wcslen((SQLWCHAR *)ApdRecord->DataPtr) * sizeof(SQLWCHAR);
               else if (ApdRecord->ConciseType == SQL_C_CHAR)
                 Length= strlen((SQLCHAR *)ApdRecord->DataPtr);
             }
@@ -654,7 +656,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 MADB_FREE(ApdRecord->InternalBuffer);
 
                 ApdRecord->InternalBuffer= MADB_ConvertFromWChar(
-                              (SQLWCHAR *)DataPtr, Length, 
+                              (SQLWCHAR *)DataPtr, Length / sizeof(SQLWCHAR), 
                               &mbLength, Stmt->Connection->CodePage, NULL);
                 ApdRecord->InternalLength= mbLength;
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
