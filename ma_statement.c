@@ -518,6 +518,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   unsigned int ParamCount;
   unsigned int ParamOffset= 0; /* for multi statements */
   unsigned int Iterations= 1;
+  SQLINTEGER SaveColumnCount= Stmt->ColumnCount;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
@@ -891,9 +892,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
     mysql_stmt_result_metadata(Stmt->stmt);
 
     Stmt->Cursor.Position= -1;
-    /* This should happen during prepare 
-    MADB_DescSetIrdMetadata(Stmt, Stmt->stmt->fields, Stmt->ColumnCount);
-    */
+    
+    /* Several statements like calling a stored procedure don't return metadata
+       during prepare, so we need to set metadata after execute */
+    if (Stmt->ColumnCount != SaveColumnCount)
+      MADB_DescSetIrdMetadata(Stmt, Stmt->stmt->fields, Stmt->ColumnCount);
+
     Stmt->AffectedRows= -1;
   }
 end:
