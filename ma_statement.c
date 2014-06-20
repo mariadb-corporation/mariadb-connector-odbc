@@ -645,9 +645,9 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             else if (!OctetLengthPtr || *OctetLengthPtr == SQL_NTS)
             {
               if (ApdRecord->ConciseType == SQL_C_WCHAR)
-                Length= wcslen((SQLWCHAR *)ApdRecord->DataPtr) * sizeof(SQLWCHAR);
+                Length= wcslen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
               else if (ApdRecord->ConciseType == SQL_C_CHAR)
-                Length= strlen((SQLCHAR *)ApdRecord->DataPtr);
+                Length= strlen((SQLCHAR *)DataPtr);
             }
             Stmt->params[i-ParamOffset].length= 0;
             switch (ApdRecord->ConciseType) {
