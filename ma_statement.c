@@ -1430,7 +1430,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
           case SQL_C_WCHAR:
           {
             int Length=
-            MultiByteToWideChar(Stmt->Connection->CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
+            MultiByteToWideChar(Stmt->Connection->CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length + 1,
                                 (SQLWCHAR *)DataPtr, ArdRecord->OctetLength);
             if (IndicatorPtr)
               *IndicatorPtr= Length * sizeof(SQLWCHAR);
