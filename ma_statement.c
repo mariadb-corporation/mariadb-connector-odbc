@@ -366,7 +366,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   }
  */
   if (Record->ConciseType == SQL_C_WCHAR)
-    wDataPtr= MADB_ConvertFromWChar((SQLWCHAR)DataPtr, StrLen_or_Ind, &Length, Stmt->Connection->CodePage, NULL);
+    wDataPtr= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, StrLen_or_Ind, &Length, Stmt->Connection->CodePage, NULL);
 
 
   /* To make sure that we will not consume the doble amount of memory, we need to send
@@ -636,18 +636,21 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
           {
             Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_NULL;
           }
-          else
+          else 
           {
             /* If no OctetLengthPtr was specified, or OctetLengthPtr is SQL_NTS character
                 or binary data are null terminated */
-            if (ApdRecord->OctetLength)
-              Length= ApdRecord->OctetLength;
-            else if (!OctetLengthPtr || *OctetLengthPtr == SQL_NTS)
+            if (!OctetLengthPtr || *OctetLengthPtr == SQL_NTS)
             {
-              if (ApdRecord->ConciseType == SQL_C_WCHAR)
-                Length= wcslen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
-              else if (ApdRecord->ConciseType == SQL_C_CHAR)
-                Length= strlen((SQLCHAR *)DataPtr);
+              if (DataPtr)
+              {
+                if (ApdRecord->ConciseType == SQL_C_WCHAR)
+                  Length= wcslen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
+                else if (ApdRecord->ConciseType == SQL_C_CHAR)
+                  Length= strlen((SQLCHAR *)DataPtr);
+              }
+              if (!OctetLengthPtr && ApdRecord->OctetLength && ApdRecord->OctetLength != SQL_SETPARAM_VALUE_MAX)
+                Length= MIN(Length, ApdRecord->OctetLength);
             }
             Stmt->params[i-ParamOffset].length= 0;
             switch (ApdRecord->ConciseType) {
