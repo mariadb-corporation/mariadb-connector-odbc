@@ -671,23 +671,9 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_C_CHAR:
               if (!Stmt->stmt->params[i-ParamOffset].long_data_used)
               {
-                char *Data= (char *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j-Start, ApdRecord->OctetLength);
-                if (!Data)
-                {
-                  Stmt->stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_NULL;
-                  break;
-                }
-                if (ApdRecord->OctetLengthPtr)
-                  ApdRecord->InternalLength= *(long *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, j - Start, sizeof(SQLLEN));
-                else
-                  ApdRecord->InternalLength= ApdRecord->OctetLength;
-                if (ApdRecord->InternalLength == SQL_NTS || 
-                    ApdRecord->InternalLength == SQL_SETPARAM_VALUE_MAX ||
-                    strchr(Data, 0) < Data + ApdRecord->InternalLength)
-                  ApdRecord->InternalLength= strlen(Data);
-
+                ApdRecord->InternalLength= Length;
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
-                Stmt->params[i-ParamOffset].buffer= Data;
+                Stmt->params[i-ParamOffset].buffer= DataPtr;
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_STRING;
               } 
               break;
