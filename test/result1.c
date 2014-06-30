@@ -256,10 +256,10 @@ static SQLINTEGER desc_col_check(SQLHSTMT Stmt,
   diag(" Nullable       : %d", pfNullable);
 
   IS_STR(szColName, name, pcbColName);
-  IS_NUM(pfSqlType, sql_type);
+  is_num(pfSqlType, sql_type);
   IS(col_def == pcbColDef || col_def1 == pcbColDef);
-  IS_NUM(pibScale, scale);
-  IS_NUM(pfNullable, nullable);
+  is_num(pibScale, scale);
+  is_num(pfNullable, nullable);
 
   return OK;
 }
@@ -301,7 +301,7 @@ ODBC_TEST(t_desc_col)
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
 
-  IS_NUM(ColumnCount, 23);
+  is_num(ColumnCount, 23);
 
   IS(desc_col_check(Stmt, 1,  "c1",  SQL_INTEGER,   10, 10, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt, 2,  "c2",  SQL_BINARY,    4,  2,  0,  SQL_NO_NULLS) == OK);
@@ -451,7 +451,7 @@ ODBC_TEST(t_max_rows)
   */
   rc = SQLExecDirect(Stmt,"  select * from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  IS_NUM(5, myrowcount(Stmt));
+  is_num(5, myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -520,7 +520,7 @@ ODBC_TEST(t_max_rows)
 
     OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
 
-    IS_NUM(7, myrowcount(hstmt1));
+    is_num(7, myrowcount(hstmt1));
 
     SQLFreeStmt(hstmt1,SQL_CLOSE);
 
@@ -530,7 +530,7 @@ ODBC_TEST(t_max_rows)
 
     OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
   
-    IS_NUM(10, myrowcount(hstmt1));
+    is_num(10, myrowcount(hstmt1));
 
     SQLFreeStmt(hstmt1,SQL_CLOSE);
 
@@ -540,7 +540,7 @@ ODBC_TEST(t_max_rows)
 
     OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
   
-    IS_NUM(10, myrowcount(hstmt1));
+    is_num(10, myrowcount(hstmt1));
 
     SQLFreeStmt(hstmt1,SQL_CLOSE);
 
@@ -549,7 +549,7 @@ ODBC_TEST(t_max_rows)
 
     OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
 
-    IS_NUM(3, myrowcount(hstmt1));
+    is_num(3, myrowcount(hstmt1));
 
     CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1,SQL_DROP));
     CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -619,19 +619,19 @@ ODBC_TEST(t_multistep)
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,0,&pcbValue);
   assert(rc == SQL_SUCCESS_WITH_INFO);
   diag("length: %ld", pcbValue);
-  IS_NUM(pcbValue, 28);
+  is_num(pcbValue, 28);
 
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,10,&pcbValue);
   assert(rc == SQL_SUCCESS_WITH_INFO);
   diag("data  : %s (%ld)",szData,pcbValue);
-  IS_NUM(pcbValue, 28);
+  is_num(pcbValue, 28);
   IS_STR(szData, "MySQL - O", 10);
 
   pcbValue= 0;
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,5,&pcbValue);
   assert(rc == SQL_SUCCESS_WITH_INFO);
   diag("data  : %s (%ld)",szData,pcbValue);
-  IS_NUM(pcbValue, 19);
+  is_num(pcbValue, 19);
   IS_STR(szData, "pen ", 5);
 
   pcbValue= 0;
@@ -645,7 +645,7 @@ ODBC_TEST(t_multistep)
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,pcbValue+1,&pcbValue);
   CHECK_STMT_RC(Stmt,rc);
   diag("data  : %s (%ld)",szData,pcbValue);
-  IS_NUM(pcbValue, 15);
+  is_num(pcbValue, 15);
   IS_STR(szData,"Source Database", 16);
 
   pcbValue= 99;
@@ -784,26 +784,26 @@ ODBC_TEST(t_zerolength)
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,4,&pcbValue);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data: %s, length: %d", szData, pcbValue);
-    IS_NUM(pcbValue, 4);
+    is_num(pcbValue, 4);
     IS_STR(szData,"ven", 3);
 
     rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,4,&pcbValue1);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data: %s, length: %d", bData, pcbValue1);
-    IS_NUM(pcbValue1, 5);
+    is_num(pcbValue1, 5);
     IS_STR(bData, "mysq", 4);
 
     pcbValue= pcbValue1= 99;
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,5,&pcbValue);
     CHECK_STMT_RC(Stmt,rc);
     diag("data: %s, length: %d", szData, pcbValue);
-    IS_NUM(pcbValue, 4);
+    is_num(pcbValue, 4);
     IS_STR(szData, "venu", 4);
 
     rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,5,&pcbValue1);
     CHECK_STMT_RC(Stmt,rc);
     diag("data: %s, length: %d", bData, pcbValue1);
-    IS_NUM(pcbValue1, 5);
+    is_num(pcbValue1, 5);
     IS_STR(bData, "mysql", 5);
 
     szData[0]= 'z';
@@ -1395,7 +1395,7 @@ ODBC_TEST(t_colattributes)
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_COLUMN_AUTO_INCREMENT, NULL, 0,
                                  NULL, &isauto));
-  IS_NUM(isauto, SQL_TRUE);
+  is_num(isauto, SQL_TRUE);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_colattr");
 
@@ -1649,23 +1649,23 @@ ODBC_TEST(t_true_length)
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, data1, sizeof(data1), &name_len, NULL,
                                 &desc_len, NULL, NULL));
-  IS_NUM(desc_len, 20);
+  is_num(desc_len, 20);
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 2, data1, sizeof(data1), &name_len, NULL,
                                 &desc_len, NULL, NULL));
-  IS_NUM(desc_len, 15);
+  is_num(desc_len, 15);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, data1, sizeof(data1),
                             &len1));
   IS_STR(data1, "venu", 4);
-  IS_NUM(len1, 4);
+  is_num(len1, 4);
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, data2, sizeof(data2),
                             &len2));
   IS_STR(data2, "mysql", 5);
-  IS_NUM(len2, 5);
+  is_num(len2, 5);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
@@ -1750,7 +1750,6 @@ Bug #16817: ODBC doesn't return multiple resultsets
 ODBC_TEST(t_bug16817)
 {
   SQLCHAR name[30];
-  SQLSMALLINT ncol;
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS p_bug16817");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE p_bug16817 () "
@@ -1771,7 +1770,7 @@ ODBC_TEST(t_bug16817)
 
 /* Driver manager doesn't like this (function sequence error)
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ncol));
-  IS_NUM(ncol, 0);
+  is_num(ncol, 0);
 */
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1810,14 +1809,14 @@ ODBC_TEST(t_binary_collation)
         mysql_min_version(Connection, "5.1.22", 6)))
   {
 #ifdef MYODBC_UNICODEDRIVER
-    IS_NUM(data_type, SQL_WVARCHAR);
+    is_num(data_type, SQL_WVARCHAR);
 #else
-    IS_NUM(data_type, SQL_VARCHAR);
+    is_num(data_type, SQL_VARCHAR);
 #endif
   }
   else
   {
-    IS_NUM(data_type, SQL_VARBINARY);
+    is_num(data_type, SQL_VARBINARY);
 #endif
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_binary_collation");
   return OK;
@@ -1848,7 +1847,7 @@ ODBC_TEST(t_bug29239)
   /* now execute */
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(xval, 44);
+  is_num(xval, 44);
   FAIL_IF(SQLFetch(Stmt)!= SQL_NO_DATA, "eof expected");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1884,7 +1883,7 @@ ODBC_TEST(t_bug30958)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
-  IS_NUM(outlen, 0);
+  is_num(outlen, 0);
   IS(check_sqlstate(Stmt, "01004") == OK);
 
   /* expect the same result, and not SQL_NO_DATA */
@@ -1892,14 +1891,14 @@ ODBC_TEST(t_bug30958)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
-  IS_NUM(outlen, 0);
+  is_num(outlen, 0);
   IS(check_sqlstate(Stmt, "01004") == OK);
 
   /* now provide a space to read the data */
   outmax= 1;
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax, &outlen));
-  IS_NUM(outbuf[0], 0);
-  IS_NUM(outlen, 0);
+  is_num(outbuf[0], 0);
+  is_num(outlen, 0);
 
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
 #ifdef NEEDS_TO_BE_FIXED
@@ -1943,7 +1942,7 @@ ODBC_TEST(t_bug30958_ansi)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
-  IS_NUM(outlen, 0);
+  is_num(outlen, 0);
   IS(check_sqlstate(Stmt, "01004") == OK);
 
   /* expect the same result, and not SQL_NO_DATA */
@@ -1951,14 +1950,14 @@ ODBC_TEST(t_bug30958_ansi)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
-  IS_NUM(outlen, 0);
+  is_num(outlen, 0);
   IS(check_sqlstate(Stmt, "01004") == OK);
 
   /* now provide a space to read the data */
   outmax= 1;
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax, &outlen));
-  IS_NUM(outbuf[0], 0);
-  IS_NUM(outlen, 0);
+  is_num(outbuf[0], 0);
+  is_num(outlen, 0);
 
 #ifdef TO_BE_FIXED_LATER
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
@@ -2001,7 +2000,7 @@ ODBC_TEST(t_bug30958_wchar)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
-  IS_NUM(outlen, 0);
+  is_num(outlen, 0);
   IS(check_sqlstate(Stmt, "01004") == OK);
 
   /* expect the same result, and not SQL_NO_DATA */
@@ -2009,15 +2008,15 @@ ODBC_TEST(t_bug30958_wchar)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
-  IS_NUM(outlen, 0);
+  is_num(outlen, 0);
   IS(check_sqlstate(Stmt, "01004") == OK);
 
 
   /* now provide a space to read the data */
   outmax= sizeof(SQLWCHAR);
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax, &outlen));
-  IS_NUM(outbuf[0], 0);
-  IS_NUM(outlen, 0);
+  is_num(outbuf[0], 0);
+  is_num(outlen, 0);
 #ifdef TO_BE_FIXED_LATER
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
   outmax= 0;
@@ -2056,7 +2055,7 @@ ODBC_TEST(t_bug31246)
   /* No need to insert any rows in the table, so do SELECT */
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug31246");
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 3);
+  is_num(ncol, 3);
 
   /* Bind only one column instead of three ones */
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR,
@@ -2064,7 +2063,7 @@ ODBC_TEST(t_bug31246)
 
   /* Expect SQL_NO_DATA_FOUND result from the empty table */
   rc= SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 1, NULL, NULL);
-  IS_NUM(rc, SQL_NO_DATA_FOUND);
+  is_num(rc, SQL_NO_DATA_FOUND);
 
   /* Here was the problem */
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_ADD, SQL_LOCK_NO_CHANGE));
@@ -2083,7 +2082,7 @@ ODBC_TEST(t_bug31246)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(field1, buf, strlen((char *)buf) + 1);
-  IS_NUM(field2, 10);
+  is_num(field2, 10);
   IS_STR(field3, "Default Text", 13);
 
   /* Clean-up */
@@ -2121,15 +2120,15 @@ ODBC_TEST(t_bug13776)
                                  &pfSqlType, &pcColSz, &pcbScale, &pfNullable));
 
   /* Size of LONGTEXT should have been capped to 1 << 31. */
-  IS_NUM(pcColSz, 2147483647L);
+  is_num(pcColSz, 2147483647L);
 
   /* also, check display size and octet length (see bug#30890) */
   CHECK_STMT_RC(hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_DISPLAY_SIZE, NULL,
                                   0, NULL, &display_size));
   CHECK_STMT_RC(hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_OCTET_LENGTH, NULL,
                                   0, NULL, &octet_length));
-  IS_NUM(display_size, 2147483647L);
-  IS_NUM(octet_length, 2147483647L);
+  is_num(display_size, 2147483647L);
+  is_num(octet_length, 2147483647L);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -2205,7 +2204,7 @@ ODBC_TEST(t_bug13776_auto)
     IF adodb15.dll IS loaded SQLDescribeCol should return the length of
     LONGTEXT columns as 2G instead of 4G
   */
-  IS_NUM(pcColSz, 2147483647L);
+  is_num(pcColSz, 2147483647L);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -2233,12 +2232,12 @@ ODBC_TEST(t_bug28617)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, 0, &outlen) != SQL_SUCCESS_WITH_INFO, "swi expected");
-  IS_NUM(outlen, 10);
+  is_num(outlen, 10);
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, 0, &outlen) != SQL_SUCCESS_WITH_INFO, "swi expected");
-  IS_NUM(outlen, 10 * sizeof(SQLWCHAR));
+  is_num(outlen, 10 * sizeof(SQLWCHAR));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, 100, &outlen));
 
-  IS_NUM(outlen, 10 * sizeof(SQLWCHAR));
+  is_num(outlen, 10 * sizeof(SQLWCHAR));
   IS(!memcmp(outbuf, W(L"qwertyuiop"), 11 * sizeof(SQLWCHAR)));
 
   return OK;
@@ -2265,7 +2264,7 @@ ODBC_TEST(t_bug34429)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, buf, sizeof(buf),
                                 &reslen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   diag("Chunk 1, len=%d, data=%ls", reslen, buf);
-  IS_NUM(reslen, 80 * sizeof(SQLWCHAR));
+  is_num(reslen, 80 * sizeof(SQLWCHAR));
   IS(!memcmp(buf, W(L"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
              32 * sizeof(SQLWCHAR)));
 
@@ -2273,14 +2272,14 @@ ODBC_TEST(t_bug34429)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, buf, sizeof(buf),
                                 &reslen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   diag("Chunk 2, len=%d, data=%ls", reslen, buf);
-  IS_NUM(reslen, 49 * sizeof(SQLWCHAR));
+  is_num(reslen, 49 * sizeof(SQLWCHAR));
   IS(!memcmp(buf, W(L"xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"),
              32 * sizeof(SQLWCHAR)));
 
   /* third chunk */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, buf, sizeof(buf), &reslen));
   diag("Chunk 3, len=%d, data=%ls", reslen, buf);
-  IS_NUM(reslen, 18 * sizeof(SQLWCHAR));
+  is_num(reslen, 18 * sizeof(SQLWCHAR));
   IS(!memcmp(buf, W(L"yyzzzzzzzzzzzzzzzz"), 18 * sizeof(SQLWCHAR)));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

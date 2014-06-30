@@ -58,11 +58,10 @@ ODBC_TEST(test_CONO1)
 
 ODBC_TEST(test_CONO3)
 {
-  SQLRETURN rc;
   int i= 0;
 
   OK_SIMPLE_STMT(Stmt, "SET @a:=1");
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, i, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)i, 0, NULL));
 
   return OK;
 }
@@ -72,10 +71,8 @@ ODBC_TEST(simple_test)
   SQLRETURN rc= SQL_SUCCESS;
 
   SQLINTEGER value=3;
-  SQLHANDLE Apd;
   SQLWCHAR Buffer[20];
 
-  SQL_NUMERIC_STRUCT num;
   char buffer[128];
   SQLLEN vallen= 0;
 
@@ -266,7 +263,7 @@ ODBC_TEST(simple_2)
 
 ODBC_TEST(test_reconnect)
 {
-  SQLHDBC *hdbc1;
+  SQLHDBC hdbc1;
   SQLRETURN rc;
   int i;
   SQLWCHAR *hostname= L"localhost",
@@ -293,10 +290,10 @@ ODBC_TEST(test_reconnect)
 
 ODBC_TEST(t_disconnect)
 {
-  SQLHDBC *hdbc1;
+  SQLHDBC hdbc1;
   SQLRETURN rc;
   int i;
-  SQLHSTMT *hstmt;
+  SQLHSTMT hstmt;
   SQLWCHAR *hostname= L"localhost",
            *username= L"root",
            *passwd= NULL;
@@ -329,7 +326,7 @@ ODBC_TEST(t_disconnect)
 
 ODBC_TEST(bug19823)
 {
-  SQLHDBC *Hdbc;
+  SQLHDBC Hdbc;
 
   SQLUINTEGER timeout;
   SQLRETURN rc;
@@ -449,9 +446,8 @@ ODBC_TEST(t_reconnect)
 int GetIntVal(SQLHANDLE hStmt, SQLINTEGER Column)
 {
   int Value;
-  SQLRETURN ret;
 
-  CHECK_STMT_RC(hStmt, SQLGetData(hStmt, Column, SQL_C_LONG, &Value, 0, NULL));
+  CHECK_STMT_RC(hStmt, SQLGetData(hStmt, (SQLUSMALLINT)Column, SQL_C_LONG, &Value, 0, NULL));
   printf("Value: %ld\n", Value);
   return Value;
 }
@@ -691,7 +687,7 @@ ODBC_TEST(t_bug30983)
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, buf, SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, buf, 0, &buflen));
-  IS_NUM(buflen, 80 * 1024);
+  is_num(buflen, 80 * 1024);
   return OK;
 }
 
@@ -704,8 +700,8 @@ ODBC_TEST(t_bug30983)
 ODBC_TEST(t_driverconnect_outstring)
 {
   HDBC hdbc1;
-  SQLWCHAR conn_out[1024], exp_out[1024];
-  SQLSMALLINT conn_out_len, exp_conn_out_len;
+  SQLWCHAR conn_out[1024];
+  SQLSMALLINT conn_out_len;
 
   SQLWCHAR *conn= L"Driver={MariaDB ODBC 1.0 Driver};UID=root;CHARSET=utf8";
         
@@ -804,7 +800,7 @@ ODBC_TEST(sqlcancel)
   /* SLEEP(n) returns 1 when it is killed. */
   OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 1), 1);
 
   waitrc= WaitForSingleObject(thread, 10000);
   IS(!(waitrc == WAIT_TIMEOUT));
@@ -835,7 +831,7 @@ ODBC_TEST(sqlcancel)
   /* SLEEP(n) returns 1 when it is killed. */
   OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(10)");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 1), 1);
 
   pthread_join(thread, NULL);
 
@@ -911,7 +907,7 @@ ODBC_TEST(t_bug32014)
 
     CHECK_STMT_RC(hstmt1, SQLGetInfo(hdbc1, SQL_SCROLL_OPTIONS,
             (SQLPOINTER) &info, sizeof(long), &value_len));
-    IS_NUM(info, expectedInfo[i]);
+    is_num(info, expectedInfo[i]);
 
     /*Checking that correct cursor type is set*/
 
@@ -919,25 +915,25 @@ ODBC_TEST(t_bug32014)
             , SQL_CURSOR_FORWARD_ONLY ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             (SQLPOINTER) &info));
-    IS_NUM(info, expectedCurType[i][SQL_CURSOR_FORWARD_ONLY]);
+    is_num(info, expectedCurType[i][SQL_CURSOR_FORWARD_ONLY]);
 
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_KEYSET_DRIVEN ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             (SQLPOINTER) &info));
-    IS_NUM(info, expectedCurType[i][SQL_CURSOR_KEYSET_DRIVEN]);
+    is_num(info, expectedCurType[i][SQL_CURSOR_KEYSET_DRIVEN]);
 
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_DYNAMIC ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             (SQLPOINTER) &info));
-    IS_NUM(info, expectedCurType[i][SQL_CURSOR_DYNAMIC]);
+    is_num(info, expectedCurType[i][SQL_CURSOR_DYNAMIC]);
 
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_STATIC ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             (SQLPOINTER) &info));
-    IS_NUM(info, expectedCurType[i][SQL_CURSOR_STATIC]);
+    is_num(info, expectedCurType[i][SQL_CURSOR_STATIC]);
 
     ODBC_Disconnect(henv1, hdbc1, hstmt1);
 
@@ -962,7 +958,7 @@ ODBC_TEST(t_bug10128)
   SQLINTEGER querylen= (SQLINTEGER) strlen((char *)query);
 
   CHECK_DBC_RC(Connection, SQLNativeSql(Connection, query, SQL_NTS, NULL, 0, &nativelen));
-  IS_NUM(nativelen, querylen);
+  is_num(nativelen, querylen);
 
   CHECK_DBC_RC(Connection, SQLNativeSql(Connection, query, SQL_NTS, nativesql, 1000, NULL));
   diag("%s", nativesql);
@@ -977,7 +973,7 @@ ODBC_TEST(t_bug10128)
 */
 ODBC_TEST(t_bug32727)
 {
-  IS_NUM(SQLSetConnectAttr(Connection, SQL_ATTR_ENLIST_IN_DTC,
+  is_num(SQLSetConnectAttr(Connection, SQL_ATTR_ENLIST_IN_DTC,
                        (SQLPOINTER)1, SQL_IS_UINTEGER), SQL_ERROR);
   return OK;
 }
@@ -1006,7 +1002,7 @@ ODBC_TEST(t_bug28820)
     CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i+1, dummy, sizeof(dummy), NULL,
                                   NULL, &length, NULL, NULL));
 	diag("length: %d", length);
-    IS_NUM(length, 90);
+    is_num(length, 90);
   }
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug28820");
@@ -1017,7 +1013,6 @@ ODBC_TEST(t_count)
 {
   SQLULEN length;
   SQLCHAR dummy[20];
-  SQLSMALLINT i;
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_count");
   OK_SIMPLE_STMT(Stmt, "create table t_count (a int)");
@@ -1065,7 +1060,7 @@ ODBC_TEST(t_bug31959)
   }
 
   /* check invalid value (and corresponding SQL state) */
-  IS_NUM(SQLSetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)999, 0),
+  is_num(SQLSetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)999, 0),
      SQL_ERROR);
   {
   SQLCHAR     sql_state[6];
@@ -1106,8 +1101,8 @@ ODBC_TEST(t_bug41256)
   val= 80;
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_LONG, &val, 0, &reslen));
-  IS_NUM(SQL_NULL_DATA, reslen);
-  IS_NUM(80, val);
+  is_num(SQL_NULL_DATA, reslen);
+  is_num(80, val);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   return OK;
 }
@@ -1197,7 +1192,7 @@ ODBC_TEST(t_bug48603)
       CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, SQL_NTS));
     }
 
-    IS_NUM(timeout + diff, cur_timeout);
+    is_num(timeout + diff, cur_timeout);
   }
 
   return OK;

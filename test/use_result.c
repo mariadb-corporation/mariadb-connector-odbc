@@ -65,7 +65,7 @@ ODBC_TEST(t_use_result)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  IS_NUM(row_count, my_max_rows);
+  is_num(row_count, my_max_rows);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_use_result");
 
@@ -94,7 +94,7 @@ ODBC_TEST(t_bug4657)
                            (SQLCHAR *)"UNKNOWN", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &column_count));
-  IS_NUM(column_count, 5);
+  is_num(column_count, 5);
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, name, sizeof(name),
                             &name_length));

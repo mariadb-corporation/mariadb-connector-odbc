@@ -61,13 +61,13 @@ ODBC_TEST(t_bug32420)
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, NULL, 
                                    rgfRowStatus));
 
-  IS_NUM(nData[0], 100);
+  is_num(nData[0], 100);
   IS_STR(szData[0], "string 1", 8);
-  IS_NUM(nData[1], 200);
+  is_num(nData[1], 200);
   IS_STR(szData[1], "string 2", 8);
-  IS_NUM(nData[2], 300);
+  is_num(nData[2], 300);
   IS_STR(szData[2], "string 3", 8);
-  IS_NUM(nData[3], 400);
+  is_num(nData[3], 400);
   IS_STR(szData[3], "string 4", 8);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
@@ -207,7 +207,7 @@ ODBC_TEST(t_bug41942)
   OK_SIMPLE_STMT(Stmt, "select 1 as name");
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 10, &len,
                                 NULL, NULL, NULL, NULL));
-  IS_NUM(len, 4);
+  is_num(len, 4);
   return OK;
 }
 
@@ -310,9 +310,9 @@ ODBC_TEST(t_bug32821)
   while( (rc= SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)) != SQL_NO_DATA_FOUND)
   {
     diag("testing row #%d", i+1);
-    IS_NUM(a, expected_a[i]);
-    IS_NUM(b, expected_b[i]);
-    IS_NUM(c, expected_c[i]);
+    is_num(a, expected_a[i]);
+    is_num(b, expected_b[i]);
+    is_num(c, expected_c[i]);
 
     /* Test of binding to numeric - added later so a bit messy */
     for (k= 1; k < 3; ++k)
@@ -328,8 +328,8 @@ ODBC_TEST(t_bug32821)
 
       switch (k)
       {
-      case 1: IS_NUM(b, expected_a[i]); break;
-      case 2: IS_NUM(b, expected_b[i]); break;
+      case 1: is_num(b, expected_a[i]); break;
+      case 2: is_num(b, expected_b[i]); break;
       }
       
     }
@@ -357,8 +357,8 @@ ODBC_TEST(t_bug34271)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &x1, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(x1, 1);
-  IS_NUM(x2, 0);
+  is_num(x1, 1);
+  is_num(x2, 0);
   x1= 0;
 
   /* unbind */
@@ -371,8 +371,8 @@ ODBC_TEST(t_bug34271)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, &x2, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(x1, 0);
-  IS_NUM(x2, 2);
+  is_num(x1, 0);
+  is_num(x2, 2);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -434,25 +434,25 @@ ODBC_TEST(t_bug55024)
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SELECT * FROM t_test55024", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_LONGVARCHAR);
+  is_num(res, SQL_LONGVARCHAR);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_BINARY);
+  is_num(res, SQL_BINARY);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_VARBINARY);
+  is_num(res, SQL_VARBINARY);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_LONGVARBINARY);
+  is_num(res, SQL_LONGVARBINARY);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 5, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_BIGINT);
+  is_num(res, SQL_BIGINT);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_TINYINT);
+  is_num(res, SQL_TINYINT);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 7, SQL_DESC_TYPE, NULL, 0, &len, &res));
-  IS_NUM(res, SQL_BIT);
+  is_num(res, SQL_BIT);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -486,7 +486,7 @@ ODBC_TEST(t_bug56677)
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "select * from bug56677", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &colCount));
 
-  IS_NUM(colCount, 2);
+  is_num(colCount, 2);
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData),
@@ -495,19 +495,19 @@ ODBC_TEST(t_bug56677)
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(nData, 100);
+  is_num(nData, 100);
   IS_STR(szData, "string 1", 8);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(nData, 200);
+  is_num(nData, 200);
   IS_STR(szData, "string 2", 8);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(nData, 300);
+  is_num(nData, 300);
   IS_STR(szData, "string 3", 8);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(nData, 400);
+  is_num(nData, 400);
   IS_STR(szData, "string 4", 8);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -550,12 +550,12 @@ ODBC_TEST(t_desccol_before_exec)
     NULL, &collen, NULL, NULL));
 
   IS_STR(colname, "tt_varchar", 11);
-  IS_NUM(collen, 128);
+  is_num(collen, 128);
 
   /* Just to make sure that SQLNumResultCols still works fine */
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &colCount));
 
-  IS_NUM(colCount, 1);
+  is_num(colCount, 1);
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &nData, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, szData, sizeof(szData),
@@ -577,12 +577,12 @@ ODBC_TEST(t_desccol_before_exec)
                                    "where tt_int <= ?", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_TYPE, NULL, 0, NULL, &coltype));
-  IS_NUM(coltype, SQL_VARCHAR);
+  is_num(coltype, SQL_VARCHAR);
 
   /* Just to make sure that SQLNumResultCols still works fine */
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &colCount));
 
-  IS_NUM(colCount, 2);
+  is_num(colCount, 2);
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &nData, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData),
@@ -679,8 +679,8 @@ ODBC_TEST(t_row_status)
   for (i= 0; i<2; ++i)
   {
     diag("Row %d, Desc %d, Parameter %d", i+1, arr1[i], arr2[i]);
-    IS_NUM(expectedRow1[i], arr1[i])
-    IS_NUM(arr1[i], arr2[i]);
+    is_num(expectedRow1[i], arr1[i])
+    is_num(arr1[i], arr2[i]);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -698,7 +698,7 @@ ODBC_TEST(t_row_status)
     {
       diag("Set %d Row %d, desc %d, parameter %d", i+1, j+1, arr1[j],
                     arr2[j]);
-      IS_NUM(expectedRow2[i][j], arr1[j])
+      is_num(expectedRow2[i][j], arr1[j])
 
     }
   }
@@ -754,11 +754,11 @@ ODBC_TEST(t_prefetch)
 
     CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
 
-    IS_NUM(7, myrowcount(hstmt1));
+    is_num(7, myrowcount(hstmt1));
 
     CHECK_STMT_RC(hstmt1, SQLMoreResults(hstmt1));
 
-    IS_NUM(6, myrowcount(hstmt1));
+    is_num(6, myrowcount(hstmt1));
 
     FAIL_IF(SQLMoreResults(hstmt1) != SQL_NO_DATA, "eof expected");
 
@@ -800,13 +800,13 @@ ODBC_TEST(t_outparams)
   /* rs-1 */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 3);
+  is_num(ncol, 3);
 
-  IS_NUM(my_fetch_int(Stmt, 1), 10);
+  is_num(my_fetch_int(Stmt, 1), 10);
   /* p_out does not have value at the moment */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_INTEGER, &val, 0, &len));
-  IS_NUM(len, SQL_NULL_DATA);
-  IS_NUM(my_fetch_int(Stmt, 3), 30);
+  is_num(len, SQL_NULL_DATA);
+  is_num(my_fetch_int(Stmt, 3), 30);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "eof expected");
 
@@ -814,21 +814,21 @@ ODBC_TEST(t_outparams)
   CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 3);
+  is_num(ncol, 3);
   
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
-  IS_NUM(my_fetch_int(Stmt, 2), 100);
-  IS_NUM(my_fetch_int(Stmt, 3), 200);
+  is_num(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 2), 100);
+  is_num(my_fetch_int(Stmt, 3), 200);
 
   /* rs-3 out params */
   CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 2);
+  is_num(ncol, 2);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
-  IS_NUM(my_fetch_int(Stmt, 2), 300);
+  is_num(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 2), 300);
   /* Only 1 row always */
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "eof expected");
 
@@ -914,12 +914,12 @@ ODBC_TEST(t_bug11766437)
     for (i= 0; i < rowcnt; ++i)
     {
       /* Verifying inserted id field */
-      IS_NUM(*((SQLINTEGER *)ptr), i);
+      is_num(*((SQLINTEGER *)ptr), i);
       /* Incrementing ptr by sizeof(SQLINTEGER) i.e. size of id column */
       ptr += sizeof(SQLINTEGER);
 
       /* Verifying length of id field which should be sizeof(SQLINTEGER) */
-      IS_NUM(*((SQLLEN *)ptr), sizeof(SQLINTEGER));
+      is_num(*((SQLLEN *)ptr), sizeof(SQLINTEGER));
       /* Incrementing ptr by sizeof(SQLLEN) last parameter of SQLBindCol  */
       ptr += sizeof(SQLLEN);
 
@@ -930,7 +930,7 @@ ODBC_TEST(t_bug11766437)
       ptr+=MAX_CHAR_SIZE;
 
       /* Verifying length of name field */
-      IS_NUM(*((SQLLEN *)ptr), strlen(tbuf));
+      is_num(*((SQLLEN *)ptr), strlen(tbuf));
       /* Incrementing ptr by sizeof(SQLLEN) last parameter of SQLBindCol  */
       ptr += sizeof(SQLLEN);
 

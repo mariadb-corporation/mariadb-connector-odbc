@@ -165,12 +165,12 @@ void diag(const char *fstr, ...)
   fprintf(stdout,"\n");
 }
 
-void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE *Handle)
+void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
   SQLCHAR SQLState[6];
   SQLINTEGER NativeError;
   SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
-  SQLINTEGER TextLengthPtr;
+  SQLSMALLINT TextLengthPtr;
 
   SQLGetDiagRec(HandleType, Handle, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
   fprintf(stdout, "[%s] (%d) %s\n", SQLState, NativeError, SQLMessage);
@@ -253,14 +253,14 @@ if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_SUCCESS)\
 #define ERR_SIMPLE_STMT(stmt, stmtstr)\
 if (SQLExecDirect((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
 {\
-  fprintf(stdout, "Error expectedin %s:%d:\n", __FILE__, __LINE__);\
+  fprintf(stdout, "Error expected in %s:%d:\n", __FILE__, __LINE__);\
   return FAIL;\
 }
 
 #define ERR_SIMPLE_STMTW(stmt, stmtstr)\
 if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
 {\
-  fprintf(stdout, "Error expectedin %s:%d:\n", __FILE__, __LINE__);\
+  fprintf(stdout, "Error expected in %s:%d:\n", __FILE__, __LINE__);\
   return FAIL;\
 }
 
@@ -277,7 +277,7 @@ if (!(SQL_SUCCEEDED(rc)))\
 #define CHECK_ENV_RC(env,rc) CHECK_HANDLE_RC(SQL_HANDLE_ENV,env,rc)
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
-#define IS_NUM(A,B) \
+#define is_num(A,B) \
   if ((int)(A) != (int)(B))\
   {\
     diag("%s %d: expected value %d instead of %d", __FILE__, __LINE__, (B), (A));\
@@ -374,36 +374,6 @@ const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData,SQLUSMALLINT icol)
 
 #define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF(strncmp((A), (B), (C)) != 0, "String comparison failed")
 
-#define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt),(stmtstr),SQL_NTS) != SQL_SUCCESS)\
-{\
-  fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
-  odbc_print_error(SQL_HANDLE_STMT, (stmt));\
-  return FAIL;\
-}
-
-#define OK_SIMPLE_STMTW(stmt, stmtstr)\
-if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_SUCCESS)\
-{\
-  fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
-  odbc_print_error(SQL_HANDLE_STMT, (stmt));\
-  return FAIL;\
-}
-
-#define ERR_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
-{\
-  fprintf(stdout, "Error expectedin %s:%d:\n", __FILE__, __LINE__);\
-  return FAIL;\
-}
-
-#define ERR_SIMPLE_STMTW(stmt, stmtstr)\
-if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
-{\
-  fprintf(stdout, "Error expectedin %s:%d:\n", __FILE__, __LINE__);\
-  return FAIL;\
-}
-
 int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 {
   SQLCHAR     sql_state[6];
@@ -466,6 +436,10 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   SQLSMALLINT Length;
   SQLHANDLE Stmt1;
 
+  *Env=         NULL;
+  *Connection=  NULL;
+  *Stmt=        NULL;
+
   rc= SQLAllocHandle(SQL_HANDLE_ENV, NULL, Env);
   FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate environment handle");
   rc= SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION,
@@ -475,8 +449,8 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   rc= SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection);
   FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate connection handle");
 
-  _snprintf(DSNString, 1024, "DSN=test;UID=%s;PWD=%s;PORT=3306;DATABASE=%s;OPTION=%ul;", my_uid,
-           my_pwd, my_schema, my_options );
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;", my_dsn, my_uid,
+           my_pwd, my_port, my_schema, my_options );
   printf("DSN: %s\n", DSNString);
 
   rc= SQLDriverConnect(*Connection,NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
@@ -503,9 +477,18 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 
 void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
 {
-  SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
-  SQLFreeHandle(SQL_HANDLE_DBC, Connection);
-  SQLFreeHandle(SQL_HANDLE_ENV, Env);
+  if (Stmt != NULL)
+  {
+    SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+  }
+  if (Connection != NULL)
+  {
+    SQLFreeHandle(SQL_HANDLE_DBC, Connection);
+  }
+  if ( Env!= NULL)
+  {
+    SQLFreeHandle(SQL_HANDLE_ENV, Env);
+  }
 }
 
 #define IS_WSTR(a, b, c) \
@@ -544,7 +527,13 @@ SQLWCHAR *dup_char_as_sqlwchar(SQLCHAR *from)
 int run_tests(MA_ODBC_TESTS *tests)
 {
   int rc, i=1, failed=0;
-  ODBC_Connect(&Env,&Connection,&Stmt);
+
+  if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
+  {
+    ODBC_Disconnect(Env,Connection,Stmt);
+    fprintf(stdout, "HALT! Could not connect to the server\n");
+    return 1;
+  }
   fprintf(stdout, "1..%d\n", tests_planned);
   while (tests->title)
   {

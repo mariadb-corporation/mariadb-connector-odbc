@@ -63,7 +63,7 @@ ODBC_TEST(my_positioned_cursor)
          "WHERE CURRENT OF mysqlcur");
 
   CHECK_STMT_RC(Stmt, SQLRowCount(hstmt_pos, &nRowCount));
-  IS_NUM(nRowCount, 1);
+  is_num(nRowCount, 1);
 
   CHECK_STMT_RC(hstmt_pos, SQLFreeStmt(hstmt_pos, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -78,7 +78,7 @@ ODBC_TEST(my_positioned_cursor)
   OK_SIMPLE_STMT(hstmt_pos, "DELETE FROM my_demo_cursor WHERE CURRENT OF mysqlcur");
 
   CHECK_STMT_RC(Stmt, SQLRowCount(hstmt_pos, &nRowCount));
-  IS_NUM(nRowCount, 1);
+  is_num(nRowCount, 1);
 
   /* free the statement cursor */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -90,19 +90,19 @@ ODBC_TEST(my_positioned_cursor)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_demo_cursor");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 0);
+  is_num(my_fetch_int(Stmt, 1), 0);
   IS_STR(my_fetch_str(Stmt, data, 2), "MySQL0", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 2);
+  is_num(my_fetch_int(Stmt, 1), 2);
   IS_STR(my_fetch_str(Stmt, data, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 3);
+  is_num(my_fetch_int(Stmt, 1), 3);
   IS_STR(my_fetch_str(Stmt, data, 2), "MySQL3", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 4);
+  is_num(my_fetch_int(Stmt, 1), 4);
   IS_STR(my_fetch_str(Stmt, data, 2), "updated", 7);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -144,7 +144,7 @@ ODBC_TEST(my_setpos_cursor)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  IS_NUM(nRowCount, 1);
+  is_num(nRowCount, 1);
 
   /* position to second row and delete it ..*/
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 2L));
@@ -153,7 +153,7 @@ ODBC_TEST(my_setpos_cursor)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  IS_NUM(nRowCount, 1);
+  is_num(nRowCount, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -162,19 +162,19 @@ ODBC_TEST(my_setpos_cursor)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_demo_cursor");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 0);
+  is_num(my_fetch_int(Stmt, 1), 0);
   IS_STR(my_fetch_str(Stmt, name, 2), "first-row", 9);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 2);
+  is_num(my_fetch_int(Stmt, 1), 2);
   IS_STR(my_fetch_str(Stmt, name, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 3);
+  is_num(my_fetch_int(Stmt, 1), 3);
   IS_STR(my_fetch_str(Stmt, name, 2), "MySQL3", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 4);
+  is_num(my_fetch_int(Stmt, 1), 4);
   IS_STR(my_fetch_str(Stmt, name, 2), "MySQL4", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -298,13 +298,13 @@ ODBC_TEST(t_setpos_del_all)
   CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_FIRST, 1, NULL,
                                   rgfRowStatus));
 
-  IS_NUM(nData[0], 100);
+  is_num(nData[0], 100);
   IS_STR(szData[0], "MySQL1", 6);
-  IS_NUM(nData[1], 200);
+  is_num(nData[1], 200);
   IS_STR(szData[1], "MySQL2", 6);
-  IS_NUM(nData[2], 300);
+  is_num(nData[2], 300);
   IS_STR(szData[2], "MySQL3", 6);
-  IS_NUM(nData[3], 400);
+  is_num(nData[3], 400);
   IS_STR(szData[3], "MySQL4", 6);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
@@ -312,7 +312,7 @@ ODBC_TEST(t_setpos_del_all)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 4);
+  is_num(nlen, 4);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -396,9 +396,9 @@ ODBC_TEST(t_setpos_position)
   CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 1, &pcrow,
                                   &rgfRowStatus));
 
-  IS_NUM(rgfRowStatus,SQL_ROW_SUCCESS);
-  IS_NUM(nData, 100);
-  IS_NUM(nlen, 6);
+  is_num(rgfRowStatus,SQL_ROW_SUCCESS);
+  is_num(nData, 100);
+  is_num(nlen, 6);
   IS_STR(szData, "MySQL1", 6);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
@@ -414,7 +414,7 @@ ODBC_TEST(t_setpos_position)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -422,15 +422,15 @@ ODBC_TEST(t_setpos_position)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_position");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1000);
+  is_num(my_fetch_int(Stmt, 1), 1000);
   IS_STR(my_fetch_str(Stmt, szData, 2), "updated", 7);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 1), 200);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 1), 300);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL3", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -440,18 +440,18 @@ ODBC_TEST(t_setpos_position)
   OK_SIMPLE_STMT(Stmt, "DELETE FROM t_setpos_position WHERE b = 'updated'");
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_position");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 1), 200);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 1), 300);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL3", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -515,7 +515,7 @@ ODBC_TEST(t_pos_column_ignore)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_column_ignore ORDER BY col1 ASC");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 10);
+  is_num(my_fetch_int(Stmt, 1), 10);
   IS_STR(my_fetch_str(Stmt, szData, 2), "venu", 4);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -539,7 +539,7 @@ ODBC_TEST(t_pos_column_ignore)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -547,7 +547,7 @@ ODBC_TEST(t_pos_column_ignore)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_column_ignore ORDER BY col1 ASC");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 99);
+  is_num(my_fetch_int(Stmt, 1), 99);
   IS_STR(my_fetch_str(Stmt, szData, 2), "venu", 4);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -588,7 +588,7 @@ ODBC_TEST(t_pos_datetime_delete)
 
   CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 1, NULL,
                                   &rgfRowStatus));
-  IS_NUM(int_data, 1);
+  is_num(int_data, 1);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
 
@@ -601,22 +601,22 @@ ODBC_TEST(t_pos_datetime_delete)
   OK_SIMPLE_STMT(hstmt1, "DELETE FROM t_pos_datetime_delete WHERE CURRENT OF venu_cur");
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &row_count));
-  IS_NUM(row_count, 1);
+  is_num(row_count, 1);
 
   CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 1, NULL,
                                   &rgfRowStatus));
-  IS_NUM(int_data, 0);
+  is_num(int_data, 0);
 
   CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 1, NULL, NULL));
-  IS_NUM(int_data, 2);
+  is_num(int_data, 2);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
-  IS_NUM(int_data, 2);
+  is_num(int_data, 2);
 
   OK_SIMPLE_STMT(hstmt1, "DELETE FROM t_pos_datetime_delete WHERE CURRENT OF venu_cur");
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &row_count));
-  IS_NUM(row_count, 1);
+  is_num(row_count, 1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
 
@@ -626,7 +626,7 @@ ODBC_TEST(t_pos_datetime_delete)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_datetime_delete");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 0);
+  is_num(my_fetch_int(Stmt, 1), 0);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
@@ -785,7 +785,7 @@ ODBC_TEST(t_getcursor)
     if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
     {
       fprintf(stdout,"default cursor name  : %s(%d)\n",curname,nlen);
-      IS_NUM(nlen, 8);
+      is_num(nlen, 8);
       IS_STR(curname,"SQL_CUR0", 9);
 
       rc = SQLGetCursorName(hstmt3,curname,50,&nlen);
@@ -795,7 +795,7 @@ ODBC_TEST(t_getcursor)
       rc = SQLGetCursorName(hstmt1,curname,4,&nlen);
       FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
       fprintf(stdout,"truncated cursor name: %s(%d)\n",curname,nlen);
-      IS_NUM(nlen, 8);
+      is_num(nlen, 8);
       IS_STR(curname, "SQL", 4);
 
       rc = SQLGetCursorName(hstmt1,curname,0,&nlen);
@@ -805,12 +805,12 @@ ODBC_TEST(t_getcursor)
 
       FAIL_IF(SQLGetCursorName(hstmt1, curname, 8, &nlen) != SQL_SUCCESS_WITH_INFO, "success with info expected");
       fprintf(stdout,"truncated cursor name: %s(%d)\n",curname,nlen);
-      IS_NUM(nlen, 8);
+      is_num(nlen, 8);
       IS_STR(curname, "SQL_CUR", 8);
 
       rc = SQLGetCursorName(hstmt1,curname,9,&nlen);
       fprintf(stdout,"full cursor name     : %s(%d)\n",curname,nlen);
-      IS_NUM(nlen, 8);
+      is_num(nlen, 8);
       IS_STR(curname, "SQL_CUR0", 9);
     }
 
@@ -819,7 +819,7 @@ ODBC_TEST(t_getcursor)
 
     rc = SQLGetCursorName(hstmt1,curname,8,&nlen);
     CHECK_STMT_RC(hstmt1,rc);
-    IS_NUM(nlen, 7);
+    is_num(nlen, 7);
     IS_STR(curname, "venucur", 8);
 
     rc = SQLFreeHandle(SQL_HANDLE_STMT,hstmt1);
@@ -899,7 +899,7 @@ ODBC_TEST(t_acc_crash)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(my_fetch_int(Stmt, 1), 9);
+  is_num(my_fetch_int(Stmt, 1), 9);
   IS_STR(my_fetch_str(Stmt, data, 2), "updated", 7);
   IS_STR(my_fetch_str(Stmt, data, 3), "2010-09-25", 10);
 
@@ -944,7 +944,7 @@ ODBC_TEST(tmysql_setpos_del)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -952,27 +952,27 @@ ODBC_TEST(tmysql_setpos_del)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_del");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 1), 100);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL1", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 1), 200);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 1), 300);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL3", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 400);
+  is_num(my_fetch_int(Stmt, 1), 400);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL4", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 1), 300);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL6", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 1), 300);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL7", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1015,7 +1015,7 @@ ODBC_TEST(tmysql_setpos_del1)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1023,15 +1023,15 @@ ODBC_TEST(tmysql_setpos_del1)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_del1");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 1), 100);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL1", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 1), 200);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 400);
+  is_num(my_fetch_int(Stmt, 1), 400);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL4", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1278,7 +1278,7 @@ ODBC_TEST(tmysql_pos_delete)
   OK_SIMPLE_STMT(hstmt1, "   DELETE FROM tmysql_pos_delete WHERE CURRENT OF venu_cur");
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rows));
-  IS_NUM(rows, 1);
+  is_num(rows, 1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
 
@@ -1287,7 +1287,7 @@ ODBC_TEST(tmysql_pos_delete)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_pos_delete");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(my_fetch_int(Stmt, 1), 2);
+  is_num(my_fetch_int(Stmt, 1), 2);
   IS_STR(my_fetch_str(Stmt, buff, 2), "MySQL", 5);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1342,11 +1342,11 @@ ODBC_TEST(t_pos_update)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_update");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 1), 100);
   IS_STR(my_fetch_str(Stmt, szData, 2), "venu", 4);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 999);
+  is_num(my_fetch_int(Stmt, 1), 999);
   IS_STR(my_fetch_str(Stmt, szData, 2), "update", 5);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1396,7 +1396,7 @@ ODBC_TEST(tmysql_pos_update_ex)
   CHECK_STMT_RC(hstmt1, SQLExecDirect(hstmt1, sql, SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rows));
-  IS_NUM(rows, 1);
+  is_num(rows, 1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
 
@@ -1405,11 +1405,11 @@ ODBC_TEST(tmysql_pos_update_ex)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_updex");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 1), 100);
   IS_STR(my_fetch_str(Stmt, sql, 2), "venu", 4);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 999);
+  is_num(my_fetch_int(Stmt, 1), 999);
   IS_STR(my_fetch_str(Stmt, sql, 2), "tmysql_pos_update_ex", 20);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1457,7 +1457,7 @@ ODBC_TEST(tmysql_pos_update_ex1)
   CHECK_STMT_RC(hstmt1, SQLExecDirect(hstmt1, sql, SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rows));
-  IS_NUM(rows, 1);
+  is_num(rows, 1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
 
@@ -1466,11 +1466,11 @@ ODBC_TEST(tmysql_pos_update_ex1)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_updex1");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 1), 100);
   IS_STR(my_fetch_str(Stmt, sql, 2), "venu", 4);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 999);
+  is_num(my_fetch_int(Stmt, 1), 999);
   IS_STR(my_fetch_str(Stmt, sql, 2), "tmysql_pos_update_ex1", 21);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1553,7 +1553,7 @@ ODBC_TEST(tmysql_pos_update_ex4)
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1604,7 +1604,7 @@ ODBC_TEST(tmysql_pos_dyncursor)
          "WHERE CURRENT OF venu_cur");
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rows));
-  IS_NUM(rows, 1);
+  is_num(rows, 1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
 
@@ -1613,11 +1613,11 @@ ODBC_TEST(tmysql_pos_dyncursor)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_pos_dyncursor");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 1), 1);
   IS_STR(my_fetch_str(Stmt, buff, 2), "foo", 3);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 9);
+  is_num(my_fetch_int(Stmt, 1), 9);
   IS_STR(my_fetch_str(Stmt, buff, 2), "update", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1936,14 +1936,14 @@ ODBC_TEST(tmysql_setpos_pkdel2)
 
   CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 4,
                                   &pcrow, &rgfRowStatus));
-  IS_NUM(pcrow, 1);
-  IS_NUM(nData, 40);
+  is_num(pcrow, 1);
+  is_num(nData, 40);
   IS_STR(szData, "MySQL4", 6);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1951,18 +1951,18 @@ ODBC_TEST(tmysql_setpos_pkdel2)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_pkdel2");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
-  IS_NUM(my_fetch_int(Stmt, 2), 10);
+  is_num(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 2), 10);
   IS_STR(my_fetch_str(Stmt, szData, 3), "MySQL1", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
-  IS_NUM(my_fetch_int(Stmt, 2), 20);
+  is_num(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 2), 20);
   IS_STR(my_fetch_str(Stmt, szData, 3), "MySQL2", 6);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 300);
-  IS_NUM(my_fetch_int(Stmt, 2), 30);
+  is_num(my_fetch_int(Stmt, 1), 300);
+  is_num(my_fetch_int(Stmt, 2), 30);
   IS_STR(my_fetch_str(Stmt, szData, 3), "MySQL3", 6);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -2211,7 +2211,7 @@ ODBC_TEST(my_setpos_upd_pk_order1)
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rows));
-  IS_NUM(rows, 1);
+  is_num(rows, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -2219,14 +2219,14 @@ ODBC_TEST(my_setpos_upd_pk_order1)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_setpos_upd_pk_order1");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 100);
+  is_num(my_fetch_int(Stmt, 1), 100);
   IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL1", 6);
-  IS_NUM(my_fetch_int(Stmt, 3), 1);
+  is_num(my_fetch_int(Stmt, 3), 1);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1000);
+  is_num(my_fetch_int(Stmt, 1), 1000);
   IS_STR(my_fetch_str(Stmt, szData, 2), "updated", 7);
-  IS_NUM(my_fetch_int(Stmt, 3), 2);
+  is_num(my_fetch_int(Stmt, 3), 2);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
@@ -2268,23 +2268,23 @@ ODBC_TEST(tmy_cursor2)
 
   FAIL_IF(SQLGetCursorName(Stmt, getCursor, 0, &getLen) != SQL_SUCCESS_WITH_INFO, "success with info expected");
   IS_STR(getCursor, "", 1);
-  IS_NUM(getLen, 6);
+  is_num(getLen, 6);
 
   FAIL_IF(SQLGetCursorName(Stmt, getCursor, -1, &getLen) != SQL_ERROR, "Error expected");
 
   FAIL_IF(SQLGetCursorName(Stmt, getCursor, 4, &getLen) != SQL_SUCCESS_WITH_INFO, "success with info expected");
               
   IS_STR(getCursor, "MYO", 4);
-  IS_NUM(getLen, 6);
+  is_num(getLen, 6);
 
   FAIL_IF(SQLGetCursorName(Stmt, getCursor, 6, &getLen)!= SQL_SUCCESS_WITH_INFO, "success with info expected");
               
   IS_STR(getCursor, "MYODB", 6);
-  IS_NUM(getLen, 6);
+  is_num(getLen, 6);
 
   CHECK_STMT_RC(Stmt, SQLGetCursorName(Stmt, getCursor, 7, &getLen));
   IS_STR(getCursor, "MYODBC", 7);
-  IS_NUM(getLen, 6);
+  is_num(getLen, 6);
 
   return OK;
 }
@@ -2407,7 +2407,7 @@ ODBC_TEST(t_bug28255)
   OK_SIMPLE_STMT(Stmt, "SELECT a FROM t_bug28255 WHERE b > 3");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 1), 1);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
   FAIL_IF(SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE) != SQL_ERROR, "Error expected");
@@ -2418,16 +2418,16 @@ ODBC_TEST(t_bug28255)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug28255");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
-  IS_NUM(my_fetch_int(Stmt, 2), 3);
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 3);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
-  IS_NUM(my_fetch_int(Stmt, 2), 4);
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 4);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
-  IS_NUM(my_fetch_int(Stmt, 2), 5);
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 5);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2455,13 +2455,13 @@ ODBC_TEST(bug10563)
   OK_SIMPLE_STMT(Stmt, "SELECT b FROM t_bug10563 WHERE b > 3");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 4);
+  is_num(my_fetch_int(Stmt, 1), 4);
 
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
-  IS_NUM(nlen, 1);
+  is_num(nlen, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -2469,8 +2469,8 @@ ODBC_TEST(bug10563)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug10563");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
-  IS_NUM(my_fetch_int(Stmt, 2), 3);
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 3);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2521,14 +2521,14 @@ ODBC_TEST(bug6741)
   {
     printf("xval[%d] = %d\n", i, results[i].xval);
     printf("ylen[%d] = %ld\n", i, results[i].ylen);
-    IS_NUM(results[i].xval, i);
+    is_num(results[i].xval, i);
     if(i % 2)
     {
-      IS_NUM(results[i].ylen, SQL_NULL_DATA);
+      is_num(results[i].ylen, SQL_NULL_DATA);
     }
     else
     {
-      IS_NUM(results[i].ylen, sizeof(SQLINTEGER));
+      is_num(results[i].ylen, sizeof(SQLINTEGER));
     }
   }
 
@@ -2561,7 +2561,7 @@ ODBC_TEST(t_update_type)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_USHORT, val, 0, NULL));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(*val, 0xaaaa);
+  is_num(*val, 0xaaaa);
 
   *val= 0xcccc;
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
@@ -2572,7 +2572,7 @@ ODBC_TEST(t_update_type)
   *val= 0;
   OK_SIMPLE_STMT(Stmt, "select * from t_update_no_strlen");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(*val, 0xcccc);
+  is_num(*val, 0xcccc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_no_strlen");
@@ -2633,9 +2633,9 @@ ODBC_TEST(t_update_offsets)
   for (i= 0; i < rowcnt; ++i)
   {
     sprintf((char *)buf, "name%d", i);
-    IS_NUM(rows[row_offset1+i].id, i);
+    is_num(rows[row_offset1+i].id, i);
     IS_STR(rows[row_offset1+i].name, buf, strlen((char *)buf) + 1);
-    IS_NUM(rows[row_offset1+i].namelen, strlen((char *)buf));
+    is_num(rows[row_offset1+i].namelen, strlen((char *)buf));
 
     /* change the values here */
     rows[row_offset2+i].id= i * 10;
@@ -2650,7 +2650,7 @@ ODBC_TEST(t_update_offsets)
 
   /* verify updates */
   memset(rows, 0, sizeof(rows));
-  IS_NUM(rows[0].id, 0);
+  is_num(rows[0].id, 0);
   OK_SIMPLE_STMT(Stmt, "select id,name from t_update_offsets order by id");
 
   bind_offset= row_size;
@@ -2659,9 +2659,9 @@ ODBC_TEST(t_update_offsets)
   for (i= 0; i < rowcnt; ++i)
   {
     sprintf((char *)buf, "name_%d_%d", i, i * 10);
-    IS_NUM(rows[i+1].id, i * 10);
+    is_num(rows[i+1].id, i * 10);
     IS_STR(rows[i+1].name, buf, strlen((char *)buf) + 1);
-    IS_NUM(rows[i+1].namelen, strlen((char *)buf));
+    is_num(rows[i+1].namelen, strlen((char *)buf));
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -2701,10 +2701,10 @@ ODBC_TEST(t_bug6157)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &data, 0, NULL));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(data, 6157);
+  is_num(data, 6157);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(data, 9999);
+  is_num(data, 9999);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
@@ -2772,27 +2772,27 @@ ODBC_TEST(t_bug32420)
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 100);
+  is_num(row_count, 4);
+  is_num(nData[0], 100);
   IS_STR(szData[0], "string 1", 8);
-  IS_NUM(nData[1], 200);
+  is_num(nData[1], 200);
   IS_STR(szData[1], "string 2", 8);
-  IS_NUM(nData[2], 300);
+  is_num(nData[2], 300);
   IS_STR(szData[2], "string 3", 8);
-  IS_NUM(nData[3], 400);
+  is_num(nData[3], 400);
   IS_STR(szData[3], "string 4", 8);
 
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 500);
+  is_num(row_count, 4);
+  is_num(nData[0], 500);
   IS_STR(szData[0], "string 5", 8);
-  IS_NUM(nData[1], 600);
+  is_num(nData[1], 600);
   IS_STR(szData[1], "string 6", 8);
-  IS_NUM(nData[2], 700);
+  is_num(nData[2], 700);
   IS_STR(szData[2], "string 7", 8);
-  IS_NUM(nData[3], 800);
+  is_num(nData[3], 800);
   IS_STR(szData[3], "string 8", 8);
 
   /*
@@ -2802,12 +2802,12 @@ ODBC_TEST(t_bug32420)
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 3);
-  IS_NUM(nData[0], 900);
+  is_num(row_count, 3);
+  is_num(nData[0], 900);
   IS_STR(szData[0], "string 9", 8);
-  IS_NUM(nData[1], 910);
+  is_num(nData[1], 910);
   IS_STR(szData[1], "string A", 8);
-  IS_NUM(nData[2], 920);
+  is_num(nData[2], 920);
   IS_STR(szData[2], "string B", 8);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
@@ -2860,27 +2860,27 @@ ODBC_TEST(t_bug32420)
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 100);
+  is_num(row_count, 4);
+  is_num(nData[0], 100);
   IS_STR(szData[0], "string 1", 8);
-  IS_NUM(nData[1], 200);
+  is_num(nData[1], 200);
   IS_STR(szData[1], "string 2", 8);
-  IS_NUM(nData[2], 300);
+  is_num(nData[2], 300);
   IS_STR(szData[2], "string 3", 8);
-  IS_NUM(nData[3], 400);
+  is_num(nData[3], 400);
   IS_STR(szData[3], "string 4", 8);
 
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 500);
+  is_num(row_count, 4);
+  is_num(nData[0], 500);
   IS_STR(szData[0], "string 5", 8);
-  IS_NUM(nData[1], 600);
+  is_num(nData[1], 600);
   IS_STR(szData[1], "string 6", 8);
-  IS_NUM(nData[2], 700);
+  is_num(nData[2], 700);
   IS_STR(szData[2], "string 7", 8);
-  IS_NUM(nData[3], 800);
+  is_num(nData[3], 800);
   IS_STR(szData[3], "string 8", 8);
 
   /*
@@ -2890,54 +2890,54 @@ ODBC_TEST(t_bug32420)
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_NEXT, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 3);
-  IS_NUM(nData[0], 900);
+  is_num(row_count, 3);
+  is_num(nData[0], 900);
   IS_STR(szData[0], "string 9", 8);
-  IS_NUM(nData[1], 910);
+  is_num(nData[1], 910);
   IS_STR(szData[1], "string A", 8);
-  IS_NUM(nData[2], 920);
+  is_num(nData[2], 920);
   IS_STR(szData[2], "string B", 8);
 
   /* Dynamic cursor allows fetching first records */
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_FIRST, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 100);
+  is_num(row_count, 4);
+  is_num(nData[0], 100);
   IS_STR(szData[0], "string 1", 8);
-  IS_NUM(nData[1], 200);
+  is_num(nData[1], 200);
   IS_STR(szData[1], "string 2", 8);
-  IS_NUM(nData[2], 300);
+  is_num(nData[2], 300);
   IS_STR(szData[2], "string 3", 8);
-  IS_NUM(nData[3], 400);
+  is_num(nData[3], 400);
   IS_STR(szData[3], "string 4", 8);
 
   /* Fetching last records */
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_LAST, 0, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 800);
+  is_num(row_count, 4);
+  is_num(nData[0], 800);
   IS_STR(szData[0], "string 8", 8);
-  IS_NUM(nData[1], 900);
+  is_num(nData[1], 900);
   IS_STR(szData[1], "string 9", 8);
-  IS_NUM(nData[2], 910);
+  is_num(nData[2], 910);
   IS_STR(szData[2], "string A", 8);
-  IS_NUM(nData[3], 920);
+  is_num(nData[3], 920);
   IS_STR(szData[3], "string B", 8);
 
   /* Fetching with absolute offset */
   CHECK_STMT_RC(hstmt1, SQLExtendedFetch(hstmt1, SQL_FETCH_ABSOLUTE, 3, &row_count,
                                    rgfRowStatus));
 
-  IS_NUM(row_count, 4);
-  IS_NUM(nData[0], 300);
+  is_num(row_count, 4);
+  is_num(nData[0], 300);
   IS_STR(szData[0], "string 3", 8);
-  IS_NUM(nData[1], 400);
+  is_num(nData[1], 400);
   IS_STR(szData[1], "string 4", 8);
-  IS_NUM(nData[2], 500);
+  is_num(nData[2], 500);
   IS_STR(szData[2], "string 5", 8);
-  IS_NUM(nData[3], 600);
+  is_num(nData[3], 600);
   IS_STR(szData[3], "string 6", 8);
 
    CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
@@ -2976,20 +2976,20 @@ int t_cursor_pos(SQLHANDLE Stmt)
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
 
   /* this covers bug#29765 and bug#33388 */
-  IS_NUM(x[0], 0);
+  is_num(x[0], 0);
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
-  IS_NUM(x[0], 1);
+  is_num(x[0], 1);
 
   y[0]++;
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
-  IS_NUM(x[0], 2);
+  is_num(x[0], 2);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PRIOR, 0));
-  IS_NUM(x[0], 1);
+  is_num(x[0], 1);
 
   /* and rowset tests */
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
@@ -2997,7 +2997,7 @@ int t_cursor_pos(SQLHANDLE Stmt)
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   for (i= 0; i < 3; ++i)
-    IS_NUM(x[i], 2 + i);
+    is_num(x[i], 2 + i);
 
   /* delete 2,3,4 */
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
@@ -3005,7 +3005,7 @@ int t_cursor_pos(SQLHANDLE Stmt)
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   for (i= 0; i < 3; ++i)
   {
-    IS_NUM(x[i], 5 + i);
+    is_num(x[i], 5 + i);
     y[i]++;
   }
 
@@ -3017,7 +3017,7 @@ int t_cursor_pos(SQLHANDLE Stmt)
                                 (SQLPOINTER)1, 0));
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
-  IS_NUM(x[0], 8);
+  is_num(x[0], 8);
   y[0]++;
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
@@ -3027,8 +3027,8 @@ int t_cursor_pos(SQLHANDLE Stmt)
   for (i= 0; i < remaining_row_count; ++i)
   {
     CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
-    IS_NUM(x[0], remaining_rows[i]);
-    IS_NUM(y[0], x[0] + 1);
+    is_num(x[0], remaining_rows[i]);
+    is_num(y[0], x[0] + 1);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -3058,7 +3058,7 @@ ODBC_TEST(t_cursor_pos_dynamic)
   ODBC_Connect(&henv1, &hdbc1, &hstmt1);
   CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
                                  (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
-  IS_NUM(t_cursor_pos(hstmt1), OK);
+  is_num(t_cursor_pos(hstmt1), OK);
   (void) ODBC_Disconnect(henv1, hdbc1, hstmt1);
 //  SET_DSN_OPTION(0);
   return OK;
@@ -3085,7 +3085,7 @@ ODBC_TEST(t_bug11846)
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_LONG, &val_out, 0, NULL));
-  IS_NUM(val_out, val_in);
+  is_num(val_out, val_in);
 
   ODBC_Disconnect(henv1, hdbc1, hstmt1);
   //SET_DSN_OPTION(0);
@@ -3129,7 +3129,7 @@ ODBC_TEST(t_dae_setpos_insert)
   offset= sizeof(t_dae_row);
   FAIL_IF(SQLSetPos(Stmt, 0, SQL_ADD, SQL_LOCK_NO_CHANGE)!= SQL_NEED_DATA, "SQL_NEED_DATA expected");
   FAIL_IF(SQLParamData(Stmt, &paramptr) != SQL_NEED_DATA, "SQL_NEED_DATA expected");
-  IS_NUM(paramptr, ((SQLCHAR *)holder + offset));
+  is_num(paramptr, ((SQLCHAR *)holder + offset));
   CHECK_STMT_RC(Stmt, SQLPutData(Stmt, data[1].y, 10));
   CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &paramptr));
 
@@ -3141,10 +3141,10 @@ ODBC_TEST(t_dae_setpos_insert)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, data[0].y, 11, &data[0].ylen));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(20, data[0].x);
-  IS_NUM(40, data[0].z);
+  is_num(20, data[0].x);
+  is_num(40, data[0].z);
   IS_STR(data[0].y, data[1].y, 11);
-  IS_NUM(10, data[0].ylen);
+  is_num(10, data[0].ylen);
   
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_dae");
@@ -3183,7 +3183,7 @@ ODBC_TEST(t_dae_setpos_update)
   /* perform update and provide data */
   FAIL_IF(SQLSetPos(Stmt, 0, SQL_UPDATE, SQL_LOCK_NO_CHANGE) != SQL_NEED_DATA, "SQL_NEED_DATA expected");
   FAIL_IF(SQLParamData(Stmt, &paramptr) != SQL_NEED_DATA, "SQL_NEED_DATA expected");
-  IS_NUM(paramptr, holder);
+  is_num(paramptr, holder);
   CHECK_STMT_RC(Stmt, SQLPutData(Stmt, yval, 10));
   CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &paramptr));
 
@@ -3197,10 +3197,10 @@ ODBC_TEST(t_dae_setpos_update)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, yout, 11, &ylen));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(20, x);
-  IS_NUM(40, z);
+  is_num(20, x);
+  is_num(40, z);
   IS_STR(yval, yout, 11);
-  IS_NUM(10, ylen);
+  is_num(10, ylen);
   
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_dae");
@@ -3300,7 +3300,7 @@ ODBC_TEST(t_bug41946)
 
 	CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-	IS_NUM(nData, 33);
+	is_num(nData, 33);
 	IS_STR(szData, "insert-new", 11);
 
 	CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

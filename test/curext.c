@@ -92,7 +92,7 @@ ODBC_TEST(my_pcbvalue)
     CHECK_STMT_RC(Stmt, rc);
 
     diag(" total rows updated:%d\n",nRowCount);
-    IS_NUM(nRowCount, 1);
+    is_num(nRowCount, 1);
 
     /* Free statement cursor resorces */
     rc = SQLFreeStmt(Stmt, SQL_UNBIND);
@@ -116,7 +116,7 @@ ODBC_TEST(my_pcbvalue)
 
     rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(nData, 99999);
+    is_num(nData, 99999);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
     CHECK_STMT_RC(Stmt,rc);
@@ -209,7 +209,7 @@ ODBC_TEST(my_pcbvalue_add)
     CHECK_STMT_RC(Stmt, rc);
 
     diag(" total rows updated:%d\n",nRowCount);
-    IS_NUM(nRowCount, 1);
+    is_num(nRowCount, 1);
 
     /* Free statement cursor resorces */
     rc = SQLFreeStmt(Stmt, SQL_UNBIND);
@@ -237,7 +237,7 @@ ODBC_TEST(my_pcbvalue_add)
 
     rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(nData, 99999);
+    is_num(nData, 99999);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
     CHECK_STMT_RC(Stmt,rc);
@@ -282,14 +282,14 @@ ODBC_TEST(my_columnspace)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM `TestColNames`");
 
-  IS_NUM(my_print_non_format_result(Stmt), 2);
+  is_num(my_print_non_format_result(Stmt), 2);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT `Value One`,`Value Two`,`Value Three` FROM `TestColNames`");
 
-  IS_NUM(my_print_non_format_result(Stmt), 2);
+  is_num(my_print_non_format_result(Stmt), 2);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);

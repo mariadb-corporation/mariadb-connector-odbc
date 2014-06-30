@@ -123,7 +123,7 @@ ODBC_TEST(t_tran)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_tran");
 
   SQLRowCount(Stmt, (SQLLEN *)&Rows);
-  IS_NUM(Rows, 1);
+  is_num(Rows, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -146,7 +146,7 @@ ODBC_TEST(t_isolation)
   /* Check that the default is REPEATABLE READ. */
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, &isolation,
                                  SQL_IS_POINTER, NULL));
-  IS_NUM(isolation, SQL_TXN_REPEATABLE_READ);
+  is_num(isolation, SQL_TXN_REPEATABLE_READ);
 
   /* Change it to READ UNCOMMITTED. */
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION,
@@ -155,7 +155,7 @@ ODBC_TEST(t_isolation)
   /* Check that the driver has rmeembered the new value. */
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, &isolation,
                                  SQL_IS_POINTER, NULL));
-  IS_NUM(isolation, SQL_TXN_READ_UNCOMMITTED);
+  is_num(isolation, SQL_TXN_READ_UNCOMMITTED);
 
   /* Check that it was actually changed on the server. */
   OK_SIMPLE_STMT(Stmt, "SELECT @@tx_isolation");

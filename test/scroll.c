@@ -43,62 +43,62 @@ ODBC_TEST(t_scroll)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_ULONG, &i, 0, NULL));
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_LAST, 0)); /* 5 */
-  IS_NUM(i, 5);
+  is_num(i, 5);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PREV, 0));/* 4 */
-  IS_NUM(i, 4);
+  is_num(i, 4);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -3));/* 1 */
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_PREV, 1) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, -1));/* 1 */
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 4));/* 4 */
-  IS_NUM(i, 4);
+  is_num(i, 4);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 2) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PREV, 2));/* last */
-  IS_NUM(i, 5);
+  is_num(i, 5);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 2) != SQL_NO_DATA_FOUND, "Expected no data");  /* last + 1 */
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, -7) != SQL_NO_DATA_FOUND, "Expected no data");  /* 0 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 2));/* 1 */
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_PREV, 2) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));/* 1 */
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_PREV, 0) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1));/* 1 */
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1));/* 1 */
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1));/* 1 */
-  IS_NUM(i, 2);
+  is_num(i, 2);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -2) != SQL_NO_DATA_FOUND, "Expected no data"); /* 0 */
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 6) != SQL_NO_DATA_FOUND, "Expected no data"); /* last + 1 */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PREV, 6));/* 1 */
-  IS_NUM(i, 5);
+  is_num(i, 5);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

@@ -20,9 +20,9 @@
 
 void CloseMultiStatements(MADB_Stmt *Stmt)
 {
-  int i;
+  unsigned int i;
 
-  for (i=0; i < Stmt->MultiStmtCount; i++)
+  for (i=0; i < Stmt->MultiStmtCount; ++i)
     mysql_stmt_close(Stmt->MultiStmts[i]);
   MADB_FREE(Stmt->MultiStmts);
 }
@@ -98,7 +98,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     p= StmtStr;
     Stmt->MultiStmtCount= 0;
     Stmt->MultiStmtNr= 0;
-    Stmt->MultiStmts= (MYSQL_STMT *)MADB_CALLOC(sizeof(MYSQL_STMT) * statements);
+    Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * statements);
 
     while (p < StmtStr + Length)
     {

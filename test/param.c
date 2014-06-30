@@ -117,6 +117,8 @@ ODBC_TEST(test_numeric)
 
   rc= SQLFetch(Stmt);
   FAIL_IF(rc== SQL_NO_DATA, "unexpected eof");
+
+  return OK;
 }
 
 ODBC_TEST(unbuffered_result)
@@ -411,10 +413,10 @@ ODBC_TEST(t_param_offset)
   for (i= 0; i < rowcnt; ++i)
   {
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    IS_NUM(out_id, rows[20+i].id);
-    IS_NUM(out_id, i * 10);
-    IS_NUM(out_x, rows[20+i].x);
-    IS_NUM(out_x, (i * 1000) % 97);
+    is_num(out_id, rows[20+i].id);
+    is_num(out_id, i * 10);
+    is_num(out_x, rows[20+i].x);
+    is_num(out_x, (i * 1000) % 97);
   }
 
   return OK;
@@ -484,10 +486,10 @@ ODBC_TEST(paramarray_by_row)
   FAIL_IF(SQLExecDirect(Stmt, "INSERT INTO t_bug48310 (bData, intField, strField) " \
     "VALUES (?,?,?)", SQL_NTS) != SQL_SUCCESS, "success expected");
 
-  IS_NUM(paramsProcessed, ROWS_TO_INSERT);
+  is_num(paramsProcessed, ROWS_TO_INSERT);
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowsCount));
-  IS_NUM(rowsCount, ROWS_TO_INSERT);
+  is_num(rowsCount, ROWS_TO_INSERT);
 
   for (i= 0; i < paramsProcessed; ++i)
     if ( paramStatusArray[i] != SQL_PARAM_SUCCESS
@@ -514,7 +516,7 @@ ODBC_TEST(paramarray_by_row)
 
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_BINARY, (SQLPOINTER)buff, 50, &nLen));
     IS(memcmp((const void*) buff, (const void*)dataBinding[i].bData, 5 - i)==0);
-    IS_NUM(my_fetch_int(Stmt, 2), dataBinding[i].intField);
+    is_num(my_fetch_int(Stmt, 2), dataBinding[i].intField);
     IS_STR(my_fetch_str(Stmt, buff, 3), dataBinding[i].strField, strlen(str[i]));
   }
 
@@ -525,7 +527,7 @@ ODBC_TEST(paramarray_by_row)
      changes */
   OK_SIMPLE_STMT(Stmt, "update t_bug48310 set strField='changed' where intField > 1");
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowsCount));
-  IS_NUM(rowsCount, 1);
+  is_num(rowsCount, 1);
 
   /* Clean-up */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -582,7 +584,7 @@ ODBC_TEST(paramarray_by_column)
   FAIL_IF(SQLExecDirect(Stmt, "INSERT INTO t_bug48310 (bData, intField, strField) " \
     "VALUES (?,?,?)", SQL_NTS) != SQL_SUCCESS, "success expected");
 
-  IS_NUM(paramsProcessed, ROWS_TO_INSERT);
+  is_num(paramsProcessed, ROWS_TO_INSERT);
 
   for (i= 0; i < paramsProcessed; ++i)
     if ( paramStatusArray[i] != SQL_PARAM_SUCCESS
@@ -611,7 +613,7 @@ ODBC_TEST(paramarray_by_column)
         , bData[i][0], bData[i][1], bData[i][2], bData[i][3], bData[i][4]);
       return FAIL;
     }
-    IS_NUM(my_fetch_int(Stmt, 2), intField[i]);
+    is_num(my_fetch_int(Stmt, 2), intField[i]);
     IS_STR(my_fetch_str(Stmt, buff, 3), strField[i], strlen(strField[i]));
   }
 
@@ -672,13 +674,13 @@ ODBC_TEST(paramarray_ignore_paramset)
   FAIL_IF(SQLExecDirect(Stmt, "INSERT INTO t_bug48310 (bData, intField, strField) " \
     "VALUES (?,?,?)", SQL_NTS) != SQL_SUCCESS, "success expected");
 
-  IS_NUM(paramsProcessed, ROWS_TO_INSERT);
+  is_num(paramsProcessed, ROWS_TO_INSERT);
 
   for (i= 0; i < paramsProcessed; ++i)
   {
     if (paramOperationArr[i] == SQL_PARAM_IGNORE)
     {
-      IS_NUM(paramStatusArr[i], SQL_PARAM_UNUSED);
+      is_num(paramStatusArr[i], SQL_PARAM_UNUSED);
     }
     else if ( paramStatusArr[i] != SQL_PARAM_SUCCESS
       && paramStatusArr[i] != SQL_PARAM_SUCCESS_WITH_INFO )
@@ -716,7 +718,7 @@ ODBC_TEST(paramarray_ignore_paramset)
       , bData[i][0], bData[i][1], bData[i][2], bData[i][3], bData[i][4]);
       return FAIL;
     }
-    IS_NUM(my_fetch_int(Stmt, 2), intField[i]);
+    is_num(my_fetch_int(Stmt, 2), intField[i]);
     IS_STR(my_fetch_str(Stmt, buff, 3), strField[i], strlen(strField[i]));
 
     ++rowsInserted;
@@ -767,7 +769,7 @@ ODBC_TEST(paramarray_select)
 
   /* We don't expect errors in paramsets processing, thus we should get SQL_SUCCESS only*/
   FAIL_IF(SQLExecDirect(Stmt, "SELect ?,'So what'", SQL_NTS) != SQL_SUCCESS, "success expected");
-  IS_NUM(paramsProcessed, STMTS_TO_EXEC);
+  is_num(paramsProcessed, STMTS_TO_EXEC);
 
   for (i= 0; i < paramsProcessed; ++i)
   {
@@ -780,7 +782,7 @@ ODBC_TEST(paramarray_select)
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    IS_NUM(my_fetch_int(Stmt, 1), intField[i]);
+    is_num(my_fetch_int(Stmt, 1), intField[i]);
   }
 
   /* Clean-up */
@@ -869,14 +871,14 @@ ODBC_TEST(t_bug56804)
     case 1:
     case 6:
       /* all errors but last have SQL_PARAM_DIAG_UNAVAILABLE */
-      IS_NUM(status[i], SQL_PARAM_DIAG_UNAVAILABLE);
+      is_num(status[i], SQL_PARAM_DIAG_UNAVAILABLE);
       break;
     case 9:
       /* Last error -  we are supposed to get SQL_PARAM_ERROR for it */
-      IS_NUM(status[i], SQL_PARAM_ERROR);
+      is_num(status[i], SQL_PARAM_ERROR);
       break;
     default:
-      IS_NUM(status[i], SQL_PARAM_SUCCESS);
+      is_num(status[i], SQL_PARAM_SUCCESS);
     }
   }
 
@@ -894,7 +896,7 @@ ODBC_TEST(t_bug56804)
     }
 
     /* just to make sure we got 1 diagnostics record ... */
-    IS_NUM(i, 2);
+    is_num(i, 2);
     /* ... and what the record is for the last error */
     FAIL_IF(strstr(message, "Duplicate entry '9'") == NULL, "comparison failed");
   }
@@ -1015,15 +1017,15 @@ ODBC_TEST(t_odbcoutparams)
   OK_SIMPLE_STMT(Stmt, "CALL t_odbcoutparams(?, ?, ?)");
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 2);
+  is_num(ncol, 2);
 
-  IS_NUM(par[1], 1300);
-  IS_NUM(par[2], 300);
+  is_num(par[1], 1300);
+  is_num(par[2], 300);
   
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1300);
-  IS_NUM(my_fetch_int(Stmt, 2), 300);
+  is_num(my_fetch_int(Stmt, 1), 1300);
+  is_num(my_fetch_int(Stmt, 2), 300);
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1041,19 +1043,19 @@ ODBC_TEST(t_odbcoutparams)
   /* rs-1 */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 3);
+  is_num(ncol, 3);
 
-  IS_NUM(my_fetch_int(Stmt, 1), 10);
+  is_num(my_fetch_int(Stmt, 1), 10);
   /* p_out does not have value at the moment */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_INTEGER, &val, 0, &len));
-  IS_NUM(len, SQL_NULL_DATA);
-  IS_NUM(my_fetch_int(Stmt, 3), 300);
+  is_num(len, SQL_NULL_DATA);
+  is_num(my_fetch_int(Stmt, 3), 300);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
   CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
 
-  IS_NUM(par[1], 100);
-  IS_NUM(par[2], 200);
+  is_num(par[1], 100);
+  is_num(par[2], 200);
 
   FAIL_IF(SQLMoreResults(Stmt) != SQL_NO_DATA, "eof expected");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1079,20 +1081,20 @@ ODBC_TEST(t_odbcoutparams)
 
   /* rs-1 */
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 3);
+  is_num(ncol, 3);
   
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 200);
-  IS_NUM(my_fetch_int(Stmt, 2), 300);
+  is_num(my_fetch_int(Stmt, 1), 200);
+  is_num(my_fetch_int(Stmt, 2), 300);
   IS_STR(my_fetch_str(Stmt, buff, 3), "OUT param", 10);
 
   CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
   IS_STR(str, "This is OUT param", 18);
-  IS_NUM(par[1], 200);
+  is_num(par[1], 200);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buff, 1), "This is OUT param", 18);
-  IS_NUM(my_fetch_int(Stmt, 2), 200);
+  is_num(my_fetch_int(Stmt, 2), 200);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1124,7 +1126,7 @@ ODBC_TEST(t_bug14501952)
 
   IS_STR(blobValue, "this is blob value from SP ", 27);
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 1);
+  is_num(ncol, 1);
 
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1170,7 +1172,7 @@ ODBC_TEST(t_bug14563386)
   IS_STR(blobValue, " BLOB! ", 7);
   IS_STR(binValue, " LONG VARBINARY ", 16);
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 2);
+  is_num(ncol, 2);
 
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1207,12 +1209,12 @@ ODBC_TEST(t_bug14551229)
 
   OK_SIMPLE_STMT(Stmt, "CALL b14551229(?)");
 
-  IS_NUM(param, -1);
+  is_num(param, -1);
 
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_SLONG, &value, 0, 0));
-  IS_NUM(value, -1);
+  is_num(value, -1);
   
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1252,10 +1254,10 @@ ODBC_TEST(t_bug14560916)
   OK_SIMPLE_STMT(Stmt, "select a from bug14560916 where ? OR 1");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
  // CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_SLONG, &value, 0, 0));
- // IS_NUM(value, 577);
+ // is_num(value, 577);
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, &param, sizeof(param),
                             &len));
-  IS_NUM(len, 2);
+  is_num(len, 2);
   IS_STR(param, "\2A", 2);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1263,17 +1265,17 @@ ODBC_TEST(t_bug14560916)
 
   OK_SIMPLE_STMT(Stmt, "CALL b14560916(?)");
 
-  IS_NUM(len, 2);
+  is_num(len, 2);
   IS_STR(param, "\2A", 2);
 
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_SLONG, &value, 0, 0));
-  IS_NUM(value, 577);
+  is_num(value, 577);
   param[0]= param[1]= 1;
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, &param, sizeof(param),
                             &len));
-  IS_NUM(len, 2);
+  is_num(len, 2);
   IS_STR(param, "\2A", 2);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1314,7 +1316,7 @@ ODBC_TEST(t_bug14586094)
   IS_STR(blobValue, " BLOB! ", 7);
   IS_STR(vcValue, "varchar", 9);
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 2);
+  is_num(ncol, 2);
 
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1356,7 +1358,7 @@ ODBC_TEST(t_longtextoutparam)
 
   IS_STR(blobValue, "this is LONGTEXT value from SP ", 32);
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
-  IS_NUM(ncol, 1);
+  is_num(ncol, 1);
 
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));

@@ -371,13 +371,13 @@ ODBC_TEST(t_bug16917)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, buff, 0, &len));
-  IS_NUM(len, 3);
+  is_num(len, 3);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, buff, sizeof(buff), &len));
-  IS_NUM(buff[0], 'a');
-  IS_NUM(buff[1], 0);
-  IS_NUM(buff[2], 'b');
-  IS_NUM(len, 3);
+  is_num(buff[0], 'a');
+  is_num(buff[1], 0);
+  is_num(buff[2], 'b');
+  is_num(len, 3);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -444,14 +444,14 @@ ODBC_TEST(t_bug27862_1)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
                                  NULL, &len));
-  IS_NUM(len, 4);
+  is_num(len, 4);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0,
                                  NULL, &len));
-  IS_NUM(len, 4);
+  is_num(len, 4);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
   /* Octet length shoul *not* include terminanting null character according to ODBC specs */
-  IS_NUM(len, 4);
+  is_num(len, 4);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -469,7 +469,6 @@ ODBC_TEST(t_bug27862_1)
 ODBC_TEST(t_bug27862_2)
 {
   SQLLEN len;
-  CPINFO CpInfo;
 
   diag("probably incorrect test case");
   return SKIP;
@@ -483,13 +482,13 @@ ODBC_TEST(t_bug27862_2)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
                                  NULL, &len));
-  IS_NUM(len, 52);
+  is_num(len, 52);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0,
                                  NULL, &len));
-  IS_NUM(len, 13);
+  is_num(len, 13);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
-  IS_NUM(len, 14);
+  is_num(len, 14);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -519,9 +518,9 @@ ODBC_TEST(decimal_scale)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_SCALE,
                                  NULL, 0, NULL, &scale));
 
-  IS_NUM(fixed, SQL_FALSE);
-  IS_NUM(prec, 5);
-  IS_NUM(scale, 3);
+  is_num(fixed, SQL_FALSE);
+  is_num(prec, 5);
+  is_num(scale, 3);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -546,7 +545,7 @@ ODBC_TEST(binary_suffix)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LITERAL_SUFFIX,
                                  suffix, 10, &len, NULL));
 
-  IS_NUM(len, 0);
+  is_num(len, 0);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -570,17 +569,17 @@ ODBC_TEST(float_scale)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_SCALE,
                                  NULL, 0, NULL, &scale));
 
-  IS_NUM(scale, 0);
+  is_num(scale, 0);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_SCALE,
                                  NULL, 0, NULL, &scale));
 
-  IS_NUM(scale, 0);
+  is_num(scale, 0);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_SCALE,
                                  NULL, 0, NULL, &scale));
 
-  IS_NUM(scale, 2);
+  is_num(scale, 2);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -606,19 +605,19 @@ ODBC_TEST(bit)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "a", 1);
-  IS_NUM(my_fetch_int(Stmt, 5), SQL_BIT); /* DATA_TYPE */
-  IS_NUM(my_fetch_int(Stmt, 7), 1); /* COLUMN_SIZE */
-  IS_NUM(my_fetch_int(Stmt, 8), 1); /* BUFFER_LENGTH */
+  is_num(my_fetch_int(Stmt, 5), SQL_BIT); /* DATA_TYPE */
+  is_num(my_fetch_int(Stmt, 7), 1); /* COLUMN_SIZE */
+  is_num(my_fetch_int(Stmt, 8), 1); /* BUFFER_LENGTH */
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 16, SQL_C_LONG, &type, 0, &len));
-  IS_NUM(len, SQL_NULL_DATA); /* CHAR_OCTET_LENGTH */
+  is_num(len, SQL_NULL_DATA); /* CHAR_OCTET_LENGTH */
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "b", 1);
-  IS_NUM(my_fetch_int(Stmt, 5), SQL_BINARY); /* DATA_TYPE */
-  IS_NUM(my_fetch_int(Stmt, 7), 3); /* COLUMN_SIZE */
-  IS_NUM(my_fetch_int(Stmt, 8), 3); /* BUFFER_LENGTH */
-  IS_NUM(my_fetch_int(Stmt, 16), 3); /* CHAR_OCTET_LENGTH */
+  is_num(my_fetch_int(Stmt, 5), SQL_BINARY); /* DATA_TYPE */
+  is_num(my_fetch_int(Stmt, 7), 3); /* COLUMN_SIZE */
+  is_num(my_fetch_int(Stmt, 8), 3); /* BUFFER_LENGTH */
+  is_num(my_fetch_int(Stmt, 16), 3); /* CHAR_OCTET_LENGTH */
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected EOF");
 
@@ -628,11 +627,11 @@ ODBC_TEST(bit)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_TYPE, NULL, 0, NULL,
                                  &type));
-  IS_NUM(type, SQL_BIT);
+  is_num(type, SQL_BIT);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_TYPE, NULL, 0, NULL,
                                  &type));
-  IS_NUM(type, SQL_BINARY);
+  is_num(type, SQL_BINARY);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -660,7 +659,7 @@ ODBC_TEST(t_bug32171)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 1, SQL_C_ULONG, &out, 0, NULL));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  IS_NUM(out, in);
+  is_num(out, in);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected EOF");
 
@@ -769,9 +768,9 @@ ODBC_TEST(t_sqlnum_msdn)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  IS_NUM(sqlnum->sign, 1);
-  IS_NUM(sqlnum->precision, 38);
-  IS_NUM(sqlnum->scale, 3);
+  is_num(sqlnum->sign, 1);
+  is_num(sqlnum->precision, 38);
+  is_num(sqlnum->scale, 3);
   IS(!memcmp(sqlnum->val, exp_data, SQL_MAX_NUMERIC_LEN));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -828,9 +827,9 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   else
     CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  IS_NUM(sqlnum->precision, prec);
-  IS_NUM(sqlnum->scale, scale);
-  IS_NUM(sqlnum->sign, sign);
+  is_num(sqlnum->precision, prec);
+  is_num(sqlnum->scale, scale);
+  is_num(sqlnum->sign, sign);
   if (expdata)
   {
     IS(!memcmp(sqlnum->val, expdata, SQL_MAX_NUMERIC_LEN));
@@ -845,7 +844,7 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
     
     if (numval != expnum)
       diag("compare %d %d", numval, expnum);
-    IS_NUM(numval, expnum);
+    is_num(numval, expnum);
   }
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -951,9 +950,9 @@ ODBC_TEST(t_bindsqlnum_basic)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outstr, 20, NULL));
   IS_STR(outstr, "25.212", 6);
-  IS_NUM(sqlnum->sign, 1);
-  IS_NUM(sqlnum->precision, 5);
-  IS_NUM(sqlnum->scale, 3);
+  is_num(sqlnum->sign, 1);
+  is_num(sqlnum->precision, 5);
+  is_num(sqlnum->scale, 3);
 
   return OK;
 }
@@ -1004,12 +1003,12 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR *numdata, SQLCHAR prec,
   }
   if (exprc == SQL_ERROR)
     return OK;
-  IS_NUM(sqlnum->precision, prec);
-  IS_NUM(sqlnum->scale, scale);
-  IS_NUM(sqlnum->sign, sign);
+  is_num(sqlnum->precision, prec);
+  is_num(sqlnum->scale, scale);
+  is_num(sqlnum->sign, sign);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, obuf, sizeof(obuf), NULL));
   diag("compare %s - %s", obuf, outstr);
-  IS_STR(obuf, outstr, "string mismatch");
+  IS_STR(obuf, outstr, strlen(outstr));
   FAIL_IF(memcmp(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN), "memcmp failed");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1075,7 +1074,7 @@ ODBC_TEST(t_bug31220)
                             outbuf, 5, &outlen));
   FAIL_IF(SQLFetch(Stmt) != SQL_ERROR, "SQL_ERROR expected");
   IS(check_sqlstate(Stmt, "07006") == OK);
-  IS_NUM(outlen, 999);
+  is_num(outlen, 999);
   return OK;  
 }
 
@@ -1124,7 +1123,7 @@ ODBC_TEST(t_bug29402)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLFetch(hstmt1));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLGetData(hstmt1, 1, SQL_C_TCHAR, wbuf, sizeof(wbuf), &buflen));
 
-  IS_NUM(buflen, 4);
+  is_num(buflen, 4);
 
   if (strncmp(buf, expected, buflen) != 0)
   {
@@ -1161,7 +1160,7 @@ ODBC_TEST(t_bug29402)
   else
   {
     diag("Server version is <=5.1");
-    IS_NUM(data_type, SQL_VARBINARY);
+    is_num(data_type, SQL_VARBINARY);
   }
 
   return OK;

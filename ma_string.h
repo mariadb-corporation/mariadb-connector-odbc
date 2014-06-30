@@ -33,7 +33,7 @@ my_bool MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String);
 my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
 my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
 SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, unsigned int CodePage);
-size_t MADB_SetString(unsigned int CodePage, void *Dest, int DestLength,
+size_t MADB_SetString(unsigned int CodePage, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error);
 my_bool MADB_ValidateStmt(char *StmtStr);
 my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);

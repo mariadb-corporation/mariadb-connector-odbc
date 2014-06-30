@@ -79,12 +79,12 @@ ODBC_TEST(my_ts)
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
-  IS_NUM(ts.year,  2002);
-  IS_NUM(ts.month, 1);
-  IS_NUM(ts.day,   7);
-  IS_NUM(ts.hour,  10);
-  IS_NUM(ts.minute,20);
-  IS_NUM(ts.second,49);
+  is_num(ts.year,  2002);
+  is_num(ts.month, 1);
+  is_num(ts.day,   7);
+  is_num(ts.hour,  10);
+  is_num(ts.minute,20);
+  is_num(ts.second,49);
   diag("# row1 using SQL_C_TIMESTAMP: %d-%d-%d %d:%d:%d.%d (%ld)\n",
          ts.year, ts.month,ts.day, ts.hour, ts.minute, ts.second, ts.fraction,
          len);
@@ -98,12 +98,12 @@ ODBC_TEST(my_ts)
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 2));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
-  IS_NUM(ts.year,  2002);
-  IS_NUM(ts.month, 1);
-  IS_NUM(ts.day,   7);
-  IS_NUM(ts.hour,  19);
-  IS_NUM(ts.minute,47);
-  IS_NUM(ts.second,59);
+  is_num(ts.year,  2002);
+  is_num(ts.month, 1);
+  is_num(ts.day,   7);
+  is_num(ts.hour,  19);
+  is_num(ts.minute,47);
+  is_num(ts.second,59);
   diag("# row2 using SQL_C_TIMESTAMP: %d-%d-%d %d:%d:%d.%d (%ld)\n",
          ts.year, ts.month,ts.day, ts.hour, ts.minute, ts.second, ts.fraction,
          len);
@@ -121,9 +121,9 @@ ODBC_TEST(my_ts)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
 
-  IS_NUM(1991, ts.year);
-  IS_NUM(8, ts.month);
-  IS_NUM(25, ts.day);
+  is_num(1991, ts.year);
+  is_num(8, ts.month);
+  is_num(25, ts.day);
 
   return OK;
 }
@@ -240,7 +240,7 @@ ODBC_TEST(t_tstotime1)
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
 
-  IS_NUM(check_sqlstate(Stmt, "22008"), OK);
+  is_num(check_sqlstate(Stmt, "22008"), OK);
 
   /* Taking only date part */
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR,
@@ -248,7 +248,7 @@ ODBC_TEST(t_tstotime1)
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
 
-  IS_NUM(check_sqlstate(Stmt, "22008"), OK);
+  is_num(check_sqlstate(Stmt, "22008"), OK);
 
   /* are not taking fractional part */
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
@@ -290,7 +290,7 @@ ODBC_TEST(t_bug25846)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug25846");
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &column_count));
-  IS_NUM(column_count, 2);
+  is_num(column_count, 2);
 
   /* Bind the TIMESTAMP buffer for TIME column */
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_TIMESTAMP, &my_time_ts,
@@ -302,13 +302,13 @@ ODBC_TEST(t_bug25846)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(my_time_ts.hour,   2);
-  IS_NUM(my_time_ts.minute, 56);
-  IS_NUM(my_time_ts.second, 30);
+  is_num(my_time_ts.hour,   2);
+  is_num(my_time_ts.minute, 56);
+  is_num(my_time_ts.second, 30);
 
-  IS_NUM(my_date_ts.year,   1969);
-  IS_NUM(my_date_ts.month,  7);
-  IS_NUM(my_date_ts.day,    21);
+  is_num(my_date_ts.year,   1969);
+  is_num(my_date_ts.month,  7);
+  is_num(my_date_ts.day,    21);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -483,7 +483,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "00:00:03", 9);
 
     rc = SQLFetch(Stmt);
@@ -491,7 +491,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "01:00:00", 9);
 
     rc = SQLFetch(Stmt);
@@ -499,7 +499,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "19:00:00", 9);
 
     rc = SQLFetch(Stmt);
@@ -507,7 +507,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "01:01:00", 9);
 
     rc = SQLFetch(Stmt);
@@ -515,7 +515,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "01:00:01", 9);
 
     rc = SQLFetch(Stmt);
@@ -523,7 +523,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "00:01:00", 9);
 
     rc = SQLFetch(Stmt);
@@ -531,7 +531,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "00:11:12", 9);
 
     rc = SQLFetch(Stmt);
@@ -539,7 +539,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "01:01:01", 9);
 
     rc = SQLFetch(Stmt);
@@ -547,7 +547,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "00:00:00", 9);
 
     rc = SQLFetch(Stmt);
@@ -555,7 +555,7 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(length, 8);
+    is_num(length, 8);
     IS_STR(data, "10:11:12", 9);
 
     rc = SQLFetch(Stmt);
@@ -575,10 +575,10 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(tt.hour, 10);
-    IS_NUM(tt.minute, 11);
-    IS_NUM(tt.second, 12);
-    IS_NUM(length, sizeof(SQL_TIME_STRUCT));
+    is_num(tt.hour, 10);
+    is_num(tt.minute, 11);
+    is_num(tt.second, 12);
+    is_num(length, sizeof(SQL_TIME_STRUCT));
 
     rc = SQLFetch(Stmt);
     assert(rc == SQL_NO_DATA);
@@ -595,13 +595,13 @@ ODBC_TEST(t_time1)
 
     rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(tt.hour, 05);
-    IS_NUM(tt.minute, 59);
-    IS_NUM(tt.second, 59);
-    IS_NUM(length, sizeof(SQL_TIME_STRUCT));
+    is_num(tt.hour, 05);
+    is_num(tt.minute, 59);
+    is_num(tt.second, 59);
+    is_num(length, sizeof(SQL_TIME_STRUCT));
 
     rc = SQLFetch(Stmt);
-    IS_NUM(rc, SQL_NO_DATA);
+    is_num(rc, SQL_NO_DATA);
 
     SQLFreeStmt(Stmt, SQL_UNBIND);
     SQLFreeStmt(Stmt, SQL_CLOSE);
@@ -618,7 +618,7 @@ ODBC_TEST(t_time1)
     rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
     CHECK_STMT_RC(Stmt,rc);
  //   is(tt.hour == 00 || tt.minute == 00 || tt.second == 00);
-    IS_NUM(length, sizeof(SQL_TIME_STRUCT));
+    is_num(length, sizeof(SQL_TIME_STRUCT));
 
     rc = SQLFetch(Stmt);
     assert(rc == SQL_NO_DATA);
@@ -659,7 +659,7 @@ ODBC_TEST(t_bug12520)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(datetime, "0000-00-00 00:00:00", 19);
-  IS_NUM(my_time_cb, SQL_NULL_DATA);
+  is_num(my_time_cb, SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -786,26 +786,26 @@ ODBC_TEST(t_datecolumns)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "a", 1);
-  IS_NUM(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  IS_NUM(my_fetch_int(Stmt, 15), SQL_TYPE_TIMESTAMP);
+  is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
+  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_TIMESTAMP);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "b", 1);
-  IS_NUM(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  IS_NUM(my_fetch_int(Stmt, 15), SQL_TYPE_TIMESTAMP);
+  is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
+  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_TIMESTAMP);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "c", 1);
-  IS_NUM(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  IS_NUM(my_fetch_int(Stmt, 15), SQL_TYPE_DATE);
+  is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
+  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_DATE);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "d", 1);
-  IS_NUM(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  IS_NUM(my_fetch_int(Stmt, 15), SQL_TYPE_TIME);
+  is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
+  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_TIME);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
@@ -815,16 +815,16 @@ ODBC_TEST(t_datecolumns)
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_TYPE, NULL, 0, NULL,
                                  &type));
-  IS_NUM(type, SQL_DATETIME);
+  is_num(type, SQL_DATETIME);
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_TYPE, NULL, 0, NULL,
                                  &type));
-  IS_NUM(type, SQL_DATETIME);
+  is_num(type, SQL_DATETIME);
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_TYPE, NULL, 0, NULL,
                                  &type));
-  IS_NUM(type, SQL_DATETIME);
+  is_num(type, SQL_DATETIME);
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_DESC_TYPE, NULL, 0, NULL,
                                  &type));
-  IS_NUM(type, SQL_DATETIME);
+  is_num(type, SQL_DATETIME);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -850,17 +850,17 @@ ODBC_TEST(t_bug14414)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, col, 4), "a", 1);
-  IS_NUM(my_fetch_int(Stmt, 11), SQL_NULLABLE);
+  is_num(my_fetch_int(Stmt, 11), SQL_NULLABLE);
   IS_STR(my_fetch_str(Stmt, col, 18), "YES", 3);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, col, 4), "b", 1);
-  IS_NUM(my_fetch_int(Stmt, 11), SQL_NULLABLE);
+  is_num(my_fetch_int(Stmt, 11), SQL_NULLABLE);
   IS_STR(my_fetch_str(Stmt, col, 18), "YES", 3);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, col, 4), "c", 1);
-  IS_NUM(my_fetch_int(Stmt, 11), SQL_NULLABLE);
+  is_num(my_fetch_int(Stmt, 11), SQL_NULLABLE);
   IS_STR(my_fetch_str(Stmt, col, 18), "YES", 3);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -875,15 +875,15 @@ ODBC_TEST(t_bug14414)
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, col, sizeof(col), NULL, NULL, NULL,
                                 NULL, &nullable));
-  IS_NUM(nullable, SQL_NULLABLE);
+  is_num(nullable, SQL_NULLABLE);
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 2, col, sizeof(col), NULL, NULL, NULL,
                                 NULL, &nullable));
-  IS_NUM(nullable, SQL_NULLABLE);
+  is_num(nullable, SQL_NULLABLE);
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 3, col, sizeof(col), NULL, NULL, NULL,
                                 NULL, &nullable));
-  IS_NUM(nullable, SQL_NULLABLE);
+  is_num(nullable, SQL_NULLABLE);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -902,7 +902,7 @@ ODBC_TEST(t_bug30939)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(my_fetch_int(Stmt, 3), 8);
+  is_num(my_fetch_int(Stmt, 3), 8);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "eof expected");
 
@@ -923,18 +923,18 @@ ODBC_TEST(t_bug31009)
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LITERAL_PREFIX,
                                  data, sizeof(data), &len, NULL));
-  IS_NUM(len, 1);
+  is_num(len, 1);
   IS_STR(data, "'", 2);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LITERAL_SUFFIX,
                                  data, sizeof(data), &len, NULL));
-  IS_NUM(len, 1);
+  is_num(len, 1);
   IS_STR(data, "'", 2);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &dlen));
-  IS_NUM(dlen, 10);
+  is_num(dlen, 10);
   IS_STR(data, "2007-01-13", 11);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "eof expected");
@@ -1037,20 +1037,20 @@ ODBC_TEST(t_bug60646)
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_TYPE_TIMESTAMP, &ts, sizeof(ts),
                             &len));
 
-  IS_NUM(ts.fraction, 100002000);
+  is_num(ts.fraction, 100002000);
 
   /* 3) fractional part is less than we care (less than nanosecond).
         Test using string as MySQL does not support units less than a microsecond */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TYPE_TIMESTAMP, &ts, sizeof(ts),
                             &len));
-  IS_NUM(ts.fraction, 9000);
+  is_num(ts.fraction, 9000);
 
   /* 4) testing if min fraction detected
         Again - mysql supports microseconds only. thus using string
    */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 4, SQL_C_TYPE_TIMESTAMP, &ts, sizeof(ts),
                             &len));
-  IS_NUM(ts.fraction, 1000);
+  is_num(ts.fraction, 1000);
 
   /* 5) if time is converted to timestamp - checking if current date is set
         and if fractional part in place. former can actually fail if day is
@@ -1064,12 +1064,12 @@ ODBC_TEST(t_bug60646)
                               &len));
     cur_tm= localtime(&sec_time);
 
-    IS_NUM(ts.year, 1900 + cur_tm->tm_year);
-    IS_NUM(ts.month, 1 + cur_tm->tm_mon);
-    IS_NUM(ts.day, cur_tm->tm_mday);
+    is_num(ts.year, 1900 + cur_tm->tm_year);
+    is_num(ts.month, 1 + cur_tm->tm_mon);
+    is_num(ts.day, cur_tm->tm_mday);
   }
 
-  IS_NUM(ts.fraction, 999999000);
+  is_num(ts.fraction, 999999000);
 
   /* 6) Expecting an error because of longer date
         At the moment ADDTIME('9999-12-31 23:59:59.999999', '1 1:1:1.000002')
@@ -1129,13 +1129,13 @@ ODBC_TEST(t_bug60648)
     SQL_TYPE_DATE, 0, 0, &param, 0, NULL));
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "22008"), OK);
+  is_num(check_sqlstate(Stmt, "22008"), OK);
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TYPE_TIMESTAMP,
     SQL_TYPE_TIME, 0, 0, &param, 0, NULL));
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "22008"), OK);
+  is_num(check_sqlstate(Stmt, "22008"), OK);
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TYPE_TIMESTAMP,
     SQL_TYPE_TIMESTAMP, 0, 0, &param, 0, NULL));
@@ -1147,7 +1147,7 @@ ODBC_TEST(t_bug60648)
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TYPE_TIMESTAMP, &result, 0,
                             NULL));
 
-  IS_NUM(1000, result.fraction);
+  is_num(1000, result.fraction);
 
   return OK;
 }

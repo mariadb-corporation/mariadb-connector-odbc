@@ -77,9 +77,6 @@ ODBC_TEST(test_multi_on_off)
 
 ODBC_TEST(test_params)
 {
-  SQLHENV myEnv;
-  SQLHDBC myDbc;
-  SQLHSTMT myStmt;
   SQLRETURN rc;
   int i,j;
 

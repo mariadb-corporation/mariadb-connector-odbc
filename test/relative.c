@@ -69,48 +69,48 @@ ODBC_TEST(t_relative)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_ULONG, &iarray, 0, NULL));
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)); /* 1-10 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index);
+    is_num(iarray[index - 1], index);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)); /* 10-20 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index + 10);
+    is_num(iarray[index - 1], index + 10);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PREV, 0)); /* 1-10 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index);
+    is_num(iarray[index - 1], index);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1)); /* 2-11 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index + 1);
+    is_num(iarray[index - 1], index + 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1)); /* 1-10 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index);
+    is_num(iarray[index - 1], index);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0)); /* 1-10 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index);
+    is_num(iarray[index - 1], index);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "expected eof"); /* BOF */
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1)); /* 1-10 */
-  IS_NUM(nrows, 10);
+  is_num(nrows, 10);
 
   for (index= 1; index <= nrows; index++)
-    IS_NUM(iarray[index - 1], index);
+    is_num(iarray[index - 1], index);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -165,28 +165,28 @@ ODBC_TEST(t_relative1)
 
   /* row 1 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   /* Before start */
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "expected eof");
 
   /* jump to last row */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, max_rows));
-  IS_NUM(i, max_rows);
+  is_num(i, max_rows);
 
   /* jump to last row+1 */
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1) != SQL_NO_DATA_FOUND, "expected eof");
 
   /* goto first row */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   /* before start */
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "Expected eof");
 
   /* goto fifth  row */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 5));
-  IS_NUM(i, 5);
+  is_num(i, 5);
 
   /* goto after end */
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, max_rows) != SQL_NO_DATA_FOUND, "Expected EOF");
@@ -195,7 +195,7 @@ ODBC_TEST(t_relative1)
 
   /* CASE 1 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) != SQL_NO_DATA_FOUND, "expected eof");
 
@@ -211,11 +211,11 @@ ODBC_TEST(t_relative1)
 
   /* case 1: Before start AND FetchOffset > 0 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   /* CASE 2 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1));
-  IS_NUM(i, max_rows);
+  is_num(i, max_rows);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 1) !=
               SQL_NO_DATA_FOUND, "expected eof");
@@ -235,15 +235,15 @@ ODBC_TEST(t_relative1)
 
   /* After end AND FetchOffset < 0 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1));
-  IS_NUM(i, max_rows);
+  is_num(i, max_rows);
 
   /* CASE 3 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   /* CurrRowsetStart = 1 AND FetchOffset < 0 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 0));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -1) !=
               SQL_NO_DATA_FOUND, "expected eof");
@@ -253,10 +253,10 @@ ODBC_TEST(t_relative1)
      | FetchOffset | > RowsetSize
   */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 3));
-  IS_NUM(i, 4);
+  is_num(i, 4);
 
   /* the following call satisfies 4 > 1 AND (3-4) < 1 AND |-4| > 1 */
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -4) !=
@@ -265,24 +265,24 @@ ODBC_TEST(t_relative1)
   /* CASE 5 */
   /* 1 <= CurrRowsetStart + FetchOffset <= LastResultRow */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 5));
-  IS_NUM(i, 6);
+  is_num(i, 6);
 
   /* 1 <= 6-2 <= 10 */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -2));
-  IS_NUM(i, 4);
+  is_num(i, 4);
 
   /* CASE 6 */
   /*  CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
       | FetchOffset | <= RowsetSize
    */
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
-  IS_NUM(i, 1);
+  is_num(i, 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 3));
-  IS_NUM(i, 4);
+  is_num(i, 4);
 
   /* 4 >1 AND 4-4 <1 AND |-4| <=10 */
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -4) !=

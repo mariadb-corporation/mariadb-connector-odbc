@@ -146,35 +146,35 @@ ODBC_TEST(t_prep_buffer_length)
     mystmt(Stmt,rc);
 
     diag( "outdata: %s (%ld)\n", buffer, length);
-    IS_NUM(length, 0);
-    IS_NUM(buffer[0], '\0');
+    is_num(length, 0);
+    is_num(buffer[0], '\0');
 
     rc = SQLFetch(Stmt);
     mystmt(Stmt,rc);
 
     diag("outdata: %s (%ld)\n", buffer, length);
-    IS_NUM(length, 3);
+    is_num(length, 3);
     IS_STR(buffer, "abc", 10);
 
     rc = SQLFetch(Stmt);
     mystmt(Stmt,rc);
 
     diag("outdata: %s (%ld)\n", buffer, length);
-    IS_NUM(length, 10);
+    is_num(length, 10);
     IS_STR(buffer, "abcdefghij", 10);
 
     rc = SQLFetch(Stmt);
     mystmt(Stmt,rc);
 
     diag("outdata: %s (%ld)\n", buffer, length);
-    IS_NUM(length, 9);
+    is_num(length, 9);
     IS_STR(buffer, "abcdefghi", 9);
 
     rc = SQLFetch(Stmt);
     mystmt(Stmt,rc);
 
     diag("outdata: %s (%ld)\n", buffer, length);
-    IS_NUM(length, 10);
+    is_num(length, 10);
     IS_STR(buffer, "abcdefghij", 10);
 
     rc = SQLFetch(Stmt);
@@ -238,12 +238,12 @@ ODBC_TEST(t_prep_truncate)
     mystmt(Stmt,rc);
 
     diag("str outdata: %s(%d)\n",name,length);
-    IS_NUM(length, 4);
+    is_num(length, 4);
     IS_STR(bin, "v", 1);
 
     bin[4]='M';
     diag("bin outdata: %s(%d)\n",bin,length1);
-    IS_NUM(length, 4);
+    is_num(length, 4);
     IS_STR(bin, "venuM", 5);
 
     rc = SQLFetch(Stmt);
@@ -284,39 +284,39 @@ ODBC_TEST(t_prep_scroll)
     if (rc == SQL_NO_DATA)
         break;
 
-    IS_NUM(i, data);
+    is_num(i, data);
   }
 
-  IS_NUM(i, max_rows + 1);
+  is_num(i, max_rows + 1);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 3));
-  IS_NUM(data, 3);
+  is_num(data, 3);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PREV, 3));
-  IS_NUM(data, 2);
+  is_num(data, 2);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 3));
-  IS_NUM(data, 1);
+  is_num(data, 1);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_PREV, 3) != SQL_NO_DATA, "eof expected");
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -2) != SQL_NO_DATA, "eof expected");
 
   CHECK_STMT_RC(Stmt,  SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 2));
-  IS_NUM(data, 2);
+  is_num(data, 2);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_LAST, 3));
-  IS_NUM(data, 5);
+  is_num(data, 5);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -2));
-  IS_NUM(data, 3);
+  is_num(data, 3);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, 3) != SQL_NO_DATA, "eof expected");
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 3) != SQL_NO_DATA, "eof expected");
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_RELATIVE, -2));
-  IS_NUM(data, 4);
+  is_num(data, 4);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -393,7 +393,7 @@ ODBC_TEST(t_prep_getdata)
 
     diag("record 3 : %s(%ld)\n", name, (long)length);
 
-    IS_NUM(length, 4);
+    is_num(length, 4);
     IS_STR(name, "venu", 4);
 
     data = 0;
@@ -439,28 +439,28 @@ ODBC_TEST(t_prep_getdata1)
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 10);
+    is_num(length, 10);
     IS_STR(data, "M", 1);
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,4,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 10);
+    is_num(length, 10);
     IS_STR(data, "abc", 3);
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,4,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 7);
+    is_num(length, 7);
     IS_STR(data, "def", 3);
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,4,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 4);
+    is_num(length, 4);
     IS_STR(data, "ghi", 3);
 
     data[0]= 'M';
@@ -468,21 +468,21 @@ ODBC_TEST(t_prep_getdata1)
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 1);
+    is_num(length, 1);
     IS_STR(data, "M", 1);
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,1,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 1);
-    IS_NUM(data[0], '\0');
+    is_num(length, 1);
+    is_num(data[0], '\0');
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,2,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 1);
+    is_num(length, 1);
     IS_STR(data, "j", 1);
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,2,&length);
@@ -493,28 +493,28 @@ ODBC_TEST(t_prep_getdata1)
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 5);
+    is_num(length, 5);
     IS_STR(data, "M", 2);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,3,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 5);
+    is_num(length, 5);
     IS_STR(data, "12", 2);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,2,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 3);
+    is_num(length, 3);
     IS_STR(data, "3", 1);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,2,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 2);
+    is_num(length, 2);
     IS_STR(data, "4", 1);
 
     data[0]= 'M';
@@ -522,7 +522,7 @@ ODBC_TEST(t_prep_getdata1)
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 1);
+    is_num(length, 1);
     IS_STR(data, "M", 1);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,1,&length);
@@ -530,14 +530,14 @@ ODBC_TEST(t_prep_getdata1)
 
     diag("data: %s (%ld)\n", data, length);
     assert(data[0] == '\0' && length == 1);
-    IS_NUM(length, 1);
-    IS_NUM(data[0], '\0');
+    is_num(length, 1);
+    is_num(data[0], '\0');
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,2,&length);
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    IS_NUM(length, 1);
+    is_num(length, 1);
     IS_STR(data, "5", 1);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,2,&length);
@@ -577,7 +577,7 @@ ODBC_TEST(t_prep_catalog)
 
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,table,15,&length);
     mystmt(Stmt,rc);
-    IS_NUM(length, 14);
+    is_num(length, 14);
     IS_STR(table, "t_prep_catalog", 14);
 
     rc = SQLFetch(Stmt);
@@ -597,7 +597,7 @@ ODBC_TEST(t_prep_catalog)
 
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,table,15,&length);
     mystmt(Stmt,rc);
-    IS_NUM(length, 14);
+    is_num(length, 14);
     IS_STR(table, "t_prep_catalog", 14);
 
     rc = SQLGetData(Stmt,4,SQL_C_CHAR,table,0,&length);
@@ -606,13 +606,13 @@ ODBC_TEST(t_prep_catalog)
 
     rc = SQLGetData(Stmt,4,SQL_C_CHAR,table,2,&length);
     mystmt(Stmt,rc);
-    IS_NUM(length, 1);
+    is_num(length, 1);
     IS_STR(table, "a", 1);
 
     rc = SQLGetData(Stmt,13,SQL_C_CHAR,table,10,&length);
     mystmt(Stmt,rc);
     diag("table: %s(%d)\n", table, length);
-    IS_NUM(length, 3);
+    is_num(length, 3);
     IS_STR(table, "100", 3);
 
     rc = SQLFetch(Stmt);
@@ -714,7 +714,7 @@ ODBC_TEST(t_prepare)
 
     rc = SQLNumResultCols(Stmt,&pccol);
     mystmt(Stmt,rc);
-    IS_NUM(pccol, 3);
+    is_num(pccol, 3);
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nodata,0,&nlen);
     mystmt(Stmt,rc);
@@ -1061,7 +1061,7 @@ ODBC_TEST(t_bug29871)
                              param, 0));
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug29871 WHERE a=?");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 1), 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug29871");

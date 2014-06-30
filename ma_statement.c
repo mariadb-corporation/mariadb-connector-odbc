@@ -334,7 +334,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
 {
   MADB_DescRecord *Record;
   MADB_Stmt *MyStmt= Stmt;
-  SQLPOINTER *wDataPtr= NULL;
+  SQLPOINTER wDataPtr= NULL;
   long Length= StrLen_or_Ind;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -372,12 +372,11 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   /* To make sure that we will not consume the doble amount of memory, we need to send
      data via mysql_send_long_data directly to the server instead of allocating a separate
      buffer. This means we need to process Update and Insert statements row by row. */
-  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, wDataPtr ? (char *)wDataPtr : DataPtr, Length))
+  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (wDataPtr ? (char *)wDataPtr : DataPtr), Length))
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
   else
     Record->InternalLength+= Length;
 
-end:
   MADB_FREE(wDataPtr);
   return Stmt->Error.ReturnValue;
 }
@@ -511,11 +510,11 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 {
-  int i,j, StatementNr, Start= 0;
+  int i,j, Start= 0;
   MYSQL_RES *DefaultResult= NULL;
   SQLRETURN ret= SQL_SUCCESS;
   unsigned int ErrorCount= 0;
-  unsigned int ParamCount;
+  unsigned int StatementNr;
   unsigned int ParamOffset= 0; /* for multi statements */
   unsigned int Iterations= 1;
   SQLINTEGER SaveColumnCount= Stmt->ColumnCount;
@@ -573,10 +572,9 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
         continue;
       }
 
-      for (i=ParamOffset;i < ParamOffset + Stmt->ParamCount; i++)
+      for (i=ParamOffset;(unsigned int)i < ParamOffset + Stmt->ParamCount; ++i)
       {
         MADB_DescRecord *ApdRecord, *IpdRecord;
-        unsigned int RecordNumber;
 
         if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
               (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
@@ -831,7 +829,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       }
  
       /* We need to unset InternalLength */
-      for (i=ParamOffset; i < ParamOffset + Stmt->ParamCount; i++)
+      for (i=ParamOffset; (unsigned int)i < ParamOffset + Stmt->ParamCount; i++)
       {
         MADB_DescRecord *ApdRecord; 
         if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)))
@@ -1101,8 +1099,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       }
       if (Stmt->MultiStmtCount)
       {
-        int i;
-        for (i=0; i < Stmt->MultiStmtCount; i++)
+        unsigned int i;
+        for (i=0; i < Stmt->MultiStmtCount; ++i)
           mysql_stmt_reset(Stmt->MultiStmts[i]);
       }
       if (Stmt->DefaultsResult)
@@ -1159,8 +1157,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       mysql_stmt_close(Stmt->stmt);
     if (Stmt->MultiStmtCount)
     {
-      int i;
-      for (i=0; i < Stmt->MultiStmtCount; i++)
+      unsigned int i;
+      for (i=0; i < Stmt->MultiStmtCount; ++i)
         mysql_stmt_close(Stmt->MultiStmts[i]);
       MADB_FREE(Stmt->MultiStmts);
       Stmt->MultiStmtCount= Stmt->MultiStmtNr= 0;

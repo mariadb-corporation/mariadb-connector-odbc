@@ -56,19 +56,19 @@ ODBC_TEST(t_desc_paramset)
   params2[3]= 103;
 
   /* get the descriptors */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
                                 &apd, SQL_IS_POINTER, NULL));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_PARAM_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_PARAM_DESC,
                                 &ipd, SQL_IS_POINTER, NULL));
 
   /* set the fields */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
                                 (SQLPOINTER) parsetsize, 0));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_STATUS_PTR,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_STATUS_PTR,
                                 parstatus, 0));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_OPERATION_PTR,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_OPERATION_PTR,
                                 parop, 0));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR,
                                 &pardone, 0));
 
   /* verify the fields */
@@ -87,7 +87,7 @@ ODBC_TEST(t_desc_paramset)
     CHECK_DESC_RC(ipd, SQLGetDescField(ipd, 0, SQL_DESC_ROWS_PROCESSED_PTR,
                                  &x_pardone, SQL_IS_POINTER, NULL));
 
-    IS_NUM(x_parsetsize, parsetsize);
+    is_num(x_parsetsize, parsetsize);
     FAIL_IF(x_parstatus != parstatus, "x_parstatus != parstatus");
     FAIL_IF(x_parop != parop, "x_parop != parop");
     FAIL_IF(x_pardone != &pardone, "x_pardone != pardone");
@@ -97,14 +97,14 @@ ODBC_TEST(t_desc_paramset)
   OK_SIMPLE_STMT(Stmt, "create table t_paramset(x int, y int)");
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "insert into t_paramset values (?, ?)", SQL_NTS));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,
+  CHECK_STMT_RC(Stmt,
           SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_INTEGER, SQL_C_LONG,
                            0, 0, params1, sizeof(SQLINTEGER), NULL));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,
+  CHECK_STMT_RC(Stmt,
           SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_INTEGER, SQL_C_LONG,
                            0, 0, params2, sizeof(SQLINTEGER), NULL));
   /*
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
   */
   /* TODO, finish test and implement */
 
@@ -120,9 +120,9 @@ ODBC_TEST(t_desc_set_error)
   SQLHANDLE ird, ard;
   SQLPOINTER array_status_ptr= (SQLPOINTER) 0xc0c0;
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC,
                                 &ird, SQL_IS_POINTER, NULL));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &ard, SQL_IS_POINTER, NULL));
 
   /* Test bad header field permissions */
@@ -164,53 +164,53 @@ ODBC_TEST(t_sqlbindcol_count_reset)
   SQLINTEGER count;
   SQLCHAR *buf[10];
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &ard, SQL_IS_POINTER, NULL));
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 0);
+  is_num(count, 0);
 
   OK_SIMPLE_STMT(Stmt, "select 1,2,3,4,5");
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 0);
+  is_num(count, 0);
 
   /* bind column 3 -> expand to count = 3 */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 3, SQL_C_CHAR, buf, 10, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, buf, 10, NULL));
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 3);
+  is_num(count, 3);
 
   /* unbind column 3 -> contract to count = 0 */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 3, SQL_C_DEFAULT, NULL, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_DEFAULT, NULL, 0, NULL));
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 0);
+  is_num(count, 0);
 
   /* bind column 2 -> expand to count = 2 */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 2, SQL_C_CHAR, buf, 10, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, buf, 10, NULL));
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 2);
+  is_num(count, 2);
 
   /* bind column 3 -> expand to count = 3 */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 3, SQL_C_CHAR, buf, 10, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, buf, 10, NULL));
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 3);
+  is_num(count, 3);
 
   /* unbind column 3 -> contract to count = 2 */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 3, SQL_C_DEFAULT, NULL, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_DEFAULT, NULL, 0, NULL));
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
-  IS_NUM(count, 2);
+  is_num(count, 2);
 
   return OK;
 }
@@ -225,10 +225,10 @@ ODBC_TEST(t_desc_default_type)
   SQLHANDLE ard, apd;
   SQLINTEGER inval= 20, outval= 0;
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLPrepare(Stmt, (SQLCHAR *)"select ?", SQL_NTS));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
                                 &apd, 0, NULL));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &ard, 0, NULL));
 
   CHECK_DESC_RC(apd, SQLSetDescField(apd, 1, SQL_DESC_CONCISE_TYPE,
@@ -239,10 +239,10 @@ ODBC_TEST(t_desc_default_type)
                                (SQLPOINTER) SQL_C_LONG, 0));
   CHECK_DESC_RC(ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR, &outval, 0));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLExecute(Stmt));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  IS_NUM(outval, inval);
+  is_num(outval, inval);
 
   return OK;
 }
@@ -258,41 +258,41 @@ ODBC_TEST(t_basic_explicit)
   SQLINTEGER impparam= 2;
   SQLINTEGER expparam= 999;
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLPrepare(Stmt, (SQLCHAR *) "select ?", SQL_NTS));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 1, SQL_C_LONG, &result, 0, NULL));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *) "select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &result, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &impparam, 0, NULL));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   result= 0;
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFetch(Stmt));
-  IS_NUM(result, impparam);
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(result, impparam);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* setup a new descriptor */
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expapd));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC, expapd, 0));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC, expapd, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &expparam, 0, NULL));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   result= 0;
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFetch(Stmt));
-  IS_NUM(result, expparam);
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(result, expparam);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* free the descriptor, will set apd back to original on hstmt */
   CHECK_DESC_RC(expapd, SQLFreeHandle(SQL_HANDLE_DESC, expapd));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   result= 0;
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFetch(Stmt));
-  IS_NUM(result, impparam);
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(result, impparam);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
 }
@@ -311,9 +311,9 @@ ODBC_TEST(t_explicit_error)
   /* TODO using an exp from a different dbc */
 
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt2));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &desc1, 0, NULL));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(hstmt2, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(hstmt2, SQL_ATTR_APP_ROW_DESC,
                                  &desc2, 0, NULL));
 
   /* can't set implicit ard from a different statement */
@@ -322,7 +322,7 @@ ODBC_TEST(t_explicit_error)
   FAIL_IF(check_sqlstate(Stmt, "HY017") != OK, "HY017 expected");
 
   /* can set it to the same statement */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, desc1, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, desc1, 0));
 
   /* can't set implementation descriptors */
   FAIL_IF(SQLSetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC,
@@ -341,7 +341,7 @@ ODBC_TEST(t_explicit_error)
   
   /* can't set apd as ard (and vice-versa) */
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expapd));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
                                 expapd, 0)); /* this makes expapd an apd */
 
   FAIL_IF(SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
@@ -353,7 +353,7 @@ ODBC_TEST(t_explicit_error)
     Even though the above call failed, unixODBC saved this value internally
     and returns it. desc1 should *not* be the same as the explicit apd
   */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &desc1, 0, NULL));
   diag("explicit apd: %x, stmt's ard: %x", expapd, desc1);
 
@@ -405,7 +405,7 @@ ODBC_TEST(t_mult_stmt_free)
     exp_param= 200 + i;
     CHECK_STMT_RC(stmt[i], SQLExecDirect(stmt[i], (SQLCHAR *)"select ?", SQL_NTS));
     CHECK_STMT_RC(stmt[i], SQLFetch(stmt[i]));
-    IS_NUM(exp_result, exp_param);
+    is_num(exp_result, exp_param);
     CHECK_STMT_RC(stmt[i], SQLFreeStmt(stmt[i], SQL_CLOSE));
   }
 
@@ -434,14 +434,14 @@ ODBC_TEST(t_mult_stmt_free)
 
   for (i= 0; i < mult_count; ++i)
   {
-    IS_NUM(imp_results[i], imp_params[i]);
+    is_num(imp_results[i], imp_params[i]);
   }
 
   /*
     bug in unixODBC - it still returns the explicit descriptor
     These should *not* be the same
   */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(stmt[0], SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(stmt[0], SQL_ATTR_APP_ROW_DESC,
                                &desc, SQL_IS_POINTER, NULL));
   printMessage("explicit ard = %x, stmt[0]'s implicit ard = %x", expard, desc);
 #endif
@@ -470,25 +470,25 @@ ODBC_TEST(t_set_null_use_implicit)
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expard));
 
   /* this affects the implicit ard */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(hstmt1, 1, SQL_C_LONG, &imp_result, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(hstmt1, 1, SQL_C_LONG, &imp_result, 0, NULL));
 
   /* set the explicit ard */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(hstmt1, SQL_ATTR_APP_ROW_DESC, expard, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(hstmt1, SQL_ATTR_APP_ROW_DESC, expard, 0));
 
   /* this affects the expard */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(hstmt1, 1, SQL_C_LONG, &exp_result, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(hstmt1, 1, SQL_C_LONG, &exp_result, 0, NULL));
 
   /* set it to null, getting rid of the expard */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLSetStmtAttr(hstmt1, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(hstmt1, SQL_ATTR_APP_ROW_DESC,
                                 SQL_NULL_HANDLE, 0));
 
   OK_SIMPLE_STMT(hstmt1, "select 1");
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFetch(hstmt1));
+  CHECK_STMT_RC(Stmt, SQLFetch(hstmt1));
 
-  IS_NUM(exp_result, 0);
-  IS_NUM(imp_result, 1);
+  is_num(exp_result, 0);
+  is_num(imp_result, 1);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLFreeHandle(SQL_HANDLE_STMT, hstmt1));
+  CHECK_STMT_RC(Stmt, SQLFreeHandle(SQL_HANDLE_STMT, hstmt1));
 
   /* if stmt disassociation failed, this will crash */
   CHECK_DESC_RC(expard, SQLFreeHandle(SQL_HANDLE_DESC, expard));
@@ -512,10 +512,10 @@ ODBC_TEST(t_free_stmt_with_exp_desc)
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt1));
 
   /* set the explicit ard */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, 1, SQLSetStmtAttr(hstmt1, SQL_ATTR_APP_ROW_DESC, expard, 0));
+  CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_APP_ROW_DESC, expard, 0));
 
   /* free the statement, THEN the descriptors */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, 1, SQLFreeHandle(SQL_HANDLE_STMT, hstmt1));
+  CHECK_STMT_RC(hstmt1, SQLFreeHandle(SQL_HANDLE_STMT, hstmt1));
   CHECK_DESC_RC(expard, SQLFreeHandle(SQL_HANDLE_DESC, expard));
 
   return OK;
@@ -534,10 +534,10 @@ ODBC_TEST(t_bug41081)
   SQLINTEGER res;
   SQLLEN ind;
   SQLPOINTER data_ptr, octet_length_ptr;
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &ard, SQL_IS_POINTER, NULL));
   OK_SIMPLE_STMT(Stmt, "select 1");
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLBindCol(Stmt, 1, SQL_C_LONG, &res, 0, &ind));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &res, 0, &ind));
   /* cause to unbind */
   CHECK_DESC_RC(ard, SQLSetDescField(ard, 1, SQL_DESC_PRECISION, (SQLPOINTER) 10,
                                SQL_IS_SMALLINT));
@@ -560,14 +560,14 @@ ODBC_TEST(t_bug44576)
   SQLSMALLINT interval_code;
   SQLSMALLINT concise_type;
   SQLHANDLE ird;
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC, &ird, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC, &ird, 0, NULL));
   OK_SIMPLE_STMT(Stmt, "select cast('2000-10-10' as date)");
   CHECK_DESC_RC(ird, SQLGetDescField(ird, 1, SQL_DESC_CONCISE_TYPE, &concise_type,
                                SQL_IS_SMALLINT, NULL));
   CHECK_DESC_RC(ird, SQLGetDescField(ird, 1, SQL_DESC_DATETIME_INTERVAL_CODE,
                                &interval_code, SQL_IS_SMALLINT, NULL));
-  IS_NUM(concise_type, SQL_TYPE_DATE);
-  IS_NUM(interval_code, SQL_CODE_DATE);
+  is_num(concise_type, SQL_TYPE_DATE);
+  is_num(interval_code, SQL_CODE_DATE);
   return OK;
 }
 
@@ -598,7 +598,7 @@ ODBC_TEST(t_desc_curcatalog)
 
   OK_SIMPLE_STMT(hstmt1, "select 10 AS no_catalog_column");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, SQLGetStmtAttr(hstmt1, SQL_ATTR_IMP_ROW_DESC, &ird, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(hstmt1, SQL_ATTR_IMP_ROW_DESC, &ird, 0, NULL));
   CHECK_DESC_RC(ird, SQLGetDescField(ird, 1, SQL_DESC_CATALOG_NAME, conn_in,
                                sizeof(conn_in), NULL));
 

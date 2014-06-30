@@ -41,9 +41,9 @@ ODBC_TEST(my_columns_null)
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
 
-  IS_NUM(rowCount, 2);
+  is_num(rowCount, 2);
 
-  IS_NUM(2, my_print_non_format_result(Stmt));
+  is_num(2, my_print_non_format_result(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -63,7 +63,7 @@ ODBC_TEST(my_drop_table)
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0,
                             (SQLCHAR *)"my_drop_table", SQL_NTS, NULL, 0));
 
-  IS_NUM(1, my_print_non_format_result(Stmt));
+  is_num(1, my_print_non_format_result(Stmt));
 
   OK_SIMPLE_STMT(Stmt, "drop table my_drop_table");
 
@@ -111,7 +111,7 @@ ODBC_TEST(my_table_dbs)
     CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
     nrows = my_print_non_format_result(Stmt);
 
-    IS_NUM(rowCount, nrows)
+    is_num(rowCount, nrows)
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -119,7 +119,7 @@ ODBC_TEST(my_table_dbs)
                    NULL,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(nrows, my_print_non_format_result(Stmt));
+    is_num(nrows, my_print_non_format_result(Stmt));
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -127,7 +127,7 @@ ODBC_TEST(my_table_dbs)
     CHECK_STMT_RC(Stmt,rc);
 
     CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    IS_NUM(rowCount, my_print_non_format_result(Stmt));
+    is_num(rowCount, my_print_non_format_result(Stmt));
 
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -186,7 +186,7 @@ ODBC_TEST(my_table_dbs)
     CHECK_STMT_RC(Stmt,rc);
 
     nrows += 4;
-    IS_NUM(nrows, my_print_non_format_result(Stmt));
+    is_num(nrows, my_print_non_format_result(Stmt));
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -194,7 +194,7 @@ ODBC_TEST(my_table_dbs)
                    "", 0, "", 0, "", 0);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(my_print_non_format_result(Stmt), nrows);
+    is_num(my_print_non_format_result(Stmt), nrows);
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -203,9 +203,9 @@ ODBC_TEST(my_table_dbs)
     CHECK_STMT_RC(Stmt,rc);
 
     CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    IS_NUM(rowCount, 0);
+    is_num(rowCount, 0);
 
-    IS_NUM(my_print_non_format_result(Stmt), 0);
+    is_num(my_print_non_format_result(Stmt), 0);
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -213,7 +213,7 @@ ODBC_TEST(my_table_dbs)
                    "", 0, "", 0, NULL, 0);
     CHECK_STMT_RC(Stmt,rc);
     CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    IS_NUM(my_print_non_format_result(Stmt), 4);
+    is_num(my_print_non_format_result(Stmt), 4);
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -222,7 +222,7 @@ ODBC_TEST(my_table_dbs)
                    NULL, 0, (SQLCHAR *)"xyz", SQL_NTS, NULL, 0);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(my_print_non_format_result(Stmt), 0);
+    is_num(my_print_non_format_result(Stmt), 0);
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -261,7 +261,7 @@ ODBC_TEST(my_colpriv)
                                      (SQLCHAR *)/*NULL*/"%", SQL_NTS));
 
   diag("1) Privileges on all columns from test_colprev1");
-  IS_NUM(4, my_print_non_format_result(Stmt));
+  is_num(4, my_print_non_format_result(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -271,7 +271,7 @@ ODBC_TEST(my_colpriv)
                                      (SQLCHAR *)"a", SQL_NTS));
 
   diag("2) Privileges on column 'a' from test_colprev1");
-  IS_NUM(my_print_non_format_result(Stmt), 1);
+  is_num(my_print_non_format_result(Stmt), 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -281,7 +281,7 @@ ODBC_TEST(my_colpriv)
                                      (SQLCHAR *)"%", SQL_NTS));
 
   diag("3) Privileges on all columns from test_colprev2");
-  IS_NUM(my_print_non_format_result(Stmt), 0);
+  is_num(my_print_non_format_result(Stmt), 0);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -291,7 +291,7 @@ ODBC_TEST(my_colpriv)
                                      (SQLCHAR *)"%", SQL_NTS));
 
   diag("4) Privileges on all columns from test_colprev3");
-  IS_NUM(my_print_non_format_result(Stmt), 4);
+  is_num(my_print_non_format_result(Stmt), 4);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -300,7 +300,7 @@ ODBC_TEST(my_colpriv)
                                      (SQLCHAR *)"test_%", SQL_NTS,
                                      (SQLCHAR *)"%", SQL_NTS));
 
- // IS_NUM(my_print_non_format_result(Stmt), 0);
+ // is_num(my_print_non_format_result(Stmt), 0);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -344,13 +344,13 @@ ODBC_TEST(t_sqlprocedures)
   CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, NULL, 0, NULL, 0,
                                (SQLCHAR *)"t_sqlproc%", SQL_NTS));
 
-  IS_NUM(my_print_non_format_result(Stmt), 2);
+  is_num(my_print_non_format_result(Stmt), 2);
 
   /* And try with specifying a catalog.  */
   CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, (SQLCHAR *)my_schema, SQL_NTS, NULL, 0,
                                (SQLCHAR *)"t_sqlproc%", SQL_NTS));
 
-  IS_NUM(my_print_non_format_result(Stmt), 2);
+  is_num(my_print_non_format_result(Stmt), 2);
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE t_sqlproc_proc");
   OK_SIMPLE_STMT(Stmt, "DROP FUNCTION t_sqlproc_func");
@@ -408,7 +408,7 @@ ODBC_TEST(t_catalog)
         CHECK_STMT_RC(Stmt,rc);
 
         diag("column %d: %s (%d)", i, name, len);
-        IS_NUM(len, collengths[i - 1]);
+        is_num(len, collengths[i - 1]);
         IS_STR(name, colnames[i - 1], len);
     }
     SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -421,41 +421,37 @@ ODBC_TEST(t_catalog)
 
 ODBC_TEST(tmysql_specialcols)
 {
-  SQLRETURN rc;
-
-    OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_specialcols");
-    OK_SIMPLE_STMT(Stmt,"create table tmysql_specialcols(col1 int primary key, col2 varchar(30), col3 int)");
+  OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_specialcols");
+  OK_SIMPLE_STMT(Stmt,"create table tmysql_specialcols(col1 int primary key, col2 varchar(30), col3 int)");
     
 
-    OK_SIMPLE_STMT(Stmt,"create index tmysql_ind1 on tmysql_specialcols(col1)");
+  OK_SIMPLE_STMT(Stmt,"create index tmysql_ind1 on tmysql_specialcols(col1)");
     
-   OK_SIMPLE_STMT(Stmt,"insert into tmysql_specialcols values(100,'venu',1)");
+  OK_SIMPLE_STMT(Stmt,"insert into tmysql_specialcols values(100,'venu',1)");
 
+  OK_SIMPLE_STMT(Stmt,"insert into tmysql_specialcols values(200,'MySQL',2)");
+    
+  CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
 
-    OK_SIMPLE_STMT(Stmt,"insert into tmysql_specialcols values(200,'MySQL',2)");
-    
-    CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
-    
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
-    
-    OK_SIMPLE_STMT(Stmt,"select * from tmysql_specialcols");
-    
-    myresult(Stmt);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
-    
-    CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL,0, NULL,0,
-                                     (SQLCHAR *)"tmysql_specialcols",SQL_NTS,
-                                     SQL_SCOPE_SESSION, SQL_NULLABLE));
+  OK_SIMPLE_STMT(Stmt,"select * from tmysql_specialcols");
 
-    myresult(Stmt);
+  myresult(Stmt);
 
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
-    
-    OK_SIMPLE_STMT(Stmt,"drop table tmysql_specialcols");
-    
-    CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
-    
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL,0, NULL,0,
+                                   (SQLCHAR *)"tmysql_specialcols",SQL_NTS,
+                                   SQL_SCOPE_SESSION, SQL_NULLABLE));
+
+  myresult(Stmt);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt,"drop table tmysql_specialcols");
+
+  CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
 
   return OK;
 }
@@ -537,20 +533,20 @@ ODBC_TEST(t_columns)
 
 	/* if you get -8 for col1 here - that's fine. depends on setup. the test probably needs
 	   to be changed accordingly */
-    IS_NUM(DataType,   Values[i][0][0]);
-    IS_NUM(cbDataType, Values[i][0][1]);
+    is_num(DataType,   Values[i][0][0]);
+    is_num(cbDataType, Values[i][0][1]);
 
-    IS_NUM(ColumnSize,   Values[i][1][0]);
-    IS_NUM(cbColumnSize, Values[i][1][1]);
+    is_num(ColumnSize,   Values[i][1][0]);
+    is_num(cbColumnSize, Values[i][1][1]);
 
-    IS_NUM(DecimalDigits,   Values[i][2][0]);
-    IS_NUM(cbDecimalDigits, Values[i][2][1]);
+    is_num(DecimalDigits,   Values[i][2][0]);
+    is_num(cbDecimalDigits, Values[i][2][1]);
 
-    IS_NUM(NumPrecRadix,   Values[i][3][0]);
-    IS_NUM(cbNumPrecRadix, Values[i][3][1]);
+    is_num(NumPrecRadix,   Values[i][3][0]);
+    is_num(cbNumPrecRadix, Values[i][3][1]);
 
-    IS_NUM(Nullable,   Values[i][4][0]);
-    IS_NUM(cbNullable, Values[i][4][1]);
+    is_num(Nullable,   Values[i][4][0]);
+    is_num(cbNullable, Values[i][4][1]);
 
     FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
 
@@ -607,7 +603,7 @@ ODBC_TEST(t_tables_bug)
                             (SQLCHAR *)"TABLE", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
-  IS_NUM(ColumnCount, 5);
+  is_num(ColumnCount, 5);
 
   for (i= 1; i <= ColumnCount; ++i)
   {
@@ -624,12 +620,12 @@ ODBC_TEST(t_tables_bug)
     fprintf(stdout, "#  Nullable      : %d\n", pfNullable);
 
     IS_STR(t_tables_bug_data[i-1].szColName, szColName, pcbColName);
-    IS_NUM(t_tables_bug_data[i-1].pcbColName, pcbColName);
-    IS_NUM(t_tables_bug_data[i-1].pfSqlType, pfSqlType);
+    is_num(t_tables_bug_data[i-1].pcbColName, pcbColName);
+    is_num(t_tables_bug_data[i-1].pfSqlType, pfSqlType);
     /* This depends on NAME_LEN in mysql_com.h */
 
-    IS_NUM(t_tables_bug_data[i-1].pibScale, pibScale);
-    IS_NUM(t_tables_bug_data[i-1].pfNullable, pfNullable);
+    is_num(t_tables_bug_data[i-1].pibScale, pibScale);
+    is_num(t_tables_bug_data[i-1].pfNullable, pfNullable);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -651,7 +647,7 @@ ODBC_TEST(t_current_catalog_unicode)
   rc = SQLGetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, sizeof(db), &len);
   CHECK_DBC_RC(Connection,rc);
 
-  IS_NUM(len, strlen(my_schema) * sizeof(SQLWCHAR));
+  is_num(len, strlen(my_schema) * sizeof(SQLWCHAR));
   //is_wstr(sqlwchar_to_wchar_t(db), L"test", 5);
 
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, SQL_NTS);
@@ -673,7 +669,7 @@ ODBC_TEST(t_current_catalog_unicode)
   rc = SQLGetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, 255, &len);
   CHECK_DBC_RC(Connection,rc);
 
-  IS_NUM(len, strlen("test_odbc_current") * sizeof(SQLWCHAR));
+  is_num(len, strlen("test_odbc_current") * sizeof(SQLWCHAR));
   //is_wstr(sqlwchar_to_wchar_t(db), cur_db, 18);
 
  
@@ -700,7 +696,7 @@ ODBC_TEST(t_current_catalog_ansi)
   rc = SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, db, sizeof(db), &len);
   CHECK_DBC_RC(Connection,rc);
 
-  IS_NUM(len, strlen(my_schema));
+  is_num(len, strlen(my_schema));
   IS_STR(db, my_schema, len);
 
   rc = SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, db, SQL_NTS);
@@ -722,7 +718,7 @@ ODBC_TEST(t_current_catalog_ansi)
   rc = SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, db, 255, &len);
   CHECK_DBC_RC(Connection,rc);
 
-  IS_NUM(len, 17);
+  is_num(len, 17);
   IS_STR(db, cur_db, 18);
 
 
@@ -794,7 +790,7 @@ ODBC_TEST(t_sqltables)
                  (SQLCHAR *)"system table", SQL_NTS);
   CHECK_STMT_RC(Stmt,r);
 
-  IS_NUM(myresult(Stmt), 0);
+  is_num(myresult(Stmt), 0);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -805,7 +801,7 @@ ODBC_TEST(t_sqltables)
 
   CHECK_STMT_RC(Stmt,r);
 
-  IS_NUM(myresult(Stmt), rowCount);
+  is_num(myresult(Stmt), rowCount);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -840,7 +836,7 @@ ODBC_TEST(t_sqltables)
   CHECK_STMT_RC(Stmt,r);
 
   rows= myresult(Stmt);
-  IS_NUM(rows, 3);
+  is_num(rows, 3);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -883,13 +879,13 @@ ODBC_TEST(my_information_schema)
   CHECK_STMT_RC(Stmt1,rc);
 
   /* all tables from all databases should be displayed */
-  IS_NUM(my_print_non_format_result(Stmt1), 3);
+  is_num(my_print_non_format_result(Stmt1), 3);
   rc = SQLFreeStmt(Stmt1, SQL_CLOSE);
 
   rc = SQLTables(Stmt1, NULL, 0, NULL, 0, "istab%", SQL_NTS, NULL, 0);
   CHECK_STMT_RC(Stmt1,rc);
 
-  IS_NUM(my_print_non_format_result(Stmt1), 1);
+  is_num(my_print_non_format_result(Stmt1), 1);
   rc = SQLFreeStmt(Stmt1, SQL_CLOSE);
   CHECK_STMT_RC(Stmt1,rc);
 
@@ -946,20 +942,20 @@ ODBC_TEST(t_bug4518)
   IS_STR(my_fetch_str(Stmt, buff, 8), "parent_id", 9);
   if (1)
   {
-    IS_NUM(my_fetch_int(Stmt, 10), SQL_RESTRICT);
-    IS_NUM(my_fetch_int(Stmt, 11), SQL_SET_NULL);
+    is_num(my_fetch_int(Stmt, 10), SQL_RESTRICT);
+    is_num(my_fetch_int(Stmt, 11), SQL_SET_NULL);
   }
   else
   {
-    IS_NUM(my_fetch_int(Stmt, 10), SQL_RESTRICT);
-    IS_NUM(my_fetch_int(Stmt, 11), SQL_RESTRICT);
+    is_num(my_fetch_int(Stmt, 10), SQL_RESTRICT);
+    is_num(my_fetch_int(Stmt, 11), SQL_RESTRICT);
   }
 
   /* For Bug #19923: Test that schema columns are NULL. */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, buff, sizeof(buff), &len));
-  IS_NUM(len, SQL_NULL_DATA);
+  is_num(len, SQL_NULL_DATA);
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, buff, sizeof(buff), &len));
-  IS_NUM(len, SQL_NULL_DATA);
+  is_num(len, SQL_NULL_DATA);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
 
@@ -975,8 +971,8 @@ ODBC_TEST(t_bug4518)
   IS_STR(my_fetch_str(Stmt, buff, 8), "parent_id", 9);
   if (1)
   {
-    IS_NUM(my_fetch_int(Stmt, 10), SQL_NO_ACTION);
-    IS_NUM(my_fetch_int(Stmt, 11), SQL_CASCADE);
+    is_num(my_fetch_int(Stmt, 10), SQL_NO_ACTION);
+    is_num(my_fetch_int(Stmt, 11), SQL_CASCADE);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1001,7 +997,7 @@ ODBC_TEST(empty_set)
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
                            (SQLCHAR *)"UNKNOWN", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &columns));
-  IS_NUM(columns, 5);
+  is_num(columns, 5);
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1009,7 +1005,7 @@ ODBC_TEST(empty_set)
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
                            (SQLCHAR *)"no_such_table", SQL_NTS, NULL, SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &columns));
-  IS_NUM(columns, 5);
+  is_num(columns, 5);
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1020,7 +1016,7 @@ ODBC_TEST(empty_set)
 			   (SQLCHAR *) "t_sqltables_empty", SQL_NTS,
 			   NULL, SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &columns));
-  IS_NUM(columns, 5);
+  is_num(columns, 5);
   FAIL_IF(SQLFetch(Stmt) == SQL_NO_DATA_FOUND, "expected data");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_sqltables_empty");
@@ -1175,7 +1171,7 @@ OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug8860, `t_bug8860_a'b`");
     CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR *)"", SQL_NTS,
                               NULL, 0));
 
-    IS_NUM(myrowcount(Stmt), 0);
+    is_num(myrowcount(Stmt), 0);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1247,7 +1243,7 @@ ODBC_TEST(t_bug29888)
                             (SQLCHAR *)"t_bug29888", SQL_NTS,
                             (SQLCHAR *)"%", SQL_NTS));
 
-  IS_NUM(myrowcount(Stmt), 2);
+  is_num(myrowcount(Stmt), 2);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1274,7 +1270,7 @@ ODBC_TEST(t_bug14407)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, col, 4), "a", 1);
-  IS_NUM(my_fetch_int(Stmt, 11), SQL_NULLABLE);
+  is_num(my_fetch_int(Stmt, 11), SQL_NULLABLE);
   IS_STR(my_fetch_str(Stmt, col, 18), "YES", 3);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
@@ -1289,7 +1285,7 @@ ODBC_TEST(t_bug14407)
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, col, sizeof(col), NULL, NULL, NULL,
                                 NULL, &nullable));
-  IS_NUM(nullable, SQL_NULLABLE);
+  is_num(nullable, SQL_NULLABLE);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1333,9 +1329,9 @@ ODBC_TEST(t_bug19923)
   IS_STR(my_fetch_str(Stmt, buff, 8), "b", 1);
   IS_STR(my_fetch_str(Stmt, buff, 12), "first_constraint", 16);
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, buff, sizeof(buff), &len));
-  IS_NUM(len, SQL_NULL_DATA);
+  is_num(len, SQL_NULL_DATA);
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, buff, sizeof(buff), &len));
-  IS_NUM(len, SQL_NULL_DATA);
+  is_num(len, SQL_NULL_DATA);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
 
@@ -1363,12 +1359,12 @@ ODBC_TEST(t_bug32864)
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_COLUMN_DISPLAY_SIZE, NULL, 0,
                                  NULL, &dispsize));
 
-  IS_NUM(dispsize, 64);
+  is_num(dispsize, 64);
 
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 3, dummy, sizeof(dummy), NULL, NULL,
                                 &colsize, NULL, NULL));
 
-  IS_NUM(colsize, 64);
+  is_num(colsize, 64);
 
   return OK;
 }
@@ -1390,7 +1386,7 @@ ODBC_TEST(t_bug32989)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 4, SQL_C_CHAR, name, 20, &len));
-  IS_NUM(len, 12);
+  is_num(len, 12);
   IS_STR(name, "doesn't work", 13);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1449,14 +1445,14 @@ ODBC_TEST(t_bug12805)
   CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
   CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 7, SQL_C_ULONG, &len2,
                              0, NULL));
-  IS_NUM(len2, 2147483647);
+  is_num(len2, 2147483647);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   length= 0;
   OK_SIMPLE_STMT(Stmt1, "SELECT * FROM bug12805");
   CHECK_STMT_RC(Stmt1, SQLDescribeCol(Stmt1, 2, dummy, sizeof(dummy) - 1, NULL,
                                  NULL, &length, NULL, NULL));
-  IS_NUM(length, 2147483647);
+  is_num(length, 2147483647);
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
   ODBC_Disconnect(Env1, Connection1, Stmt1);
@@ -1469,7 +1465,7 @@ ODBC_TEST(t_bug12805)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 7, SQL_C_ULONG, &len2,
                             0, NULL));
-  IS_NUM(len2, 4294967295UL);
+  is_num(len2, 4294967295UL);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1477,7 +1473,7 @@ ODBC_TEST(t_bug12805)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM bug12805");
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 2, dummy, sizeof(dummy), NULL, NULL,
                                  &length, NULL, NULL));
-  IS_NUM(length, 4294967295UL);
+  is_num(length, 4294967295UL);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "DROP TABLE bug12805");
@@ -1507,7 +1503,7 @@ ODBC_TEST(t_bug30770)
                         "UID=%s;PASSWORD=%s;DATABASE=%s", my_drivername, "localhost",
                         my_uid, my_pwd, my_schema);
   
-  IS_NUM(mydrvconnect(&Env1, &Connection1, &Stmt1, conn), OK);
+  is_num(mydrvconnect(&Env1, &Connection1, &Stmt1, conn), OK);
 
   /* Get the info from just one table.  */
   CHECK_STMT_RC(Stmt1, SQLColumns(Stmt1, NULL, SQL_NTS, NULL, SQL_NTS,
@@ -1593,13 +1589,13 @@ ODBC_TEST(t_bug37621)
           &iName, &iType, &uiDef, &iScale, &iNullable));
 
   IS_STR(szColName, "REMARKS", 8);
-  IS_NUM(iName, 7);
+  is_num(iName, 7);
   if (iType != SQL_VARCHAR && iType != SQL_WVARCHAR)
     return FAIL;
   /* This can fail for the same reason as t_bug32864 */
-  IS_NUM(uiDef, 2048);
-  IS_NUM(iScale, 0);
-  IS_NUM(iNullable, 0);
+  is_num(uiDef, 2048);
+  is_num(iScale, 0);
+  is_num(iNullable, 0);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug37621");
@@ -1630,11 +1626,11 @@ ODBC_TEST(t_bug34272)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, dummy, col6+1, &length));
-  IS_NUM(length,12);
+  is_num(length,12);
   IS_STR(dummy, "INT UNSIGNED", length+1);
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 18, SQL_C_CHAR, dummy, col18+1, &length));
-  IS_NUM(length,3);
+  is_num(length,3);
   IS_STR(dummy, "YES", length+1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
@@ -1669,7 +1665,7 @@ ODBC_TEST(t_bug49660)
                                 NULL, 0, (SQLCHAR *)"t_bug49660", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowsCount));
-  IS_NUM(rowsCount, 1); 
+  is_num(rowsCount, 1); 
   /* Going another way around - sort of more reliable */
   FAIL_IF(SQLFetch(Stmt) == SQL_NO_DATA_FOUND, "expected data");
 
@@ -1705,7 +1701,7 @@ ODBC_TEST(t_bug51422)
                                 NULL, 0, (SQLCHAR *)"t_bug51422", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowsCount));
-  IS_NUM(rowsCount, 0);
+  is_num(rowsCount, 0);
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug51422");
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug51422_r");
@@ -1741,7 +1737,7 @@ OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug36441_0123456789");
 
   /* Test of SQLRowCount with SQLPrimaryKeys */
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-  IS_NUM(rowCount, 2);
+  is_num(rowCount, 2);
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR , catalog, sizeof(catalog), &catalog_len));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR , schema , sizeof(schema) , &schema_len));
@@ -1754,11 +1750,11 @@ OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug36441_0123456789");
   {
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    IS_NUM(catalog_len, strlen(my_schema));
-    IS_NUM(schema_len, SQL_NULL_DATA);
+    is_num(catalog_len, strlen(my_schema));
+    is_num(schema_len, SQL_NULL_DATA);
     IS_STR(table, "t_bug36441_0123456789", 3);
     IS_STR(column, key_column_name[i], 4);
-    IS_NUM(key_seq, i+1);
+    is_num(key_seq, i+1);
     IS_STR(keyname, "PRIMARY", 6);
   }
 
@@ -1790,8 +1786,8 @@ ODBC_TEST(t_bug53235)
   col_size= my_fetch_int(Stmt, 7);
   buf_len= my_fetch_int(Stmt, 8);
 
-  IS_NUM(col_size, 10);
-  IS_NUM(buf_len, 12);
+  is_num(col_size, 10);
+  is_num(buf_len, 12);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -2132,33 +2128,33 @@ ODBC_TEST(t_sqlprocedurecolumns)
     IS_STR(param_name, data_to_check[iter].c04_column_name, 
            strlen(data_to_check[iter].c04_column_name) + 1);
 
-    IS_NUM(my_fetch_int(Stmt, 5), data_to_check[iter].c05_column_type);
+    is_num(my_fetch_int(Stmt, 5), data_to_check[iter].c05_column_type);
 
-    IS_NUM(my_fetch_int(Stmt, 6), data_to_check[iter].c06_data_type);
+    is_num(my_fetch_int(Stmt, 6), data_to_check[iter].c06_data_type);
 
     IS_STR(my_fetch_str(Stmt, buff, 7), 
            data_to_check[iter].c07_type_name, 
            strlen(data_to_check[iter].c07_type_name) + 1);
 
     col_size= my_fetch_int(Stmt, 8);
-    IS_NUM(col_size, data_to_check[iter].c08_column_size);
+    is_num(col_size, data_to_check[iter].c08_column_size);
 
     buf_len= my_fetch_int(Stmt, 9);
-    IS_NUM(buf_len, data_to_check[iter].c09_buffer_length);
+    is_num(buf_len, data_to_check[iter].c09_buffer_length);
 
     diag("Iter: %d", iter);
-    IS_NUM(my_fetch_int(Stmt, 10), data_to_check[iter].c10_decimal_digits);
+    is_num(my_fetch_int(Stmt, 10), data_to_check[iter].c10_decimal_digits);
     
-    IS_NUM(my_fetch_int(Stmt, 11), data_to_check[iter].c11_num_prec_radix);
+    is_num(my_fetch_int(Stmt, 11), data_to_check[iter].c11_num_prec_radix);
 
-    IS_NUM(my_fetch_int(Stmt, 15), data_to_check[iter].c15_sql_data_type);
+    is_num(my_fetch_int(Stmt, 15), data_to_check[iter].c15_sql_data_type);
 
-    IS_NUM(my_fetch_int(Stmt, 16), data_to_check[iter].c16_sql_datetime_sub);
+    is_num(my_fetch_int(Stmt, 16), data_to_check[iter].c16_sql_datetime_sub);
 
     octet_len= my_fetch_int(Stmt, 17);
-    IS_NUM(octet_len, data_to_check[iter].c17_char_octet_length);
+    is_num(octet_len, data_to_check[iter].c17_char_octet_length);
 
-    IS_NUM(my_fetch_int(Stmt, 18), data_to_check[iter].c18_ordinal_position);
+    is_num(my_fetch_int(Stmt, 18), data_to_check[iter].c18_ordinal_position);
 
     IS_STR(my_fetch_str(Stmt, buff, 19), 
            data_to_check[iter].c19_is_nullable, 
@@ -2198,7 +2194,7 @@ ODBC_TEST(t_bug57182)
     NULL, 0));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  IS_NUM(2, nRowCount)
+  is_num(2, nRowCount)
   
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   
@@ -2211,7 +2207,7 @@ ODBC_TEST(t_bug57182)
   IS_STR(my_fetch_str(Stmt, buff, 3), "bug57182", 9);
   IS_STR(my_fetch_str(Stmt, buff, 4), "name", 5);
   IS_STR(my_fetch_str(Stmt, buff, 7), "varchar", 8);
-  IS_NUM(my_fetch_int(Stmt, 8), 20);
+  is_num(my_fetch_int(Stmt, 8), 20);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "No data expected");
   
@@ -2223,7 +2219,7 @@ ODBC_TEST(t_bug57182)
     "id", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  IS_NUM(1, nRowCount)
+  is_num(1, nRowCount)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
@@ -2241,7 +2237,7 @@ ODBC_TEST(t_bug57182)
     "non_existing_column%", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  IS_NUM(0, nRowCount);
+  is_num(0, nRowCount);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "No data expected");
 
@@ -2290,7 +2286,7 @@ ODBC_TEST(t_bug55870)
                                    "bug55870", SQL_NTS,
                                    SQL_INDEX_UNIQUE, SQL_QUICK));
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rowCount));
-  IS_NUM(rowCount, 1);
+  is_num(rowCount, 1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -2298,7 +2294,7 @@ ODBC_TEST(t_bug55870)
                                     SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rowCount));
-  IS_NUM(rowCount, my_print_non_format_result(hstmt1));
+  is_num(rowCount, my_print_non_format_result(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -2306,7 +2302,7 @@ ODBC_TEST(t_bug55870)
                                       SQL_NTS, "c", SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rowCount));
-  IS_NUM(rowCount, my_print_non_format_result(hstmt1));
+  is_num(rowCount, my_print_non_format_result(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -2324,7 +2320,7 @@ ODBC_TEST(t_bug55870)
     NULL, 0, (SQLCHAR *)"bug55870r", SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rowCount));
-  IS_NUM(rowCount, my_print_non_format_result(hstmt1));
+  is_num(rowCount, my_print_non_format_result(hstmt1));
 
   /** surprise-surprise - just removing table is not enough to remove related
       records from tables_priv and columns_priv
@@ -2385,7 +2381,6 @@ ODBC_TEST(t_bug31067)
 ODBC_TEST(bug12824839)
 {
   SQLLEN      row_count;
-  SQLSMALLINT col_count;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS b12824839");
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS b12824839a");
@@ -2399,7 +2394,7 @@ ODBC_TEST(bug12824839)
                             SQL_NTS, NULL, 0));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
-  IS_NUM(3, row_count);
+  is_num(3, row_count);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2407,7 +2402,7 @@ ODBC_TEST(bug12824839)
                                 "b12824839a", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
-  IS_NUM(2, row_count);
+  is_num(2, row_count);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2529,7 +2524,7 @@ ODBC_TEST(t_bug14085211_part1)
   FAIL_IF(SQLTables(Stmt, (SQLCHAR *)tab_1024_name, SQL_NTS, NULL, SQL_NTS,
                                   (SQLCHAR *)tab_1024_name, SQL_NTS, 
                                   "TABLE,VIEW", SQL_NTS) !=  SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "HY090"), OK);
+  is_num(check_sqlstate(Stmt, "HY090"), OK);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2575,7 +2570,7 @@ ODBC_TEST(t_sqlcolumns_after_select)
                           (SQLCHAR *)"b14338051",
                           strlen("b14338051"), NULL, 0));
 
-  IS_NUM(myresult(Stmt), 2);
+  is_num(myresult(Stmt), 2);
 
   return OK;
 }
@@ -2600,12 +2595,12 @@ ODBC_TEST(t_bug14555713)
                                      "p%", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 6), SQL_BIT);
-  IS_NUM(my_fetch_int(Stmt, 8), 1);
+  is_num(my_fetch_int(Stmt, 6), SQL_BIT);
+  is_num(my_fetch_int(Stmt, 8), 1);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_NUM(my_fetch_int(Stmt, 8), 2);
-  IS_NUM(my_fetch_int(Stmt, 6), SQL_BINARY);
+  is_num(my_fetch_int(Stmt, 8), 2);
+  is_num(my_fetch_int(Stmt, 6), SQL_BINARY);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

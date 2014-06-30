@@ -299,7 +299,7 @@ ODBC_TEST(sqldriverconnect)
 
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, L"SELECT 1234", SQL_NTS));
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  IS_NUM(my_fetch_int(hstmt1, 1), 1234);
+  is_num(my_fetch_int(hstmt1, 1), 1234);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(hstmt1, SQL_DROP));
 
@@ -324,11 +324,11 @@ ODBC_TEST(sqlnativesql)
                             WC(my_pwd), SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, in, SQL_NTS, out, sizeof(out), &len));
-  IS_NUM(len, sizeof(in) / sizeof(wchar_t) - 1);
+  is_num(len, sizeof(in) / sizeof(wchar_t) - 1);
   IS_WSTR(sqlwchar_to_wchar_t(out), in, sizeof(in) / sizeof(wchar_t) - 1);
 
   CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, in, SQL_NTS, out, 8, &len));
-  IS_NUM(len, sizeof(in) / sizeof(wchar_t) - 1);
+  is_num(len, sizeof(in) / sizeof(wchar_t) - 1);
   IS_WSTR(sqlwchar_to_wchar_t(out), in, 7);
   IS(out[7] == 0);
 
@@ -383,7 +383,7 @@ ODBC_TEST(sqlsetcursorname)
                            L"WHERE CURRENT OF a\x00e3b", SQL_NTS));
 
   CHECK_STMT_RC(hstmt_pos, SQLRowCount(hstmt_pos, &nRowCount));
-  IS_NUM(nRowCount, 1);
+  is_num(nRowCount, 1);
 
   CHECK_STMT_RC(hstmt_pos, SQLFreeStmt(hstmt_pos, SQL_CLOSE));
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
@@ -401,7 +401,7 @@ ODBC_TEST(sqlsetcursorname)
                            L"WHERE CURRENT OF a\x00e3b", SQL_NTS));
 
   CHECK_STMT_RC(hstmt_pos, SQLRowCount(hstmt_pos, &nRowCount));
-  IS_NUM(nRowCount, 1);
+  is_num(nRowCount, 1);
 
   /* free the statement cursor */
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
@@ -413,19 +413,19 @@ ODBC_TEST(sqlsetcursorname)
   OK_SIMPLE_STMT(hstmt1, "SELECT * FROM my_demo_cursor");
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  IS_NUM(my_fetch_int(hstmt1, 1), 0);
+  is_num(my_fetch_int(hstmt1, 1), 0);
   IS_STR(my_fetch_str(hstmt1, data, 2), "MySQL0", 6);
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  IS_NUM(my_fetch_int(hstmt1, 1), 2);
+  is_num(my_fetch_int(hstmt1, 1), 2);
   IS_STR(my_fetch_str(hstmt1, data, 2), "MySQL2", 6);
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  IS_NUM(my_fetch_int(hstmt1, 1), 3);
+  is_num(my_fetch_int(hstmt1, 1), 3);
   IS_STR(my_fetch_str(hstmt1, data, 2), "MySQL3", 6);
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  IS_NUM(my_fetch_int(hstmt1, 1), 4);
+  is_num(my_fetch_int(hstmt1, 1), 4);
   IS_STR(my_fetch_str(hstmt1, data, 2), "updated", 7);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
@@ -463,36 +463,36 @@ ODBC_TEST(sqlgetcursorname)
   rc= SQLGetCursorNameW(hstmt1, curname, 50, &nlen);
   if (SQL_SUCCEEDED(rc))
   {
-    IS_NUM(nlen, 8);
+    is_num(nlen, 8);
     IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL_CUR0", 8);
 
     CHECK_STMT_RC(hstmt3,  SQLGetCursorNameW(hstmt3, curname, 50, &nlen));
 
     FAIL_IF(SQLGetCursorNameW(hstmt1, curname, 4, &nlen) !=
                 SQL_SUCCESS_WITH_INFO, "SUCCESS_WITH_INFO expected");
-    IS_NUM(nlen, 8);
+    is_num(nlen, 8);
     IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL", 4);
 
     FAIL_IF(SQLGetCursorNameW(hstmt1, curname, 0, &nlen) !=
                 SQL_SUCCESS_WITH_INFO, "SUCCESS_WITH_INFO expected");
     //rc = SQLGetCursorNameW(hstmt1, curname, 0, &nlen);
     //mystmt_err(hstmt1,rc == SQL_SUCCESS_WITH_INFO, rc);
-    IS_NUM(nlen, 8);
+    is_num(nlen, 8);
 
     FAIL_IF(SQLGetCursorNameW(hstmt1, curname, 8, &nlen) !=
                 SQL_SUCCESS_WITH_INFO, "SUCCESS_WITH_INFO expected");
-    IS_NUM(nlen, 8);
+    is_num(nlen, 8);
     IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL_CUR", 8);
 
     CHECK_STMT_RC(hstmt1, SQLGetCursorNameW(hstmt1, curname, 9, &nlen));
-    IS_NUM(nlen, 8);
+    is_num(nlen, 8);
     IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL_CUR0", 8);
   }
 
   CHECK_STMT_RC(hstmt1,  SQLSetCursorNameW(hstmt1, L"venucur123", 7));
 
   CHECK_STMT_RC(hstmt1,  SQLGetCursorNameW(hstmt1, curname, 8, &nlen));
-  IS_NUM(nlen, 7);
+  is_num(nlen, 7);
   IS_WSTR(sqlwchar_to_wchar_t(curname), L"venucur", 8);
 
   CHECK_STMT_RC(hstmt3, SQLFreeStmt(hstmt3, SQL_DROP));
@@ -528,17 +528,17 @@ ODBC_TEST(sqlcolattribute)
 
   CHECK_STMT_RC(hstmt1, SQLColAttributeW(hstmt1, 1, SQL_DESC_NAME,
                                    wbuff, sizeof(wbuff), &len, NULL));
-  IS_NUM(len, 3 * sizeof(SQLWCHAR));
+  is_num(len, 3 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"a\x00e3g", 4);
 
   FAIL_IF(SQLColAttributeW(hstmt1, 1, SQL_DESC_BASE_TABLE_NAME,
                                        wbuff, 5 * sizeof(SQLWCHAR), &len, NULL) != SQL_SUCCESS_WITH_INFO, "Expected success_with_info");
-  IS_NUM(len, 11 * sizeof(SQLWCHAR));
+  is_num(len, 11 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"t_co", 5);
 
   CHECK_STMT_RC(hstmt1, SQLColAttributeW(hstmt1, 1, SQL_DESC_TYPE_NAME,
                                    wbuff, sizeof(wbuff), &len, NULL));
-  IS_NUM(len, 7 * sizeof(SQLWCHAR));
+  is_num(len, 7 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"integer", 8);
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_colattrib");
@@ -574,12 +574,12 @@ ODBC_TEST(sqldescribecol)
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 1, wbuff,
                                   sizeof(wbuff) / sizeof(wbuff[0]), &len,
                                   NULL, NULL, NULL, NULL));
-  IS_NUM(len, 3);
+  is_num(len, 3);
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"a\x00e3g", 4);
 
   FAIL_IF(SQLDescribeColW(hstmt1, 1, wbuff, 3, &len,
                                       NULL, NULL, NULL, NULL) != SQL_SUCCESS_WITH_INFO, "Expected SQL_SUCCESS_WITH_INFO");
-  IS_NUM(len, 3);
+  is_num(len, 3);
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"a\x00e3", 3);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
@@ -609,12 +609,12 @@ ODBC_TEST(sqlgetconnectattr)
 
   CHECK_STMT_RC(hstmt1, SQLGetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG, wbuff,
                                      sizeof(wbuff), &len));
-  IS_NUM(len, 9 * sizeof(SQLWCHAR));
+  is_num(len, 9 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"odbc_test", 5);
 
   FAIL_IF(SQLGetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG,
                                          wbuff, 3 * sizeof(SQLWCHAR), &len) != SQL_SUCCESS_WITH_INFO, "expected SUCCESS_WITH_INFO");
-  IS_NUM(len, 9 * sizeof(SQLWCHAR));
+  is_num(len, 9 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"od", 3);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
@@ -694,24 +694,24 @@ ODBC_TEST(sqlgetdiagfield)
 
   CHECK_STMT_RC(Stmt, SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 0,
                                   SQL_DIAG_NUMBER, &data, 0, NULL));
-  IS_NUM(data, 1);
+  is_num(data, 1);
 
   CHECK_STMT_RC(Stmt, SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 1,
                                   SQL_DIAG_CLASS_ORIGIN, message,
                                   sizeof(message), &len));
-  IS_NUM(len, 8 * sizeof(SQLWCHAR));
+  is_num(len, 8 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(message), L"ISO 9075", 9);
 
   FAIL_IF(SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 1,
                                       SQL_DIAG_SQLSTATE, message,
                                       4 * sizeof(SQLWCHAR), &len) != SQL_SUCCESS_WITH_INFO, "SUCCESS_W_I expected");
-  IS_NUM(len, 5 * sizeof(SQLWCHAR));
+  is_num(len, 5 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(message), L"42S", 4);
 
   CHECK_STMT_RC(Stmt, SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 1,
                                   SQL_DIAG_SUBCLASS_ORIGIN, message,
                                   sizeof(message), &len));
-  IS_NUM(len, 8 * sizeof(SQLWCHAR));
+  is_num(len, 8 * sizeof(SQLWCHAR));
   IS_WSTR(sqlwchar_to_wchar_t(message), L"ODBC 3.0", 9);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
@@ -1036,33 +1036,33 @@ ODBC_TEST(t_bug32161)
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 1", 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 1, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
-  IS_NUM(ctype, SQL_WVARCHAR);
+  is_num(ctype, SQL_WVARCHAR);
 
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 2, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 2", 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 2, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
-  IS_NUM(ctype, SQL_WCHAR);
+  is_num(ctype, SQL_WCHAR);
 
   /* All further calls of SQLDescribeColW should return SQL_WLONGVARCHAR */
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 3", 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 3, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
-  IS_NUM(ctype, SQL_WLONGVARCHAR);
+  is_num(ctype, SQL_WLONGVARCHAR);
 
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 4", 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 4, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
-  IS_NUM(ctype, SQL_WLONGVARCHAR);
+  is_num(ctype, SQL_WLONGVARCHAR);
 
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 5, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 5", 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 5, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
-  IS_NUM(ctype, SQL_WLONGVARCHAR);
+  is_num(ctype, SQL_WLONGVARCHAR);
 
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 6, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 6", 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 6, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
-  IS_NUM(ctype, SQL_WLONGVARCHAR);
+  is_num(ctype, SQL_WLONGVARCHAR);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_bug32161");
@@ -1106,14 +1106,14 @@ ODBC_TEST(t_bug34672)
 
   if (0) //(mysql_min_version(Connection, "6.0.4", 5))
   {
-    CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, (SQLCHAR *) L"select ? FROM DUAL", SQL_NTS));
+    CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, (SQLWCHAR *) L"select ? FROM DUAL", SQL_NTS));
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, result,
                               sizeof(result), &reslen));
-    IS_NUM(result[2], 0);
+    is_num(result[2], 0);
     for (i= 0; i < inchars; ++i)
-      IS_NUM(result[i], chars[i]);
-    IS_NUM(reslen, inchars * sizeof(SQLWCHAR));
+      is_num(result[i], chars[i]);
+    is_num(reslen, inchars * sizeof(SQLWCHAR));
   }
    return OK;
 }
@@ -1310,7 +1310,7 @@ ODBC_TEST(t_bug14363601)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_NUM(my_fetch_int(hstmt1, 1), col_id);
+  is_num(my_fetch_int(hstmt1, 1), col_id);
 
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 2, SQL_C_WCHAR, col_vc_res,
                              sizeof(col_vc_res), NULL));
@@ -1331,7 +1331,7 @@ ODBC_TEST(t_bug14363601)
   /* check the binary buffer byte by byte */
   for (i= 0; i < sizeof(col_bc_res); i++)
   {
-    IS_NUM(col_bc[i], col_bc_res[i]);
+    is_num(col_bc[i], col_bc_res[i]);
   }
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");

@@ -32,7 +32,7 @@ ODBC_TEST(t_gettypeinfo)
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_ALL_TYPES));
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &pccol));
-  IS_NUM(pccol, 19);
+  is_num(pccol, 19);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -48,7 +48,7 @@ ODBC_TEST(sqlgetinfo)
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_ODBC_VER, rgbValue,
                           sizeof(rgbValue), &pcbInfo));
 
-  IS_NUM(pcbInfo, 5);
+  is_num(pcbInfo, 5);
   IS_STR(rgbValue, "03.51", 5);
 
   return OK;
@@ -87,8 +87,8 @@ ODBC_TEST(t_stmt_attr_status)
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 2));
 
-  IS_NUM(rowsFetchedPtr, 1);
-  IS_NUM(rowStatusPtr[0], 0);
+  is_num(rowsFetchedPtr, 1);
+  is_num(rowStatusPtr[0], 0);
  /* above error is a result from bind_dummy */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -111,7 +111,7 @@ ODBC_TEST(t_msdev_bug)
 
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, catalog,
                                  sizeof(catalog), &len));
-  IS_NUM(len, 9);
+  is_num(len, 9);
   IS_STR(catalog, "odbc_test", 9);
 
   return OK;
@@ -161,7 +161,7 @@ ODBC_TEST(t_bug14639)
   /* Check that connection is alive */
   CHECK_DBC_RC(Connection2, SQLGetConnectAttr(Connection2, SQL_ATTR_CONNECTION_DEAD, &is_dead,
                                  sizeof(is_dead), 0));
-  IS_NUM(is_dead, SQL_CD_FALSE)
+  is_num(is_dead, SQL_CD_FALSE)
 
   /* From another connection, kill the connection created above */
   sprintf(buf, "KILL %d", connection_id);
@@ -170,7 +170,7 @@ ODBC_TEST(t_bug14639)
   /* Now check that the connection killed returns the right state */
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection2, SQL_ATTR_CONNECTION_DEAD, &is_dead,
                                  sizeof(is_dead), 0));
-  IS_NUM(is_dead, SQL_CD_TRUE)
+  is_num(is_dead, SQL_CD_TRUE)
 
   return OK;
 }
@@ -196,7 +196,7 @@ ODBC_TEST(t_bug31055)
 
   CHECK_DBC_RC(Connection, SQLGetFunctions(Connection, SQL_API_ODBC3_ALL_FUNCTIONS, funcs));
 
-  IS_NUM(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), 0);
+  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), 0);
 
   return OK;
 }
@@ -231,13 +231,13 @@ ODBC_TEST(t_bug3780)
   CHECK_DBC_RC(Connection1, SQLGetInfo(Connection1, SQL_DATABASE_NAME, rgbValue, 
                            MAX_NAME_LEN, &pcbInfo));
 
-  IS_NUM(pcbInfo, 4);
+  is_num(pcbInfo, 4);
   IS_STR(rgbValue, "null", pcbInfo);
 
   CHECK_DBC_RC(Connection1, SQLGetConnectAttr(Connection1, SQL_ATTR_CURRENT_CATALOG,
                                   rgbValue, MAX_NAME_LEN, &attrlen));
 
-  IS_NUM(attrlen, 4);
+  is_num(attrlen, 4);
   IS_STR(rgbValue, "null", attrlen);
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
@@ -288,15 +288,15 @@ ODBC_TEST(t_bug30626)
   
   /* odbc 3 */
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_TIMESTAMP));
-  IS_NUM(myresult(Stmt), 2);
+  is_num(myresult(Stmt), 2);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_TIME));
-  IS_NUM(myresult(Stmt), 1);
+  is_num(myresult(Stmt), 1);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_DATE));
-  IS_NUM(myresult(Stmt), 1);
+  is_num(myresult(Stmt), 1);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* odbc 2 */
@@ -312,15 +312,15 @@ ODBC_TEST(t_bug30626)
   CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
   
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_TIMESTAMP));
-  IS_NUM(myresult(Stmt1), 2);
+  is_num(myresult(Stmt1), 2);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_TIME));
-  IS_NUM(myresult(Stmt1), 1);
+  is_num(myresult(Stmt1), 1);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_DATE));
-  IS_NUM(myresult(Stmt1), 1);
+  is_num(myresult(Stmt1), 1);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt1, SQLFreeHandle(SQL_HANDLE_STMT, Stmt1));
@@ -346,7 +346,7 @@ ODBC_TEST(t_bug43855)
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_CONVERT_CHAR, &convFlags,
                           sizeof(convFlags), &pcbInfo));
 
-  IS_NUM(pcbInfo, 4);
+  is_num(pcbInfo, 4);
   check= ((convFlags & SQL_CVT_CHAR) && (convFlags & SQL_CVT_NUMERIC) &&
      (convFlags & SQL_CVT_DECIMAL) && (convFlags & SQL_CVT_INTEGER) &&
      (convFlags & SQL_CVT_SMALLINT) && (convFlags & SQL_CVT_FLOAT) &&
@@ -370,6 +370,7 @@ ODBC_TEST(t_bug46910)
 {
 	SQLCHAR     catalog[30];
 	SQLINTEGER  len, i;
+  SQLSMALLINT col_count;
 
 	SQLCHAR * initStmt[]= {"DROP PROCEDURE IF EXISTS `spbug46910_1`",
 		"CREATE PROCEDURE `spbug46910_1`()\
@@ -385,13 +386,13 @@ ODBC_TEST(t_bug46910)
 	SQLExecDirect(Stmt, "CALL spbug46910_1()", SQL_NTS);
 	
 	SQLRowCount(Stmt, &i);
-	SQLNumResultCols(Stmt, &i);
+	SQLNumResultCols(Stmt, &col_count);
 
   FAIL_IF(SQLMoreResults(Stmt)!= SQL_NO_DATA, "No more results expected");
 
 	SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, catalog,
 		sizeof(catalog), &len);
-	IS_NUM(len, strlen(my_schema));
+	is_num(len, strlen(my_schema));
 	IS_STR(catalog, my_schema, strlen(my_schema));
 
   	/*CHECK_DBC_RC(Connection, */

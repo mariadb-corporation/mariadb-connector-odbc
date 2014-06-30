@@ -33,7 +33,6 @@ typedef BOOL (*DSNDialog)(HWND hwndParent,
 int WINAPI _tWinMain(HINSTANCE hInst, HINSTANCE h0, LPTSTR lpCmdLine, int nCmdShow)
 {
   HMODULE hmod= NULL;
-  FARPROC fproc;
   BOOL ret;
   DSNDialog DsnFunc= NULL;
   if ((hmod= LoadLibrary("maodbcs.dll")))

@@ -47,10 +47,10 @@ ODBC_TEST(t_blob)
            "B LONGBLOB)");
 
     cbValue = 0;
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLPrepare(Stmt,
+    CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt,
                               (SQLCHAR *)"INSERT INTO TBLOB VALUES (1, ?)",
                               SQL_NTS));
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindParameter(Stmt, SQL_PARAM_INPUT, 1, SQL_C_BINARY,
+    CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, SQL_PARAM_INPUT, 1, SQL_C_BINARY,
                                     SQL_LONGVARBINARY, blob_size, 0, NULL,
                                     0, &cbValue));
     cbValue = SQL_DATA_AT_EXEC;
@@ -74,11 +74,11 @@ ODBC_TEST(t_blob)
                 FAIL_IF(s + j != blob_size, "wrong size");
             }
             rc = SQLPutData(Stmt, blobbuf, s);
-            CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+            CHECK_STMT_RC(Stmt, rc);
             j += (SQLUINTEGER)s;
         }
         rc = SQLParamData(Stmt, &token);
-        CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+        CHECK_STMT_RC(Stmt, rc);
     }
     finish = clock();
 
@@ -89,32 +89,32 @@ ODBC_TEST(t_blob)
                  j, duration, duration == 0.0 ? 9.99e99 : j / duration);
 
     rc = SQLTransact(NULL, Connection, SQL_COMMIT);
-    CHECK_HANDLE_RC(Connection, SQL_HANDLE_DBC, rc);
+    CHECK_DBC_RC(Connection, rc);
 
     rc = SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
 
     memset(blobbuf, ~0, 100);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLPrepare(Stmt,
+    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt,
                               (SQLCHAR *)"SELECT I, B FROM TBLOB WHERE I = 1",
                               SQL_NTS));
 
     start = clock();
 
     rc = SQLExecute(Stmt);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLFetch(Stmt);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLGetData(Stmt, 1, SQL_C_LONG, &l, 0L, &cbValue);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     blob_read = 0L;
     do
     {
         rc = SQLGetData(Stmt, 2, SQL_C_BINARY, blobbuf, blobbuf_size, &cbValue);
         FAIL_IF(cbValue <= 0, "assert");
-        blob_read += (cbValue < blobbuf_size ? cbValue : blobbuf_size);
+        blob_read += ((SQLUINTEGER)cbValue < blobbuf_size ? cbValue : blobbuf_size);
     } while (rc == SQL_SUCCESS_WITH_INFO);
     FAIL_IF(rc != SQL_SUCCESS, "assert");
     FAIL_IF(blob_read != blob_size, "assert");
@@ -125,7 +125,7 @@ ODBC_TEST(t_blob)
                  blob_read / duration);
 
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     free(blobbuf);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS TBLOB");
@@ -155,31 +155,31 @@ ODBC_TEST(t_1piecewrite2)
     blobbuf[i] = '\0';
     l = 1;
     rc = SQLBindParameter(Stmt,SQL_PARAM_INPUT,1, SQL_C_LONG, SQL_INTEGER, 0, 0, &l,0, NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLBindParameter(Stmt,SQL_PARAM_INPUT, 2, SQL_C_CHAR, SQL_LONGVARCHAR, 0, 0, blobbuf,cbValue, NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     OK_SIMPLE_STMT(Stmt, "INSERT INTO TBLOB VALUES (1,?)");
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLTransact(NULL, Connection, SQL_COMMIT);
-    CHECK_HANDLE_RC(Connection, SQL_HANDLE_DBC, rc);
+    CHECK_DBC_RC(Connection, rc);
     memset(blobbuf, 1, (size_t)cbValue);
     rc = SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     OK_SIMPLE_STMT(Stmt, "SELECT B FROM TBLOB WHERE I = 1");
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLFetch(Stmt);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLGetData(Stmt, 1, SQL_C_BINARY, blobbuf, cbValue, &cbValue2);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     FAIL_IF(cbValue2 != cbValue, "assert");
     for (i = 0; i < (size_t)cbValue; i++)
     {
         FAIL_IF(blobbuf[i] != (char)((i % ('z' - 'a' + 1)) + 'a'), "assert");
     }
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     rc = SQLTransact(NULL, Connection, SQL_COMMIT);
-    CHECK_HANDLE_RC(Connection, SQL_HANDLE_DBC, rc);
+    CHECK_DBC_RC(Connection, rc);
     free(blobbuf);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS TBLOB");
@@ -200,7 +200,7 @@ ODBC_TEST(t_putdata)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_putdata");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 LONG VARCHAR)");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLPrepare(Stmt,
+  CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt,
                             (SQLCHAR *)"insert into t_putdata values(?,?)",
                             SQL_NTS));
 
@@ -222,27 +222,27 @@ ODBC_TEST(t_putdata)
 
     strcpy((char *)data,"mysql ab");
     rc = SQLPutData(Stmt,data,6);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     strcpy((char *)data,"- the open source database company");
     rc = SQLPutData(Stmt,data,strlen((char *)data));
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLParamData(Stmt, &token);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt, SQL_CLOSE);
 
     OK_SIMPLE_STMT(Stmt, "select c2 from t_putdata where c1= 10");
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLFetch(Stmt);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     pcbLength= 0;
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &pcbLength);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     diag("data: %s(%ld)", data, pcbLength);
     IS_STR(data, "mysql - the open source database company", 40);
     FAIL_IF(pcbLength != 40, "assert");
@@ -269,7 +269,7 @@ ODBC_TEST(t_putdata1)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 LONG VARCHAR)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_putdata VALUES (10,'venu')");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, 
+  CHECK_STMT_RC(Stmt, 
           SQLPrepare(Stmt,
                      (SQLCHAR *)"UPDATE t_putdata SET c2= ? WHERE c1 = ?",
                      SQL_NTS));
@@ -292,27 +292,27 @@ ODBC_TEST(t_putdata1)
 
     strcpy((char *)data,"mysql ab");
     rc = SQLPutData(Stmt,data,6);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     strcpy((char *)data,"- the open source database company");
     rc = SQLPutData(Stmt,data,strlen((char *)data));
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLParamData(Stmt, &token);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt, SQL_CLOSE);
 
     OK_SIMPLE_STMT(Stmt, "select c2 from t_putdata where c1= 10");
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLFetch(Stmt);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     pcbLength= 0;
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &pcbLength);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     diag("data: %s(%ld)", data, pcbLength);
     IS_STR(data,"mysql - the open source database company", 40);
     FAIL_IF(pcbLength != 40, "assert");
@@ -339,7 +339,7 @@ ODBC_TEST(t_putdata2)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 LONG VARCHAR,"
         "c3 LONG VARCHAR)");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLPrepare(Stmt,
+  CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt,
                             (SQLCHAR *)"insert into t_putdata values(?,?,?)",
                             SQL_NTS));
 
@@ -365,41 +365,41 @@ ODBC_TEST(t_putdata2)
 
     strcpy((char *)data,"mysql ab");
     rc = SQLPutData(Stmt,data,6);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     strcpy((char *)data,"- the open source database company");
     rc = SQLPutData(Stmt,data,strlen((char *)data));
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLParamData(Stmt, &token);
     FAIL_IF(rc != SQL_NEED_DATA, "assert");
 
     strcpy((char *)data,"MySQL AB");
     rc = SQLPutData(Stmt,data, 8);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLParamData(Stmt, &token);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt, SQL_CLOSE);
 
     OK_SIMPLE_STMT(Stmt, "select c2,c3 from t_putdata where c1= 10");
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLFetch(Stmt);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     pcbLength= 0;
     rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &pcbLength);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     diag("data: %s(%ld)", data, pcbLength);
     IS_STR(data, "mysql - the open source database company", 40);
     FAIL_IF(pcbLength != 40, "assert");
 
     pcbLength= 0;
     rc = SQLGetData(Stmt, 2, SQL_C_CHAR, data, sizeof(data), &pcbLength);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
     diag("data: %s(%ld)", data, pcbLength);
     IS_STR(data, "MySQL AB", 8);
     FAIL_IF(pcbLength != 8, "assert");
@@ -431,7 +431,7 @@ ODBC_TEST(t_putdata3)
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_putdata3 (id INT, id1 INT, id2 INT, id3 INT, b BLOB)");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLPrepare(Stmt, (SQLCHAR *)
+  CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt, (SQLCHAR *)
                             "INSERT INTO t_putdata3 VALUES (?, ?, ?, ?, ?)",
                             SQL_NTS));
 
@@ -441,19 +441,19 @@ ODBC_TEST(t_putdata3)
   resDataLen= 0;
   resData= SQL_LEN_DATA_AT_EXEC(0);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_SLONG,
+  CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_SLONG,
                                   SQL_INTEGER, 0, 0, &id, 0, &resId));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_SLONG,
+  CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_SLONG,
                                   SQL_INTEGER, 0, 0, &id1, 0, &resUTimeSec));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_SLONG,
+  CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_SLONG,
                                   SQL_INTEGER, 0, 0, &id2, 0, &resUTimeMSec));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_SLONG,
+  CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_SLONG,
                                   SQL_INTEGER, 0, 0, &id3, 0, &resDataLen));
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindParameter(Stmt, 5, SQL_PARAM_INPUT, SQL_C_BINARY,
+  CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, 5, SQL_PARAM_INPUT, SQL_C_BINARY,
                                   SQL_LONGVARBINARY, 10, 10, (SQLPOINTER)5,
                                   0, &resData));
 
@@ -474,7 +474,7 @@ ODBC_TEST(t_putdata3)
         if (partsize > MAX_PART_SIZE)
           partsize= MAX_PART_SIZE;
 
-        CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLPutData(Stmt, buffer + len, partsize));
+        CHECK_STMT_RC(Stmt,  SQLPutData(Stmt, buffer + len, partsize));
         len+= partsize;
       }
 
@@ -484,19 +484,19 @@ ODBC_TEST(t_putdata3)
     }
   } /* end if (rc == SQL_NEED_DATA) */
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_UNBIND));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt,  SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt,  SQLFreeStmt(Stmt, SQL_CLOSE));
 
   if (1)
   {
     OK_SIMPLE_STMT(Stmt, "SELECT id, id1, id2, id3, CONVERT(b, CHAR) FROM t_putdata3");
 
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt,  SQLFetch(Stmt));
 
-    IS_NUM(my_fetch_int(Stmt, 1), 1);
-    IS_NUM(my_fetch_int(Stmt, 2), 2);
-    IS_NUM(my_fetch_int(Stmt, 3), 3);
-    IS_NUM(my_fetch_int(Stmt, 4), 4);
+    is_num(my_fetch_int(Stmt, 1), 1);
+    is_num(my_fetch_int(Stmt, 2), 2);
+    is_num(my_fetch_int(Stmt, 3), 3);
+    is_num(my_fetch_int(Stmt, 4), 4);
 
     IS_STR(my_fetch_str(Stmt, data, 5), buffer, commonLen);
   }
@@ -504,18 +504,18 @@ ODBC_TEST(t_putdata3)
   {
     OK_SIMPLE_STMT(Stmt, "SELECT id, id1, id2, id3, b FROM t_putdata3");
 
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt,  SQLFetch(Stmt));
 
-    IS_NUM(my_fetch_int(Stmt, 1), 1);
-    IS_NUM(my_fetch_int(Stmt, 2), 2);
-    IS_NUM(my_fetch_int(Stmt, 3), 3);
-    IS_NUM(my_fetch_int(Stmt, 4), 4);
+    is_num(my_fetch_int(Stmt, 1), 1);
+    is_num(my_fetch_int(Stmt, 2), 2);
+    is_num(my_fetch_int(Stmt, 3), 3);
+    is_num(my_fetch_int(Stmt, 4), 4);
 
     IS_STR(my_fetch_str(Stmt, data, 5),
            "4D7953514C202D2054686520776F726C64732773", commonLen);
   }
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt,  SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_putdata3");
 
@@ -535,7 +535,7 @@ ODBC_TEST(t_blob_bug)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_blob");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_blob (blb LONG VARBINARY)");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, 
+  CHECK_STMT_RC(Stmt, 
           SQLPrepare(Stmt,
                      (SQLCHAR *)"INSERT INTO t_blob  VALUES (?)",SQL_NTS));
 
@@ -548,7 +548,7 @@ ODBC_TEST(t_blob_bug)
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_CHAR,SQL_VARBINARY,
                           0,0,data,0,&length);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     memset(data,'X',max_blob_size);
 
@@ -556,7 +556,7 @@ ODBC_TEST(t_blob_bug)
     {
       diag("Length %d", length);
       rc = SQLExecute(Stmt);
-      CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+      CHECK_STMT_RC(Stmt, rc);
     }
 
     SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
@@ -565,12 +565,12 @@ ODBC_TEST(t_blob_bug)
     OK_SIMPLE_STMT(Stmt, "SELECT length(blb) FROM t_blob");
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,&val,0,NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     for (i= 1; i <= max_blob_size/1024; i++)
     {
       rc = SQLFetch(Stmt);
-      CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+      CHECK_STMT_RC(Stmt, rc);
 
       diag("row %d length: %d", i, val);
       FAIL_IF(val != i * 1024, "assert");
@@ -601,27 +601,27 @@ ODBC_TEST(t_text_fetch)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_text_fetch(t1 tinytext,"
          "t2 text, t3 mediumtext, t4 longtext)");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, 
+  CHECK_STMT_RC(Stmt, 
           SQLPrepare(Stmt,
                      (SQLCHAR *)"insert into t_text_fetch values(?,?,?,?)",
                      SQL_NTS));
 
     rc = SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR,
                           0,0,(char *)data, 255, NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR,
                           0,0,(char *)data, TEST_ODBC_TEXT_LEN/2, NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR,
                           0,0,(char *)data,
                           (SQLINTEGER)(TEST_ODBC_TEXT_LEN/1.5), NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR,
                           0,0,(char *)data, TEST_ODBC_TEXT_LEN-1, NULL);
-    CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+    CHECK_STMT_RC(Stmt, rc);
 
     memset(data,'A',TEST_ODBC_TEXT_LEN);
     data[TEST_ODBC_TEXT_LEN]='\0';
@@ -629,7 +629,7 @@ ODBC_TEST(t_text_fetch)
     for (i=0; i < 10; i++)
     {
       rc = SQLExecute(Stmt);
-      CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+      CHECK_STMT_RC(Stmt, rc);
     }
 
     SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
@@ -643,22 +643,22 @@ ODBC_TEST(t_text_fetch)
     {
        printf("# row '%ld' (lengths:", row_count);
        rc = SQLGetData(Stmt,1,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
-       CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+       CHECK_STMT_RC(Stmt, rc);
        printf("%ld", length);
        FAIL_IF(length != 255, "assert");
 
        rc = SQLGetData(Stmt,2,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
-       CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+       CHECK_STMT_RC(Stmt, rc);
        printf(",%ld", length);
        FAIL_IF(length != TEST_ODBC_TEXT_LEN/2, "assert");
 
        rc = SQLGetData(Stmt,3,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
-       CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+       CHECK_STMT_RC(Stmt, rc);
        printf(",%ld", length);
        FAIL_IF(length != (SQLINTEGER)(TEST_ODBC_TEXT_LEN/1.5), "assert");
 
        rc = SQLGetData(Stmt,4,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
-       CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT, rc);
+       CHECK_STMT_RC(Stmt, rc);
        printf(",%ld)\n", length);
        FAIL_IF(length != TEST_ODBC_TEXT_LEN-1, "assert");
        row_count++;
@@ -691,12 +691,12 @@ ODBC_TEST(getdata_lenonly)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_getdata_lenonly VALUES ('venu')");
 
   OK_SIMPLE_STMT(Stmt, "SELECT a FROM t_getdata_lenonly");
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFetch(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, buf, 0, &len) != SQL_SUCCESS_WITH_INFO, "SQL_SUCCESS_WITH_INFO expected");
-  IS_NUM(len, 4);
+  is_num(len, 4);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_getdata_lenonly");
 
@@ -719,11 +719,11 @@ ODBC_TEST(t_bug9781)
 
   OK_SIMPLE_STMT(Stmt, "SELECT AsBinary(g) FROM t_bug9781");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLDescribeCol(Stmt, 1, column_name, sizeof(column_name),
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,
                                 &decimal_digits, &nullable));
 
-  IS_NUM(data_type, SQL_LONGVARBINARY);
+  is_num(data_type, SQL_LONGVARBINARY);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug9781");
   return OK;
@@ -749,21 +749,21 @@ ODBC_TEST(t_bug10562)
   OK_SIMPLE_STMT(Stmt, "insert into t_bug10562 (mb) values ('zzzzzzzzzz')");
 
   OK_SIMPLE_STMT(Stmt, "select id, mb from t_bug10562");
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFetch(Stmt));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLBindCol(Stmt, 2, SQL_C_BINARY, blob, bsize, &bsize));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 2, SQL_C_BINARY, blob, bsize, &bsize));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Get the data back out to verify */
   OK_SIMPLE_STMT(Stmt, "select mb from t_bug10562");
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFetch(Stmt));
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLGetData(Stmt, 1, SQL_C_BINARY, blobcheck, bsize, NULL));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, blobcheck, bsize, NULL));
   if (memcmp(blob, blobcheck, bsize))
   {
     result= FAIL;
   }
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug10562");
   free(blob);
@@ -802,39 +802,39 @@ ODBC_TEST(t_bug_11746572)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * from bug_11746572");
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFetch(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
   /* 
     Verify inserted data is changed to hexadecimal value for blob field 
     and remains unchanged for text field for both binary and non-binary 
     collation.
   */
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLGetData(Stmt, 1, SQL_C_CHAR, szData, MAX_ROW_DATA_LEN,NULL));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, szData, MAX_ROW_DATA_LEN,NULL));
   IS_STR(szData, "626C6F62", 8);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLGetData(Stmt, 2, SQL_C_CHAR, szData, MAX_ROW_DATA_LEN,NULL));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, szData, MAX_ROW_DATA_LEN,NULL));
   IS_STR(szData, "text", 4);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLGetData(Stmt, 3, SQL_C_CHAR, szData, MAX_ROW_DATA_LEN,NULL));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 3, SQL_C_CHAR, szData, MAX_ROW_DATA_LEN,NULL));
   IS_STR(szData, "text", 4);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLDescribeCol(Stmt, 1, ColName, MAX_NAME_LEN, 
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 1, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
-  IS_NUM(SqlType, SQL_LONGVARBINARY);
+  is_num(SqlType, SQL_LONGVARBINARY);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLDescribeCol(Stmt, 2, ColName, MAX_NAME_LEN, 
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 2, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
 #ifdef MYODBC_UNICODEDRIVER
-  IS_NUM(SqlType, SQL_WLONGVARCHAR);
+  is_num(SqlType, SQL_WLONGVARCHAR);
 #else
-  IS_NUM(SqlType, SQL_LONGVARCHAR);
+  is_num(SqlType, SQL_LONGVARCHAR);
 #endif
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLDescribeCol(Stmt, 3, ColName, MAX_NAME_LEN, 
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 3, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
-  IS_NUM(SqlType, SQL_LONGVARCHAR);
+  is_num(SqlType, SQL_LONGVARCHAR);
 
-  CHECK_HANDLE_RC(Stmt, SQL_HANDLE_STMT,  SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE bug_11746572");
 

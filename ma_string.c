@@ -433,7 +433,6 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLINTEGER *Len
 {
   char *AscStr;
   int AscLen, AllocLen;
-  int rc;
   
   if (Error)
     *Error= 0;
@@ -446,14 +445,14 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLINTEGER *Len
 
   AllocLen= AscLen= WideCharToMultiByte(CodePage, 0, Ptr, PtrLength, NULL, 0, NULL, NULL);
   if (PtrLength != -1)
-    AllocLen++;
+    ++AllocLen;
   
   if (!(AscStr = (char *)MADB_CALLOC(AllocLen)))
     return NULL;
 
   AscLen= WideCharToMultiByte(CodePage,  0, Ptr, PtrLength, AscStr, AscLen, NULL, (CodePage != CP_UTF8) ? Error : NULL);
   if (AscLen && PtrLength == -1)
-    AscLen--;
+    --AscLen;
 #else
 
 #endif
@@ -525,7 +524,7 @@ end:
   return rc;
 }
 
-size_t MADB_SetString(unsigned int CodePage, void *Dest, int DestLength,
+size_t MADB_SetString(unsigned int CodePage, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error)
 {
   char *p= (char *)Dest;

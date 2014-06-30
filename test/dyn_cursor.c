@@ -82,7 +82,7 @@ ODBC_TEST(my_dynamic_pos_cursor)
     CHECK_STMT_RC(hstmt_pos, rc);
 
     diag(" total rows updated:%d\n",nRowCount);
-    IS_NUM(nRowCount, 1);
+    is_num(nRowCount, 1);
 
     /* Now delete the newly updated record */
     strcpy((char*)szData,"updated");
@@ -101,7 +101,7 @@ ODBC_TEST(my_dynamic_pos_cursor)
     CHECK_STMT_RC(Stmt, rc);
 
     diag(" total rows deleted:%d\n",nRowCount);
-    IS_NUM(nRowCount, 1);
+    is_num(nRowCount, 1);
 
     /* Free statement cursor resorces */
     rc = SQLFreeStmt(Stmt, SQL_UNBIND);
@@ -129,7 +129,7 @@ ODBC_TEST(my_dynamic_pos_cursor)
 
     rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(nData, 100);
+    is_num(nData, 100);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
     CHECK_STMT_RC(Stmt,rc);
@@ -217,7 +217,7 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     CHECK_STMT_RC(hstmt_pos, rc);
 
     diag(" total rows updated:%d\n",nRowCount);
-    IS_NUM(nRowCount, 1);
+    is_num(nRowCount, 1);
     strcpy(szData[1],"updated");
     nData[1] = 999;
 
@@ -228,7 +228,7 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     CHECK_STMT_RC(Stmt, rc);
 
     diag(" total rows deleted:%d\n",nRowCount);
-    IS_NUM(nRowCount, 1);
+    is_num(nRowCount, 1);
 
     /* Free statement cursor resorces */
     rc = SQLFreeStmt(Stmt, SQL_UNBIND);
@@ -266,19 +266,19 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,4L);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(i, 4);
+    is_num(i, 4);
     IS_STR(data,"MySQL4", 7);
 
     rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1L);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(i, 999);
+    is_num(i, 999);
     IS_STR(data, "updated", 8);
 
     rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1L);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(i, 7);
+    is_num(i, 7);
     IS_STR(data, "MySQL7", 7);
 
     rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,10L);
@@ -347,7 +347,7 @@ ODBC_TEST(my_position)
     CHECK_STMT_RC(Stmt,rc);
 
     diag(" rows affected:%d\n",nlen);
-    IS_NUM(nlen, 1);
+    is_num(nlen, 1);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     CHECK_STMT_RC(Stmt,rc);
@@ -371,7 +371,7 @@ ODBC_TEST(my_position)
     CHECK_STMT_RC(Stmt,rc);
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,10,NULL);
     CHECK_STMT_RC(Stmt,rc);
-    IS_NUM(nData, 300);
+    is_num(nData, 300);
     IS_STR(szData, "update", 7);
 
     rc = SQLFetch(Stmt);
@@ -449,11 +449,11 @@ ODBC_TEST(my_position1)
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 4));
 
-  IS_NUM(nData[0], 4);
+  is_num(nData[0], 4);
   IS_STR(szData[0], "MySQL4", 6);
-  IS_NUM(nData[1], 5);
+  is_num(nData[1], 5);
   IS_STR(szData[1], "updatey", 7);
-  IS_NUM(nData[2], 1000);
+  is_num(nData[2], 1000);
   IS_STR(szData[2], "updatez", 7);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
@@ -530,11 +530,11 @@ ODBC_TEST(my_zero_irow_update)
     rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(nData[0], 888);
+    is_num(nData[0], 888);
     IS_STR(szData[0], "updatex", 8);
-    IS_NUM(nData[1], 3);
+    is_num(nData[1], 3);
     IS_STR(szData[1], "updatey", 8);
-    IS_NUM(nData[2], 1000);
+    is_num(nData[2], 1000);
     IS_STR(szData[2], "updatez", 8);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
@@ -605,11 +605,11 @@ ODBC_TEST(my_zero_irow_delete)
     rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(nData[0], 1);
+    is_num(nData[0], 1);
     IS_STR(szData[0], "MySQL1", 7);
-    IS_NUM(nData[1], 5);
+    is_num(nData[1], 5);
     IS_STR(szData[1], "MySQL5", 7);
-    IS_NUM(nData[2], 6);
+    is_num(nData[2], 6);
     IS_STR(szData[2], "MySQL6", 7);
 
     rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
@@ -713,7 +713,7 @@ ODBC_TEST(my_dynamic_cursor)
     OK_SIMPLE_STMT(Stmt, "select * from my_dynamic_cursor");
     CHECK_STMT_RC(Stmt,rc);
 
-    IS_NUM(myresult(Stmt), 6);
+    is_num(myresult(Stmt), 6);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);

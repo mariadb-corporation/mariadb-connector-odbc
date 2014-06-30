@@ -40,7 +40,7 @@ ODBC_TEST(t_odbc3_error)
 
   CHECK_ENV_RC(henv1, SQLGetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
                               (SQLPOINTER)&ov_version, 0, 0));
-  IS_NUM(ov_version, SQL_OV_ODBC3);
+  is_num(ov_version, SQL_OV_ODBC3);
 
   CHECK_DBC_RC(Connection1, SQLConnect(Connection1, my_dsn, SQL_NTS, my_uid, SQL_NTS,
                            my_pwd, SQL_NTS));
@@ -94,7 +94,7 @@ ODBC_TEST(t_odbc2_error)
 
   CHECK_ENV_RC(henv1, SQLGetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
                               (SQLPOINTER)&ov_version, 0, 0));
-  IS_NUM(ov_version, SQL_OV_ODBC2);
+  is_num(ov_version, SQL_OV_ODBC2);
 
   CHECK_DBC_RC(Connection1, SQLConnect(Connection1, my_dsn, SQL_NTS, my_uid, SQL_NTS,
                            my_pwd, SQL_NTS));
@@ -194,23 +194,23 @@ ODBC_TEST(t_warning)
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 4, &pcbValue) != SQL_SUCCESS_WITH_INFO, "SWI expected");
   IS_STR(szData, "Ven", 3);
-  IS_NUM(pcbValue, 13);
+  is_num(pcbValue, 13);
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 4, &pcbValue) != SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(szData, "u A", 3);
-  IS_NUM(pcbValue, 10);
+  is_num(pcbValue, 10);
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 4, &pcbValue) != SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(szData, "nug", 3);
-  IS_NUM(pcbValue, 7);
+  is_num(pcbValue, 7);
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 4, &pcbValue) != SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(szData, "ant", 3);
-  IS_NUM(pcbValue, 4);
+  is_num(pcbValue, 4);
 
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 4, &pcbValue) != SQL_SUCCESS, "success expected");
   IS_STR(szData, "i", 1);
-  IS_NUM(pcbValue, 1);
+  is_num(pcbValue, 1);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
@@ -262,7 +262,7 @@ ODBC_TEST(t_bug16224)
   CHECK_STMT_RC(Stmt, SQLGetDiagField(SQL_HANDLE_STMT, Stmt, 0,
                                  SQL_DIAG_NUMBER, &diagcnt,
                                  SQL_IS_INTEGER, NULL));
-  IS_NUM(diagcnt, 1);
+  is_num(diagcnt, 1);
 
   return OK;
 }
@@ -278,12 +278,12 @@ ODBC_TEST(bind_invalidcol)
 
   /* test out of range column number */
   FAIL_IF(SQLBindCol(Stmt, 10, SQL_C_CHAR, "", 4, NULL) != SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "07009"), OK);
+  is_num(check_sqlstate(Stmt, "07009"), OK);
 
   /* test (unsupported) bookmark column number */
   FAIL_IF(SQLBindCol(Stmt, 0, SQL_C_BOOKMARK, "", 4, NULL) != SQL_ERROR, "Error expected");
 
-  IS_NUM(check_sqlstate(Stmt, "07009"), OK);
+  is_num(check_sqlstate(Stmt, "07009"), OK);
 
   /* SQLDescribeCol() */
   FAIL_IF(SQLDescribeCol(Stmt, 0, dummy, sizeof(dummy), NULL, NULL,
@@ -294,16 +294,16 @@ ODBC_TEST(bind_invalidcol)
 
   FAIL_IF(SQLDescribeCol(Stmt, 5, dummy, sizeof(dummy), NULL,
                                     NULL, NULL, NULL, NULL)!= SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "07009"), OK);
+  is_num(check_sqlstate(Stmt, "07009"), OK);
 
   /* SQLColAttribute() */
   FAIL_IF(SQLColAttribute(Stmt, 0, SQL_DESC_NAME, NULL, 0,
                                      NULL, NULL) != SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "07009"), OK);
+  is_num(check_sqlstate(Stmt, "07009"), OK);
 
   FAIL_IF(SQLColAttribute(Stmt, 7, SQL_DESC_NAME, NULL, 0,
                                      NULL, NULL) != SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate(Stmt, "07009"), OK);
+  is_num(check_sqlstate(Stmt, "07009"), OK);
 
   return OK;
 }
@@ -338,7 +338,7 @@ ODBC_TEST(bind_notenoughparam2)
 
   /* trigger pre-execute */
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols));
-  IS_NUM(cols, 2);
+  is_num(cols, 2);
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &i, 0, NULL));
@@ -384,12 +384,12 @@ ODBC_TEST(t_handle_err)
 
   FAIL_IF( SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
                                   (SQLPOINTER)SQL_OV_ODBC3, 0)!= SQL_ERROR, "Error expected");
-  IS_NUM(check_sqlstate_ex(henv1, SQL_HANDLE_ENV, "HY010"), OK);
+  is_num(check_sqlstate_ex(henv1, SQL_HANDLE_ENV, "HY010"), OK);
 
   FAIL_IF(SQLSetConnectAttr(Connection1, SQL_ATTR_ASYNC_ENABLE,
                                       (SQLPOINTER)SQL_ASYNC_ENABLE_ON,
                                       SQL_IS_INTEGER) != SQL_SUCCESS_WITH_INFO, "swi expected");
-  IS_NUM(check_sqlstate_ex(Connection1, SQL_HANDLE_DBC, "01S02"), OK);
+  is_num(check_sqlstate_ex(Connection1, SQL_HANDLE_DBC, "01S02"), OK);
 
   CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
   CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));
@@ -458,7 +458,7 @@ ODBC_TEST(t_bug14285620)
   /* Numeric attribute */
   FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_LOGIN_TIMEOUT, NULL, 0, NULL) != SQL_SUCCESS, "success expected");
   FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_LOGIN_TIMEOUT, &timeout, 0, NULL) != SQL_SUCCESS, "success expected");
-  IS_NUM(timeout, 0);
+  is_num(timeout, 0);
   
   /* Character attribute */
   /* 
@@ -488,9 +488,9 @@ ODBC_TEST(t_bug14285620)
 
   FAIL_IF( SQLGetInfo(Connection, SQL_AGGREGATE_FUNCTIONS, NULL, 0, NULL)!= SQL_SUCCESS, "success expected");
   FAIL_IF( SQLGetInfo(Connection, SQL_AGGREGATE_FUNCTIONS, &info, 0, &cblen)!= SQL_SUCCESS, "success expected");
-  IS_NUM(cblen, 4);
+  is_num(cblen, 4);
 
-  IS_NUM(info, (SQL_AF_ALL | SQL_AF_AVG | SQL_AF_COUNT | SQL_AF_DISTINCT | 
+  is_num(info, (SQL_AF_ALL | SQL_AF_AVG | SQL_AF_COUNT | SQL_AF_DISTINCT | 
              SQL_AF_MAX | SQL_AF_MIN | SQL_AF_SUM));
 
   /* Get database name for further checks */
@@ -499,9 +499,9 @@ ODBC_TEST(t_bug14285620)
 
 #ifdef _WIN32  
   /* Windows uses unicode driver by default */
-  IS_NUM(cblen, strlen(szData)*sizeof(SQLWCHAR));
+  is_num(cblen, strlen(szData)*sizeof(SQLWCHAR));
 #else
-  IS_NUM(cblen, strlen(szData));
+  is_num(cblen, strlen(szData));
 #endif
 
   FAIL_IF( SQLGetInfo(Connection, SQL_DATABASE_NAME, szData, 0, NULL)!= SQL_SUCCESS, "success expected");
@@ -511,7 +511,7 @@ ODBC_TEST(t_bug14285620)
   FAIL_IF( SQLNativeSql(Connection, "SELECT 10", SQL_NTS, NULL, 0, &cbilen)!= SQL_SUCCESS, "success expected");
   
   /* Do like MSSQL, which does calculate as char_count*sizeof(SQLWCHAR) */
-  IS_NUM(cbilen, strlen(szData));
+  is_num(cbilen, strlen(szData));
 
   FAIL_IF( SQLNativeSql(Connection, "SELECT 10", SQL_NTS, szData, 0, NULL)!= SQL_SUCCESS_WITH_INFO, "swi expected");
 
@@ -520,7 +520,7 @@ ODBC_TEST(t_bug14285620)
   FAIL_IF(!SUCCEEDED(SQLGetCursorName(Stmt, NULL, 0, &cblen)), "success expected");
   
   /* Do like MSSQL, which does calculate as char_count*sizeof(SQLWCHAR) */
-  IS_NUM(cblen, strlen(szData));
+  is_num(cblen, strlen(szData));
 
   FAIL_IF(SQLGetCursorName(Stmt, szData, 0, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
 
@@ -556,7 +556,6 @@ ODBC_TEST(t_bug14285620)
   FAIL_IF(SQLColAttribute(Stmt,1, SQL_DESC_TYPE_NAME, szData, 0, NULL, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-end:
 
   return OK;
 }
@@ -590,7 +589,7 @@ ODBC_TEST(t_bug49466)
   
   CHECK_STMT_RC(Stmt, SQLGetDiagRec(SQL_HANDLE_STMT, Stmt1, 1, sqlstate, &error,
                                message, sizeof(message), &len));
-  IS_NUM(error, 1305);
+  is_num(error, 1305);
   
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1,SQL_DROP));
   CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
