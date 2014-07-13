@@ -107,24 +107,66 @@ void usage()
   fprintf(stdout, "?  Displays this text\n");
 }
 
+
+void get_env_defaults()
+{
+  char *env_val;
+
+  if ((env_val= getenv("TEST_DSN")) != NULL)
+  {
+    my_dsn= (SQLCHAR*)env_val;
+  }
+  if ((env_val= getenv("TEST_DRIVER")) != NULL)
+  {
+    my_drivername= (SQLCHAR*)env_val;
+  }
+  if ((env_val= getenv("TEST_SERVER")) != NULL)
+  {
+    my_servername= (SQLCHAR*)env_val;
+  }
+  if ((env_val= getenv("TEST_UID")) != NULL)
+  {
+    my_uid= (SQLCHAR*)env_val;
+  }
+  if ((env_val= getenv("TEST_PASSWORD")) != NULL)
+  {
+    my_pwd= (SQLCHAR*)env_val;
+  }
+  if ((env_val= getenv("TEST_SCHEMA")) != NULL)
+  {
+    my_schema= (SQLCHAR*)env_val;
+  }
+  if ((env_val= getenv("TEST_PORT")) != NULL)
+  {
+    int port= atoi(env_val);
+    if (port > 0 && port < 0x10000)
+    {
+      my_port= port;
+    }
+  }
+}
+
+
 void get_options(int argc, char **argv)
 {
   int c= 0;
+
+  get_env_defaults();
 
   while ((c=getopt(argc,argv, "d:u:p:P:s:?")) >= 0)
   {
     switch(c) {
     case 'd':
-      my_dsn= optarg;
+      my_dsn= (SQLCHAR*)optarg;
       break;
     case 'u':
-      my_uid= optarg;
+      my_uid= (SQLCHAR*)optarg;
       break;
     case 'p':
-      my_pwd= optarg;
+      my_pwd= (SQLCHAR*)optarg;
       break;
     case 's':
-      my_schema= optarg;
+      my_schema= (SQLCHAR*)optarg;
       break;
     case 'P':
       my_port= atoi(optarg);
