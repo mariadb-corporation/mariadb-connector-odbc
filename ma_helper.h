@@ -74,6 +74,11 @@ extern my_bool DummyError;
 #define MADB_CALLOC(a) my_malloc((a), MYF(MY_ZEROFILL))
 #define MADB_REALLOC(a,b) my_realloc((a),(b),MYF(MY_ZEROFILL))
 
+/* If required to free old memory pointed by current ptr, and set new value */
+#define MADB_SUBSTITUTE(ptr, newptr) \
+  my_free((gptr)(ptr), MYF(MY_ALLOW_ZERO_PTR));\
+  (ptr)= (newptr);
+
 #define MADB_UTF8_LEN(a) WideCharToMultiByte(CP_UTF8, 0, (a), -1, NULL, 0, NULL, NULL)
 
 

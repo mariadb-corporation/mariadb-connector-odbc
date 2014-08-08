@@ -81,6 +81,7 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
 }
 /* }}} */
 
+
 /* {{{ MADB_DsnStoreValue */
 my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, my_bool OverWrite)
 {
@@ -92,10 +93,14 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
   case DSN_TYPE_COMBO:
     {
       char **p= (char **)((char *)Dsn +Offset);
-      if (*p && OverWrite == FALSE)
+      char *current= *p;
+
+      if (current && OverWrite == FALSE)
         break;
-      MADB_FREE(*p);
+
       *p= _strdup(Value);
+      /* For the case of making copy of currently stored values */
+      MADB_FREE(current);
     }
     break;
   case DSN_TYPE_BOOL:
@@ -114,6 +119,7 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
 }
 /* }}} */
 
+
 /* {{{ MADB_ReadDSN */
 my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
 {
@@ -129,12 +135,12 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
   else 
   {
     if (Value= strchr(KeyValue, '='))
-      Value++;
+      ++Value;
   }
   
   if (Value)
   {
-    int i=1;
+    int i= 1;
     char KeyVal[1024];
     Dsn->DSNName= _strdup(Value);
     while (DsnKeys[i].DsnKey)
@@ -144,7 +150,7 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
         if (!MADB_DsnStoreValue(Dsn, DsnKeys[i].DsnOffset, KeyVal, DsnKeys[i].Type, OverWrite))
           return FALSE;
       }
-      i++;
+      ++i;
     }
     return TRUE;
   }
@@ -264,7 +270,7 @@ my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Del
         Value= trim(Value);
         if (Value[0] == '{')
         {
-          Value++;
+          ++Value;
           if ((p = strchr(Value, '}')))
           {
             *p= 0;
@@ -281,10 +287,10 @@ my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Del
           *p= (special) ? ' ' : ';';
         break;
       }
-      i++;
+      ++i;
     }
     if ((Key= strchr(Value, ';')))
-      Key++;
+      ++Key;
   }
   MADB_FREE(Buffer);
   return TRUE;
@@ -338,7 +344,7 @@ SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLeng
                              DsnKeys[i].DsnKey, isSpecial ? "{" : "", Value, isSpecial ? "}" : "");
       TotalLength+= CpyLength;
     }
-    i++;
+    ++i;
   }
 
   if (OutLength && OutString)

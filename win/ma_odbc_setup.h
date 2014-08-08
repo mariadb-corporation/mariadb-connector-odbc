@@ -18,7 +18,7 @@ typedef struct
   int Page;
   int Item;
   int MaxLength;
-  my_bool Manadatory;
+  my_bool Mandatory;
 } MADB_DsnMap;
 
 #endif /* _ma_odbc_setup_h_ */

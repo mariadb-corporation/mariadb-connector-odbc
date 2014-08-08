@@ -353,6 +353,11 @@ typedef struct
   bool IsAlias;
 } MADB_DsnKey;
 
+/* Definitions to tell setup library via isPrompt field what should it do */
+#define MAODBC_CONFIG           0
+#define MAODBC_PROMPT           1
+#define MAODBC_PROMPT_REQUIRED  2
+
 typedef struct st_madb_dsn
 {
   /*** General ***/
@@ -375,12 +380,17 @@ typedef struct st_madb_dsn
   unsigned int ConnectionTimeout;
   my_bool Reconnect;
   my_bool MultiStatements;
+  /* TRUE means "no prompt" */
   my_bool ConnectPrompt;
   /* --- Internal --- */
-  my_bool isPrompt;
+  int isPrompt;
   MADB_DsnKey *Keys;
   char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
   my_bool FreeMe;
+  /* Callbacke required for prompt to keep all memory de/allocation operations
+     on same side of libraries */
+  char * (*allocator)(size_t);
+  void (*free)(void*);
 } MADB_Dsn;
 
 struct st_ma_odbc_connection
@@ -419,6 +429,17 @@ struct st_ma_odbc_connection
   SQLINTEGER TxnIsolation;
   SQLINTEGER CursorCount;
 };
+
+typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
+
+typedef struct
+{
+  void     *LibraryHandle;
+  PromptDSN Call;
+} MADB_Prompt;
+
+SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName, MADB_Dbc *Dbc);
+int       DSNPrompt_Free  (MADB_Prompt *prompt);
 
 #include <ma_error.h>
 #include <ma_compatibility.h>

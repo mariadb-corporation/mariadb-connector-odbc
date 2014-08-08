@@ -126,7 +126,7 @@ Page_1 DIALOGEX 0, 0, 299, 182
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "How do you want to connect to MariaDB",IDC_STATIC,9,7,187,14,0,WS_EX_TRANSPARENT
+    LTEXT           "How do you want to connect to MariaDB",IDC_STATIC,9,7,130,10,0,WS_EX_TRANSPARENT
     LTEXT           "Server Name:",lblServerName,86,21,49,11,0,WS_EX_TRANSPARENT | WS_EX_RIGHT
     LTEXT           "Please specify a user name and password to connect to MariaDB",IDC_STATIC,9,54,207,8,0,WS_EX_TRANSPARENT
     LTEXT           "Please specify a user name and password to connect to MariaDB",IDC_STATIC,9,105,207,8,0,WS_EX_TRANSPARENT

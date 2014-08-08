@@ -1461,17 +1461,33 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
 }
 /* }}} */
 
+
+/* {{{ MADB_DriverSideMemalocate */
+char * MADB_DriverSideAllocate(size_t size)
+{
+  return (char *)MADB_CALLOC(size);
+}
+/* }}} */
+
+
+/* {{{ MADB_DriverSideFree */
+void MADB_DriverSideFree(void *ptr)
+{
+  MADB_FREE(ptr);
+}
+/* }}} */
+
+
 /* {{{ MADB_DriverConnect */
 SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InConnectionString,
                              SQLSMALLINT StringLength1, SQLCHAR *OutConnectionString,
                              SQLSMALLINT BufferLength, SQLSMALLINT *StringLength2Ptr,
                              SQLUSMALLINT DriverCompletion)
 {
-  MADB_Dsn *Dsn;
-  MADB_Drv *Drv= NULL;
-  SQLRETURN ret= SQL_SUCCESS;
-  HMODULE hMod= NULL;
-  PromptDSN DSNPrompt= NULL;
+  MADB_Dsn   *Dsn;
+  MADB_Drv   *Drv=       NULL;
+  SQLRETURN   ret=       SQL_SUCCESS;
+  MADB_Prompt DSNPrompt= { NULL, NULL };
   SQLSMALLINT Length;
 
   if (!Dbc)
@@ -1508,6 +1524,7 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
     }
     break;
   case SQL_DRIVER_PROMPT:
+    Dsn->isPrompt= MAODBC_PROMPT/*_REQUIRED*/;
     break;
   default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY110, NULL, 0);
@@ -1541,18 +1558,23 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
     goto error;
   }
  
-  if (!(hMod= LoadLibrary(Drv->SetupLibrary)))
+  if (!SQL_SUCCEEDED(DSNPrompt_Lookup(&DSNPrompt, Drv->SetupLibrary, Dbc)))
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load setup library", 0);
     goto error;
   }
-  if (!(DSNPrompt= (PromptDSN)GetProcAddress(hMod, "DSNPrompt")))
+
+  Dsn->allocator= MADB_DriverSideAllocate;
+  Dsn->free=      MADB_DriverSideFree;
+
+  if (DSNPrompt.Call((HWND)WindowHandle, Dsn) == FALSE)
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't find DSNPrompt function in setup library", 0);
+    /* If user cancels prompt, SQLDriverConnect should return SQL_NO_DATA */
+    Dbc->Error.ReturnValue= SQL_NO_DATA;
     goto error;
   }
-  if (DSNPrompt((HWND)WindowHandle, Dsn) == TRUE);
-  FreeLibrary(hMod);
+
+  DSNPrompt_Free(&DSNPrompt);
+
   ret= MADB_DbcConnectDB(Dbc, (void *)Dsn);
   if (!SUCCEEDED(ret))
     goto error;
@@ -1569,8 +1591,7 @@ end:
     *StringLength2Ptr= Length;
   return ret;
 error:
-  if (hMod)   
-    FreeLibrary(hMod);
+  DSNPrompt_Free(&DSNPrompt);
   MADB_DSN_Free(Dsn);
   MADB_DriverFree(Drv);
   return Dbc->Error.ReturnValue;

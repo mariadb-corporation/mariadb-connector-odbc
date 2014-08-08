@@ -46,11 +46,6 @@ struct st_ma_connection_methods
                              SQLUSMALLINT DriverCompletion);
 };
 
-#ifdef WIN32
-/* Show configuration dialog for SQLDriverConnect */
-typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
-#endif
-
 my_bool CheckConnection(MADB_Dbc *Dbc);
 
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);

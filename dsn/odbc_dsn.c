@@ -31,54 +31,70 @@
 #pragma comment(lib, "ComCtl32.lib")
 
 #define LASTPAGE 4
-HINSTANCE hInstance;
-unsigned int CurrentPage= 0;
-SQLHANDLE Environment= NULL;
-my_bool DBFilled= FALSE;
-my_bool CSFilled= FALSE;
-my_bool ConnectionOK= FALSE;
-//MADB_Dsn Dsn;
-char DSNStr[2048];
-HWND hwndTab[7], hwndMain;
+
+HINSTANCE     hInstance;
+unsigned int  CurrentPage=  0;
+SQLHANDLE     Environment=  NULL;
+my_bool       DBFilled=     FALSE;
+my_bool       CSFilled=     FALSE;
+my_bool       ConnectionOK= FALSE;
+my_bool       notCanceled=  TRUE;
+
+char          DSNStr[2048];
+HWND          hwndTab[7], hwndMain;
+const int    *EffectiveDisabledPages=    NULL,
+             *EffectiveDisabledControls= NULL;
+
+const int DisabledPages[MAODBC_PROMPT_REQUIRED + 1][LASTPAGE + 1]= {
+                                                                    { 0, 0, 0, 0, 0},
+                                                                    { 0, 0, 0, 0, 0},
+                                                                    { 1, 0, 1, 1, 1}
+                                                                   };
+const int   PromptDisabledControls[]= { txtDsnName, 0 },
+            EmptyDisabledControls[]=  { 0 };
+const int*  DisabledControls[]=       {
+                                        EmptyDisabledControls,
+                                        PromptDisabledControls,
+                                        EmptyDisabledControls
+                                      };
 
 MADB_DsnMap DsnMap[] = {
-  {&DsnKeys[0], 0, txtDsnName, 64, 1},
-  {&DsnKeys[1], 0, txtDSNDescription, 64, 0},
-  {&DsnKeys[2], 0, txtDriver, 64, 0},
-  {&DsnKeys[3], 1, rbPipe, 0, 0},
-  {&DsnKeys[4], 1, rbTCP, 0, 0},
-  {&DsnKeys[5], 1, txtServerName, 128, 0},
-  {&DsnKeys[6], 1, txtUserName, 64, 0},
-  {&DsnKeys[7], 1, txtPassword, 64, 0},
-  {&DsnKeys[8], 1, cbDatabase, 0, 0},
-  {&DsnKeys[9], 1, txtPort, 5, 0},
-  {&DsnKeys[10], 2, txtInitCmd, 2048, 0},
+  {&DsnKeys[0],  0, txtDsnName,          64, 1},
+  {&DsnKeys[1],  0, txtDSNDescription,   64, 0},
+  {&DsnKeys[3],  1, rbPipe,               0, 0},
+  {&DsnKeys[4],  1, rbTCP,                0, 0},
+  {&DsnKeys[5],  1, txtServerName,      128, 0},
+  {&DsnKeys[6],  1, txtUserName,         64, 0},
+  {&DsnKeys[7],  1, txtPassword,         64, 0},
+  {&DsnKeys[8],  1, cbDatabase,           0, 0},
+  {&DsnKeys[9],  1, txtPort,              5, 0},
+  {&DsnKeys[10], 2, txtInitCmd,        2048, 0},
   {&DsnKeys[11], 2, txtConnectionTimeOut, 5, 0},
-  {&DsnKeys[12], 2, ckReconnect, 0, 0},
-  {&DsnKeys[13], 2, ckConnectPrompt, 0, 0},
-  {&DsnKeys[14], 2, cbCharset, 0, 0},
-  {NULL,  0, 0, 0, 0}
+  {&DsnKeys[12], 2, ckReconnect,          0, 0},
+  {&DsnKeys[13], 2, ckConnectPrompt,      0, 0},
+  {&DsnKeys[14], 2, cbCharset,            0, 0},
+  {NULL, 0, 0, 0, 0}
 };
 
 MADB_OptionsMap OptionsMap[]= {
-  {1, rbPipe, MADB_OPT_FLAG_NAMED_PIPE},
-  {2, ckReconnect, MADB_OPT_FLAG_AUTO_RECONNECT},
-  {2, ckConnectPrompt, MADB_OPT_FLAG_NO_PROMPT},
-  {2, ckCompressed, MADB_OPT_FLAG_COMPRESSED_PROTO},
-  {3, ckIgnoreSchema, MADB_OPT_FLAG_NO_SCHEMA},
-  {3, ckIgnoreSpace, MADB_OPT_FLAG_IGNORE_SPACE},
-  {3, ckMultiStmt, MADB_OPT_FLAG_MULTI_STATEMENTS},
-  {4, ckIgnoreSchema, MADB_OPT_FLAG_NO_SCHEMA},
-  {4, ckEnableDynamicCursor, MADB_OPT_FLAG_DYNAMIC_CURSOR},
-  {4, ckDisableDriverCursor,MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
+  {1, rbPipe,                   MADB_OPT_FLAG_NAMED_PIPE},
+  {2, ckReconnect,              MADB_OPT_FLAG_AUTO_RECONNECT},
+  {2, ckConnectPrompt,          MADB_OPT_FLAG_NO_PROMPT},
+  {2, ckCompressed,             MADB_OPT_FLAG_COMPRESSED_PROTO},
+  {3, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
+  {3, ckIgnoreSpace,            MADB_OPT_FLAG_IGNORE_SPACE},
+  {3, ckMultiStmt,              MADB_OPT_FLAG_MULTI_STATEMENTS},
+  {4, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
+  {4, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
+  {4, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
   {4, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
-  {4, ckForwardCursorOnly,MADB_OPT_FLAG_FORWARD_CURSOR},
-  {4, ckReturnMatchedRows,MADB_OPT_FLAG_FOUND_ROWS},
-  {4, ckEnableSQLAutoIsNull,MADB_OPT_FLAG_AUTO_IS_NULL},
-  {4, ckPadCharFullLength, MADB_OPT_FLAG_PAD_SPACE},
-  {4, ckNullDate,MADB_OPT_FLAG_ZERO_DATE_TO_MIN},
-  {4, ckDebug, MADB_OPT_FLAG_DEBUG},
-  {4, ckReturnMatchedRows, MADB_OPT_FLAG_FOUND_ROWS},
+  {4, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
+  {4, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
+  {4, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
+  {4, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
+  {4, ckNullDate,               MADB_OPT_FLAG_ZERO_DATE_TO_MIN},
+  {4, ckDebug,                  MADB_OPT_FLAG_DEBUG},
+  {4, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   /* last element */
   {0, 0, 0}
 };
@@ -118,12 +134,12 @@ my_bool SetDialogFields()
     i++;
   }
   i= 0;
-  while (OptionsMap[i].DialogOption != 0)
+  while (OptionsMap[i].Item != 0)
   {
     my_bool Val= (Dsn->Options & OptionsMap[i].value) ? 1 : 0;
-    SendDlgItemMessage(hwndTab[OptionsMap[i].Page], OptionsMap[i].DialogOption, BM_SETCHECK,
+    SendDlgItemMessage(hwndTab[OptionsMap[i].Page], OptionsMap[i].Item, BM_SETCHECK,
                            Val ? BST_CHECKED : BST_UNCHECKED, 0);
-    if (Val && OptionsMap[i].DialogOption == rbPipe)
+    if (Val && OptionsMap[i].Item == rbPipe)
     {
       SendMessage(GetDlgItem(hwndTab[OptionsMap[i].Page], lblServerName), WM_SETTEXT, 0, (LPARAM)"Named pipe:");
 		  ShowWindow(GetDlgItem(hwndTab[OptionsMap[i].Page], lblPort), SW_HIDE);
@@ -135,22 +151,30 @@ my_bool SetDialogFields()
 
 }
 
-char *GetFieldStrVal(int Dialog, int Field)
+char *GetFieldStrVal(int Dialog, int Field, char* (*allocator)(size_t))
 {
   int rc;
-  size_t len= Edit_GetTextLength(GetDlgItem(hwndTab[Dialog],Field));
+  size_t len= Edit_GetTextLength(GetDlgItem(hwndTab[Dialog], Field));
   char *p;
 
-  p= (char *)MADB_CALLOC(len * sizeof(char) + 2);
+  if (allocator)
+  {
+    p= allocator(len * sizeof(char) + 2);
+  }
+  else
+  {
+    p= (char *)MADB_CALLOC(len * sizeof(char) + 2);
+  }
+
   if (p)
-    rc= Edit_GetText(GetDlgItem(hwndTab[Dialog], Field),p , len+1);
+    rc= Edit_GetText(GetDlgItem(hwndTab[Dialog], Field), p, len+1);
   return p;      
 }
 
 int GetFieldIntVal(int Dialog, int Field)
 {
   int rc= 0;
-  char *p= GetFieldStrVal(Dialog, Field);
+  char *p= GetFieldStrVal(Dialog, Field, NULL);
   if (p)
   {
     rc= atoi(p);
@@ -172,11 +196,66 @@ my_bool SaveDSN(HWND hDlg, MADB_Dsn *Dsn)
   return FALSE;
 }
 
-void SetPage(HWND hDlg, unsigned int value)
+
+unsigned int GetNextActiveTab(int current_page, int offset)
 {
-  MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
-  /* Save */
-  if (value == 1 && CurrentPage == LASTPAGE)
+  unsigned int result= current_page + offset;
+
+  for (; result >= 0 && result <= LASTPAGE && EffectiveDisabledPages[result] != 0; result+= offset)
+  {
+    if (offset > 1)
+    {
+      offset= 1;
+    }
+    else if (offset < -1)
+    {
+      offset= -1;
+    }
+  }
+
+  if (result <  0 || result > LASTPAGE)
+  {
+    result= current_page;
+  }
+
+  return result;
+}
+
+
+#define DISABLE_CONTROLS(page_map) i= 0;\
+  /* Assuming that controls in the #page_map are sorted by tab page */\
+  while (page_map[i].Item && page_map[i].Page != CurrentPage && ++i);\
+\
+  while (page_map[i].Item && page_map[i].Page == CurrentPage)\
+  {\
+    int j= 0;\
+    while (EffectiveDisabledControls[j])\
+    {\
+      if (EffectiveDisabledControls[j] == page_map[i].Item)\
+      {\
+        EnableWindow(GetDlgItem(hwndTab[CurrentPage], EffectiveDisabledControls[j]), FALSE);\
+      }\
+      ++j;\
+    }\
+    ++i;\
+  } 1
+
+void DisableControls(MADB_Dsn *Dsn)
+{
+  int i;
+
+  DISABLE_CONTROLS(DsnMap);
+  DISABLE_CONTROLS(OptionsMap);
+}
+
+
+void SetPage(HWND hDlg, int value)
+{
+  MADB_Dsn    *Dsn=       (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
+  unsigned int new_page=  GetNextActiveTab(CurrentPage, value);
+
+  /* Save if last page or all following pages are disabled */
+  if (value > 0 && (CurrentPage == LASTPAGE || new_page== CurrentPage))
   {
     GetDialogFields();
     if (Dsn->isPrompt || SaveDSN(hDlg, Dsn))
@@ -185,15 +264,31 @@ void SetPage(HWND hDlg, unsigned int value)
     }
     return;
   }
-	ShowWindow(hwndTab[CurrentPage], SW_HIDE);
-	CurrentPage+= value;
+
+	ShowWindow(hwndTab[CurrentPage != (unsigned int)(-1) ? CurrentPage : 0], SW_HIDE);
+
+	CurrentPage= new_page;
+
 	ShowWindow(hwndTab[CurrentPage], SW_SHOW);
-	EnableWindow(GetDlgItem(hwndTab[CurrentPage], PB_PREV), (CurrentPage > 0) ? TRUE : FALSE);
-	SendMessage(GetDlgItem(hwndTab[CurrentPage], PB_NEXT), WM_SETTEXT, 0, (CurrentPage == LASTPAGE) ? (LPARAM)"Finish" : (LPARAM)"Next >");
+
+  DisableControls(Dsn);
+
+  /* Disabling prev button if needed*/
+  new_page= GetNextActiveTab(CurrentPage, -1);
+  EnableWindow(GetDlgItem(hwndTab[CurrentPage], PB_PREV), (CurrentPage != new_page) ? TRUE : FALSE);
+
+  /* Switching caption of the Next/Finish button if needed*/
+  new_page= GetNextActiveTab(CurrentPage, 1);
+	SendMessage(GetDlgItem(hwndTab[CurrentPage], PB_NEXT), WM_SETTEXT, 0, (CurrentPage == new_page) ? (LPARAM)"Finish" : (LPARAM)"Next >");
 	SetFocus(hwndTab[CurrentPage]);
-	if (CurrentPage == LASTPAGE)
+
+  /* If not a prompt - disable finish button in case of empty DS name(for prompt it may be empty/invalid)
+     TODO: I think it rather has to check if the name is valid DS name */
+	if (Dsn->isPrompt ==  MAODBC_CONFIG && CurrentPage == new_page)
+  {
 	  EnableWindow(GetDlgItem(hwndTab[CurrentPage], PB_NEXT), 
 	               Edit_GetTextLength(GetDlgItem(hwndTab[0], txtDsnName)) ? TRUE : FALSE);
+  }
 }
 
 void GetDialogFields()
@@ -208,8 +303,12 @@ void GetDialogFields()
     case DSN_TYPE_COMBO:
       {
         char **p= (char **)((char *)Dsn + DsnMap[i].Key->DsnOffset);
-        MADB_FREE(*p);
-        *p= GetFieldStrVal(DsnMap[i].Page, DsnMap[i].Item);
+
+        if (Dsn->isPrompt != 0 && Dsn->free != NULL)
+        {
+          Dsn->free(*p);
+        }
+        *p= GetFieldStrVal(DsnMap[i].Page, DsnMap[i].Item, Dsn->allocator && Dsn->isPrompt ? Dsn->allocator : NULL);
       }
       break;
     case DSN_TYPE_INT:
@@ -218,13 +317,13 @@ void GetDialogFields()
     case DSN_TYPE_BOOL:
       *(my_bool *)((char *)Dsn + DsnMap[i].Key->DsnOffset)=  GetButtonState(DsnMap[i].Page, DsnMap[i].Item);
     }
-    i++;
+    ++i;
   }
   i= 0;
   Dsn->Options= 0;
-  while (OptionsMap[i].DialogOption != 0)
+  while (OptionsMap[i].Item != 0)
   {
-    if (GetButtonState(OptionsMap[i].Page, OptionsMap[i].DialogOption))
+    if (GetButtonState(OptionsMap[i].Page, OptionsMap[i].Item))
       Dsn->Options|= OptionsMap[i].value; 
     i++;
   }
@@ -364,6 +463,7 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     {
     case IDCANCEL:
       SendMessage(GetParent(hDlg), WM_CLOSE, 0, 0);
+      notCanceled= FALSE;
       return TRUE;
     case PB_PREV:
 	  SetPage(hDlg, -1);
@@ -416,6 +516,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     if(MessageBox(hDlg, TEXT("Close the program?"), TEXT("Close"),
       MB_ICONQUESTION | MB_YESNO) == IDYES)
     {
+      notCanceled= FALSE;
       DestroyWindow(hDlg);
     } return TRUE;
 
@@ -430,18 +531,18 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   	RECT rc;
   	GetWindowRect(hDlg, &rc);
 
-  	for (i=0; i <= LASTPAGE; i++)
+  	for (i= 0; i <= LASTPAGE; ++i)
   	{
       hwndTab[i]= CreateDialog(hInstance, MAKEINTRESOURCE(Dialogs[i]), hDlg, DialogDSNProc);
 	    SetWindowPos(hwndTab[i], 0, 120, 5, (rc.right-rc.left)-120, (rc.bottom-rc.top), SWP_NOZORDER | SWP_NOACTIVATE);
-	    ShowWindow(hwndTab[i], (!i) ? SW_SHOW : SW_HIDE);
+	    ShowWindow(hwndTab[i], (i == 0) ? SW_SHOW : SW_HIDE);
   	}
-    i=0;
+    i= 0;
     while (DsnMap[i].Key)
     {
       if (DsnMap[i].MaxLength)
         MA_WIN_SET_MAXLEN(DsnMap[i].Page, DsnMap[i].Item, DsnMap[i].MaxLength);
-      i++;
+      ++i;
     }
     
     return TRUE; 
@@ -488,6 +589,14 @@ my_bool DSNDialog(HWND hwndParent,
   char *DsnName= NULL;
   my_bool DsnExists= FALSE;
 
+  if (Dsn->isPrompt < 0 || Dsn->isPrompt > MAODBC_PROMPT_REQUIRED)
+  {
+    Dsn->isPrompt= MAODBC_CONFIG;
+  }
+
+  EffectiveDisabledPages=     DisabledPages[Dsn->isPrompt];
+  EffectiveDisabledControls=  DisabledControls[Dsn->isPrompt];
+
   if (lpszAttributes)
     DsnName= strchr((char *)lpszAttributes, '=');
   
@@ -496,8 +605,9 @@ my_bool DSNDialog(HWND hwndParent,
 
   if (DsnName)
   {
-    DsnName++;
-    if (!SQLValidDSN(DsnName))
+    ++DsnName;
+    /* In case of prompting we are supposed to show dialog even DSN name is incorrect */
+    if (!Dsn->isPrompt && !SQLValidDSN(DsnName))
     {
       if (hwndParent)
         MessageBox(hwndParent, "Validation of data source name failed", "Error", MB_ICONERROR | MB_OK);
@@ -506,16 +616,22 @@ my_bool DSNDialog(HWND hwndParent,
   }
 
   if (!DsnName && Dsn && Dsn->DSNName)
+  {
     DsnName= Dsn->DSNName;
+  }
+  else if (DsnName && Dsn)
+  {
+    /* Need to free current value in Dsn->DSNName */
+    MADB_SUBSTITUTE(Dsn->DSNName, _strdup(DsnName));
+  }
 
+  /* Even if DsnName invalid(in case of prompt) - we should not have problem */
   DsnExists= MADB_DSN_Exists(DsnName);
  
   InitCommonControls();
 
   if (lpszDriver)
     Dsn->Driver= _strdup(lpszDriver);
-  if (DsnName)
-    Dsn->DSNName= _strdup(DsnName);
 
   SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &Environment);
   SQLSetEnvAttr(Environment, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
@@ -532,27 +648,36 @@ my_bool DSNDialog(HWND hwndParent,
   }
   else
   {
-    if (!DsnExists)
+    /* i.e. not a prompt */
+    if (Dsn->isPrompt == MAODBC_CONFIG)
     {
-      MessageBox(0, "Data source name not found", "Error", MB_ICONERROR | MB_OK);
-      return FALSE;
-    }
-    if (!MADB_ReadDSN(Dsn, (char *)lpszAttributes, TRUE))
-    {
-      SQLPostInstallerError(ODBC_ERROR_INVALID_DSN, Dsn->ErrorMsg);
-      return FALSE;
+      if (!DsnExists)
+      {
+        MessageBox(0, "Data source name not found", "Error", MB_ICONERROR | MB_OK);
+        return FALSE;
+      }
+      else if (!MADB_ReadDSN(Dsn, (char *)lpszAttributes, TRUE))
+      {
+        SQLPostInstallerError(ODBC_ERROR_INVALID_DSN, Dsn->ErrorMsg);
+        return FALSE;
+      }
     }
   }
+
+  notCanceled= TRUE;
   hwndMain= CreateDialogParam(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), 0, DialogProc, 0);
   SetWindowLongPtr(hwndMain, DWLP_USER, (LONG)Dsn);
+
+  /* Setting first not disabled page */
+  CurrentPage= -1;
+  SetPage(hwndMain, 1);
+
   Edit_SetReadOnly(GetDlgItem(hwndTab[0], txtDsnName), 
                    (hwndParent && DsnName && fRequest == ODBC_ADD_DSN) ? TRUE : FALSE);
 
   SetDialogFields();
   CenterWindow(hwndMain);
   ShowWindow(hwndMain, SW_SHOW);
-
-  
 
   while((ret = GetMessage(&msg, 0, 0, 0)) != 0) {
     if(ret == -1)
@@ -563,9 +688,10 @@ my_bool DSNDialog(HWND hwndParent,
       DispatchMessage(&msg);
     }
   }
+
   SQLFreeHandle(SQL_HANDLE_ENV, Environment);
 
-  return TRUE;
+  return notCanceled;
 }
 
 BOOL INSTAPI ConfigDSN(
@@ -592,7 +718,7 @@ BOOL INSTAPI ConfigDSN(
     char *Val= strchr((char *)lpszAttributes, '=');
     if (Val)
     {
-      Val++;
+      ++Val;
       return SQLRemoveDSNFromIni(Val);
     }
   }
@@ -603,7 +729,5 @@ BOOL INSTAPI ConfigDSN(
 
 BOOL __stdcall DSNPrompt(HWND hwnd, MADB_Dsn *Dsn)
 {
-  if (!DSNDialog(hwnd, ODBC_CONFIG_DSN, NULL, NULL, Dsn))
-    return FALSE;
-  return TRUE;
+  return DSNDialog(hwnd, ODBC_CONFIG_DSN, NULL, NULL, Dsn);
 }

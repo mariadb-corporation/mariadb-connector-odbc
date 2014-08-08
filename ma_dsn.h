@@ -55,7 +55,7 @@
 typedef struct
 {
   unsigned int Page;
-  unsigned long DialogOption;
+  unsigned long Item;
   unsigned long value;
 } MADB_OptionsMap;
 
@@ -65,15 +65,14 @@ typedef struct
 MADB_DsnKey DsnKeys[];
 
 
-
 /*** Function prototypes ***/
-MADB_Dsn *MADB_DSN_Init(void);
-void MADB_DSN_Free(MADB_Dsn *Dsn);
-my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite);
-my_bool MADB_SaveDSN(MADB_Dsn *Dsn);
-my_bool MADB_DSN_Exists(char *DsnName);
-my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Delimiter);
-SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength);
+MADB_Dsn *  MADB_DSN_Init           (void);
+void        MADB_DSN_Free           (MADB_Dsn *Dsn);
+my_bool     MADB_ReadDSN            (MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite);
+my_bool     MADB_SaveDSN            (MADB_Dsn *Dsn);
+my_bool     MADB_DSN_Exists         (char *DsnName);
+my_bool     MADB_ParseDSNString     (MADB_Dsn *Dsn, char *String, size_t Length, char Delimiter);
+SQLSMALLINT MADB_DsnToString        (MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength);
 
 /*** Helper macros ***/
 #define DSN_OPTION(a,b)\

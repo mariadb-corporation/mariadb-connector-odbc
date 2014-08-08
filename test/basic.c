@@ -1222,6 +1222,7 @@ ODBC_TEST(t_bug45378)
   return OK;
 }
 
+
 MA_ODBC_TESTS my_tests[]=
 {
 /*  {t_disconnect, "t_disconnect"},
