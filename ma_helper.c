@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+#include <stdint.h>
 
 void CloseMultiStatements(MADB_Stmt *Stmt)
 {
@@ -896,8 +897,8 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
     
     if (number->scale < 0)
     {
-      u_int64 OldVal, Val;
-      u_int64 RoundNumber= (u_int64)pow(10.0, -number->scale);
+      int64_t OldVal, Val;
+      int64_t RoundNumber= (int64_t)pow(10.0, -number->scale);
 
       digits[number->precision]= 0;
       Val= _atoi64(digits);
