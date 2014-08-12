@@ -327,7 +327,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     SQLRETURN ret;
     ret= MADB_Dbc_GetCurrentDB(Dbc, ValuePtr, BufferLength, &StrLen, isWChar);
     /* if we weren't able to determine the current db, we will return the cached catalog name */
-    if (!SUCCEEDED(ret) && Dbc->CatalogName)
+    if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
     {
       MADB_CLEAR_ERROR(&Dbc->Error);
       StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? Dbc->CodePage : 0, ValuePtr, BufferLength, 
@@ -479,10 +479,10 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
 
   MADB_CLEAR_ERROR(&Connection->Error);
   ret= SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, &Stmt);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     return ret;
-  if (!SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-      !SUCCEEDED(SQLFetch(Stmt)))
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
+      !SQL_SUCCEEDED(SQLFetch(Stmt)))
   {
     MADB_CopyError(&Connection->Error, &((MADB_Stmt *)Stmt)->Error);
     goto end;
@@ -1517,7 +1517,7 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   case SQL_DRIVER_NOPROMPT:
     {
       SQLRETURN ret= MADB_DbcConnectDB(Dbc, Dsn);
-      if (SUCCEEDED(ret))
+      if (SQL_SUCCEEDED(ret))
         goto end;
       else
         goto error;
@@ -1576,7 +1576,7 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   DSNPrompt_Free(&DSNPrompt);
 
   ret= MADB_DbcConnectDB(Dbc, (void *)Dsn);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     goto error;
 end:
   Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);

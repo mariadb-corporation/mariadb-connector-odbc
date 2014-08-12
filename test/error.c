@@ -517,7 +517,7 @@ ODBC_TEST(t_bug14285620)
 
   /* Get the cursor name for further checks */
   FAIL_IF(SQLGetCursorName(Stmt, szData, sizeof(szData), NULL) != SQL_SUCCESS, "success expected");
-  FAIL_IF(!SUCCEEDED(SQLGetCursorName(Stmt, NULL, 0, &cblen)), "success expected");
+  FAIL_IF(!SQL_SUCCEEDED(SQLGetCursorName(Stmt, NULL, 0, &cblen)), "success expected");
   
   /* Do like MSSQL, which does calculate as char_count*sizeof(SQLWCHAR) */
   is_num(cblen, strlen(szData));

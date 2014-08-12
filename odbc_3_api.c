@@ -891,7 +891,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC ConnectionHandle,
   ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, (SQLSMALLINT)StrLength, (SQLCHAR *)OutConnStrA,
                                      Length, StringLength2Ptr, DriverCompletion); 
   MDBUG_C_DUMP(Dbc, ret, d);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     goto end;
 
   if (DriverCompletion == SQL_DRIVER_NOPROMPT &&

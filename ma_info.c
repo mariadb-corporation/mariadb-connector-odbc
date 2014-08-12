@@ -179,7 +179,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
     }
   }
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   return ret;
 }

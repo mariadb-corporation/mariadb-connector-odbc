@@ -41,7 +41,7 @@ ODBC_TEST(test_CONO1)
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, create_table, SQL_NTS));
 
   ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, L"cono1", SQL_NTS, NULL, 0);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
   SQLRowCount(Stmt, &rowCount);
@@ -50,7 +50,7 @@ ODBC_TEST(test_CONO1)
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, L"SET SQL_MODE=''", SQL_NTS));
 
   ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, L"cono1", SQL_NTS, NULL, 0);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
   SQLRowCount(Stmt, &rowCount);

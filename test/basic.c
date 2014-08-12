@@ -38,7 +38,7 @@ ODBC_TEST(test_CONO1)
   
 
   ret= SQLColumns(Stmt, NULL, 0, NULL, 0, "cono1", SQL_NTS, NULL, 0);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
   SQLRowCount(Stmt, &rowCount);
@@ -47,7 +47,7 @@ ODBC_TEST(test_CONO1)
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SET SQL_MODE=''", SQL_NTS));
 
   ret= SQLColumns(Stmt, NULL, 0, NULL, 0, "cono1", SQL_NTS, NULL, 0);
-  if (!SUCCEEDED(ret))
+  if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
   SQLRowCount(Stmt, &rowCount);
@@ -281,7 +281,7 @@ ODBC_TEST(test_reconnect)
     rc= SQLDisconnect(hdbc1);
     CHECK_DBC_RC(hdbc1, rc);
     rc= SQLFreeHandle(SQL_HANDLE_DBC, hdbc1);
-    if (!SUCCEEDED(rc))
+    if (!SQL_SUCCEEDED(rc))
       CHECK_DBC_RC(hdbc1, rc);
   }
 
@@ -318,7 +318,7 @@ ODBC_TEST(t_disconnect)
   rc= SQLDisconnect(hdbc1);
   CHECK_DBC_RC(hdbc1, rc);
   rc= SQLFreeHandle(SQL_HANDLE_DBC, hdbc1);
-  if (!SUCCEEDED(rc))
+  if (!SQL_SUCCEEDED(rc))
     CHECK_DBC_RC(hdbc1, rc);
   
   return OK;

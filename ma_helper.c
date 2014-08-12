@@ -1084,7 +1084,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   if (Stmt->DaeStmt)
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
   Stmt->DaeStmt= NULL;
-  if (!SUCCEEDED(SQLAllocStmt(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
+  if (!SQL_SUCCEEDED(SQLAllocStmt(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
     goto end;
@@ -1132,7 +1132,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SUCCEEDED(SQLPrepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
+  if (!SQL_SUCCEEDED(SQLPrepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);

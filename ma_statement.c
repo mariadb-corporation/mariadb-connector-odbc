@@ -452,7 +452,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
   {
     SQLRETURN rc;
     rc= Stmt->Methods->RefreshDynamicCursor(Stmt->PositionedCursor);
-    if (!SUCCEEDED(rc))
+    if (!SQL_SUCCEEDED(rc))
     {
       MADB_CopyError(&Stmt->Error, &Stmt->PositionedCursor->Error);
       return Stmt->Error.ReturnValue;
@@ -840,12 +840,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       if (Stmt->Ipd->Header.RowsProcessedPtr)
         *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + 1;
       if (Stmt->Ipd->Header.ArrayStatusPtr)
-        Stmt->Ipd->Header.ArrayStatusPtr[j-Start]= SUCCEEDED(ret) ? SQL_PARAM_SUCCESS : 
+        Stmt->Ipd->Header.ArrayStatusPtr[j-Start]= SQL_SUCCEEDED(ret) ? SQL_PARAM_SUCCESS : 
                                                     (j == Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
-      if (!mysql_stmt_field_count(Stmt->stmt) && SUCCEEDED(ret) && !Stmt->MultiStmts)
+      if (!mysql_stmt_field_count(Stmt->stmt) && SQL_SUCCEEDED(ret) && !Stmt->MultiStmts)
         Stmt->AffectedRows+= mysql_stmt_affected_rows(Stmt->stmt);
       Stmt->ArrayOffset++;
-      if (!SUCCEEDED(ret) && j == Start + Stmt->Apd->Header.ArraySize)
+      if (!SQL_SUCCEEDED(ret) && j == Start + Stmt->Apd->Header.ArraySize)
         goto end;
     }
     if (Stmt->MultiStmts)
@@ -1040,7 +1040,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    case SQL_DECIMAL:
    case SQL_NUMERIC:
      ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_PRECISION, (SQLPOINTER)ColumnSize, SQL_IS_SMALLINT, 0);
-     if (SUCCEEDED(ret))
+     if (SQL_SUCCEEDED(ret))
        ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_SCALE, (SQLPOINTER)DecimalDigits, SQL_IS_SMALLINT, 0);
      break;
    case SQL_INTERVAL_MINUTE_TO_SECOND:
@@ -1053,7 +1053,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
      break;
    }
 
-   if(!SUCCEEDED(ret))
+   if(!SQL_SUCCEEDED(ret))
      MADB_CopyError(&Stmt->Error, &Ipd->Error);
    Stmt->RebindParams= TRUE;
    
@@ -2341,7 +2341,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
    p+= my_snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
   
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, strlen(StmtStr));
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= SQLExecute((SQLHSTMT)Stmt);
   
   return ret;
@@ -2373,7 +2373,7 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   p+= my_snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
   
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, strlen(StmtStr));
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= SQLExecute((SQLHSTMT)Stmt);
   return ret;
 }
@@ -2495,7 +2495,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   }
   MDBUG_C_PRINT(Stmt->Connection, "SQL Statement: %s", StmtStr.str);
   ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   dynstr_free(&StmtStr);
   MDBUG_C_RETURN(Stmt->Connection, ret);
@@ -2545,7 +2545,7 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
 
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
   return ret;
@@ -2606,7 +2606,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,char *CatalogName, SQLSMALLINT NameLe
   MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
   dynstr_free(&StmtStr);
@@ -2654,7 +2654,7 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   MADB_FREE(StmtStr);
 
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   return ret;
 }
@@ -2692,7 +2692,7 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
    p+= my_snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
   return ret;
@@ -2750,7 +2750,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
   p+= my_snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
   return ret;
@@ -2790,7 +2790,7 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   p+= my_snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   
   return ret;
@@ -2908,7 +2908,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 
   dynstr_free(&StmtStr);
 
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   return ret;
 }
@@ -3094,7 +3094,7 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
   Stmt->LastRowFetched= LastRowFetched;
   Stmt->AffectedRows= AffectedRows;
   MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
-  if (SUCCEEDED(ret))
+  if (SQL_SUCCEEDED(ret))
   {
     /* We need to prevent that bound variables will be overwritten
        by fetching data again: For subsequent GetData we need to update
@@ -3137,7 +3137,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         return Stmt->Error.ReturnValue;
       }
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
           return Stmt->Error.ReturnValue;
       EnterCriticalSection(&Stmt->Connection->cs);
       Stmt->Cursor.Position+=(RowNumber - 1);
@@ -3154,7 +3154,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       char *TableName= MADB_GetTableName(Stmt);
       char *CatalogName= MADB_GetCatalogName(Stmt);
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
           return Stmt->Error.ReturnValue;
       Stmt->DaeRowNumber= RowNumber;
       if (Stmt->DataExecutionType != MADB_DAE_ADD)
@@ -3174,7 +3174,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         Stmt->DataExecutionType= MADB_DAE_ADD;
         ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS);
         dynstr_free(&DynStmt);
-        if (!SUCCEEDED(ret))
+        if (!SQL_SUCCEEDED(ret))
         {
           MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
           Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
@@ -3243,7 +3243,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       }
 
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
           return Stmt->Error.ReturnValue;
 
       Stmt->DaeRowNumber= MAX(1,RowNumber);
@@ -3272,7 +3272,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
            from SQLParamData() function */
         if (!ArrayOffset)
         {
-          if (!SUCCEEDED(MADB_DaeStmt(Stmt, SQL_UPDATE)))
+          if (!SQL_SUCCEEDED(MADB_DaeStmt(Stmt, SQL_UPDATE)))
             return Stmt->Error.ReturnValue;
 
           for(j=0; j < mysql_stmt_param_count(Stmt->DaeStmt->stmt); j++)
@@ -3350,7 +3350,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
       Stmt->Ard->Header.ArraySize= 1;
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
           return Stmt->Error.ReturnValue;
       Stmt->AffectedRows= 0;
       if (RowNumber < 0 || RowNumber > End)
@@ -3427,7 +3427,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   {
     SQLRETURN rc;
     rc= Stmt->Methods->RefreshDynamicCursor(Stmt);
-    if (!SUCCEEDED(rc))
+    if (!SQL_SUCCEEDED(rc))
     {
       return Stmt->Error.ReturnValue;
     }

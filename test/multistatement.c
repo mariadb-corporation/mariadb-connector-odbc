@@ -61,7 +61,7 @@ ODBC_TEST(test_multi_on_off)
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
   rc= SQLPrepare(myStmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
-  FAIL_IF(SUCCEEDED(rc), "Error expected"); 
+  FAIL_IF(SQL_SUCCEEDED(rc), "Error expected"); 
 
   ODBC_Disconnect(myEnv, myDbc, myStmt);
 
@@ -69,7 +69,7 @@ ODBC_TEST(test_multi_on_off)
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
   rc= SQLPrepare(myStmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
-  FAIL_IF(!SUCCEEDED(rc), "Success expected"); 
+  FAIL_IF(!SQL_SUCCEEDED(rc), "Success expected"); 
 
   ODBC_Disconnect(myEnv, myDbc, myStmt);
   return OK;
@@ -81,18 +81,18 @@ ODBC_TEST(test_params)
   int i,j;
 
   rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
-  FAIL_IF(!SUCCEEDED(rc), "unexpected error"); 
+  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
 
   rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)", SQL_NTS);
-  FAIL_IF(!SUCCEEDED(rc), "unexpected error"); 
+  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
 
   rc= SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?); INSERT INTO t2 VALUES (?)", SQL_NTS);
   CHECK_STMT_RC(Stmt, rc);
 
   rc= SQLBindParam(Stmt, 1, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, NULL);
-  FAIL_IF(!SUCCEEDED(rc), "unexpected error"); 
+  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
   rc= SQLBindParam(Stmt, 2, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, NULL);
-  FAIL_IF(!SUCCEEDED(rc), "unexpected error"); 
+  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
 
   for (i=0; i < 100; i++)
   {
