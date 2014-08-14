@@ -31,8 +31,28 @@
 #include <stdio.h>
 
 #ifdef _WIN32
-#define _WINSOCKAPI_
-#include <windows.h>
+# define _WINSOCKAPI_
+# include <windows.h>
+#else
+# include <string.h>
+/* Mimicking of VS' _snprintf */
+int _snprintf(char *buffer, size_t count, const char *format, ...)
+{
+    va_list list;
+    va_start(list, format);
+    int result= vsnprintf(buffer, count, format, list);
+
+    va_end(list);
+
+    /* _snprintf returns negative number if buffer is not big enough */
+    if (result > count)
+    {
+      return count - result - 1;
+    }
+    return result;
+}
+
+#define Sleep(ms) sleep(ms/1000)
 #endif
 
 #include <sql.h>
@@ -505,11 +525,11 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate statement handle");
 
   strcpy(buffer, "CREATE SCHEMA IF NOT EXISTS ");
-  strcat(buffer, (my_schema) ? my_schema : "test");
+  strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
   rc= SQLExecDirect(Stmt1, (SQLCHAR *)buffer, (SQLINTEGER)strlen(buffer));
 
   strcpy(buffer, "USE ");
-  strcat(buffer, (my_schema) ? my_schema : "test");
+  strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
   OK_SIMPLE_STMT(Stmt1, buffer);
   SQLFreeStmt(Stmt1, SQL_CLOSE);
 

@@ -151,9 +151,7 @@ ODBC_TEST(t_array_relative_10)
     rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)10,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    /* According to http://support.microsoft.com/kb/298678, the storage
-       pointed to if SQL_ATTR_ROWS_FETCHED_PTR should be SQLLEN */
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
+    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROWS_FETCHED_PTR, &nrows, 0);
     CHECK_STMT_RC(Stmt,rc);
 
     OK_SIMPLE_STMT(Stmt, "select * from t_array_relative_10");

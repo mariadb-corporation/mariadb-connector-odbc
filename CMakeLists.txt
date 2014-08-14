@@ -22,39 +22,24 @@ cmake_minimum_required(VERSION 2.8)
 
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_error.c
-                          ma_error.h
                           ma_connection.c
-                          ma_connection.h
                           ma_helper.c
-                          ma_helper.h
                           ma_debug.c
-                          ma_debug.h
-                          ma_dll.c
                           ma_dsn.c
-                          ma_dsn.h
                           ma_driver.c
-                          ma_driver.h
                           ma_info.c
-                          ma_info.h
                           ma_environment.c
-                          ma_environment.h
                           ma_parse.c
-                          ma_parse.h
                           ma_statement.c
-                          ma_statement.h
                           ma_desc.c
-                          ma_desc.h
                           ma_string.c
-                          ma_string.h
-                          ma_odbc.h
-                          ma_result.c
-                          ma_result.h)
+                          ma_result.c)
 
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
                      ${CMAKE_SOURCE_DIR}/dsn/resource.h
                      ma_dsn.c
-		     ma_driver.c
+                     ma_driver.c
                      ma_string.c
                      ma_desc.c
                      ma_error.c
@@ -67,9 +52,31 @@ IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)
   SET(ODBC_LIBS odbc32)
   SET(ODBC_INSTLIBS odbccp32)
-  SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES} ma_platform_win32.c)
+  SET(MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
+                          ma_dll.c
+                          ma_platform_win32.c
+                          ma_error.h
+                          ma_connection.h
+                          ma_helper.h
+                          ma_debug.h
+                          ma_dsn.h
+                          ma_driver.h
+                          ma_info.h
+                          ma_environment.h
+                          ma_parse.h
+                          ma_statement.h
+                          ma_desc.h
+                          ma_string.h
+                          ma_odbc.h
+                          ma_result.h)
+
+  SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
+  SET(PLATFORM_DEPENDENCIES ws2_32)
 ELSE()
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES} ma_platform_posix.c)
+  SET(MARIADB_CLIENT_FILENAME libmariadbclient.a)
+  SET(ODBC_LIBS odbc)
+  SET(ODBC_INSTLIBS odbcinst)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
@@ -82,9 +89,9 @@ INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindMariaDB.cmake)
 IF(MARIADB_FOUND)
   INCLUDE_DIRECTORIES(${MARIADB_INCLUDE_DIR})
   IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/debug/mariadbclient.lib)
+    SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/debug/${MARIADB_CLIENT_FILENAME})
   ELSE()
-    SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/mariadbclient.lib)
+    SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/${MARIADB_CLIENT_FILENAME})
   ENDIF()
 ELSE()
   MESSAGE(FATAL_ERROR "MariaDB not found")
@@ -175,13 +182,15 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ws2_32)
+TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_LIBS} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
-ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
-SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc)
 
+# Currently on Windows only
 IF(WIN32)
+  ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
+  SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
+  TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc ${ODBC_INSTLIBS})
+
   ADD_EXECUTABLE(dsn_test WIN32 dsn_test.c)
   TARGET_LINK_LIBRARIES(dsn_test ${MARIADB_LIB})
 ENDIF()

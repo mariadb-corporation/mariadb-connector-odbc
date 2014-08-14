@@ -20,27 +20,26 @@
 #define _ma_odbc_h_
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define _WINSOCKAPI_
-#include <windows.h>
+# include "ma_platform_win32.h"
+#else
+# include "ma_platform_posix.h"
 #endif
 
 #define ODBCVER 0x0351
 
 #include <stdlib.h>
 
-#include <sql.h>
-#include <sqlext.h>
-#include <odbcinst.h>
-
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
 
+#include <sql.h>
+#include <sqlext.h>
+#include <odbcinst.h>
+
 #include <errmsg.h>
 #include <string.h>
 
-#include <ma_odbc_platform.h>
 #include <ma_odbc_version.h>
 
 typedef struct st_ma_odbc_connection MADB_Dbc;
@@ -430,7 +429,7 @@ struct st_ma_odbc_connection
   SQLINTEGER CursorCount;
 };
 
-typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
+typedef BOOL (*PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
 
 typedef struct
 {

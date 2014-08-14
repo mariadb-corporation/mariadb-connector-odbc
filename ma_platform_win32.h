@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2014 SkySQL AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,20 +16,24 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#ifndef _ma_odbc_platform_h_
-#define _ma_odbc_platform_h_
 
-#ifndef WIN32
 
-#define CRITICAL_SECTION pthread_mutex_t
-typedef char * CODEPAGE;
+/* MariaDB ODBC driver platform dependent declarations(win32) */
 
-#else
+/* NOTE If you change something in this program, please consider if other platform's declaration
+        require similar change */
 
-/* Windows settings */
+/* Only one "platform" header is supposed to be included */
+#ifndef _ma_platform_x_h_
+
+#define _ma_platform_x_h_
+
+#define WIN32_LEAN_AND_MEAN
+#define _WINSOCKAPI_
+#define DONT_DEFINE_VOID
 
 typedef unsigned int CODEPAGE;
 
-#endif
+# include <windows.h>
 
-#endif /* _ma_odbc_platform_h_ */
+#endif /*_ma_platform_x_h_ */

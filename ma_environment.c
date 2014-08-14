@@ -77,11 +77,12 @@ MADB_Env *MADB_EnvInit()
   InitializeCriticalSection(&Env->cs);
   Env->OdbcVersion= SQL_OV_ODBC3;
 
-#ifdef _WIN32  
 cleanup:
+#ifdef _WIN32  
   if (!Env)
     WSACleanup();
 #endif
+
   return Env;
 }
 /* }}} */

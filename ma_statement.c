@@ -1525,7 +1525,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ird->Header.ArrayStatusPtr;
     break;
   case SQL_ATTR_ROWS_FETCHED_PTR:
-    (SQLUINTEGER *)ValuePtr= Stmt->Ird->Header.RowsProcessedPtr;
+    *(SQLULEN **)ValuePtr= Stmt->Ird->Header.RowsProcessedPtr;
     break;
   case SQL_ATTR_USE_BOOKMARKS:
     *(SQLUINTEGER *)ValuePtr= Stmt->Options.UseBookmarks;

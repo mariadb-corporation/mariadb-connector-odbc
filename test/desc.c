@@ -443,7 +443,7 @@ ODBC_TEST(t_mult_stmt_free)
   */
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(stmt[0], SQL_ATTR_APP_ROW_DESC,
                                &desc, SQL_IS_POINTER, NULL));
-  printMessage("explicit ard = %x, stmt[0]'s implicit ard = %x", expard, desc);
+  printf("# explicit ard = %x, stmt[0]'s implicit ard = %x\n", expard, desc);
 #endif
 
   return OK;

@@ -18,43 +18,24 @@
 *************************************************************************************/
 
 
-/* MariaDB ODBC driver helper functions for platforms other than windows(so far) */
+/* MariaDB ODBC driver platform dependent declarations */
 
-/* NOTE If you change something in this program, please consider if other platform's version 
-        of the function you are changing, needs to be changed accordingly */
-
-#include <ma_odbc.h>
-#include <stdarg.h>
+/* NOTE If you change something in this program, please consider if other platform's declaration
+        require similar change */
 
 
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
-{
-  MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
-  return Dbc->Error.ReturnValue;
-}
+/* Only one "platform" header is supposed to be included */
+#ifndef _ma_platform_x_h_
+# define _ma_platform_x_h_
 
+/* Need size_t */
+#include <stdio.h>
 
-int DSNPrompt_Free  (MADB_Prompt *prompt)
-{
-  prompt->LibraryHandle= NULL;
-
-  return 0;
-}
-
+#define CRITICAL_SECTION pthread_mutex_t
+typedef char * CODEPAGE;
+#define CP_UTF8                   65001
 
 /* Mimicking of VS' _snprintf */
-int _snprintf(char *buffer, size_t count, const char *format, ...)
-{
-    va_list list;
-    va_start(list, format);
-    int result= vsnprintf(buffer, count, format, list);
+int _snprintf(char *buffer, size_t count, const char *format, ...);
 
-    va_end(list);
-
-    /* _snprintf returns negative number if buffer is not big enough */
-    if (result > count)
-    {
-      return count - result - 1;
-    }
-    return result;
-}
+#endif /*_ma_platform_x_h_ */

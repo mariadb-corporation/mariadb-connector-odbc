@@ -70,7 +70,7 @@ BEGIN
             VALUE "FileDescription", "MariaDB ODBC Unicode Drvier"
             VALUE "FileVersion", "1.0.0.1"
             VALUE "InternalName", "ma_odbc_u"
-            VALUE "LegalCopyright", "Copyright (C) 2013"
+            VALUE "LegalCopyright", "Copyright (C) 2013, 2014"
             VALUE "OriginalFilename", "TODO: <Ursprunglicher Dateiname>"
             VALUE "ProductName", "MariaDB ODBC Unicode Driver"
             VALUE "ProductVersion", "1.0.0.1"

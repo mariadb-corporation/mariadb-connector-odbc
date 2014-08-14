@@ -555,7 +555,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
     Desc->Header.Count= (SQLINTEGER)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ROWS_PROCESSED_PTR:
-    Desc->Header.RowsProcessedPtr= (SQLUINTEGER *)ValuePtr;
+    Desc->Header.RowsProcessedPtr= (SQLULEN *)ValuePtr;
     return SQL_SUCCESS;
   }
 

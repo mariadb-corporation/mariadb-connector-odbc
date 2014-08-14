@@ -962,10 +962,10 @@ size_t MADB_SqlNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *Err
 
   Scale+= (Numeric->scale < 0) ? -Numeric->scale : Numeric->scale;
       
-  for (i=0; i < SQL_MAX_NUMERIC_LEN; i++)
+  for (i=0; i < SQL_MAX_NUMERIC_LEN; ++i)
   {
     Numerator+= Numeric->val[i] * ByteDenominator;
-    ByteDenominator<<=8UI64;
+    ByteDenominator<<= 8;
   }
   if (!Numeric->sign)
     Numerator= -Numerator;

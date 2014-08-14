@@ -629,6 +629,12 @@ ODBC_TEST(t_bug30774)
   return OK;
 }
 
+
+#ifdef _WIN32
+#  define WE_HAVE_SETUPLIB
+#endif
+
+#ifdef WE_HAVE_SETUPLIB
 ODBC_TEST(t_bug30840)
 {
   HDBC hdbc1;
@@ -663,6 +669,7 @@ ODBC_TEST(t_bug30840)
 
   return OK;
 }
+#endif
 
 
 /**
@@ -1241,7 +1248,9 @@ MA_ODBC_TESTS my_tests[]=
   {charset_utf8, "charset_utf8"},
   {charset_gbk, "charset_gbk"},
   {t_bug30774, "t_bug30774"},
+#ifdef WE_HAVE_SETUPLIB
   {t_bug30840, "t_bug30840"},
+#endif
   {t_bug30983, "t_bug30983"},
   {t_driverconnect_outstring, "t_driverconnect_outstring"},
   {setnames, "setnames"},
