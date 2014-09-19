@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013 SkySQL AB
+#   Copyright (C) 2013,2014 SkySQL AB
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -170,7 +170,7 @@ IF(WIN32)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
 
-SET(MARIADB_ODBC_VERSION "00.90.0002")
+SET(MARIADB_ODBC_VERSION "00.91.0000")
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
