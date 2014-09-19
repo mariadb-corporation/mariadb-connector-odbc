@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013, 2014 SkySQL AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -64,6 +64,7 @@ struct st_ma_desc_fldid MADB_DESC_FLDID[]=
   {SQL_DESC_TYPE_NAME ,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_READ, MADB_DESC_READ}},
   {SQL_DESC_UNSIGNED ,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_READ, MADB_DESC_READ}},
   {SQL_DESC_UPDATABLE ,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_READ}},
+  {SQL_DESC_UNNAMED ,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_RW, MADB_DESC_READ}},
   {0, {0, 0, 0, 0}}
 };
 
@@ -342,7 +343,7 @@ SQLRETURN MADB_DeskCheckFldId(MADB_Desc *Desc, SQLSMALLINT FieldIdentifier, SQLS
   
   while (MADB_DESC_FLDID[i].FieldIdentifier &&
          MADB_DESC_FLDID[i].FieldIdentifier != FieldIdentifier)
-    i++;
+    ++i;
 
   /* End of list = invalid FieldIdentifier */
   if (!MADB_DESC_FLDID[i].FieldIdentifier ||
@@ -532,8 +533,16 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   MADB_Desc *Desc= (MADB_Desc *)DescriptorHandle;
   MADB_DescRecord *DescRecord= NULL;
   SQLRETURN ret;
-
+  SQL_UNNAMED;
   ret= MADB_DeskCheckFldId(Desc, FieldIdentifier, MADB_DESC_WRITE);
+
+  /* Application may set IPD's field SQL_DESC_UNNAMED to SQL_UNNAMED only */
+  if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)ValuePtr == SQL_NAMED)
+  {
+    MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
+    ret= Desc->Error.ReturnValue;
+  }
+
   if (!SQL_SUCCEEDED(ret))
     return ret;
 

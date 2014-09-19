@@ -586,13 +586,10 @@ ODBC_TEST(t_desc_curcatalog)
   /* Connecting not specifying default db */
   sprintf((char *)conn_in, "DRIVER=%s;SERVER=localhost;UID=%s;PWD=%s", my_drivername,
                               my_uid, my_pwd);
-
   
   CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn_in, sizeof(conn_in), NULL,
                                  0, NULL,
                                  SQL_DRIVER_NOPROMPT));
-
-
 
   CHECK_DBC_RC(Connection1, SQLAllocStmt(Connection1, &hstmt1));
 
@@ -601,7 +598,6 @@ ODBC_TEST(t_desc_curcatalog)
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(hstmt1, SQL_ATTR_IMP_ROW_DESC, &ird, 0, NULL));
   CHECK_DESC_RC(ird, SQLGetDescField(ird, 1, SQL_DESC_CATALOG_NAME, conn_in,
                                sizeof(conn_in), NULL));
-
 
   FAIL_IF(conn_in[0]!=0, "expected conn_in = NULL");
 
@@ -613,6 +609,28 @@ ODBC_TEST(t_desc_curcatalog)
 
   return OK;
 }
+
+
+ODBC_TEST(t_odbc14)
+{
+  SQLHANDLE  ipd;
+  SQLINTEGER param;
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *) "select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
+                                  SQL_INTEGER, 0, 0, &param, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_PARAM_DESC,
+                                &ipd, SQL_IS_POINTER, NULL));
+  CHECK_DESC_RC(ipd, SQLSetDescField(ipd, 1, SQL_DESC_UNNAMED, (SQLPOINTER) SQL_UNNAMED,
+                               SQL_IS_SMALLINT));
+  FAIL_IF(SQLSetDescField(ipd, 1, SQL_DESC_UNNAMED, (SQLPOINTER) SQL_NAMED,
+                               SQL_IS_SMALLINT) != SQL_ERROR, "Error expected for SQL_NAMED");
+
+  CHECK_SQLSTATE_EX(ipd, SQL_HANDLE_DESC, "HY092");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -628,6 +646,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug41081,"t_bug41081"},
   {t_bug44576, "t_bug44576"},
   {t_desc_curcatalog, "t_desc_curcatalog"},
+  {t_odbc14, "t_odbc14"},
   {NULL, NULL}
 };
 
