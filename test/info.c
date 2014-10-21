@@ -443,6 +443,20 @@ ODBC_TEST(t_bug11749093)
 }
 
 
+/* https://mariadb.atlassian.net/browse/ODBC-15
+   MariaDB ODBC connector did not support SQL_ODBC_API_CONFORMANCE info type */
+ODBC_TEST(bug_odbc15)
+{
+  SQLSMALLINT info;
+
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_ODBC_API_CONFORMANCE, &info,
+                          0, NULL));
+
+  is_num(info, SQL_OAC_LEVEL1);
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -458,6 +472,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug43855, "t_bug43855"},
   {t_bug46910, "t_bug46910"}, 
   {t_bug11749093, "t_bug11749093"},
+  {bug_odbc15, "bug_odbc15"},
   {NULL, NULL}
 };
 
