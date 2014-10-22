@@ -170,6 +170,22 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   ADJUST_LENGTH(StatementText, TextLength);
 
   Stmt->PositionedCursor= NULL;
+
+  /* If we preparing something - we need to close that war prepared before */
+  if (Stmt->MultiStmtCount > 0)
+  {
+    CloseMultiStatements(Stmt);
+    Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+  }
+  else
+  {
+    /* Not optimal - if this is 1st use of STMT no need to close and re-init stmt */
+    if (Stmt->stmt)
+    {
+      mysql_stmt_close(Stmt->stmt);
+      Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+    }
+  }
   Stmt->MultiStmtCount= 0;
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
@@ -239,6 +255,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     my_snprintf(p, 40, " LIMIT %d", Stmt->Options.MaxRows);
     TextLength= strlen(Stmt->StmtString);
   }
+
   if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, 
                          TextLength == SQL_NTS ? strlen(Stmt->StmtString) : TextLength))
   {
@@ -1158,8 +1175,16 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     if (Stmt->MultiStmtCount)
     {
       unsigned int i;
-      for (i=0; i < Stmt->MultiStmtCount; ++i)
-        mysql_stmt_close(Stmt->MultiStmts[i]);
+      for (i= 0; i < Stmt->MultiStmtCount; ++i)
+      {
+        /* This dirty hack allows to avoid crash in case stmt object was not allocated
+           TODO: The better place for this check would be where MultiStmts was not allocated
+           to avoid inconsistency(MultiStmtCount > 0 and MultiStmts is NULL */
+        if (Stmt->MultiStmts!= NULL && Stmt->MultiStmts[i] != NULL)
+        {
+          mysql_stmt_close(Stmt->MultiStmts[i]);
+        }
+      }
       MADB_FREE(Stmt->MultiStmts);
       Stmt->MultiStmtCount= Stmt->MultiStmtNr= 0;
     }

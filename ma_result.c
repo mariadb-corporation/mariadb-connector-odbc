@@ -58,6 +58,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   {
     if (Stmt->MultiStmtNr == Stmt->MultiStmtCount - 1)
       return SQL_NO_DATA;
+
     Stmt->MultiStmtNr++;
     Stmt->stmt= Stmt->MultiStmts[Stmt->MultiStmtNr];
     Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);

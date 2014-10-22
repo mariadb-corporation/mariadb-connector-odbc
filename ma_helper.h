@@ -19,6 +19,7 @@
 #ifndef _ma_helper_h_
 #define _ma_helper_h_
 
+void CloseMultiStatements(MADB_Stmt *Stmt);
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);

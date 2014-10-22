@@ -50,6 +50,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     mysql_stmt_close(stmt);
     return 1;
   }
+  mysql_stmt_close(stmt);
   /* make sure we don't have trailing whitespace or semicolon */
   if (Length)
   {
@@ -107,7 +108,6 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
       if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, strlen(p)))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
-        mysql_stmt_close(Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
         return 0;
       }
