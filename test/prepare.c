@@ -54,7 +54,7 @@ ODBC_TEST(t_prep_basic)
     mystmt(Stmt,rc);
 
     diag( "affected rows: %ld\n", pcrow);
-    assert(pcrow == 1);
+    IS(pcrow == 1);
 
     SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -72,11 +72,11 @@ ODBC_TEST(t_prep_basic)
     mystmt(Stmt,rc);
 
     diag( "outdata: %d(%d), %s(%d)\n",id,length1,name,length2);
-    assert(id == 100 && length1 == sizeof(SQLINTEGER));
-    assert(strcmp(name,"venu")==0 && length2 == 4);
+    IS(id == 100 && length1 == sizeof(SQLINTEGER));
+    IS(strcmp(name,"venu")==0 && length2 == 4);
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -178,7 +178,7 @@ ODBC_TEST(t_prep_buffer_length)
     IS_STR(buffer, "abcdefghij", 10);
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -221,7 +221,7 @@ ODBC_TEST(t_prep_truncate)
     mystmt(Stmt,rc);
 
     diag( "affected rows: %ld\n", pcrow);
-    assert(pcrow == 1);
+    IS(pcrow == 1);
 
     SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -247,7 +247,7 @@ ODBC_TEST(t_prep_truncate)
     IS_STR(bin, "venuM", 5);
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -379,13 +379,13 @@ ODBC_TEST(t_prep_getdata)
     mystmt(Stmt, rc);
 
     diag("record 1 : %d\n", tiny);
-    assert( tiny == 10);
+    IS( tiny == 10);
 
     rc = SQLGetData(Stmt,2,SQL_C_LONG,&data,0,NULL);
     mystmt(Stmt,rc);
 
     diag("record 2 : %ld\n", data);
-    assert( data == 10);
+    IS( data == 10);
 
     name[0]= '\0';
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,name,5,&length);
@@ -401,7 +401,7 @@ ODBC_TEST(t_prep_getdata)
     mystmt(Stmt,rc);
 
     diag("record 1 : %ld", data);
-    assert( data == 10);
+    IS( data == 10);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -486,7 +486,7 @@ ODBC_TEST(t_prep_getdata1)
     IS_STR(data, "j", 1);
 
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,data,2,&length);
-    assert(rc == SQL_NO_DATA);
+    IS(rc == SQL_NO_DATA);
 
     data[0]= 'M'; data[1]= '\0';
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,0,&length);
@@ -529,7 +529,7 @@ ODBC_TEST(t_prep_getdata1)
     mystmt(Stmt,rc);
 
     diag("data: %s (%ld)\n", data, length);
-    assert(data[0] == '\0' && length == 1);
+    IS(data[0] == '\0' && length == 1);
     is_num(length, 1);
     is_num(data[0], '\0');
 
@@ -541,7 +541,7 @@ ODBC_TEST(t_prep_getdata1)
     IS_STR(data, "5", 1);
 
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,data,2,&length);
-    assert(rc == SQL_NO_DATA);
+    IS(rc == SQL_NO_DATA);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -573,7 +573,7 @@ ODBC_TEST(t_prep_catalog)
 
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,table,0,&length);
     mystmt(Stmt,rc);
-    assert(length == 14);
+    IS(length == 14);
 
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,table,15,&length);
     mystmt(Stmt,rc);
@@ -581,7 +581,7 @@ ODBC_TEST(t_prep_catalog)
     IS_STR(table, "t_prep_catalog", 14);
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA);
+    IS(rc == SQL_NO_DATA);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -602,7 +602,7 @@ ODBC_TEST(t_prep_catalog)
 
     rc = SQLGetData(Stmt,4,SQL_C_CHAR,table,0,&length);
     mystmt(Stmt,rc);
-    assert(length == 1);
+    IS(length == 1);
 
     rc = SQLGetData(Stmt,4,SQL_C_CHAR,table,2,&length);
     mystmt(Stmt,rc);
@@ -616,7 +616,7 @@ ODBC_TEST(t_prep_catalog)
     IS_STR(table, "100", 3);
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA);
+    IS(rc == SQL_NO_DATA);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     mystmt(Stmt,rc);
@@ -676,8 +676,8 @@ ODBC_TEST(t_sps)
         mystmt(Stmt, rc);
 
         diag( "data: %d, %s(%d)\n", a, b1, length);
-        assert( a == a1);
-        assert(strncmp(b1,b,length1) == 0 && length1 == length);
+        IS( a == a1);
+        IS(strncmp(b1,b,length1) == 0 && length1 == length);
     }
 
     SQLFreeStmt(Stmt, SQL_UNBIND);
@@ -738,10 +738,10 @@ ODBC_TEST(t_prepare)
     mystmt(Stmt,rc);
 
     fprintf(stdout," outdata: %d, %s(%ld)\n", nodata,szodata,nlen);
-    assert(nodata == 200);
+    IS(nodata == 200);
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);
@@ -801,7 +801,7 @@ ODBC_TEST(t_prepare1)
 
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_prepare1");
 
-    assert(3 == myresult(Stmt));/* unless prepare is supported..*/
+    IS(3 == myresult(Stmt));/* unless prepare is supported..*/
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);
@@ -860,11 +860,11 @@ ODBC_TEST(tmysql_bindcol)
     mystmt(Stmt,rc);
 
     diag(" outdata: %d, %s(%d)\n", nodata,szodata,nlen);
-    assert(nodata == 200);
+    IS(nodata == 200);
 
     rc = SQLFetch(Stmt);
 
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);
@@ -933,11 +933,11 @@ ODBC_TEST(tmysql_bindparam)
     mystmt(Stmt,rc);
 
     diag(" outdata: %d, %s(%d)\n", nodata,szodata,nlen);
-    assert(nodata == 200);
+    IS(nodata == 200);
 
     rc = SQLFetch(Stmt);
 
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);

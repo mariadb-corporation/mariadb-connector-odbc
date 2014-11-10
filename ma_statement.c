@@ -2110,7 +2110,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if (ZeroTerminated)
       {
         char *p= (char *)Bind.buffer;
-        if (BufferLength >= (SQLINTEGER)*Bind.length)
+        if (BufferLength > (SQLINTEGER)*Bind.length)
           p[*Bind.length]= 0;
         else
           p[BufferLength-1]= 0;

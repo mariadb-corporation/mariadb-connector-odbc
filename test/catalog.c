@@ -155,7 +155,7 @@ ODBC_TEST(my_table_dbs)
     rc = SQLGetData(Stmt,2,SQL_C_CHAR,database,100,&lenOrNull);
     CHECK_STMT_RC(Stmt,rc);
     diag("schema: %s", database);
-    assert(lenOrNull == SQL_NULL_DATA);
+    IS(lenOrNull == SQL_NULL_DATA);
 
     memset(database,0,100);
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,database,100,&lenOrNull);
@@ -389,8 +389,8 @@ ODBC_TEST(t_catalog)
     CHECK_STMT_RC(Stmt,rc);
 
     diag("total columns: %d", ncols);
-    assert(ncols == 18);
-    assert(myresult(Stmt) == 3);
+    IS(ncols == 18);
+    IS(myresult(Stmt) == 3);
 
     SQLFreeStmt(Stmt, SQL_UNBIND);
     SQLFreeStmt(Stmt, SQL_CLOSE);
@@ -735,24 +735,24 @@ ODBC_TEST(t_current_catalog_ansi)
 
 ODBC_TEST(tmysql_showkeys)
 {
-    SQLRETURN rc;
+  SQLRETURN rc;
 
-    OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_spk");
+  OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_spk");
 
-    OK_SIMPLE_STMT(Stmt,"create table tmysql_spk(col1 int primary key)");
+  OK_SIMPLE_STMT(Stmt,"create table tmysql_spk(col1 int primary key)");
    
-    CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
+  CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
     
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt,"SHOW KEYS FROM tmysql_spk");
+  OK_SIMPLE_STMT(Stmt,"SHOW KEYS FROM tmysql_spk");
     
 
-    assert(1 == myresult(Stmt));
+  IS(1 == myresult(Stmt));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_spk");
 

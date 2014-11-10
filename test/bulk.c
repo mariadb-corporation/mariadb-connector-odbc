@@ -258,14 +258,14 @@ ODBC_TEST(t_bulk_insert_indicator)
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nData, 5);
-  assert(nLen != SQL_NULL_DATA);
+  IS(nLen != SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nLen, SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nData, 3);
-  assert(nLen != SQL_NULL_DATA);
+  IS(nLen != SQL_NULL_DATA);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
 
@@ -349,18 +349,18 @@ ODBC_TEST(t_bulk_insert_rows)
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nData, 5);
-  assert(nLen != SQL_NULL_DATA);
+  IS(nLen != SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nLen, SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nData, 3);
-  assert(nLen != SQL_NULL_DATA);
+  IS(nLen != SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
   is_num(nData, 3);
-  assert(nLen != SQL_NULL_DATA);
+  IS(nLen != SQL_NULL_DATA);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
 

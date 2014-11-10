@@ -162,7 +162,7 @@ ODBC_TEST(t_convert_type)
     CHECK_STMT_RC(Stmt,rc);
 
     diag("MAX(col0): %d", SqlType);
-    assert(SqlType == SQL_INTEGER);
+    IS(SqlType == SQL_INTEGER);
 
     SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -172,7 +172,7 @@ ODBC_TEST(t_convert_type)
     CHECK_STMT_RC(Stmt,rc);
 
     diag("MAX(col1): %d", SqlType);
-    assert(SqlType == DateType);
+    IS(SqlType == DateType);
 
     SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -194,7 +194,7 @@ ODBC_TEST(t_convert_type)
       CHECK_STMT_RC(Stmt,rc);
 
       diag("CAST(MAX(col1) AS DATE): %d", SqlType);
-      assert(SqlType == DateType);
+      IS(SqlType == DateType);
 
       SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -205,7 +205,7 @@ ODBC_TEST(t_convert_type)
       CHECK_STMT_RC(Stmt,rc);
 
       diag("CONVERT(MAX(col1),DATE): %d", SqlType);
-      assert(SqlType == DateType);
+      IS(SqlType == DateType);
 
       SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -215,7 +215,7 @@ ODBC_TEST(t_convert_type)
       CHECK_STMT_RC(Stmt,rc);
 
       diag("CAST(MAX(col1) AS CHAR): %d", SqlType);
-      assert(SqlType == SQL_VARCHAR || SqlType == SQL_LONGVARCHAR ||
+      IS(SqlType == SQL_VARCHAR || SqlType == SQL_LONGVARCHAR ||
                SqlType == SQL_WVARCHAR || SqlType == SQL_WLONGVARCHAR);
 
       SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -369,16 +369,16 @@ ODBC_TEST(t_convert)
 
     rc = SQLFetch(Stmt);
     CHECK_STMT_RC(Stmt,rc);
-    assert(strcmp((char *)data,"record1-must be string") == 0 ||
+    IS(strcmp((char *)data,"record1-must be string") == 0 ||
              strcmp((char *)data,"record2-must be string") == 0);
 
     rc = SQLFetch(Stmt);
     CHECK_STMT_RC(Stmt,rc);
-    assert(strcmp((char *)data,"record1-must be string") == 0 ||
+    IS(strcmp((char *)data,"record1-must be string") == 0 ||
              strcmp((char *)data,"record2-must be string") == 0);
 
     rc = SQLFetch(Stmt);
-    assert( rc == SQL_NO_DATA);
+    IS( rc == SQL_NO_DATA);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     CHECK_STMT_RC(Stmt,rc);
@@ -433,12 +433,12 @@ ODBC_TEST(t_max_rows)
 
   rc = SQLExecDirect(Stmt,"select count(*) from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  assert( 1 == myresult(Stmt) );
+  IS( 1 == myresult(Stmt) );
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
   rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  assert( 10 == myresult(Stmt) );
+  IS( 10 == myresult(Stmt) );
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
   /* MAX rows through connection attribute */
@@ -460,7 +460,7 @@ ODBC_TEST(t_max_rows)
 
   rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  assert( 10 == myrowcount(Stmt));
+  IS( 10 == myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -481,7 +481,7 @@ ODBC_TEST(t_max_rows)
   rc = SQLExecute(Stmt);
   CHECK_STMT_RC(Stmt,rc);
 
-  assert( 3 == myrowcount(Stmt));
+  IS( 3 == myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -490,7 +490,7 @@ ODBC_TEST(t_max_rows)
 
   rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  assert( 10 == myrowcount(Stmt));
+  IS( 10 == myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -594,42 +594,42 @@ ODBC_TEST(t_multistep)
   rc = SQLFetch(Stmt);
   CHECK_STMT_RC(Stmt,rc);
   diag("id: %ld",id);
-  assert(id == 10);
+  IS(id == 10);
 
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,0,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("length: %ld", pcbValue);
-  assert(pcbValue == 28);
+  IS(pcbValue == 28);
 
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,0,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("length: %ld", pcbValue);
-  assert(pcbValue == 28);
+  IS(pcbValue == 28);
 
   rc = SQLGetData(Stmt,2,SQL_C_BINARY,szData,0,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("length: %ld", pcbValue);
-  assert(pcbValue == 28);
+  IS(pcbValue == 28);
 
   rc = SQLGetData(Stmt,2,SQL_C_BINARY,szData,0,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("length: %ld", pcbValue);
-  assert(pcbValue == 28);
+  IS(pcbValue == 28);
 
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,0,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("length: %ld", pcbValue);
   is_num(pcbValue, 28);
 
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,10,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("data  : %s (%ld)",szData,pcbValue);
   is_num(pcbValue, 28);
   IS_STR(szData, "MySQL - O", 10);
 
   pcbValue= 0;
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,5,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("data  : %s (%ld)",szData,pcbValue);
   is_num(pcbValue, 19);
   IS_STR(szData, "pen ", 5);
@@ -637,10 +637,10 @@ ODBC_TEST(t_multistep)
   pcbValue= 0;
   szData[0]='A';
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,0,&pcbValue);
-  assert(rc == SQL_SUCCESS_WITH_INFO);
+  IS(rc == SQL_SUCCESS_WITH_INFO);
   diag("data  : %s (%ld)",szData,pcbValue);
-  assert(pcbValue == 15);
-  assert(szData[0] == 'A');
+  IS(pcbValue == 15);
+  IS(szData[0] == 'A');
 
   rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,pcbValue+1,&pcbValue);
   CHECK_STMT_RC(Stmt,rc);
@@ -653,8 +653,8 @@ ODBC_TEST(t_multistep)
   rc= SQLGetData(Stmt, 2, SQL_C_CHAR, szData, 0, &pcbValue);
   FAIL_IF(rc != SQL_NO_DATA_FOUND, "expected eof");
   diag("data  : %s (%ld)",szData,pcbValue);
-  assert(pcbValue == 99);
-  assert(szData[0] == 'A');
+  IS(pcbValue == 99);
+  IS(szData[0] == 'A');
 
   FAIL_IF(SQLFetch(Stmt)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -701,40 +701,40 @@ ODBC_TEST(t_zerolength)
     pcbValue= pcbValue1= 99;
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 0, &pcbValue));
     diag("length: %d", pcbValue);
-    assert(pcbValue == 0);
+    IS(pcbValue == 0);
 
     bData[0]=bData[1]='z';
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_BINARY, bData, 0, &pcbValue1));
     diag("length: %d", pcbValue1);
-    assert(pcbValue1 == 0);
-    assert(bData[0] == 'z');
-    assert(bData[1] == 'z');
+    IS(pcbValue1 == 0);
+    IS(bData[0] == 'z');
+    IS(bData[1] == 'z');
 
     bData1[0]=bData1[1]='z';
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_BINARY, bData1, 0, &pcbValue2));
     diag("length: %d", pcbValue2);
-    assert(pcbValue2 == 0);
-    assert(bData1[0] == 'z');
-    assert(bData1[1] == 'z');
+    IS(pcbValue2 == 0);
+    IS(bData1[0] == 'z');
+    IS(bData1[1] == 'z');
 
     pcbValue= pcbValue1= 99;
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt,1,SQL_C_CHAR,szData,1,&pcbValue));
     diag("data: %s, length: %d", szData, pcbValue);
-    assert(pcbValue == 0);
-    assert(szData[0] == '\0');
+    IS(pcbValue == 0);
+    IS(szData[0] == '\0');
 
     bData[0]=bData[1]='z';
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt,2,SQL_C_BINARY,bData,1,&pcbValue1));
 
     diag("data: %s, length: %d", bData, pcbValue1);
-    assert(pcbValue1 == 0);
+    IS(pcbValue1 == 0);
 
     bData1[0]=bData1[1]='z';
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt,3,SQL_C_CHAR,bData1,1,&pcbValue2));
     diag("data: %s, length: %d", bData1, pcbValue2);
-    assert(pcbValue2 == 0);
-    assert(bData1[0] == '\0');
-    assert(bData1[1] == 'z');
+    IS(pcbValue2 == 0);
+    IS(bData1[0] == '\0');
+    IS(bData1[1] == 'z');
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
@@ -743,42 +743,42 @@ ODBC_TEST(t_zerolength)
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,0,&pcbValue);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("length: %d", pcbValue);
-    assert(pcbValue == 4);
-    assert(szData[0] == 'z');
+    IS(pcbValue == 4);
+    IS(szData[0] == 'z');
 
     rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,0,&pcbValue1);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("length: %d", pcbValue1);
-    assert(pcbValue1 == 5);
-    assert(bData[0] == 'z');
+    IS(pcbValue1 == 5);
+    IS(bData[0] == 'z');
 
     bData[0]=bData1[1]='z';
     rc = SQLGetData(Stmt,3,SQL_C_BINARY,bData1,0,&pcbValue2);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("length: %d", pcbValue2);
-    assert(pcbValue2 == 5);
+    IS(pcbValue2 == 5);
 
     pcbValue= pcbValue1= 99;
     szData[0]= szData[1]= bData[0]= bData[1]= 'z';
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,1,&pcbValue);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data: %s, length: %d", szData,pcbValue);
-    assert(pcbValue == 4);
-    assert(szData[0] == '\0');
+    IS(pcbValue == 4);
+    IS(szData[0] == '\0');
 
     rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,1,&pcbValue1);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data; %s, length: %d", bData, pcbValue1);
-    assert(pcbValue1 == 5);
-    assert(bData[0] == 'm');
+    IS(pcbValue1 == 5);
+    IS(bData[0] == 'm');
 
     bData[0]=bData1[1]='z';
     rc = SQLGetData(Stmt,3,SQL_C_BINARY,bData1,1,&pcbValue2);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("length: %d", pcbValue2);
-    assert(pcbValue2 == 5);
-    assert(bData1[0] == 'm');
-    assert(bData1[1] == 'z');
+    IS(pcbValue2 == 5);
+    IS(bData1[0] == 'm');
+    IS(bData1[1] == 'z');
 
     pcbValue= pcbValue1= 99;
     rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,4,&pcbValue);
@@ -810,33 +810,33 @@ ODBC_TEST(t_zerolength)
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,0,&pcbValue);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data: %s, length: %d", szData, pcbValue);
-    assert(pcbValue == 5 || pcbValue == 10);
-    assert(szData[0] == 'z');
+    IS(pcbValue == 5 || pcbValue == 10);
+    IS(szData[0] == 'z');
 
 #if TO_BE_FIXED_IN_DRIVER
     szData[0]=szData[1]='z';
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,1,&pcbValue);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data: %s, length: %d", szData, pcbValue);
-    assert(pcbValue == 10);
-    assert(szData[0] == 'm');
-    assert(szData[1] == 'z');
+    IS(pcbValue == 10);
+    IS(szData[0] == 'm');
+    IS(szData[1] == 'z');
 
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,4,&pcbValue);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
     diag("data: %s, length: %d", szData, pcbValue);
-    assert(pcbValue == 10);
-    assert(strncmp(szData,"mont",4) == 0);
+    IS(pcbValue == 10);
+    IS(strncmp(szData,"mont",4) == 0);
 
     rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,5,&pcbValue);
     CHECK_STMT_RC(Stmt,rc);
     diag("data: %s, length: %d", szData, pcbValue);
-    assert(pcbValue == 10);
-    assert(strncmp(szData,"monty",5) == 0);
+    IS(pcbValue == 10);
+    IS(strncmp(szData,"monty",5) == 0);
 #endif
 
     rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     SQLFreeStmt(Stmt,SQL_UNBIND);
     SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -1000,7 +1000,7 @@ ODBC_TEST(t_empty_str_bug)
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
-    assert(rc == SQL_NO_DATA_FOUND);
+    IS(rc == SQL_NO_DATA_FOUND);
 
     id= 10;
     strcpy((char *)name,"MySQL AB");
@@ -1015,7 +1015,7 @@ ODBC_TEST(t_empty_str_bug)
     CHECK_STMT_RC(Stmt,rc);
 
     diag("rows affected: %d",name_len);
-    assert(name_len == 1);
+    IS(name_len == 1);
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
     CHECK_STMT_RC(Stmt,rc);
@@ -1026,7 +1026,7 @@ ODBC_TEST(t_empty_str_bug)
     rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    assert( 1 == myresult(Stmt));
+    IS( 1 == myresult(Stmt));
 
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
     CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
@@ -1039,8 +1039,8 @@ ODBC_TEST(t_empty_str_bug)
     CHECK_STMT_RC(Stmt,rc);
 
     name[0]='\0';
-    assert(10 == my_fetch_int(Stmt,1));
-    assert(!strcmp((const char *)"MySQL AB",my_fetch_str(Stmt,name,2)));
+    IS(10 == my_fetch_int(Stmt,1));
+    IS(!strcmp((const char *)"MySQL AB",my_fetch_str(Stmt,name,2)));
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3,SQL_CHAR, name, MAX_ROW_DATA_LEN+1,
                               &name_len));
     /*Checking that if value IS NULL - buffer will not be changed */
@@ -1141,11 +1141,11 @@ int desccol(SQLHSTMT Stmt, char *cname, SQLSMALLINT clen,
     diag(" sqltype: %d, size: %d, scale: %d, null: %d\n",lsqltype,lsize,lscale,lisNull);
 
     IS_STR(lcname, cname, clen);
-    assert(lclen == clen);
-    assert(lsqltype == sqltype);
-    assert(lsize == size);
-    assert(lscale == scale);
-    assert(lisNull == isNull);
+    IS(lclen == clen);
+    IS(lsqltype == sqltype);
+    IS(lsize == size);
+    IS(lscale == scale);
+    IS(lisNull == isNull);
 
     SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -1444,15 +1444,15 @@ ODBC_TEST(t_exfetch)
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_LAST,0,NULL,NULL);/* 5 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 5);
+    IS(i == 5);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,0,NULL,NULL);/* 4 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 4);
+    IS(i == 4);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-3,NULL,NULL);/* 1 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 1);
+    IS(i == 1);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL);/* 0 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
@@ -1462,18 +1462,18 @@ ODBC_TEST(t_exfetch)
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,-1,NULL,NULL);/* 0 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 1);
+    IS(i == 1);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,4,NULL,NULL);/* 4 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 4);
+    IS(i == 4);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,2,NULL,NULL);/* 4 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,2,NULL,NULL);/* last */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 5);
+    IS(i == 5);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,2,NULL,NULL);/* last+1 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
@@ -1483,14 +1483,14 @@ ODBC_TEST(t_exfetch)
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,2,NULL,NULL);/* 1 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 1);
+    IS(i == 1);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,2,NULL,NULL);/* 0 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,0,NULL,NULL);/* 1*/
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 1);
+    IS(i == 1);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,0,NULL,NULL);/* 0 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
@@ -1500,18 +1500,18 @@ ODBC_TEST(t_exfetch)
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL); /* 1 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 1); /* MyODBC .39 returns 2 instead of 1 */
+    IS(i == 1); /* MyODBC .39 returns 2 instead of 1 */
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL);/* 0 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL);/* 1 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 1);
+    IS(i == 1);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL);/* 2 */
     CHECK_STMT_RC(Stmt,rc);
-    assert(i == 2);
+    IS(i == 2);
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-2,NULL,NULL);/* 0 */
     FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
@@ -1521,7 +1521,7 @@ ODBC_TEST(t_exfetch)
 
     rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,6,NULL,NULL);/* last+1 */
     CHECK_STMT_RC(Stmt, rc);
-    assert(i == 5);
+    IS(i == 5);
 
     SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt,SQL_UNBIND);
@@ -1620,7 +1620,7 @@ ODBC_TEST(tmysql_rowstatus)
     rc = SQLExecDirect(Stmt,"select * from tmysql_rowstatus", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    assert(5 == myresult(Stmt));
+    IS(5 == myresult(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);

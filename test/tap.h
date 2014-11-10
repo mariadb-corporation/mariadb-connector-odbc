@@ -65,9 +65,8 @@ typedef unsigned int uint;
 
 #include <mysql.h>
 
-
 int tests_planned= 0;
-char *test_status[]= {"fail", "ok", "skip"};
+char *test_status[]= {"not ok", "ok", "skip"};
 
 #define OK  1
 #define FAIL 0
@@ -567,6 +566,7 @@ do { \
 
 /**
  Helper for converting a (char *) to a (SQLWCHAR *)
+ It has to be used with caution - it's easy to leak memory with it
 */
 #define WC(string) dup_char_as_sqlwchar((string))
 
@@ -586,6 +586,57 @@ SQLWCHAR *dup_char_as_sqlwchar(SQLCHAR *from)
   return out;
 }
 
+
+struct st_ma_server_variable
+{
+  int     global;
+  const char *  name;
+  int     value;
+};
+
+/* We do not expect many variables to be changed in single test */
+#define MAX_CHANGED_VARIABLES_PER_TEST 5
+static struct st_ma_server_variable changed_server_variable[MAX_CHANGED_VARIABLES_PER_TEST];
+
+const char *locality[]=     {"LOCAL ", "GLOBAL "};
+const char *set_template=   "SET %s%s=%d",
+           *show_template=  "SHOW %s%s LIKE '%s'";
+
+/* Macros for 1st parameter of set_variable */
+#define LOCAL  0
+#define GLOBAL 1
+
+int reset_changed_server_variables(void)
+{
+  int i, error= 0;
+  char query[512];
+
+  /* Traversing array in reverse direction - in this way if same variable was changed more than once,
+     it will get its original value */
+  for (i= MAX_CHANGED_VARIABLES_PER_TEST - 1; i > -1; --i)
+  {
+    if (changed_server_variable[i].name != NULL)
+    {
+      int size= _snprintf(query, sizeof(query), set_template, locality[changed_server_variable[i].global],
+                          changed_server_variable[i].name, changed_server_variable[i].value);
+      if (error == 0 && !SQL_SUCCEEDED(SQLExecDirect(Stmt, query, size)))
+      {
+        error= 1;
+        diag("Following variables were not reset to their original values:");
+      }
+
+      if (error != 0)
+      {
+        diag(" %s%s to %d", locality[changed_server_variable[i].global],
+                          changed_server_variable[i].name, changed_server_variable[i].value);
+      }
+    }
+  }
+
+  return error;
+}
+
+
 int run_tests(MA_ODBC_TESTS *tests)
 {
   int rc, i=1, failed=0;
@@ -604,6 +655,12 @@ int run_tests(MA_ODBC_TESTS *tests)
       failed++;
     fprintf(stdout, "%s %d - %s\n", test_status[rc], i++,tests->title);
     tests++;
+
+    if (reset_changed_server_variables())
+    {
+      fprintf(stdout, "HALT! An error occurred while tried to reset server variables changed by the test!\n");
+    }
+
     SQLFreeStmt(Stmt, SQL_DROP);
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
@@ -613,4 +670,78 @@ int run_tests(MA_ODBC_TESTS *tests)
     return 1;
   return 0;
 }
-#endif
+
+
+int get_show_value(int global, const char * show_type, const char * var_name)
+{
+  int size, result;
+  char query[512];
+
+  size= _snprintf(query, sizeof(query), show_template, global ? locality[GLOBAL] : locality[LOCAL],
+            show_type, var_name);
+
+  /* Using automatically allocated (by the framework) STMT handle*/
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, query, size))
+   || !SQL_SUCCEEDED(SQLFetch(Stmt)))
+  {
+    /* atm I can't thing about any -1 value that can be interesting for tests.
+       otherwise it will have to be changed */
+    return -1;
+  }
+
+  result= my_fetch_int(Stmt, 2);
+
+  SQLFreeStmt(Stmt, SQL_CLOSE);
+
+  return result;
+}
+
+
+int get_server_status(int global, const char * var_name)
+{
+  return get_show_value(global, "STATUS", var_name); 
+}
+
+
+int get_server_variable(int global, const char * var_name)
+{
+  return get_show_value(global, "VARIABLES", var_name);
+}
+
+#define GET_SERVER_STATUS(int_result, global, name) int_result= get_server_status(global, name);\
+  FAIL_IF(int_result < 0, "Could not get server status");
+
+#define GET_SERVER_VAR(int_result, global, name) int_result= get_server_variable(global, name);\
+  FAIL_IF(int_result < 0, "Could not get server variable");
+
+
+/* Helper function to change server variable's value, but preserve its current
+   value in order to set it back after test*/
+int set_variable(int global, const char * var_name, int value)
+{
+  int i, size, cur_value;
+  char query[512];
+
+  for (i= 0; changed_server_variable[i].name != NULL && i < MAX_CHANGED_VARIABLES_PER_TEST; ++i);
+
+  if (i == MAX_CHANGED_VARIABLES_PER_TEST)
+  {
+    FAIL_IF(TRUE, "For developer: the test has reached limit of variable changes. Please make MAX_CHANGED_VARIABLES_PER_TEST bigger")
+  }
+
+  GET_SERVER_VAR(cur_value, global, var_name);
+
+  size= _snprintf(query, sizeof(query), set_template, global ? locality[GLOBAL] : locality[LOCAL],
+                var_name, value);
+
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, size));
+
+  changed_server_variable[i].global=  global;
+  changed_server_variable[i].name=    var_name;
+  changed_server_variable[i].value=   cur_value;
+
+  return OK;
+}
+
+
+#endif      /* #ifndef _tap_h_ */

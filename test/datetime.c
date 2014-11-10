@@ -196,7 +196,7 @@ ODBC_TEST(t_tstotime)
   rc = SQLExecDirect(Stmt,"select * from t_tstotime", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);  
 
-  assert( 1 == myresult(Stmt));
+  IS( 1 == myresult(Stmt));
 
   rc = SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
@@ -263,7 +263,7 @@ ODBC_TEST(t_tstotime1)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_tstotime1");
 
-  assert(1 == myresult(Stmt));
+  IS(1 == myresult(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
@@ -370,7 +370,7 @@ ODBC_TEST(t_time)
   IS_STR(str, "20:59:45", 9);
 
   rc = SQLFetch(Stmt);
-  assert(rc == SQL_NO_DATA_FOUND);
+  IS(rc == SQL_NO_DATA_FOUND);
 
   rc = SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
@@ -399,232 +399,232 @@ ODBC_TEST(t_time1)
                             (SQLCHAR *)"insert into t_time(t) values(?)",
                             SQL_NTS));
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_TYPE_TIME,
-                          SQL_TIME,0,0,&tt,0,NULL);
+  rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_TYPE_TIME,
+                        SQL_TIME,0,0,&tt,0,NULL);
 
 
-    tt.hour= 00;
-    tt.minute= 00;
-    tt.second= 03;
+  tt.hour= 00;
+  tt.minute= 00;
+  tt.second= 03;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 01;
-    tt.minute= 00;
-    tt.second= 00;
+  tt.hour= 01;
+  tt.minute= 00;
+  tt.second= 00;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 19;
-    tt.minute= 00;
-    tt.second= 00;
+  tt.hour= 19;
+  tt.minute= 00;
+  tt.second= 00;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 01;
-    tt.minute= 01;
-    tt.second= 00;
+  tt.hour= 01;
+  tt.minute= 01;
+  tt.second= 00;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 01;
-    tt.minute= 00;
-    tt.second= 01;
+  tt.hour= 01;
+  tt.minute= 00;
+  tt.second= 01;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 00;
-    tt.minute= 01;
-    tt.second= 00;
+  tt.hour= 00;
+  tt.minute= 01;
+  tt.second= 00;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 00;
-    tt.minute= 11;
-    tt.second= 12;
+  tt.hour= 00;
+  tt.minute= 11;
+  tt.second= 12;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 01;
-    tt.minute= 01;
-    tt.second= 01;
+  tt.hour= 01;
+  tt.minute= 01;
+  tt.second= 01;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 00;
-    tt.minute= 00;
-    tt.second= 00;
+  tt.hour= 00;
+  tt.minute= 00;
+  tt.second= 00;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    tt.hour= 10;
-    tt.minute= 11;
-    tt.second= 12;
+  tt.hour= 10;
+  tt.minute= 11;
+  tt.second= 12;
 
-    rc = SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, rc);
 
-    SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+  SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt, SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt, "select t from t_time");
+  OK_SIMPLE_STMT(Stmt, "select t from t_time");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "00:00:03", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "00:00:03", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "01:00:00", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "01:00:00", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "19:00:00", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "19:00:00", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "01:01:00", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "01:01:00", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "01:00:01", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "01:00:01", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "00:01:00", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "00:01:00", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "00:11:12", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "00:11:12", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "01:01:01", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "01:01:01", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "00:00:00", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "00:00:00", 9);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(length, 8);
-    IS_STR(data, "10:11:12", 9);
+  rc = SQLGetData(Stmt, 1, SQL_C_CHAR, data, sizeof(data), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(length, 8);
+  IS_STR(data, "10:11:12", 9);
 
-    rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA);
+  rc = SQLFetch(Stmt);
+  IS(rc == SQL_NO_DATA);
 
-    SQLFreeStmt(Stmt, SQL_UNBIND);
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+  SQLFreeStmt(Stmt, SQL_UNBIND);
+  SQLFreeStmt(Stmt, SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt,"delete from t_time");
+  OK_SIMPLE_STMT(Stmt,"delete from t_time");
 
-    OK_SIMPLE_STMT(Stmt, "insert into t_time(t1) values('2003-05-12 10:11:12')");
+  OK_SIMPLE_STMT(Stmt, "insert into t_time(t1) values('2003-05-12 10:11:12')");
 
-    OK_SIMPLE_STMT(Stmt, "select t1 from t_time");
+  OK_SIMPLE_STMT(Stmt, "select t1 from t_time");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(tt.hour, 10);
-    is_num(tt.minute, 11);
-    is_num(tt.second, 12);
-    is_num(length, sizeof(SQL_TIME_STRUCT));
+  rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(tt.hour, 10);
+  is_num(tt.minute, 11);
+  is_num(tt.second, 12);
+  is_num(length, sizeof(SQL_TIME_STRUCT));
 
-    rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA);
+  rc = SQLFetch(Stmt);
+  IS(rc == SQL_NO_DATA);
 
-    SQLFreeStmt(Stmt, SQL_UNBIND);
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+  SQLFreeStmt(Stmt, SQL_UNBIND);
+  SQLFreeStmt(Stmt, SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt,"delete from t_time");
-    OK_SIMPLE_STMT(Stmt,"insert into t_time(t2) values('03-12-28 05:59:59')");
-    OK_SIMPLE_STMT(Stmt,"select t2 from t_time");
+  OK_SIMPLE_STMT(Stmt,"delete from t_time");
+  OK_SIMPLE_STMT(Stmt,"insert into t_time(t2) values('03-12-28 05:59:59')");
+  OK_SIMPLE_STMT(Stmt,"select t2 from t_time");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(tt.hour, 05);
-    is_num(tt.minute, 59);
-    is_num(tt.second, 59);
-    is_num(length, sizeof(SQL_TIME_STRUCT));
+  rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(tt.hour, 05);
+  is_num(tt.minute, 59);
+  is_num(tt.second, 59);
+  is_num(length, sizeof(SQL_TIME_STRUCT));
 
-    rc = SQLFetch(Stmt);
-    is_num(rc, SQL_NO_DATA);
+  rc = SQLFetch(Stmt);
+  is_num(rc, SQL_NO_DATA);
 
-    SQLFreeStmt(Stmt, SQL_UNBIND);
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+  SQLFreeStmt(Stmt, SQL_UNBIND);
+  SQLFreeStmt(Stmt, SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt,"delete from t_time");
+  OK_SIMPLE_STMT(Stmt,"delete from t_time");
 
-    OK_SIMPLE_STMT(Stmt,"insert into t_time(t3) values('2003-05-12 10:11:12')");
+  OK_SIMPLE_STMT(Stmt,"insert into t_time(t3) values('2003-05-12 10:11:12')");
 
-    OK_SIMPLE_STMT(Stmt,"select t3 from t_time");
+  OK_SIMPLE_STMT(Stmt,"select t3 from t_time");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
-    CHECK_STMT_RC(Stmt,rc);
- //   is(tt.hour == 00 || tt.minute == 00 || tt.second == 00);
-    is_num(length, sizeof(SQL_TIME_STRUCT));
+  rc = SQLGetData(Stmt, 1, SQL_C_TIME, &tt, sizeof(tt), &length);
+  CHECK_STMT_RC(Stmt,rc);
+//   is(tt.hour == 00 || tt.minute == 00 || tt.second == 00);
+  is_num(length, sizeof(SQL_TIME_STRUCT));
 
-    rc = SQLFetch(Stmt);
-    assert(rc == SQL_NO_DATA);
+  rc = SQLFetch(Stmt);
+  IS(rc == SQL_NO_DATA);
 
-    SQLFreeStmt(Stmt, SQL_UNBIND);
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+  SQLFreeStmt(Stmt, SQL_UNBIND);
+  SQLFreeStmt(Stmt, SQL_CLOSE);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_time");
 

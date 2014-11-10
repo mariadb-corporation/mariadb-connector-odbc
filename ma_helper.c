@@ -172,7 +172,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
       Count++;
 end:
   if (Stmt)
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+    SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
   return Count;
 }
 
