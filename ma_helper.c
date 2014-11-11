@@ -114,8 +114,8 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
       if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
         MaxParams= mysql_stmt_param_count(Stmt->MultiStmts[i]);
       p+= strlen(p) + 1;
-      i++;
-      Stmt->MultiStmtCount++;
+      ++i;
+      ++Stmt->MultiStmtCount;
     }
     if (MaxParams)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);

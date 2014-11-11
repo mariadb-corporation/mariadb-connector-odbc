@@ -122,7 +122,7 @@ void usage()
   fprintf(stdout, "-u Username\n");
   fprintf(stdout, "-p Password\n");
   fprintf(stdout, "-s default database (schema)\n");
-  fprintf(stdout, "-P Port number");
+  fprintf(stdout, "-P Port number\n");
   fprintf(stdout, "?  Displays this text\n");
 }
 

@@ -160,7 +160,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 {
   char *CursorName= NULL;
   char *p;
-  unsigned int WhereOffset;
+  unsigned int WhereOffset, Need2CloseStmt= 0;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
   MADB_FREE(Stmt->NativeSql);
@@ -176,17 +176,13 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   {
     CloseMultiStatements(Stmt);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+    Stmt->MultiStmtCount= 0;
   }
   else
   {
-    /* Not optimal - if this is 1st use of STMT no need to close and re-init stmt */
-    if (Stmt->stmt)
-    {
-      mysql_stmt_close(Stmt->stmt);
-      Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-    }
+    /* If we are preparing multistatement, previous (single) statement has to be closed */
+    Need2CloseStmt= 1;
   }
-  Stmt->MultiStmtCount= 0;
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stnt.>MultiStnts */
@@ -197,8 +193,15 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       return Stmt->Error.ReturnValue;
     if (MultiStmts > 1)
     {
+      /* Not optimal - if this is 1st use of STMT no need to close and re-init stmt */
+      if (Stmt->stmt)
+      {
+        mysql_stmt_close(Stmt->stmt);
+        Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+      }
       /* all statemtens successfully prepared */
       Stmt->StmtString= _strdup(StatementText);
+
       return SQL_SUCCESS;
     }
   }
