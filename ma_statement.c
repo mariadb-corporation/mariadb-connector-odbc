@@ -326,14 +326,21 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
             *ValuePtrPtr= GetBindOffset(Desc, Record, Record->DataPtr, Stmt->DaeRowNumber, Record->OctetLength);
             Stmt->PutParam= i;
             Stmt->Status= SQL_NEED_DATA;
+
             return SQL_NEED_DATA;
           }
         }
       }
     }
   }
+
   /* reset status, otherwise SQLSetPos and SQLExecute will fail */
   Stmt->Status= 0;
+  if (Stmt->DataExecutionType == MADB_DAE_ADD)
+  {
+    Stmt->DaeStmt->PutParam= Stmt->PutParam;
+    Stmt->DaeStmt->Status= 0;
+  }
   switch (Stmt->DataExecutionType) {
   case MADB_DAE_NORMAL:
     return Stmt->Methods->Execute(Stmt);
