@@ -62,7 +62,7 @@ typedef struct
 /* this structure is used to store and retrieve DSN Information */
 
 
-MADB_DsnKey DsnKeys[];
+extern MADB_DsnKey DsnKeys[];
 
 
 /*** Function prototypes ***/
