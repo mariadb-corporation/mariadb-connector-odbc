@@ -461,6 +461,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
   MADB_FREE(Connection->CatalogName);
   MADB_FREE(Connection->CharacterSet);
   MADB_FREE(Connection->DataBase);
+  MADB_DSN_Free(Connection->Dsn);
   DeleteCriticalSection(&Connection->cs);
 
   free(Connection);
@@ -648,6 +649,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
         break;
       }
     }
+  Connection->Dsn= Dsn;
   goto end;
 
 err:

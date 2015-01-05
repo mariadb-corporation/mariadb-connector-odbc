@@ -57,6 +57,14 @@ MADB_QUERY *MADB_Tokenize(const char *Stmt)
   return Query; 
 }
 
+void MADB_FreeTokens(MADB_QUERY *Query)
+{
+  if (!Query)
+    return;
+  delete_dynamic(&Query->tokens);
+  MADB_FREE(Query);
+}
+
 char *MADB_Token(MADB_Stmt *Stmt, unsigned int Idx)
 {
   char *p;

@@ -34,7 +34,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
   unsigned int statements= 1;
   int quote[2]= {0,0}, comment= 0;
   char *end;
-  MYSQL_STMT *stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+  MYSQL_STMT *stmt;
   p= last= StmtStr;
 
   /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
@@ -43,6 +43,8 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     return 1;
   if (!MADB_IsStatementSupported(StmtStr, "CREATE", "DEFINER"))
     return 1;
+
+  stmt= mysql_stmt_init(Stmt->Connection->mariadb);
 
   /* if the entire stmt string passes, we don't have multistatement */
   if (stmt && !mysql_stmt_prepare(stmt, StmtStr, Length))

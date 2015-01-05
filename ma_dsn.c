@@ -76,6 +76,7 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->CharacterSet);
   MADB_FREE(Dsn->InitCommand);
   MADB_FREE(Dsn->TraceFile);
+
   if (Dsn->FreeMe)
     MADB_FREE(Dsn); 
 }
@@ -97,10 +98,9 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
 
       if (current && OverWrite == FALSE)
         break;
-
-      *p= _strdup(Value);
       /* For the case of making copy of currently stored values */
       MADB_FREE(current);
+       *p= _strdup(Value);
     }
     break;
   case DSN_TYPE_BOOL:
@@ -124,7 +124,6 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
 my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
 {
   char *Value;
-
   /* if no key/value pair was specified, we will try to read Dsn->DSNName */
   if (!KeyValue)
   {

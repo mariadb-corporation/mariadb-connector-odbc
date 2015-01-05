@@ -103,7 +103,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   MADB_DescRecord *Record;
   unsigned int i;
 
-  if (!RecordsOnly && !Desc->AppType)
+  if (!RecordsOnly && Desc->AppType)
   {
     MADB_SetError(&Desc->Error, MADB_ERR_HY017, NULL, 0);
     return Desc->Error.ReturnValue;
@@ -118,6 +118,18 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
     Record= ((MADB_DescRecord *)Desc->Records.buffer) + i;
     MADB_FREE(Record->InternalBuffer);
     MADB_FREE(Record->DefaultValue);
+ 
+   if (Desc->DescType == MADB_DESC_IRD)
+    {
+      MADB_FREE(Record->CatalogName);
+      MADB_FREE(Record->BaseCatalogName);
+      MADB_FREE(Record->BaseColumnName);
+      MADB_FREE(Record->BaseTableName);
+      MADB_FREE(Record->ColumnName);
+      MADB_FREE(Record->TableName);
+      MADB_FREE(Record->TypeName);
+
+    }
   }
   delete_dynamic(&Desc->Records);
   for (i=0; i < Desc->Stmts.elements; i++)

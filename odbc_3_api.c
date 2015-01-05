@@ -612,7 +612,7 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
   MADB_DSN_SET_STR(Dsn, Password, (char *)Authentication, NameLength3);
 
   ret= Connection->Methods->ConnectDB(Connection, Dsn);
-  MADB_DSN_Free(Dsn);
+
   MDBUG_C_DUMP(Connection, ret, d);
   MDBUG_C_RETURN(Connection, ret);
 }

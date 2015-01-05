@@ -214,6 +214,8 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   p= my_strndup(StatementText, TextLength != SQL_NTS ? TextLength : strlen(StatementText), MYF(0));
   Stmt->StmtString= _strdup(trim(p));
   MADB_FREE(p);
+  if (Stmt->Tokens)
+    MADB_FreeTokens(Stmt->Tokens);
   Stmt->Tokens= MADB_Tokenize(Stmt->StmtString);
 
   /* Transform WHERE CURRENT OF [cursorname]:
@@ -274,6 +276,8 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
     if ((Stmt->ParamCount= mysql_stmt_param_count(Stmt->stmt)))
     {
+      if (Stmt->params)
+        MADB_FREE(Stmt->params);
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
       mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
     }
@@ -903,7 +907,8 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
     /* Todo: for SQL_CURSOR_FORWARD_ONLY we should use cursor and prefetch rows */
     mysql_stmt_store_result(Stmt->stmt);
-    mysql_stmt_result_metadata(Stmt->stmt);
+    /*todo: memleak */
+ // mysql_stmt_result_metadata(Stmt->stmt);
 
     Stmt->Cursor.Position= -1;
     
@@ -1119,6 +1124,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
   case SQL_CLOSE:
     if (Stmt->stmt)
     {
+      if (Stmt->Ird)
+        MADB_DescFree(Stmt->Ird, TRUE);
       if (!Stmt->EmulatedStmt && !Stmt->MultiStmtCount)
       {
         mysql_stmt_free_result(Stmt->stmt);
@@ -1163,16 +1170,19 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_DescFree(Stmt->Apd, TRUE);
     break;
   case SQL_DROP:
-    MADB_FREE(Stmt->Tokens);
+    MADB_FreeTokens(Stmt->Tokens);
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
     MADB_FREE(Stmt->StmtString);
     MADB_FREE(Stmt->NativeSql);
-    MADB_DescFree(Stmt->Apd, TRUE);
-    MADB_DescFree(Stmt->Ard, TRUE);
-    MADB_DescFree(Stmt->Ipd, TRUE);
-    MADB_DescFree(Stmt->Ird, TRUE);
+    
+    MADB_DescFree( Stmt->Apd, FALSE);
+    MADB_DescFree(Stmt->Ard, FALSE);
+    MADB_DescFree(Stmt->Ipd, FALSE);
+    MADB_DescFree(Stmt->Ird, FALSE);
+
+
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
     if (Stmt->DefaultsResult)
@@ -1180,7 +1190,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       mysql_free_result(Stmt->DefaultsResult);
       Stmt->DefaultsResult= NULL;
     }
-    if (!Stmt->EmulatedStmt && !Stmt->MultiStmtCount)
+    if (Stmt->stmt)
       mysql_stmt_close(Stmt->stmt);
     if (Stmt->MultiStmtCount)
     {
@@ -1198,6 +1208,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_FREE(Stmt->MultiStmts);
       Stmt->MultiStmtCount= Stmt->MultiStmtNr= 0;
     }
+    MADB_FREE(Stmt->params);
     Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
     MADB_FREE(Stmt);
   }
@@ -2074,11 +2085,11 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         return SQL_SUCCESS_WITH_INFO;
       }
      
-      /* todo : hex conversion */
+      /* todo : hex conversion 
       if (!(TmpBuffer= (char *)MADB_CALLOC(BufferLength)))
       {
 
-      }
+      } */
     }
     ZeroTerminated= 1;
 

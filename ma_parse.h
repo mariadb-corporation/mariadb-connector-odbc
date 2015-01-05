@@ -22,5 +22,6 @@
 MADB_QUERY *MADB_Tokenize(const char *Stmt);
 char *MADB_ParseCursorName(MADB_Stmt *Stmt, unsigned int *Offset);
 unsigned int MADB_FindToken(MADB_Stmt *Stmt, char *Compare);
+void MADB_FreeTokens(MADB_QUERY *Query);
 
 #endif /* _ma_parse_h_ */
