@@ -99,8 +99,8 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
       if (current && OverWrite == FALSE)
         break;
       /* For the case of making copy of currently stored values */
-      MADB_FREE(current);
        *p= _strdup(Value);
+       MADB_FREE(current);
     }
     break;
   case DSN_TYPE_BOOL:

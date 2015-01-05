@@ -1241,7 +1241,19 @@ SQLRETURN SQL_API SQLFreeHandle(SQLSMALLINT HandleType,
         ret= SQL_ERROR; 
       break;
     case SQL_HANDLE_DESC:
-      return MADB_DescFree((MADB_Desc *)Handle, FALSE);
+      {
+        MADB_Desc *Desc= (MADB_Desc *)Handle;
+
+        /* Error if the descriptor does not belong to application(was automatically alliocated by the driver)
+           Basically DM is supposed to take care of this. Keeping in mind direct linking */
+        if (!Desc->AppType)
+        {
+          MADB_SetError(&Desc->Error, MADB_ERR_HY017, NULL, 0);
+          return Desc->Error.ReturnValue;
+        }
+
+        return MADB_DescFree(Desc, FALSE);
+      }
     case SQL_HANDLE_STMT:
       {
         MADB_Stmt *Stmt= (MADB_Stmt *)Handle;

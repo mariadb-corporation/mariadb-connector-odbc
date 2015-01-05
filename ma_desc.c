@@ -103,12 +103,6 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   MADB_DescRecord *Record;
   unsigned int i;
 
-  if (!RecordsOnly && Desc->AppType)
-  {
-    MADB_SetError(&Desc->Error, MADB_ERR_HY017, NULL, 0);
-    return Desc->Error.ReturnValue;
-  }
-
   if (!Desc)
     return SQL_ERROR;
 

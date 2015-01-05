@@ -649,7 +649,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
         break;
       }
     }
-  Connection->Dsn= Dsn;
+
   goto end;
 
 err:

@@ -1190,8 +1190,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       mysql_free_result(Stmt->DefaultsResult);
       Stmt->DefaultsResult= NULL;
     }
-    if (Stmt->stmt)
-      mysql_stmt_close(Stmt->stmt);
+
     if (Stmt->MultiStmtCount)
     {
       unsigned int i;
@@ -1208,6 +1207,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_FREE(Stmt->MultiStmts);
       Stmt->MultiStmtCount= Stmt->MultiStmtNr= 0;
     }
+    else if (Stmt->stmt != NULL)
+    {
+      mysql_stmt_close(Stmt->stmt);
+    }
+
     MADB_FREE(Stmt->params);
     Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
     MADB_FREE(Stmt);
