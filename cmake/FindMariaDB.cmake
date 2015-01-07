@@ -27,7 +27,7 @@ IF(WIN32)
 # Try to find mariadb client libraries
   FIND_PATH(MARIADB_LIBRARY_DIR ${LIB_NAME}
       $ENV{MARIADB_LIBRARY}
-      ${PFILES/}/MariaDB/*/lib
+      ${PFILES}/MariaDB/*/lib
       $ENV{MARIADB_DIR}/lib/mariadb
       $ENV{MARIADB_DIR}/lib
       $ENV{MARIADB_DIR}/libmariadb)
