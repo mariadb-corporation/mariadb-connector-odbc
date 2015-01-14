@@ -707,17 +707,36 @@ ODBC_TEST(t_bug30983)
 ODBC_TEST(t_driverconnect_outstring)
 {
   HDBC hdbc1;
+  SQLRETURN rc;
   SQLWCHAR conn_out[1024];
   SQLSMALLINT conn_out_len;
-
+  /* This has to be changed to use actual DSN(and not the default one) */
   SQLWCHAR *conn= L"Driver={MariaDB ODBC 1.0 Driver};UID=root;CHARSET=utf8";
-        
+  SQLCHAR conna[512];
 
+  /* Testing how driver's doing if no out string given. ODBC-17 */
+  sprintf((char*)conna, "DSN=%s;UID=root;CHARSET=utf8", my_dsn);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, conn, SQL_NTS, conn_out,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
+                                 0, &conn_out_len, SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
+
+  /* This part of test has to be changed to compare in and out strings */
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
+
+  rc= SQLDriverConnectW(hdbc1, NULL, conn, SQL_NTS, conn_out,
                                  sizeof(conn_out), &conn_out_len,
-                                 SQL_DRIVER_NOPROMPT));
+                                 SQL_DRIVER_NOPROMPT);
+  if (SQL_SUCCEEDED(rc))
+  {
+    CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  }
+
+  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
+  
   return OK;
 }
 

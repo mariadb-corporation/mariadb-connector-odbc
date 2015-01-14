@@ -66,12 +66,12 @@ BEGIN
     BEGIN
         BLOCK "040704b0"
         BEGIN
-            VALUE "CompanyName", "Monty Program AB"
+            VALUE "CompanyName", "MariaDB Corporation AB"
             VALUE "FileDescription", "MariaDB ODBC Unicode Drvier"
             VALUE "FileVersion", "1.0.0.1"
             VALUE "InternalName", "ma_odbc_u"
-            VALUE "LegalCopyright", "Copyright (C) 2013, 2014"
-            VALUE "OriginalFilename", "TODO: <Ursprunglicher Dateiname>"
+            VALUE "LegalCopyright", "Copyright (C) 2013, 2015"
+            VALUE "OriginalFilename", "maodbc.dll"
             VALUE "ProductName", "MariaDB ODBC Unicode Driver"
             VALUE "ProductVersion", "1.0.0.1"
         END

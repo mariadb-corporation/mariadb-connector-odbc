@@ -530,27 +530,41 @@ size_t MADB_SetString(unsigned int CodePage, void *Dest, unsigned int DestLength
   char *p= (char *)Dest;
   int Length= 0;
 
+  if (SrcLength == SQL_NTS)
+  {
+    if (Src != NULL)
+    {
+      SrcLength= strlen(Src);
+    }
+    else
+    {
+      SrcLength= 0;
+    }
+  }
+
   /* Not enough space */
   if (!DestLength || !Dest)
   {
     if (Dest)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
     if (!CodePage)
-      return (SrcLength == SQL_NTS) ? strlen(Src) : SrcLength;
+      return SrcLength;
     else
     {
-      Length= MultiByteToWideChar(CodePage, 0, Src, (SrcLength == SQL_NTS) ? strlen(Src) : SrcLength, NULL, 0);
+      Length= MultiByteToWideChar(CodePage, 0, Src, SrcLength, NULL, 0);
       return Length;
     }
   }
-  if (!Src || !strlen(Src))
+
+  if (!Src || !strlen(Src) || !SrcLength)
   {
     memset(p, 0, CodePage ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;
   }
+
   if (!CodePage)
   {
-    size_t len= (SrcLength == SQL_NTS) ? strlen(Src) : SrcLength;
+    size_t len= SrcLength;
     strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
     if (Error && len >= DestLength)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);

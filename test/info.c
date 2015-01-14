@@ -107,12 +107,12 @@ ODBC_TEST(t_msdev_bug)
   SQLINTEGER len;
 
   CHECK_DBC_RC(Connection, SQLGetConnectOption(Connection, SQL_CURRENT_QUALIFIER, catalog));
-  IS_STR(catalog, "odbc_test", 9);
+  IS_STR(catalog, my_schema, strlen(my_schema));
 
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, catalog,
                                  sizeof(catalog), &len));
   is_num(len, 9);
-  IS_STR(catalog, "odbc_test", 9);
+  IS_STR(catalog, my_schema, strlen(my_schema));
 
   return OK;
 }
@@ -217,9 +217,9 @@ ODBC_TEST(t_bug3780)
   SQLINTEGER attrlen;
 
   /* The connection string must not include DATABASE. */
-  sprintf((char *)conn, "DRIVER=%s;SERVER=localhost;UID=%s;PASSWORD=%s",
-          my_drivername, my_uid, my_pwd);
-
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
+          my_drivername, my_servername, my_uid, my_pwd, my_port);
+  diag(conn);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
 
@@ -300,8 +300,8 @@ ODBC_TEST(t_bug30626)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* odbc 2 */
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s",
-          my_drivername, "localhost", my_uid, my_pwd);
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
+          my_drivername, my_servername, my_uid, my_pwd, my_port);
   
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
@@ -444,15 +444,20 @@ ODBC_TEST(t_bug11749093)
 
 
 /* https://mariadb.atlassian.net/browse/ODBC-15
-   MariaDB ODBC connector did not support SQL_ODBC_API_CONFORMANCE info type */
+   MariaDB ODBC connector did not support SQL_ODBC_API_CONFORMANCE info type
+   Also the testcase checks if correct value returned for SQL_ODBC_SQL_CONFORMANCE */
 ODBC_TEST(bug_odbc15)
 {
-  SQLSMALLINT info;
+  SQLSMALLINT info= 0xef;
 
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_ODBC_API_CONFORMANCE, &info,
                           0, NULL));
-
   is_num(info, SQL_OAC_LEVEL1);
+
+  info= 0xef;
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_ODBC_SQL_CONFORMANCE , &info,
+                          0, NULL));
+  is_num(info, SQL_OSC_CORE);
 
   return OK;
 }

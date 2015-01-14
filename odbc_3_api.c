@@ -858,12 +858,12 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC ConnectionHandle,
     SQLSMALLINT *StringLength2Ptr,
     SQLUSMALLINT DriverCompletion)
 {
-  SQLRETURN ret= SQL_ERROR;
-  SQLSMALLINT Length= 0;
-  char *InConnStrA= NULL;
-  SQLINTEGER StrLength= 0;
-  char *OutConnStrA= NULL;
-  MADB_Dbc *Dbc= (MADB_Dbc *)ConnectionHandle;
+  SQLRETURN   ret=          SQL_ERROR;
+  SQLSMALLINT Length=       0;
+  char        *InConnStrA=  NULL;
+  SQLINTEGER  StrLength=    0;
+  char        *OutConnStrA= NULL;
+  MADB_Dbc    *Dbc=         (MADB_Dbc *)ConnectionHandle;
    
   if (!ConnectionHandle)
     return SQL_INVALID_HANDLE;

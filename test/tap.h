@@ -512,8 +512,9 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 
   _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;", my_dsn, my_uid,
            my_pwd, my_port, my_schema, my_options );
-  printf("DSN: %s\n", DSNString);
-
+  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;", my_dsn, my_uid,
+           "********", my_port, my_schema, my_options);
+  
   rc= SQLDriverConnect(*Connection,NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
   FAIL_IF(rc != SQL_SUCCESS, "Connection failed");
 
