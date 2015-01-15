@@ -48,7 +48,7 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
 IF(${revno})
   SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-r${revno}-${PLATFORM}.msi")
 ELSE()
-  SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-beta-${PLATFORM}.msi")
+  SET(MSI_PACKAGE "mariadb-odbc-${PRODUCT_VERSION}-${PLATFORM}.msi")
 ENDIF()
 
 ADD_CUSTOM_TARGET(
