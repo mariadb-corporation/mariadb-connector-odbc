@@ -106,6 +106,8 @@ SET(MARIADB_ODBC_VERSION_MAJOR 1)
 SET(MARIADB_ODBC_VERSION_MINOR 0)
 SET(MARIADB_ODBC_VERSION_PATCH 0)
 
+SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
+
 IF(MSVC)
   # Speedup system tests
   IF (MSVC)
@@ -199,3 +201,51 @@ IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
 ENDIF()
 ADD_SUBDIRECTORY(test)
+
+# Packaging
+SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation Ab")
+SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. An ODBC library for connecting to MariaDB and MySQL servers")
+SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
+STRING(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
+SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${system_name}-${CMAKE_SYSTEM_PROCESSOR}")
+SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
+SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-src")
+
+SET(CPACK_SOURCE_IGNORE_FILES
+.bzr/
+.bzrignore
+CMakeCache.txt
+cmake_dist.cmake
+CPackSourceConfig.cmake
+CPackConfig.cmake
+.build/
+test/
+/cmake_install.cmake
+/CTestTestfile.cmake
+/CMakeFiles/
+/version_resources/
+/_CPack_Packages/
+.*gz$
+.*zip$
+.*so$
+.*so.*$
+.*dll$
+.*a$
+.*pdb$
+/CMakeFiles/
+/version_resources/
+/_CPack_Packages/
+Makefile$
+/autom4te.cache/
+)
+
+IF(WIN32)
+  SET(CPACK_GENERATOR "ZIP")
+  SET(CPACK_SOURCE_GENERATOR "ZIP")
+ELSE()
+  SET(CPACK_GENERATOR "TGZ")
+  SET(CPACK_SOURCE_GENERATOR "TGZ")
+ENDIF()
+INCLUDE(CPack)
+
