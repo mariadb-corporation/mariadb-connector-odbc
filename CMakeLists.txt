@@ -16,7 +16,7 @@
 #   or write to the Free Software Foundation, Inc., 
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
-PROJECT(mariadb_odbc C)
+PROJECT(mariadb_connector_c C)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -204,7 +204,7 @@ ADD_SUBDIRECTORY(test)
 
 # Packaging
 SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation Ab")
-SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. An ODBC library for connecting to MariaDB and MySQL servers")
+SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. ODBC driver library for connecting to MariaDB and MySQL servers")
 SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
 STRING(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
 SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${system_name}-${CMAKE_SYSTEM_PROCESSOR}")
@@ -226,6 +226,7 @@ test/
 /CMakeFiles/
 /version_resources/
 /_CPack_Packages/
+.*vcxproj
 .*gz$
 .*zip$
 .*so$
@@ -233,6 +234,8 @@ test/
 .*dll$
 .*a$
 .*pdb$
+.*sln$
+.*sdf$
 /CMakeFiles/
 /version_resources/
 /_CPack_Packages/
