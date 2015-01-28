@@ -63,5 +63,5 @@ ADD_CUSTOM_TARGET(
         COMMAND ${WIX_DIR}candle.exe mariadb_odbc.xml -o mariadb_odbc.wixobj)
 
 ADD_DEPENDENCIES(${MSI_PACKAGE} ODBC_WIX)
-ADD_DEPENDENCIES(ODBC_WIX maodbca maodbcu maodbcs)
+ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs)
 
