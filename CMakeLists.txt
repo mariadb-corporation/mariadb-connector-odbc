@@ -16,7 +16,7 @@
 #   or write to the Free Software Foundation, Inc., 
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
-PROJECT(mariadb_connector_c C)
+PROJECT(mariadb_connector_odbc C)
 
 cmake_minimum_required(VERSION 2.8)
 
