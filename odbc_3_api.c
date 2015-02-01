@@ -615,6 +615,10 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
 
   ret= Connection->Methods->ConnectDB(Connection, Dsn);
 
+  if (SQL_SUCCEEDED(ret))
+  {
+    Connection->Dsn= Dsn;
+  }
   MDBUG_C_DUMP(Connection, ret, d);
   MDBUG_C_RETURN(Connection, ret);
 }

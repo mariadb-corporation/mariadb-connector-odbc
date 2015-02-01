@@ -529,7 +529,9 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
 }
 /* }}} */
 
-/* {{{ MADB_Dbc_ConnectDB */
+/* {{{ MADB_Dbc_ConnectDB
+       Mind that this function is used for establishing connection from the setup lib
+*/
 SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     MADB_Dsn *Dsn)
 {
@@ -667,8 +669,7 @@ end:
     mysql_close(Connection->mariadb);
     Connection->mariadb= NULL;
   }
-  else
-    Connection->Dsn= Dsn;
+
   return Connection->Error.ReturnValue;
 }
 /* }}} */
@@ -1595,6 +1596,7 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   if (!SQL_SUCCEEDED(ret))
     goto error;
 end:
+  Dbc->Dsn= Dsn;
   Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);
   if (StringLength2Ptr)
     *StringLength2Ptr= (SQLSMALLINT)Length;

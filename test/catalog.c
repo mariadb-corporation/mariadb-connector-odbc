@@ -1500,8 +1500,8 @@ ODBC_TEST(t_bug30770)
 
   /* Connect with no default daabase */
   sprintf((char *)conn, "DRIVER=%s;SERVER=%s;" \
-                        "UID=%s;PASSWORD=%s;DATABASE=%s", my_drivername, "localhost",
-                        my_uid, my_pwd, my_schema);
+                        "UID=%s;PASSWORD=%s;DATABASE=%s;PORT=%u", my_drivername, "localhost",
+                        my_uid, my_pwd, my_schema, my_port);
   
   is_num(mydrvconnect(&Env1, &Connection1, &Stmt1, conn), OK);
 

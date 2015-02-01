@@ -533,6 +533,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+/* {{{ MADB_GetOutParams */
 SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
 {
   MYSQL_BIND *Bind;
@@ -572,7 +573,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
   MADB_FREE(Bind);
   return SQL_SUCCESS;
 }
-
+/* }}} */
 
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
@@ -1130,6 +1131,31 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
  /* }}} */
 
 
+/* {{{ remove_stmt_ref_from_desc
+       Helper function removing references to the stmt in the descriptor when explisitly allocated descriptor is substituted
+       by some other descriptor */
+void remove_stmt_ref_from_desc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
+{
+  if (desc->AppType)
+  {
+    uint i;
+    for (i=0; i < desc->Stmts.elements; ++i)
+    {
+      MADB_Stmt **refStmt= ((MADB_Stmt **)desc->Stmts.buffer) + i;
+      if (Stmt == *refStmt)
+      {
+        delete_dynamic_element(&desc->Stmts, i);
+
+        if (!all)
+        {
+          return;
+        }
+      }
+    }
+  }
+}
+/* }}} */
+
 /* {{{ MADB_StmtFree */
 SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 {
@@ -1191,9 +1217,24 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->Cursor.Name);
     MADB_FREE(Stmt->StmtString);
     MADB_FREE(Stmt->NativeSql);
-    
-    MADB_DescFree( Stmt->Apd, FALSE);
-    MADB_DescFree(Stmt->Ard, FALSE);
+
+    /* For explicit descriptors we only remove reference to the stmt*/
+    if (Stmt->Apd->AppType)
+    {
+      remove_stmt_ref_from_desc(Stmt->Apd, Stmt, TRUE);
+    }
+    else
+    {
+      MADB_DescFree( Stmt->Apd, FALSE);
+    }
+    if (Stmt->Ard->AppType)
+    {
+      remove_stmt_ref_from_desc(Stmt->Ard, Stmt, TRUE);
+    }
+    else
+    {
+      MADB_DescFree(Stmt->Ard, FALSE);
+    }
     MADB_DescFree(Stmt->Ipd, FALSE);
     MADB_DescFree(Stmt->Ird, FALSE);
 
@@ -1635,6 +1676,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
 }
 /* }}} */
 
+
 /* {{{ MADB_StmtSetAttr */
 SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength)
 {
@@ -1658,6 +1700,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
         MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
         return Stmt->Error.ReturnValue;
       }
+      remove_stmt_ref_from_desc(Stmt->Apd, Stmt, FALSE);
       Stmt->Apd= (MADB_Desc *)ValuePtr;
       Stmt->Apd->DescType= MADB_DESC_APD;
       if (Stmt->Apd != Stmt->IApd)
@@ -1668,7 +1711,10 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
       }
     }
     else
+    {
+      remove_stmt_ref_from_desc(Stmt->Apd, Stmt, FALSE);
       Stmt->Apd= Stmt->IApd;
+    }
     break;
   case SQL_ATTR_APP_ROW_DESC:
     if (ValuePtr)
@@ -1684,6 +1730,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
         MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
         return Stmt->Error.ReturnValue;
       }
+      remove_stmt_ref_from_desc(Stmt->Ard, Stmt, FALSE);
       Stmt->Ard= (MADB_Desc *)ValuePtr;
       Stmt->Ard->DescType= MADB_DESC_ARD;
       if (Stmt->Ard != Stmt->IArd)
@@ -1694,7 +1741,10 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
       }
     }
     else
+    {
+      remove_stmt_ref_from_desc(Stmt->Ard, Stmt, FALSE);
       Stmt->Ard= Stmt->IArd;
+    }
     break;
 
   case SQL_ATTR_PARAM_BIND_OFFSET_PTR:
@@ -2097,18 +2147,22 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     if (Stmt->stmt->fields[Offset].type == MYSQL_TYPE_BLOB &&
         Stmt->stmt->fields[Offset].charsetnr == 63)
     {
-      /*char *TmpBuffer;*/
       if (!BufferLength && StrLen_or_IndPtr)
       {
         *StrLen_or_IndPtr= Stmt->stmt->fields[Offset].max_length * 2;
         return SQL_SUCCESS_WITH_INFO;
       }
      
-      /* todo : hex conversion 
-      if (!(TmpBuffer= (char *)MADB_CALLOC(BufferLength)))
+#ifdef CONVERSION_TO_HEX_IMPLEMENTED
       {
+        /*TODO: */
+        char *TmpBuffer;
+        if (!(TmpBuffer= (char *)MADB_CALLOC(BufferLength)))
+        {
 
-      } */
+        }
+      }
+#endif
     }
     ZeroTerminated= 1;
 
