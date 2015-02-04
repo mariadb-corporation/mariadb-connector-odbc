@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -200,6 +200,9 @@ typedef struct
   DYNAMIC_ARRAY Records;
   DYNAMIC_ARRAY Stmts;
   MADB_Error Error;
+  MADB_Dbc * Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
+                           descriptor has to know the connection it is allocated on */
+  LIST ListItem;        /* To store in the dbc */
   union {
     MADB_Ard Ard;
     MADB_Apd Apd;
@@ -405,6 +408,7 @@ struct st_ma_odbc_connection
   char *DataBase;
   LIST ListItem;
   LIST *Stmts;
+  LIST *Descrs;
   /* Attributes */
   SQLINTEGER AccessMode;
   my_bool IsAnsi;

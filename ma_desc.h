@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -28,7 +28,7 @@ enum enum_madb_desc_type {MADB_DESC_APD= 0, MADB_DESC_ARD, MADB_DESC_IPD, MADB_D
 
 MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLINTEGER RecordNumber, SQLSMALLINT Type);
 
-MADB_Desc *MADB_DescInit(enum enum_madb_desc_type DescType, my_bool isExternal);
+MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc, enum enum_madb_desc_type DescType, my_bool isExternal);
 SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly);
 SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
                             SQLSMALLINT RecNumber,
