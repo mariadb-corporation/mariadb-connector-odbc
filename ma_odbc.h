@@ -202,6 +202,7 @@ typedef struct
   MADB_Error Error;
   MADB_Dbc * Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
                            descriptor has to know the connection it is allocated on */
+  LIST ListItem;        /* To store in the dbc */
   union {
     MADB_Ard Ard;
     MADB_Apd Apd;
@@ -412,6 +413,7 @@ struct st_ma_odbc_connection
   char *DataBase;
   LIST ListItem;
   LIST *Stmts;
+  LIST *Descrs;
   /* Attributes */
   SQLINTEGER AccessMode;
   my_bool IsAnsi;

@@ -71,7 +71,7 @@ struct st_ma_desc_fldid MADB_DESC_FLDID[]=
 };
 
 /* {{{ MADB_DescInit */
-MADB_Desc *MADB_DescInit(enum enum_madb_desc_type DescType, my_bool isExternal)
+MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_bool isExternal)
 {
   MADB_Desc *Desc;
   
@@ -85,10 +85,21 @@ MADB_Desc *MADB_DescInit(enum enum_madb_desc_type DescType, my_bool isExternal)
     MADB_FREE(Desc);
     Desc= NULL;
   }
-  if (isExternal && my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
+  if (isExternal)
   {
-    MADB_DescFree(Desc, FALSE);
-    Desc= NULL;
+    if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
+    {
+      MADB_DescFree(Desc, FALSE);
+      Desc= NULL;
+    }
+    else
+    {
+      Desc->Dbc= Dbc;
+      EnterCriticalSection(&Dbc->cs);
+      Desc->ListItem.data= (void *)Desc;
+      Dbc->Descrs= list_add(Dbc->Descrs, &Desc->ListItem);
+      LeaveCriticalSection(&Dbc->cs);
+    }
   }
   if (Desc)
     Desc->AppType= isExternal;
@@ -142,6 +153,10 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
     }
   }
   delete_dynamic(&Desc->Stmts);
+  if (Desc->AppType)
+  {
+    Desc->Dbc->Descrs= list_delete(Desc->Dbc->Stmts, &Desc->ListItem);
+  }
   if (!RecordsOnly)
     MADB_FREE(Desc);
   return SQL_SUCCESS;

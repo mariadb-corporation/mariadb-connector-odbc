@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2105 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -43,7 +43,7 @@ SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
       break;
     case SQL_HANDLE_DESC:
       EnterCriticalSection(&((MADB_Dbc *)InputHandle)->cs);
-      if (*OutputHandlePtr = (SQLHANDLE)MADB_DescInit(MADB_DESC_UNKNOWN, TRUE))
+      if (*OutputHandlePtr = (SQLHANDLE)MADB_DescInit((MADB_Dbc *)InputHandle, MADB_DESC_UNKNOWN, TRUE))
         ret= SQL_SUCCESS;
       LeaveCriticalSection(&((MADB_Dbc *)InputHandle)->cs);
       break;
@@ -795,7 +795,7 @@ SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
 {
   SQLRETURN ret= SQL_ERROR;
   MADB_Dbc *Connection = (MADB_Dbc *)ConnectionHandle;
-  LIST *Stmt, *NextStmt;
+  LIST *Element, *NextElement;
 
   if (!Connection)
     return SQL_INVALID_HANDLE;
@@ -804,10 +804,17 @@ SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
   MDBUG_C_DUMP(Connection, ConnectionHandle, 0x);
 
   /* Close all statements */
-  for (Stmt= Connection->Stmts; Stmt; Stmt= NextStmt)
+  for (Element= Connection->Stmts; Element; Element= NextElement)
   {
-    NextStmt= Stmt->next;
-    SQLFreeStmt((SQLHSTMT)Stmt->data, SQL_DROP);
+    NextElement= Element->next;
+    SQLFreeStmt((SQLHSTMT)Element->data, SQL_DROP);
+  }
+
+  /* Close all explicitly aloocated descriptors */
+  for (Element= Connection->Descrs; Element; Element= NextElement)
+  {
+    NextElement= Element->next;
+    SQLFreeHandle(SQL_HANDLE_DESC, (SQLHANDLE)Element->data);
   }
 
   if (Connection->mariadb)

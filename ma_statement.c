@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -34,10 +34,10 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
  
 
   if (!(Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb)) ||
-      !(Stmt->IApd= MADB_DescInit(MADB_DESC_APD, FALSE)) ||
-      !(Stmt->IArd= MADB_DescInit(MADB_DESC_ARD, FALSE)) ||
-      !(Stmt->IIpd= MADB_DescInit(MADB_DESC_IPD, FALSE)) ||
-      !(Stmt->IIrd= MADB_DescInit(MADB_DESC_IRD, FALSE)))
+      !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
+      !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
+      !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
+      !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
     goto error;
 
   mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
