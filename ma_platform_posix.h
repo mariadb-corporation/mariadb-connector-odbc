@@ -30,7 +30,6 @@
 
 /* Need size_t */
 #include <stdio.h>
-#include <iconv.h>
 
 #define CP_UTF8          65001
 
