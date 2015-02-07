@@ -26,6 +26,8 @@
 #include <ma_odbc.h>
 #include <stdarg.h>
 
+extern CHARSET_INFO  *utf16;
+extern Client_Charset utf8;
 
 SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
 {
@@ -95,7 +97,7 @@ SQLINTEGER SqlwcsOctetlen(SQLWCHAR *str, SQLINTEGER *CharLen)
 
   if (*CharLen < 0)
   {
-    *CharLen-= inChars
+    *CharLen-= inChars;
   }
   return result;
 }
@@ -112,7 +114,7 @@ SQLINTEGER MbstrOctetLen(char *str, SQLINTEGER *CharLen, CHARSET_INFO *cs)
       result= strlen(str);
       if (*CharLen < 0)
       {
-        *CharLen-= inChars
+        *CharLen-= inChars;
       }
       return result;
     }
@@ -129,7 +131,7 @@ SQLINTEGER MbstrOctetLen(char *str, SQLINTEGER *CharLen, CHARSET_INFO *cs)
 
   if (*CharLen < 0)
   {
-    *CharLen-= inChars
+    *CharLen-= inChars;
   }
   return result;
 }
@@ -160,7 +162,7 @@ SQLINTEGER MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
 SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
-  int Length= 0;
+  size_t Length= 0;
 
   if (!Ptr)
     return WStr;
@@ -169,18 +171,19 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc)
   {
     PtrLength= -1;
     /* To copy terminating null as well */
-    length= 1;
+    Length= 1;
   }
 
   if (!cc || !cc->CodePage)
     cc= &utf8;
 
-  Length+= MbstrOctetLen(Ptr, *PtrLength, cc->cs-info);
+  Length+= MbstrOctetLen(Ptr, &PtrLength, cc->cs_info);
 
   if ((WStr= (SQLWCHAR *)MADB_CALLOC(sizeof(SQLWCHAR) * (PtrLength + 1))))
   {
+    size_t wstr_octet_len= sizeof(SQLWCHAR) * (PtrLength + 1);
     /* TODO: Need error processing. i.e. if mariadb_convert_string returns -1 */
-    mariadb_convert_string(Ptr, Length, cc->cs_info, WStr, sizeof(SQLWCHAR) * (PtrLength + 1), utf16, NULL);
+    mariadb_convert_string(Ptr, &Length, cc->cs_info, (char*)WStr, &wstr_octet_len, utf16, NULL);
   }
 
   return WStr;
@@ -208,7 +211,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
     SQLINTEGER InCharLen= -1;
     PtrOctetLen= SqlwcsOctetLen(Ptr, &InCharLen);
     /* Allocating +1 character for terminating symbol */
-    AscLen= (inCharlen+1)*cc->cs_info->char_maxlen;
+    AscLen= (InCharLen+1)*cc->cs_info->char_maxlen;
   }
   else
   {
@@ -217,10 +220,10 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
     AscLen= PtrLength*cc->cs_info->char_maxlen;
   }
 
-  if (!(AscStr = (char *)MADB_CALLOC(AllocLen)))
+  if (!(AscStr = (char *)MADB_CALLOC(AscLen)))
     return NULL;
 
-  AscLen= mariadb_convert_string(Ptr, PtrOctetLen, utf16, AscStr, AscLen, cc->cs_info, Error);
+  AscLen= mariadb_convert_string((char*)Ptr, &PtrOctetLen, utf16, AscStr, &AscLen, cc->cs_info, Error);
 
   if (AscLen > 0)
   {
@@ -250,6 +253,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
   SQLWCHAR *Tmp= UnicodeString;
   char IsNull= 0;
   int rc= 0, error;
+  size_t src_octet_len, dest_octet_len;
 
   if (LengthIndicator)
     *LengthIndicator= 0;
@@ -271,19 +275,21 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
   }
 
   /* calculate required length */
-  RequiredLength= MbstrCharLen(AnsiString, AnsiLength, cc->cs-info) + isNull;
+  RequiredLength= MbstrCharLen(AnsiString, AnsiLength, cc->cs_info) + IsNull;
 
   /* Set LengthIndicator */
   if (LengthIndicator)
-    *LengthIndicator= RequiredLength - isNull;
+    *LengthIndicator= RequiredLength - IsNull;
   if (!UnicodeLength)
     return 0;
 
   if (RequiredLength > UnicodeLength)
     Tmp= (SQLWCHAR *)malloc(RequiredLength * sizeof(SQLWCHAR));
-  
-  RequiredLength= mariadb_convert_string(AnsiString, AnsiLength + isNull, cc->cs_info, 
-                                        Tmp, sizeof(SQLWCHAR) * RequiredLength, utf16, &error);
+
+  src_octet_len= AnsiLength + IsNull;
+  dest_octet_len= sizeof(SQLWCHAR) * RequiredLength;
+  RequiredLength= mariadb_convert_string(AnsiString, &src_octet_len, cc->cs_info, 
+                                        (char*)Tmp, &dest_octet_len, utf16, &error);
   if (RequiredLength < 1)
   {
     if (Error)
@@ -334,7 +340,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
       return SrcLength;
     else
     {
-      Length= MbstrCharLen(Src, SrcLength, cc);
+      Length= MbstrCharLen(Src, SrcLength, cc->cs_info);
       return Length;
     }
   }
