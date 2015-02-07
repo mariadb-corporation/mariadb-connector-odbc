@@ -30,6 +30,7 @@
 
 /* Need size_t */
 #include <stdio.h>
+#include <iconv.h>
 
 #define CP_UTF8          65001
 
@@ -37,10 +38,12 @@
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...);
 
-#define CRITICAL_SECTION pthread_mutex_t
-#define InitializeCriticalSection(cs) pthread_mutex_init(cs, NULL)
-#define DeleteCriticalSection(cs)     pthread_mutex_destroy(cs)
-#define EnterCriticalSection(cs)      pthread_mutex_lock(cs)
-#define LeaveCriticalSection(cs)      pthread_mutex_unlock(cs)
+#ifndef CRITICAL_SECTION
+# define CRITICAL_SECTION pthread_mutex_t
+# define InitializeCriticalSection(cs) pthread_mutex_init(cs, NULL)
+# define DeleteCriticalSection(cs)     pthread_mutex_destroy(cs)
+# define EnterCriticalSection(cs)      pthread_mutex_lock(cs)
+# define LeaveCriticalSection(cs)      pthread_mutex_unlock(cs)
+#endif
 
 #endif /*_ma_platform_x_h_ */
