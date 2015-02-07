@@ -30,12 +30,18 @@
 
 /* Need size_t */
 #include <stdio.h>
+#include <iconv.h>
 
 #define CRITICAL_SECTION pthread_mutex_t
-typedef char * CODEPAGE;
-#define CP_UTF8                   65001
+#define CP_UTF8          65001
 
+#define _strdup strdup
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...);
 
+
+#define InitializeCriticalSection(cs) pthread_mutex_init(cs, NULL)
+#define DeleteCriticalSection(cs)     pthread_mutex_destroy(cs)
+#define EnterCriticalSection(cs)      pthread_mutex_lock(cs)
+#define LeaveCriticalSection(cs)      pthread_mutex_unlock(cs)
 #endif /*_ma_platform_x_h_ */

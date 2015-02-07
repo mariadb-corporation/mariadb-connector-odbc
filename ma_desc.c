@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2014 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -17,6 +17,8 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+
+extern Client_Charset utf8;
 
 /* To keep the source code smaller we use the following structure to check if a field
    identifier is valid for a given descriptor type */
@@ -418,12 +420,12 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->AutoUniqueValue;
     break;
   case SQL_DESC_BASE_COLUMN_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->BaseColumnName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseColumnName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     break;
   case SQL_DESC_BASE_TABLE_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->BaseTableName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseTableName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     break;
@@ -431,7 +433,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->CaseSensitive;
     break;
   case SQL_DESC_CATALOG_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->BaseCatalogName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseCatalogName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     break;
@@ -463,12 +465,12 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->LiteralSuffix;
     break;
   case SQL_DESC_LOCAL_TYPE_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->LocalTypeName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->LocalTypeName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     break;
   case SQL_DESC_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->BaseColumnName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseColumnName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     DescRecord->Unnamed= SQL_NAMED;
@@ -500,7 +502,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->Scale;
     break;
   case SQL_DESC_SCHEMA_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->SchemaName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->SchemaName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     break;
@@ -508,7 +510,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->Searchable;
     break;
   case SQL_DESC_TABLE_NAME:
-    Length= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->TableName, SQL_NTS, &Desc->Error);
+    Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->TableName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
     break;
@@ -516,7 +518,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->Type;
     break;
   case SQL_DESC_TYPE_NAME:
-    *StringLengthPtr= MADB_SetString(isWChar ? CP_UTF8 : 0, ValuePtr, BufferLength, DescRecord->TypeName, SQL_NTS, &Desc->Error);
+    *StringLengthPtr= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->TypeName, SQL_NTS, &Desc->Error);
      break;
   case SQL_DESC_UNSIGNED:
     *((SQLINTEGER *)ValuePtr)= DescRecord->Unsigned;
@@ -555,19 +557,19 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   MADB_CLEAR_ERROR(&Desc->Error);
   switch (FieldIdentifier) {
   case SQL_DESC_ARRAY_SIZE:
-    Desc->Header.ArraySize= (SQLUINTEGER)ValuePtr;
+    Desc->Header.ArraySize= (SQLULEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ARRAY_STATUS_PTR:
     Desc->Header.ArrayStatusPtr= (SQLUSMALLINT *)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_BIND_OFFSET_PTR:
-    Desc->Header.BindOffsetPtr= (SQLUINTEGER *)ValuePtr;
+    Desc->Header.BindOffsetPtr= (SQLULEN *)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_BIND_TYPE:
-    Desc->Header.BindType= (SQLUINTEGER)ValuePtr;
+    Desc->Header.BindType= (SQLINTEGER)(SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_COUNT:
-    Desc->Header.Count= (SQLINTEGER)ValuePtr;
+    Desc->Header.Count= (SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ROWS_PROCESSED_PTR:
     Desc->Header.RowsProcessedPtr= (SQLULEN *)ValuePtr;
@@ -581,47 +583,47 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
 
     switch (FieldIdentifier) {
     case SQL_DESC_CONCISE_TYPE:
-      DescRecord->ConciseType= (SQLSMALLINT)ValuePtr;
+      DescRecord->ConciseType= (SQLSMALLINT)(SQLLEN)ValuePtr;
       DescRecord->Type= MADB_GetTypeFromConciseType(DescRecord->ConciseType);
       break;
     case SQL_DESC_DATA_PTR:
       DescRecord->DataPtr= ValuePtr;
       break;
     case SQL_DESC_DATETIME_INTERVAL_CODE:
-      DescRecord->DateTimeIntervalCode= (SQLSMALLINT)ValuePtr;
+      DescRecord->DateTimeIntervalCode= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_DATETIME_INTERVAL_PRECISION:
-      DescRecord->DateTimeIntervalPrecision= (SQLINTEGER)ValuePtr;
+      DescRecord->DateTimeIntervalPrecision= (SQLINTEGER)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_FIXED_PREC_SCALE:
-      DescRecord->FixedPrecScale= (SQLSMALLINT)ValuePtr;
+      DescRecord->FixedPrecScale= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_INDICATOR_PTR:
-      DescRecord->IndicatorPtr= (SQLINTEGER *)ValuePtr;
+      DescRecord->IndicatorPtr= (SQLLEN *)ValuePtr;
       break;
     case SQL_DESC_LENGTH:
-      DescRecord->DescLength= (SQLINTEGER)ValuePtr;
+      DescRecord->DescLength= (SQLINTEGER)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_NUM_PREC_RADIX:
-      DescRecord->NumPrecRadix= (SQLINTEGER)ValuePtr;
+      DescRecord->NumPrecRadix= (SQLINTEGER)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_OCTET_LENGTH:
-      DescRecord->OctetLength= (SQLINTEGER)ValuePtr;
+      DescRecord->OctetLength= (SQLLEN)ValuePtr;
       break;
     case SQL_DESC_OCTET_LENGTH_PTR:
-      DescRecord->OctetLengthPtr= (SQLINTEGER *)ValuePtr;
+      DescRecord->OctetLengthPtr= (SQLLEN *)ValuePtr;
       break;
     case SQL_DESC_PARAMETER_TYPE:
-      DescRecord->ParameterType= (SQLSMALLINT)ValuePtr;
+      DescRecord->ParameterType= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_PRECISION:
-      DescRecord->Precision= (SQLSMALLINT)ValuePtr;
+      DescRecord->Precision= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_SCALE:
-      DescRecord->Scale= (SQLSMALLINT)ValuePtr;
+      DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_TYPE:
-      DescRecord->Type= (SQLSMALLINT)ValuePtr;
+      DescRecord->Type= (SQLSMALLINT)(SQLLEN)ValuePtr;
       DescRecord->ConciseType= DescRecord->Type;
       break;
     }
@@ -711,7 +713,7 @@ SQLRETURN MADB_DescGetRec(MADB_Desc *Desc,
   }
   
   /* SQL_DESC_NAME */
-  Length= MADB_SetString(isWChar ? CP_UTF8 : 0, Name, BufferLength, Record->BaseColumnName, SQL_NTS, &Desc->Error);
+  Length= MADB_SetString(isWChar ? &utf8 : 0, Name, BufferLength, Record->BaseColumnName, SQL_NTS, &Desc->Error);
   if (StringLengthPtr)
     *StringLengthPtr= (SQLSMALLINT)Length;
   Record->Unnamed= SQL_NAMED;

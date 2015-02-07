@@ -80,9 +80,6 @@ extern my_bool DummyError;
   my_free((gptr)(ptr), MYF(MY_ALLOW_ZERO_PTR));\
   (ptr)= (newptr);
 
-#define MADB_UTF8_LEN(a) WideCharToMultiByte(CP_UTF8, 0, (a), -1, NULL, 0, NULL, NULL)
-
-
 #define MADB_SET_NUM_VAL(TYPE, PTR, VALUE, LENGTHPTR)\
 {\
   if((PTR))\
@@ -97,15 +94,5 @@ extern my_bool DummyError;
     *((INTTYPE *)PTR)= (VALUE); \
   LEN=sizeof(INTTYPE);\
 }
-
-#define MADB_SET_WSTRVAL(PTR, LEN, VALUE) \
-if((PTR))\
-  wcscpy_s(PTR, LEN, VALUE)
-
-#define MADB_SET_STRVAL(PTR, LEN, VALUE) \
-  MultiByteToWideChar(CP_UTF8, 0, VALUE, strlen(VALUE), \
-                      InfoValuePtr, BufferLength / sizeof(SQLWCHAR))
-
-
 
 #endif

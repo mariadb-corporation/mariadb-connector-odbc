@@ -366,9 +366,15 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   MADB_DescRecord *Record;
   MADB_Stmt *MyStmt= Stmt;
   SQLPOINTER wDataPtr= NULL;
-  long Length= StrLen_or_Ind;
+  SQLULEN Length= 0;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+
+  if (DataPtr != NULL && StrLen_or_Ind < 0 && StrLen_or_Ind != SQL_NTS && StrLen_or_Ind != SQL_NULL_DATA)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
 
   if (Stmt->DataExecutionType != MADB_DAE_NORMAL)
     MyStmt= Stmt->DaeStmt;
@@ -387,6 +393,13 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
     Record->Type= SQL_TYPE_NULL;
     return SQL_SUCCESS;
   }
+
+  /* This normally should be enforced by DM */
+  if (DataPtr == NULL && StrLen_or_Ind != 0)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
 /*
   if (StrLen_or_Ind == SQL_NTS)
   {
@@ -397,16 +410,39 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   }
  */
   if (Record->ConciseType == SQL_C_WCHAR)
-    wDataPtr= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, StrLen_or_Ind, &Length, Stmt->Connection->CodePage, NULL);
+  {
+    wDataPtr= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, StrLen_or_Ind, &Length, &Stmt->Connection->charset, NULL);
+
+    if (wDataPtr == NULL && StrLen_or_Ind > 0)
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      return Stmt->Error.ReturnValue;
+    }
+  }
+  else
+  {
+    if (StrLen_or_Ind == SQL_NTS)
+    {
+      Length= strlen((char *)DataPtr);
+    }
+    else
+    {
+      Length= StrLen_or_Ind;
+    }
+  }
 
 
   /* To make sure that we will not consume the doble amount of memory, we need to send
      data via mysql_send_long_data directly to the server instead of allocating a separate
      buffer. This means we need to process Update and Insert statements row by row. */
-  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (wDataPtr ? (char *)wDataPtr : DataPtr), Length))
+  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (wDataPtr ? (char *)wDataPtr : DataPtr), (unsigned long)Length))
+  {
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
+  }
   else
+  {
     Record->InternalLength+= Length;
+  }
 
   MADB_FREE(wDataPtr);
   return Stmt->Error.ReturnValue;
@@ -451,7 +487,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
 
   for (j=ParamOffset2; j < Stmt->ParamCount; j++)
   {
-    int Length;
+    SQLLEN Length;
     MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j - ParamOffset2 + 1, MADB_DESC_READ);
     Length= Rec->OctetLength;
  /*   if (Rec->inUse)
@@ -685,12 +721,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             switch (ApdRecord->ConciseType) {
             case SQL_C_WCHAR:
               {
-                long mbLength=0;
+                SQLULEN mbLength=0;
                 MADB_FREE(ApdRecord->InternalBuffer);
 
                 ApdRecord->InternalBuffer= MADB_ConvertFromWChar(
                               (SQLWCHAR *)DataPtr, Length / sizeof(SQLWCHAR), 
-                              &mbLength, Stmt->Connection->CodePage, NULL);
+                              &mbLength, &Stmt->Connection->charset, NULL);
                 ApdRecord->InternalLength= mbLength;
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
@@ -1093,27 +1129,6 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
  }
  /* }}} */
 
-/* {{{ MADB_StmtGetDiagRec */
-SQLRETURN MADB_StmtGetDiagRec(MADB_Stmt *Stmt, SQLSMALLINT RecNumber,
-                              SQLWCHAR *SQLState, SQLINTEGER *NativeErrorPtr,
-                              SQLWCHAR *MessageText, SQLSMALLINT BufferLength,
-                              SQLSMALLINT *TextLengthPtr, my_bool isWChar)
-{
-  MADB_CLEAR_ERROR(&Stmt->Error);
-  if (RecNumber > 1)
-    return SQL_NO_DATA;
-
-  if (NativeErrorPtr)
-    *NativeErrorPtr= Stmt->Error.NativeError;
-
-  MADB_SetString(isWChar ?  CP_UTF8 : 0, SQLState, SQL_SQLSTATE_SIZE,
-                  Stmt->Error.SqlState, SQL_NTS, &Stmt->Error);
-    
-  *TextLengthPtr= (SQLSMALLINT) MADB_SetString(isWChar ?  CP_UTF8 : 0, MessageText, BufferLength,
-                                                Stmt->Error.SqlErrorMsg, SQL_NTS, &Stmt->Error);
-  return SQL_SUCCESS;
-}
-/* }}} */
 
 /* {{{ MADB_StmtFree */
 SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
@@ -1467,7 +1482,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
           case SQL_C_WCHAR:
           {
             int Length=
-            MultiByteToWideChar(Stmt->Connection->CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length + 1,
+              MultiByteToWideChar(Stmt->Connection->charset.CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length + 1,
                                 (SQLWCHAR *)DataPtr, ArdRecord->OctetLength);
             if (IndicatorPtr)
               *IndicatorPtr= Length * sizeof(SQLWCHAR);
@@ -2036,7 +2051,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
             
       /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
       if (Stmt->stmt->fields[Offset].max_length)
-        Length= MultiByteToWideChar(Stmt->Connection->CodePage, 0, ClientValue, 
+        Length= MultiByteToWideChar(Stmt->Connection->charset.CodePage, 0, ClientValue, 
                                     Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
                                     NULL, 0);
 
@@ -2052,14 +2067,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
      // memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
       if (Stmt->stmt->fields[Offset].max_length)
-        Length= MADB_SetString(Stmt->Connection->CodePage, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
+        Length= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
                                    ClientValue, Stmt->stmt->fields[i].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
       if (Length > BufferLength / sizeof(SQLWCHAR)) {
         if (StrLen_or_IndPtr)
           *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
         /* calculate new offset and substract 1 byte for null termination */
-        Stmt->CharOffset[Offset]+= WideCharToMultiByte(Stmt->Connection->CodePage, 0, (SQLWCHAR *)TargetValuePtr, 
+        Stmt->CharOffset[Offset]+= WideCharToMultiByte(Stmt->Connection->charset.CodePage, 0, (SQLWCHAR *)TargetValuePtr, 
                                                        BufferLength / sizeof(SQLWCHAR),
                                                        NULL, 0, NULL, NULL) - 1;
         
@@ -2082,7 +2097,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     if (Stmt->stmt->fields[Offset].type == MYSQL_TYPE_BLOB &&
         Stmt->stmt->fields[Offset].charsetnr == 63)
     {
-      char *TmpBuffer;
+      /*char *TmpBuffer;*/
       if (!BufferLength && StrLen_or_IndPtr)
       {
         *StrLen_or_IndPtr= Stmt->stmt->fields[Offset].max_length * 2;
@@ -2248,12 +2263,12 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= (SQLLEN)Record->AutoUniqueValue;
     break;
   case SQL_DESC_BASE_COLUMN_NAME:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->BaseColumnName, strlen(Record->BaseColumnName), &Stmt->Error);
     break;
   case SQL_DESC_BASE_TABLE_NAME:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->BaseTableName, strlen(Record->BaseTableName), &Stmt->Error);
     break;
@@ -2261,7 +2276,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= (SQLLEN)Record->CaseSensitive;
     break;
   case SQL_DESC_CATALOG_NAME:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->CatalogName, strlen(Record->CatalogName), &Stmt->Error);
     break;
@@ -2284,28 +2299,28 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= (SQLLEN)Record->Length;
     break;
   case SQL_DESC_LITERAL_PREFIX:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->LiteralPrefix, strlen(Record->LiteralPrefix), &Stmt->Error);
     break;
   case SQL_DESC_LITERAL_SUFFIX:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->LiteralSuffix, strlen(Record->LiteralSuffix), &Stmt->Error);
     break;
   case SQL_DESC_LOCAL_TYPE_NAME:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      "", 0, &Stmt->Error);
     break;
   case SQL_DESC_LABEL:
   case SQL_DESC_NAME:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->ColumnName, strlen(Record->ColumnName), &Stmt->Error);
     break;
   case SQL_DESC_TYPE_NAME:
-    StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->TypeName, strlen(Record->TypeName), &Stmt->Error);
     break;
@@ -2326,7 +2341,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     break;
   case SQL_DESC_TABLE_NAME:
     {
-     StringLength= MADB_SetString(IsWchar ? Stmt->Connection->CodePage : 0,
+     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->TableName, strlen(Record->TableName), &Stmt->Error);
     }
@@ -3007,7 +3022,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
 
   if ((ColumnName || BufferLength) && Record->ColumnName)
   {
-    int Length= MADB_SetString(isWChar ? Stmt->Connection->CodePage : 0, ColumnName, ColumnName ? BufferLength : 0, Record->ColumnName, SQL_NTS, &Stmt->Error); 
+    int Length= MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, ColumnName, ColumnName ? BufferLength : 0, Record->ColumnName, SQL_NTS, &Stmt->Error); 
     if (NameLengthPtr)
       *NameLengthPtr= (SQLSMALLINT)Length;
     if (!BufferLength)
@@ -3076,7 +3091,7 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
     my_snprintf(Stmt->Cursor.Name, MADB_MAX_CURSOR_NAME, "SQL_CUR%d", 
                 Stmt->Connection->CursorCount++);
   }
-  Length= MADB_SetString(isWChar ? Stmt->Connection->CodePage : 0, CursorName,
+  Length= MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, CursorName,
                                  BufferLength, Stmt->Cursor.Name, SQL_NTS, &Stmt->Error);
   if (NameLengthPtr)
     *NameLengthPtr= (SQLSMALLINT)Length;
@@ -3338,9 +3353,9 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             
             if (GetDefault)
             {
-              SQLINTEGER Length= 0;
+              SQLLEN Length= 0;
               /* set a default value */
-              if (Stmt->Methods->GetData(Stmt, (SQLSMALLINT)j+1, SQL_C_CHAR, NULL, 0, (SQLINTEGER *)&Length) != SQL_ERROR && Length)
+              if (Stmt->Methods->GetData(Stmt, (SQLSMALLINT)j+1, SQL_C_CHAR, NULL, 0, &Length) != SQL_ERROR && Length)
               {
                 MADB_FREE(Rec->DefaultValue);
                 if (Length > 0) 
@@ -3569,7 +3584,6 @@ struct st_ma_stmt_methods MADB_StmtMethods=
   MADB_StmtFetch,
   MADB_StmtBindCol,
   MADB_StmtBindParam,
-  MADB_StmtGetDiagRec,
   MADB_StmtExecDirect,
   MADB_StmtGetData,
   MADB_StmtRowCount,

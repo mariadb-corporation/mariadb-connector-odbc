@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2014 SkySQL AB
+#   Copyright (C) 2013,2015 MariaDB Corporation AB
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -16,7 +16,7 @@
 #   or write to the Free Software Foundation, Inc., 
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
-PROJECT(mariadb_connector_c C)
+PROJECT(mariadb_connector_odbc C)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -97,12 +97,31 @@ ELSE()
   MESSAGE(FATAL_ERROR "MariaDB not found")
 ENDIF()
 
+IF(NOT WIN32)
+  # Looking for DM(UnixODBC) files
+  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
+  IF(DM_FOUND)
+    INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
+    LINK_DIRECTORIES(${ODBC_LIB_DIR})
+  ELSE()
+    MESSAGE(FATAL_ERROR "Driver Manager was not found")
+  ENDIF()
+
+#  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindIconv.cmake)
+#  IF(NOT ICONV_LIB_DIR OR NOT ICONV_INCLUDE_DIR)
+#    MESSAGE(FATAL_ERROR "Iconv library and/or header were not found in the system")
+#  ENDIF()
+#  INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+#  LINK_DIRECTORIES(${ICONV_LIB_DIR})
+#  SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} iconv)
+ENDIF()
+
 IF(WIN32)
   OPTION(WITH_REVNO "Add revision number in msi packages" OFF)
 ENDIF()
 
 
-SET(MARIADB_ODBC_VERSION_MAJOR 1)
+SET(MARIADB_ODBC_VERSION_MAJOR 2)
 SET(MARIADB_ODBC_VERSION_MINOR 0)
 SET(MARIADB_ODBC_VERSION_PATCH 0)
 
@@ -133,11 +152,12 @@ IF(MSVC)
   ENDIF()
 ENDIF()
 
+# TODO: Make it optional
 # Disable dbug information for release builds 
-SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
-SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
+#SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
+#SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
+#SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
+#SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
 
 
 # We need to determine the last parameter for SQLColAttribute:
@@ -172,7 +192,7 @@ IF(WIN32)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
 
-SET(MARIADB_ODBC_VERSION "00.91.0000")
+SET(MARIADB_ODBC_VERSION "02.00.0000")
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)

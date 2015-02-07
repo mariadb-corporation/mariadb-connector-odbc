@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -200,6 +200,8 @@ typedef struct
   DYNAMIC_ARRAY Records;
   DYNAMIC_ARRAY Stmts;
   MADB_Error Error;
+  MADB_Dbc * Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
+                           descriptor has to know the connection it is allocated on */
   union {
     MADB_Ard Ard;
     MADB_Apd Apd;
@@ -392,6 +394,12 @@ typedef struct st_madb_dsn
   void (*free)(void*);
 } MADB_Dsn;
 
+typedef struct st_client_charset
+{
+  unsigned int CodePage;
+  CHARSET_INFO *cs_info;
+} Client_Charset;
+
 struct st_ma_odbc_connection
 {
   MYSQL *mariadb;                /* handle to a mariadb connection */
@@ -400,8 +408,7 @@ struct st_ma_odbc_connection
   MADB_Dsn *Dsn;
   struct st_ma_connection_methods *Methods;
   MADB_Error Error;
-  CODEPAGE CodePage;
-  char *CharacterSet;
+  Client_Charset charset;
   char *DataBase;
   LIST ListItem;
   LIST *Stmts;
@@ -439,6 +446,10 @@ typedef struct
 
 SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName, MADB_Dbc *Dbc);
 int       DSNPrompt_Free  (MADB_Prompt *prompt);
+
+Client_Charset* GetDefaultOsCharset(Client_Charset *cc);
+int InitClientCharset(Client_Charset *cc, const char * name);
+void CloseClientCharset(Client_Charset *cc);
 
 #include <ma_error.h>
 #include <ma_compatibility.h>

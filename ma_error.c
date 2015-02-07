@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -17,6 +17,8 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+
+extern Client_Charset utf8;
 
 /* {{{ MADB_ErrorList[] */
 MADB_ERROR MADB_ErrorList[] =
@@ -249,10 +251,10 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
   if (NativeErrorPtr)
     *NativeErrorPtr= Err->NativeError;
   if (SQLState)
-    MADB_SetString(isWChar ?  CP_UTF8 : 0, (void *)SQLState, SQL_SQLSTATE_SIZE + 1,
+    MADB_SetString(isWChar ?  &utf8 : 0, (void *)SQLState, SQL_SQLSTATE_SIZE + 1,
                    SqlStateVersion, SQL_SQLSTATE_SIZE, &InternalError);
    if (MessageText)
-     Length=  MADB_SetString(isWChar ?  CP_UTF8 : 0, (void*)MessageText, BufferLength,
+     Length=  MADB_SetString(isWChar ?  &utf8 : 0, (void*)MessageText, BufferLength,
                    Err->SqlErrorMsg, strlen(Err->SqlErrorMsg), &InternalError);
    if (TextLengthPtr)
      *TextLengthPtr= strlen(Err->SqlErrorMsg);
@@ -335,7 +337,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     *(SQLLEN *)DiagInfoPtr= (Stmt->stmt) ? (SQLLEN)mysql_stmt_affected_rows(Stmt->stmt) : 0;
     break;
   case SQL_DIAG_CLASS_ORIGIN:
-    Length= MADB_SetString(isWChar ?  CP_UTF8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+    Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      strncmp(Err->SqlState, "IM", 2)== 0 ? "ODBC 3.0" : "ISO 9075", SQL_NTS, &Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
@@ -350,7 +352,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     DiagInfoPtr= (isWChar) ? (SQLPOINTER)L"" : (SQLPOINTER)"";
     break;
   case SQL_DIAG_MESSAGE_TEXT:
-    Length= MADB_SetString(isWChar ?  CP_UTF8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+    Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Err->SqlErrorMsg, strlen(Err->SqlErrorMsg), &Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
@@ -371,7 +373,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
         ServerName= Stmt->stmt->mysql->host;
       else if (Dbc && Dbc->mariadb)
         ServerName= Dbc->mariadb->host;
-      Length= MADB_SetString(isWChar ?  CP_UTF8 : 0, DiagInfoPtr, 
+      Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr, 
                                         isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, 
                                         ServerName ? ServerName : "", ServerName ? strlen(ServerName) : 0, &Error);
       if (StringLengthPtr)
@@ -379,14 +381,14 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     }
     break;
   case SQL_DIAG_SQLSTATE:
-    Length= MADB_SetString(isWChar ?  CP_UTF8 : 0, DiagInfoPtr, 
+    Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr, 
                            isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, Err->SqlState, strlen(Err->SqlState), &Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;
    
     break;
   case SQL_DIAG_SUBCLASS_ORIGIN:
-    Length= MADB_SetString(isWChar ?  CP_UTF8 : 0, DiagInfoPtr, 
+    Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr, 
                            isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, "ODBC 3.0", 8, &Error);
     if (StringLengthPtr)
       *StringLengthPtr= Length;

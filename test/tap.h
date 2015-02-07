@@ -53,6 +53,14 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 }
 
 #define Sleep(ms) sleep(ms/1000)
+
+#ifndef TRUE
+# define TRUE 1
+#endif
+#ifndef FALSE
+# define FALSE 0
+#endif
+
 #endif
 
 #include <sql.h>

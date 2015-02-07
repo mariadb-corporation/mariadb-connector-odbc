@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014 SkySQL AB
+   Copyright (C) 2014,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -32,8 +32,6 @@
 #define _WINSOCKAPI_
 #define DONT_DEFINE_VOID
 
-typedef unsigned int CODEPAGE;
-
-# include <windows.h>
+#include <windows.h>
 
 #endif /*_ma_platform_x_h_ */

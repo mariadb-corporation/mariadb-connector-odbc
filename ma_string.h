@@ -19,8 +19,8 @@
 #ifndef _ma_string_h_
 #define _ma_string_h_
 
-char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLINTEGER *Length, CODEPAGE CodePage, BOOL *DefaultCharUsed);
-int MADB_ConvertAnsi2Unicode(int CodePage, char *AnsiString, int AnsiLength, 
+char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed);
+int MADB_ConvertAnsi2Unicode(Client_Charset* cc, char *AnsiString, int AnsiLength, 
                              SQLWCHAR *UnicodeString, int UnicodeLength, 
                              int *LengthIndicator, MADB_Error *Error);
 char *MADB_GetInsertStatement(MADB_Stmt *Stmt);
@@ -32,8 +32,8 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
 my_bool MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String);
 my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
 my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, unsigned int CodePage);
-size_t MADB_SetString(unsigned int CodePage, void *Dest, unsigned int DestLength,
+SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc);
+size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error);
 my_bool MADB_ValidateStmt(char *StmtStr);
 my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);

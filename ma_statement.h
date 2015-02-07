@@ -34,8 +34,6 @@ struct st_ma_stmt_methods
   SQLRETURN (*BindParam)(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber, SQLSMALLINT InputOutputType, SQLSMALLINT ValueType,
                         SQLSMALLINT ParameterType, SQLULEN ColumnSize, SQLSMALLINT DecimalDigits, SQLPOINTER ParameterValuePtr,
                         SQLLEN BufferLength, SQLLEN *StrLen_or_IndPtr);
-  SQLRETURN (*GetDiagRec)(MADB_Stmt *Stmt, SQLSMALLINT RecNumber, SQLWCHAR *SQLState, SQLINTEGER *NativeErrorPtr,
-                      SQLWCHAR *MessageText, SQLSMALLINT BufferLength, SQLSMALLINT *TextLengthPtr, my_bool isWChar);
   SQLRETURN (*ExecDirect)(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength);
   SQLRETURN (*GetData)(SQLHSTMT StatementHandle, SQLUSMALLINT Col_or_Param_Num, SQLSMALLINT TargetType,
                        SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN * StrLen_or_IndPtr);

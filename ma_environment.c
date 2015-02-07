@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2105 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -18,6 +18,11 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
+extern Client_Charset utf8;
+extern CHARSET_INFO*  utf16;
+
+CHARSET_INFO * mysql_find_charset_name(const char *name);
+
 #ifdef _WIN32
 #pragma comment(lib, "ws2_32.lib")
 #endif
@@ -27,7 +32,6 @@ SQLRETURN MADB_EnvFree(MADB_Env *Env)
 {
   if (!Env)
     return SQL_ERROR;
-
   DeleteCriticalSection(&Env->cs);
   free(Env);
 
@@ -77,6 +81,12 @@ MADB_Env *MADB_EnvInit()
   InitializeCriticalSection(&Env->cs);
   Env->OdbcVersion= SQL_OV_ODBC3;
 
+  if (utf16 == NULL)
+  {
+    utf16= mysql_find_charset_name("utf16");
+  }
+  utf8.cs_info= my_charset_utf8_general_ci;
+
 cleanup:
 #ifdef _WIN32  
   if (!Env)
@@ -98,10 +108,10 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
       MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
       return Env->Error.ReturnValue;
     }
-    Env->OdbcVersion= (SQLINTEGER)ValuePtr;
+    Env->OdbcVersion= (SQLINTEGER)(SQLLEN)ValuePtr;
     break;
   case SQL_ATTR_OUTPUT_NTS:
-    if ((SQLINTEGER)ValuePtr != SQL_TRUE)
+    if ((SQLINTEGER)(SQLLEN)ValuePtr != SQL_TRUE)
       MADB_SetError(&Env->Error, MADB_ERR_S1C00, NULL, 0);
     break;
   default:
