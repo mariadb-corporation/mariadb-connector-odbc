@@ -69,6 +69,8 @@ IF(WIN32)
                           ma_string.h
                           ma_odbc.h
                           ma_result.h)
+  SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
+                          ma_platform_win32.c)
 
   SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
   SET(PLATFORM_DEPENDENCIES ws2_32)

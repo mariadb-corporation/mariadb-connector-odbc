@@ -1030,7 +1030,7 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
     return SQL_SUCCESS;
   }
 
-  if (!SQL_SUCCEEDED(MADB_DescSetField(Ard, ColumnNumber, SQL_DESC_TYPE, (SQLPOINTER)TargetType, SQL_IS_SMALLINT, 0)) ||
+  if (!SQL_SUCCEEDED(MADB_DescSetField(Ard, ColumnNumber, SQL_DESC_TYPE, (SQLPOINTER)(SQLLEN)TargetType, SQL_IS_SMALLINT, 0)) ||
       !SQL_SUCCEEDED(MADB_DescSetField(Ard, ColumnNumber, SQL_DESC_OCTET_LENGTH_PTR, (SQLPOINTER)StrLen_or_Ind, SQL_IS_POINTER, 0)) ||
       !SQL_SUCCEEDED(MADB_DescSetField(Ard, ColumnNumber, SQL_DESC_INDICATOR_PTR, (SQLPOINTER)StrLen_or_Ind, SQL_IS_POINTER, 0)) ||
       !SQL_SUCCEEDED(MADB_DescSetField(Ard, ColumnNumber, SQL_DESC_OCTET_LENGTH, (SQLPOINTER)MADB_GetTypeLength(TargetType, BufferLength), SQL_IS_INTEGER, 0)) ||
@@ -1072,7 +1072,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    if (ValueType == SQL_C_DEFAULT)
      ValueType= MADB_GetDefaultType(ParameterType);
    
-   if (!(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)ValueType, SQL_IS_SMALLINT, 0))) ||
+   if (!(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)(SQLLEN)ValueType, SQL_IS_SMALLINT, 0))) ||
        !(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_OCTET_LENGTH_PTR, (SQLPOINTER)StrLen_or_IndPtr, SQL_IS_POINTER, 0))) ||
        !(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_OCTET_LENGTH, (SQLPOINTER)BufferLength, SQL_IS_INTEGER, 0))) ||
        !(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_INDICATOR_PTR, (SQLPOINTER)StrLen_or_IndPtr, SQL_IS_POINTER, 0))) ||
@@ -1082,8 +1082,8 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
      return Stmt->Error.ReturnValue;
    }
 
-   if (!(SQL_SUCCEEDED(MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)ParameterType, SQL_IS_SMALLINT, 0))) ||
-       !(SQL_SUCCEEDED(MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_PARAMETER_TYPE, (SQLPOINTER)InputOutputType, SQL_IS_SMALLINT, 0))))
+   if (!(SQL_SUCCEEDED(MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)(SQLLEN)ParameterType, SQL_IS_SMALLINT, 0))) ||
+       !(SQL_SUCCEEDED(MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_PARAMETER_TYPE, (SQLPOINTER)(SQLLEN)InputOutputType, SQL_IS_SMALLINT, 0))))
    {
      MADB_CopyError(&Stmt->Error, &Ipd->Error);
      return Stmt->Error.ReturnValue;
@@ -1110,7 +1110,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    case SQL_NUMERIC:
      ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_PRECISION, (SQLPOINTER)ColumnSize, SQL_IS_SMALLINT, 0);
      if (SQL_SUCCEEDED(ret))
-       ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_SCALE, (SQLPOINTER)DecimalDigits, SQL_IS_SMALLINT, 0);
+       ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_SCALE, (SQLPOINTER)(SQLLEN)DecimalDigits, SQL_IS_SMALLINT, 0);
      break;
    case SQL_INTERVAL_MINUTE_TO_SECOND:
    case SQL_INTERVAL_HOUR_TO_SECOND:
@@ -1118,7 +1118,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    case SQL_INTERVAL_SECOND:
    case SQL_TYPE_TIMESTAMP:
    case SQL_TYPE_TIME:
-     ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_PRECISION, (SQLPOINTER)DecimalDigits, SQL_IS_SMALLINT, 0);
+     ret= MADB_DescSetField(Ipd, ParameterNumber, SQL_DESC_PRECISION, (SQLPOINTER)(SQLLEN)DecimalDigits, SQL_IS_SMALLINT, 0);
      break;
    }
 
@@ -1606,7 +1606,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ipd->Header.ArrayStatusPtr;
     break;
   case SQL_ATTR_PARAMS_PROCESSED_PTR:
-    *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ipd->Header.BindType;
+    *(SQLPOINTER *)ValuePtr= (SQLPOINTER)(SQLULEN)Stmt->Ipd->Header.BindType;
     break;
   case SQL_ATTR_PARAMSET_SIZE:
     *(SQLUINTEGER *)ValuePtr= Stmt->Apd->Header.BindType;
@@ -1748,10 +1748,10 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     break;
 
   case SQL_ATTR_PARAM_BIND_OFFSET_PTR:
-    Stmt->Apd->Header.BindOffsetPtr= (SQLUINTEGER *)ValuePtr;
+    Stmt->Apd->Header.BindOffsetPtr= (SQLULEN*)ValuePtr;
     break;
   case SQL_ATTR_PARAM_BIND_TYPE:
-    Stmt->Apd->Header.BindType= (SQLINTEGER)ValuePtr;
+    Stmt->Apd->Header.BindType= (SQLINTEGER)(SQLLEN)ValuePtr;
     break;
   case SQL_ATTR_PARAM_OPERATION_PTR:
     Stmt->Apd->Header.ArrayStatusPtr= (SQLUSMALLINT *)ValuePtr;
@@ -1760,20 +1760,20 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Ipd->Header.ArrayStatusPtr= (SQLUSMALLINT *)ValuePtr;
     break;
   case SQL_ATTR_PARAMS_PROCESSED_PTR:
-    Stmt->Ipd->Header.RowsProcessedPtr  = (SQLINTEGER *)ValuePtr;
+    Stmt->Ipd->Header.RowsProcessedPtr  = (SQLULEN *)ValuePtr;
     break;
   case SQL_ATTR_PARAMSET_SIZE:
-    Stmt->Apd->Header.ArraySize= (SQLINTEGER)ValuePtr;
+    Stmt->Apd->Header.ArraySize= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_ROW_ARRAY_SIZE:
   case SQL_ROWSET_SIZE:
     Stmt->Ard->Header.ArraySize= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_ROW_BIND_OFFSET_PTR:
-    Stmt->Ard->Header.BindOffsetPtr= (SQLUINTEGER *)ValuePtr;
+    Stmt->Ard->Header.BindOffsetPtr= (SQLULEN*)ValuePtr;
     break;
   case SQL_ATTR_ROW_BIND_TYPE:
-    Stmt->Ard->Header.BindType= (SQLINTEGER)ValuePtr;
+    Stmt->Ard->Header.BindType= (SQLINTEGER)(SQLLEN)ValuePtr;
     break;
   case SQL_ATTR_ROW_OPERATION_PTR:
     Stmt->Ird->Header.ArrayStatusPtr= (SQLUSMALLINT *)ValuePtr;
@@ -1782,7 +1782,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Ard->Header.ArrayStatusPtr= (SQLUSMALLINT *)ValuePtr;
     break;
   case SQL_ATTR_ROWS_FETCHED_PTR:
-    Stmt->Ird->Header.RowsProcessedPtr= (SQLUINTEGER *)ValuePtr;
+    Stmt->Ird->Header.RowsProcessedPtr= (SQLULEN*)ValuePtr;
     break;
   case SQL_ATTR_ASYNC_ENABLE:
     if ((SQLULEN)ValuePtr != SQL_ASYNC_ENABLE_OFF)
@@ -1795,12 +1795,12 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Options.SimulateCursor= (SQLULEN) ValuePtr;
     break;
   case SQL_ATTR_CURSOR_SCROLLABLE:
-    Stmt->Options.CursorType=  ((SQLUINTEGER)ValuePtr == SQL_NONSCROLLABLE) ?
+    Stmt->Options.CursorType=  ((SQLLEN)ValuePtr == SQL_NONSCROLLABLE) ?
                                SQL_CURSOR_FORWARD_ONLY : SQL_CURSOR_STATIC;
     break;
   case SQL_ATTR_CURSOR_SENSITIVITY:
     /* we only support default value = SQL_UNSPECIFIED */
-    if ((SQLINTEGER)ValuePtr != SQL_UNSPECIFIED)
+    if ((SQLLEN)ValuePtr != SQL_UNSPECIFIED)
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default cursor sensitivity", 0);
       ret= SQL_SUCCESS_WITH_INFO;
@@ -1808,7 +1808,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     break;
   case SQL_ATTR_CURSOR_TYPE:
     /* We need to check global DSN/Connection settings */
-    if (MA_ODBC_CURSOR_FORWARD_ONLY(Stmt->Connection) && (SQLINTEGER)ValuePtr != SQL_CURSOR_FORWARD_ONLY)
+    if (MA_ODBC_CURSOR_FORWARD_ONLY(Stmt->Connection) && (SQLLEN)ValuePtr != SQL_CURSOR_FORWARD_ONLY)
     {
       Stmt->Options.CursorType= SQL_CURSOR_FORWARD_ONLY;
       MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (SQL_CURSOR_FORWARD_ONLY)", 0);
@@ -1816,25 +1816,25 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     else if (MA_ODBC_CURSOR_DYNAMIC(Stmt->Connection))
     {
-      if ((SQLINTEGER)ValuePtr == SQL_CURSOR_KEYSET_DRIVEN)
+      if ((SQLLEN)ValuePtr == SQL_CURSOR_KEYSET_DRIVEN)
       {
         Stmt->Options.CursorType= SQL_CURSOR_STATIC;
         MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (SQL_CURSOR_STATIC)", 0);
         return Stmt->Error.ReturnValue;
       }
-      Stmt->Options.CursorType= (SQLINTEGER)ValuePtr;
+      Stmt->Options.CursorType= (SQLUINTEGER)(SQLULEN)ValuePtr;
     }
     /* only FORWARD or Static is allowed */
     else
     {
-      if ((SQLINTEGER)ValuePtr != SQL_CURSOR_FORWARD_ONLY &&
-          (SQLINTEGER)ValuePtr != SQL_CURSOR_STATIC)
+      if ((SQLLEN)ValuePtr != SQL_CURSOR_FORWARD_ONLY &&
+          (SQLLEN)ValuePtr != SQL_CURSOR_STATIC)
       {
         Stmt->Options.CursorType= SQL_CURSOR_STATIC;
         MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (SQL_CURSOR_STATIC)", 0);
         return Stmt->Error.ReturnValue;
       }
-      Stmt->Options.CursorType= (SQLINTEGER)ValuePtr;
+      Stmt->Options.CursorType= (SQLUINTEGER)(SQLULEN)ValuePtr;
     }
     break;
   case SQL_ATTR_CONCURRENCY:
@@ -1856,7 +1856,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Options.MaxRows= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_METADATA_ID:
-    Stmt->Options.MetadataId=(SQLUINTEGER)ValuePtr;
+    Stmt->Options.MetadataId=(SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_NOSCAN:
     if ((SQLULEN)ValuePtr != SQL_NOSCAN_ON)
@@ -1880,7 +1880,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     break;
   case SQL_ATTR_USE_BOOKMARKS:
-    Stmt->Options.UseBookmarks= (SQLUINTEGER)ValuePtr;
+    Stmt->Options.UseBookmarks= (SQLUINTEGER)(SQLULEN)ValuePtr;
    break;
   case SQL_ATTR_FETCH_BOOKMARK_PTR:
     MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
@@ -2229,7 +2229,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   default:
     {
        /* Set the conversion function */
-      Bind.fetch_result= mysql_ps_fetch_functions[MadbType].func;
+      Bind.fetch_result= (void (*)(struct st_mysql_bind *, MYSQL_FIELD *,
+                       unsigned char **))mysql_ps_fetch_functions[MadbType].func;
       Bind.buffer_type= MadbType;
       Bind.buffer= TargetValuePtr;
       if (BufferLength)
@@ -3171,7 +3172,8 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
   {
     MYSQL_BIND Bind;
     char MiniBuffer[2];
-    int MyError, MyLength;
+    int MyError;
+    unsigned long MyLength;
 
     if (*null_ptr & bit_offset)
     {

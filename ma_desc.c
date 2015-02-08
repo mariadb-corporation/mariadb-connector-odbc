@@ -510,7 +510,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     break;
 #if (ODBCVER >= 0x0350)
   case SQL_DESC_ROWVER:
-    *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->RowVer;
+    *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)(SQLULEN)DescRecord->RowVer;
     break;
 #endif
   case SQL_DESC_SCALE:
@@ -560,7 +560,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   ret= MADB_DeskCheckFldId(Desc, FieldIdentifier, MADB_DESC_WRITE);
 
   /* Application may set IPD's field SQL_DESC_UNNAMED to SQL_UNNAMED only */
-  if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)ValuePtr == SQL_NAMED)
+  if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)(SQLULEN)ValuePtr == SQL_NAMED)
   {
     MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
     ret= Desc->Error.ReturnValue;

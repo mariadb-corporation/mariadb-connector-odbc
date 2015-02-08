@@ -46,3 +46,4 @@ int _snprintf(char *buffer, size_t count, const char *format, ...);
 #endif
 
 #endif /*_ma_platform_x_h_ */
+

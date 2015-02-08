@@ -19,6 +19,8 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
+#include <ma_compatibility.h>
+
 #ifdef _WIN32
 # include "ma_platform_win32.h"
 #else
@@ -454,7 +456,6 @@ int InitClientCharset(Client_Charset *cc, const char * name);
 void CloseClientCharset(Client_Charset *cc);
 
 #include <ma_error.h>
-#include <ma_compatibility.h>
 #include <ma_parse.h>
 #include <ma_dsn.h>
 #include <ma_info.h>

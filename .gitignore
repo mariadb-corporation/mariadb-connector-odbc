@@ -21,5 +21,8 @@ ipch
 
 *.diff
 
+*.so
+Makefile
+
 # Keep empty directories:
 # Keep empty directories: >> .gitignore/.git*
