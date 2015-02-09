@@ -990,7 +990,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_DRIVER_ODBC_VER:
     {
       char *OdbcVersion = "03.51";
-      SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL,
+      SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Dbc->charset.cs_info ? &Dbc->charset : &utf8 ): NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      OdbcVersion, SQL_NTS, &Dbc->Error);
     }

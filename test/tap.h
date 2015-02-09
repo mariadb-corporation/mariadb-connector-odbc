@@ -652,6 +652,7 @@ int run_tests(MA_ODBC_TESTS *tests)
 
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
+    odbc_print_error(SQL_HANDLE_DBC, Connection); 
     ODBC_Disconnect(Env,Connection,Stmt);
     fprintf(stdout, "HALT! Could not connect to the server\n");
     return 1;
@@ -752,5 +753,41 @@ int set_variable(int global, const char * var_name, int value)
   return OK;
 }
 
+
+SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
+{
+  SQLWCHAR *res= buffer;
+
+  if (str == NULL)
+  {
+    return NULL;
+  }
+
+  while(*str)
+  {
+    *buffer++= *str++;
+  }
+
+  *buffer= 0;
+
+  return res;
+}
+
+#define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
+
+int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2)
+{
+  if(s1 == NULL || s2 == NULL)
+  {
+    return s1!=s2;
+  }
+
+  while (*s1 && *s2 && *s1==*s2)
+  {
+    ++s1; ++s2;
+  }
+
+  return *s1!=*s2;
+}
 
 #endif      /* #ifndef _tap_h_ */
