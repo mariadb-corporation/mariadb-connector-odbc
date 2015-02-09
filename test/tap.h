@@ -115,6 +115,9 @@ SQLHANDLE Env, Connection, Stmt;
 
 unsigned int my_port= 3306;
 
+/* To use in tests for conversion of strings to (sql)wchar strings */
+SQLWCHAR sqlwchar_buff[1024], sqlwchar_empty[]= {0};
+
 unsigned long myresult(SQLHANDLE Stmt)
 {
   unsigned long Rows= 0;
@@ -422,7 +425,7 @@ SQLWCHAR *my_fetch_wstr(SQLHSTMT Stmt, SQLWCHAR *buffer, SQLUSMALLINT icol, SQLL
 
   rc= SQLGetData(Stmt, icol, SQL_WCHAR, buffer, Length, &nLen);
   if (!SQL_SUCCEEDED(rc))
-    return L"";
+    return sqlwchar_empty;
   return buffer;
 }
 
@@ -789,5 +792,4 @@ int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2)
 
   return *s1!=*s2;
 }
-
 #endif      /* #ifndef _tap_h_ */
