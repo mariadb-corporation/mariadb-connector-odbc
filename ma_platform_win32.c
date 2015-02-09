@@ -56,36 +56,6 @@ int DSNPrompt_Free(MADB_Prompt *prompt)
 }
 
 
-int InitClientCharset(Client_Charset *cc, const char * name)
-{
-  cc->cs_info= mysql_get_charset_by_name(name);
-
-  if (cc->cs_info == NULL)
-  {
-    return 1;
-  }
-
-  cc->CodePage= cc->cs_info->codepage;/*madb_get_windows_cp(name);*/
-
-  return 0;
-}
-
-
-Client_Charset* GetDefaultOsCharset(Client_Charset *cc)
-{
-  if (InitClientCharset(cc, madb_get_os_character_set()))
-  {
-    return NULL;
-  }
-  return cc;
-}
-
-
-void CloseClientCharset(Client_Charset *cc)
-{
-}
-
-
 SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;

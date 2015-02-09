@@ -615,7 +615,7 @@ ODBC_TEST(t_tables_bug)
     fprintf(stdout, "#  Column Name   : %s\n", szColName);
     fprintf(stdout, "#  NameLengh     : %d\n", pcbColName);
     fprintf(stdout, "#  DataType      : %d\n", pfSqlType);
-    fprintf(stdout, "#  ColumnSize    : %d\n", pcbColDef);
+    fprintf(stdout, "#  ColumnSize    : %lu\n", pcbColDef);
     fprintf(stdout, "#  DecimalDigits : %d\n", pibScale);
     fprintf(stdout, "#  Nullable      : %d\n", pfNullable);
 

@@ -62,6 +62,35 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 }
 
 
+int strcpy_s(char *dest, size_t buffer_size, const char *src)
+{
+  size_t src_len;
+
+  if (dest == NULL)
+  {
+    return EINVAL;
+  }
+
+  if (src == NULL)
+  {
+    *dest= '\0';
+    return EINVAL;
+  }
+
+  src_len= strlen(src);
+
+  if (buffer_size < src_len + 1)
+  {
+    *dest= 0;
+    return ERANGE;
+  }
+
+  memcpy((void*)dest, (void*)src, src_len + 1);
+
+  return 0;
+}
+
+
 /* Length in SQLWCHAR units*/
 SQLINTEGER SqlwcsLen(SQLWCHAR *str)
 {

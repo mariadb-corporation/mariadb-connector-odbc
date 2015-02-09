@@ -34,16 +34,19 @@
 #define CP_UTF8          65001
 
 #define _strdup strdup
+#define _stricmp strcasecmp
+
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...);
 
-#ifndef CRITICAL_SECTION
-# define CRITICAL_SECTION pthread_mutex_t
-# define InitializeCriticalSection(cs) pthread_mutex_init(cs, NULL)
-# define DeleteCriticalSection(cs)     pthread_mutex_destroy(cs)
-# define EnterCriticalSection(cs)      pthread_mutex_lock(cs)
-# define LeaveCriticalSection(cs)      pthread_mutex_unlock(cs)
+/* Error codes fo strcpy_s */
+#ifndef EINVAL
+# define EINVAL 22
 #endif
+#ifndef ERANGE
+# define ERANGE 34
+#endif
+int strcpy_s(char *dest, size_t buffer_size, const char *src);
 
 #endif /*_ma_platform_x_h_ */
 
