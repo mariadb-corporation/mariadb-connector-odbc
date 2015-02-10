@@ -21,6 +21,11 @@
 # We expect that the driver manager is UnixODBC
 
 # Try to find the include directory, giving precedence to special variables
+IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+  SET(LIB_SUFFIX "lib64")
+ELSE()
+  SET(LIB_SUFFIX "lib")
+ENDIF()
 FIND_PATH(ODBC_INCLUDE_DIR sql.h
     HINTS ${DM_INCLUDE_DIR}
           ${DM_DIR}
@@ -48,7 +53,7 @@ FIND_PATH(ODBC_LIB_DIR libodbc.so
           ENV DM_DIR
     PATHS /usr/local
           /usr
-    PATH_SUFFIXES lib
+    PATH_SUFFIXES ${LIB_SUFFIX} 
     NO_DEFAULT_PATH
     DOC "Driver Manager Libraries")
 FIND_PATH(ODBC_LIB_DIR libodbc.so
