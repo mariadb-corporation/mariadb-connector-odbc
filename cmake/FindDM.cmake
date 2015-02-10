@@ -20,44 +20,60 @@
 # Cmake script to look for driver manager includes and libraries on platforms others than Windows
 # We expect that the driver manager is UnixODBC
 
-# Try to find the include directory, giving precedence to special variables
-IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-  SET(LIB_SUFFIX "lib64")
+FIND_PROGRAM(ODBC_CONFIG odbc_config
+             PATH
+             /usr/bin
+             ${DM_DIR}
+             )
+
+IF(ODBC_CONFIG)
+  MESSAGE(STATUS "Found odbc_config: ${ODBC_CONFIG}")
+  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} --include-prefix 
+                  OUTPUT_VARIABLE result)
+  STRING(REPLACE "\n" "" ODBC_INCLUDE_DIR ${result})
+  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} --lib-prefix 
+                  OUTPUT_VARIABLE result)
+  STRING(REPLACE "\n" "" ODBC_LIB_DIR ${result})
 ELSE()
-  SET(LIB_SUFFIX "lib")
+  # Try to find the include directory, giving precedence to special variables
+  IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+    SET(LIB_SUFFIX "lib64")
+  ELSE()
+    SET(LIB_SUFFIX "lib")
+  ENDIF()
+  FIND_PATH(ODBC_INCLUDE_DIR sql.h
+      HINTS ${DM_INCLUDE_DIR}
+            ${DM_DIR}
+            ENV DM_INCLUDE_DIR
+            ENV DM_DIR
+      PATHS /usr/local
+            /usr
+      PATH_SUFFIXES include
+      NO_DEFAULT_PATH
+      DOC "Driver Manager Includes")
+  # Giving chance to cmake_(environment)path
+  FIND_PATH(ODBC_INCLUDE_DIR sql.h
+      DOC "Driver Manager Includes")
+
+  IF(ODBC_INCLUDE_DIR)
+    MESSAGE(STATUS "Found ODBC Driver Manager includes: ${ODBC_INCLUDE_DIR}")
+  ENDIF()
+
+
+  # Try to find DM libraries, giving precedence to special variables
+  FIND_PATH(ODBC_LIB_DIR libodbc.so
+      HINTS ${DM_LIB_DIR}
+            ${DM_DIR}
+            ENV DM_LIB_DIR
+            ENV DM_DIR
+      PATHS /usr/local
+            /usr
+      PATH_SUFFIXES ${LIB_SUFFIX} 
+      NO_DEFAULT_PATH
+      DOC "Driver Manager Libraries")
+  FIND_PATH(ODBC_LIB_DIR libodbc.so
+      DOC "Driver Manager Libraries")
 ENDIF()
-FIND_PATH(ODBC_INCLUDE_DIR sql.h
-    HINTS ${DM_INCLUDE_DIR}
-          ${DM_DIR}
-          ENV DM_INCLUDE_DIR
-          ENV DM_DIR
-    PATHS /usr/local
-          /usr
-    PATH_SUFFIXES include
-    NO_DEFAULT_PATH
-    DOC "Driver Manager Includes")
-# Giving chance to cmake_(environment)path
-FIND_PATH(ODBC_INCLUDE_DIR sql.h
-    DOC "Driver Manager Includes")
-
-IF(ODBC_INCLUDE_DIR)
-  MESSAGE(STATUS "Found ODBC Driver Manager includes: ${ODBC_INCLUDE_DIR}")
-ENDIF()
-
-
-# Try to find DM libraries, giving precedence to special variables
-FIND_PATH(ODBC_LIB_DIR libodbc.so
-    HINTS ${DM_LIB_DIR}
-          ${DM_DIR}
-          ENV DM_LIB_DIR
-          ENV DM_DIR
-    PATHS /usr/local
-          /usr
-    PATH_SUFFIXES ${LIB_SUFFIX} 
-    NO_DEFAULT_PATH
-    DOC "Driver Manager Libraries")
-FIND_PATH(ODBC_LIB_DIR libodbc.so
-    DOC "Driver Manager Libraries")
 
 IF(ODBC_LIB_DIR AND ODBC_INCLUDE_DIR)
   MESSAGE(STATUS "Found ODBC Driver Manager libraries: ${ODBC_LIB_DIR}")
