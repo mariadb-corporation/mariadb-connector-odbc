@@ -31,8 +31,13 @@
 
 #define MA_DEBUG_FLAG 4
 
+#ifndef WIN32
+#include <time.h>
+#endif
+
 void ma_debug_print(my_bool ident, char *format, ...);
 
+#ifdef WIN32
 #define MDBUG_C_ENTER(C,A)\
   if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
   {\
@@ -40,6 +45,15 @@ void ma_debug_print(my_bool ident, char *format, ...);
     GetSystemTime(&st);\
     ma_debug_print(0, ">>> %02d:%02d:%02d --- %s (thread: %d) ---", st.wHour, st.wMinute, st.wSecond,  A, (C)->mariadb->thread_id);\
   }
+#else
+#define MDBUG_C_ENTER(C,A)\
+  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
+  {\
+    time_t t = time(NULL);\
+    struct tm tm = *localtime(&t);\
+    ma_debug_print(0, ">>> %02d:%02d:%02d --- %s (thread: %d) ---", tm.tm_hour, tm.tm_min, tm.tm_sec,  A, (C)->mariadb->thread_id);\
+  }
+#endif
 
 #define MDBUG_C_RETURN(C,A)\
   if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
