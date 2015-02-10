@@ -318,7 +318,12 @@ SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
     SQLPOINTER CharacterAttributePtr,
     SQLSMALLINT BufferLength,
     SQLSMALLINT *StringLengthPtr,
-    SQLLEN *NumericAttributePtr)
+#ifdef SQLCOLATTRIB_SQLPOINTER
+    SQLPOINTER NumericAttributePtr
+#else
+    SQLLEN *NumericAttributePtr
+#endif
+    )
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
@@ -348,7 +353,12 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
     SQLPOINTER CharacterAttributePtr,
     SQLSMALLINT BufferLength,
     SQLSMALLINT *StringLengthPtr,
-    SQLLEN *NumericAttributePtr)
+#ifdef SQLCOLATTRIB_SQLPOINTER
+    SQLPOINTER NumericAttributePtr
+#else
+    SQLLEN *NumericAttributePtr
+#endif
+    )
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
