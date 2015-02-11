@@ -323,7 +323,11 @@ SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLeng
       case DSN_TYPE_INT:
         if (*(int *)((char *)Dsn + DsnKeys[i].DsnOffset))
         {
+#ifdef WIN32
           _itoa_s(*(int *)((char *)Dsn + DsnKeys[i].DsnOffset), IntVal, 12, 10);
+#else
+          my_itoa(*(int *)((char *)Dsn + DsnKeys[i].DsnOffset), IntVal, 10);
+#endif          
           Value= IntVal;
         }
         break;

@@ -23,7 +23,7 @@
 extern Client_Charset utf8;
 
 /* {{{ SQLAllocHandle */
-SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
+SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
     SQLHANDLE InputHandle,
     SQLHANDLE *OutputHandlePtr)
 {
@@ -71,33 +71,40 @@ SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
   MDBUG_DUMP(ret,d);
   MDBUG_RETURN(ret);
 }
+
+SQLRETURN SQL_API XXSQLAllocHandle(SQLSMALLINT HandleType,
+    SQLHANDLE InputHandle,
+    SQLHANDLE *OutputHandlePtr)
+{
+  return MA_SQLAllocHandle(HandleType, InputHandle, OutputHandlePtr);
+}
 /* }}} */
 
 /* {{{ SQLAllocConnect */
-SQLRETURN SQL_API SQLAllocConnect(SQLHANDLE InputHandle,
+SQLRETURN SQL_API XXSQLAllocConnect(SQLHANDLE InputHandle,
                                   SQLHANDLE *OutputHandlePtr)
 {
-  return SQLAllocHandle(SQL_HANDLE_DBC, InputHandle, OutputHandlePtr);
+  return MA_SQLAllocHandle(SQL_HANDLE_DBC, InputHandle, OutputHandlePtr);
 }
 /* }}} */
 
 /* {{{ SQLAllocStmt */
-SQLRETURN SQL_API SQLAllocStmt(SQLHANDLE InputHandle,
+SQLRETURN SQL_API XXSQLAllocStmt(SQLHANDLE InputHandle,
                                SQLHANDLE *OutputHandlePtr)
 {
-  return SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
+  return MA_SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
 }
 /* }}} */
 
 /* {{{ SQLAllocEnv */
-SQLRETURN SQL_API SQLAllocEnv(SQLHANDLE *OutputHandlePtr)
+SQLRETURN SQL_API XXSQLAllocEnv(SQLHANDLE *OutputHandlePtr)
 {
-  return SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, OutputHandlePtr);
+  return MA_SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, OutputHandlePtr);
 }
 /* }}} */
 
 /* {{{ SQLBindCol */
-SQLRETURN SQL_API SQLBindCol(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLBindCol(SQLHSTMT StatementHandle,
     SQLUSMALLINT ColumnNumber,
     SQLSMALLINT TargetType,
     SQLPOINTER TargetValuePtr,
@@ -123,7 +130,7 @@ SQLRETURN SQL_API SQLBindCol(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLBindParameter */
-SQLRETURN SQL_API SQLBindParameter(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
     SQLUSMALLINT ParameterNumber,
     SQLSMALLINT InputOutputType,
     SQLSMALLINT ValueType,
@@ -158,9 +165,25 @@ SQLRETURN SQL_API SQLBindParameter(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN SQL_API XXSQLBindParameter(SQLHSTMT StatementHandle,
+    SQLUSMALLINT ParameterNumber,
+    SQLSMALLINT InputOutputType,
+    SQLSMALLINT ValueType,
+    SQLSMALLINT ParameterType,
+    SQLULEN ColumnSize,
+    SQLSMALLINT DecimalDigits,
+    SQLPOINTER ParameterValuePtr,
+    SQLLEN BufferLength,
+    SQLLEN *StrLen_or_IndPtr)
+{
+  return MA_SQLBindParameter(StatementHandle, ParameterNumber, InputOutputType, ValueType, ParameterType,
+                             ColumnSize, DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr);
+}
 /* }}} */
+
 /* {{{ SQLBrowseConnect */
-SQLRETURN SQL_API SQLBrowseConnect(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLBrowseConnect(SQLHDBC ConnectionHandle,
     SQLCHAR *InConnectionString,
     SQLSMALLINT StringLength1,
     SQLCHAR *OutConnectionString,
@@ -177,8 +200,9 @@ SQLRETURN SQL_API SQLBrowseConnect(SQLHDBC ConnectionHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLBrowseConnectW */
-SQLRETURN SQL_API SQLBrowseConnectW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLBrowseConnectW(SQLHDBC ConnectionHandle,
     SQLWCHAR *InConnectionString,
     SQLSMALLINT StringLength1,
     SQLWCHAR *OutConnectionString,
@@ -194,9 +218,9 @@ SQLRETURN SQL_API SQLBrowseConnectW(SQLHDBC ConnectionHandle,
   MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
-
+#endif
 /* {{{ SQLBulkOperations */
-SQLRETURN SQL_API SQLBulkOperations(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLBulkOperations(SQLHSTMT StatementHandle,
     SQLSMALLINT Operation)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -214,7 +238,7 @@ SQLRETURN SQL_API SQLBulkOperations(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLCancel */
-SQLRETURN SQL_API SQLCancel(SQLHSTMT StatementHandle)
+SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret= SQL_ERROR;
@@ -260,11 +284,16 @@ end:
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN SQL_API XXSQLCancel(SQLHSTMT StatementHandle)
+{
+  return MA_SQLCancel(StatementHandle);
+}
 /* }}} */
 
 /* {{{ SQLCancelHandle */
 /* ODBC version 3.8 */
-SQLRETURN SQL_API SQLCancelHandle(SQLSMALLINT HandleType,
+SQLRETURN SQL_API XXSQLCancelHandle(SQLSMALLINT HandleType,
     SQLHANDLE Handle)
 {
   if (Handle)
@@ -275,11 +304,11 @@ SQLRETURN SQL_API SQLCancelHandle(SQLSMALLINT HandleType,
     {
       MADB_Stmt Stmt;
       Stmt.Connection= (MADB_Dbc *)Handle;
-      return SQLCancel((SQLHSTMT)&Stmt);
+      return MA_SQLCancel((SQLHSTMT)&Stmt);
     }
     break;
   case SQL_HANDLE_STMT:
-    return SQLCancel((SQLHSTMT)Handle);
+    return MA_SQLCancel((SQLHSTMT)Handle);
     break;
   }
   return SQL_INVALID_HANDLE;
@@ -287,7 +316,7 @@ SQLRETURN SQL_API SQLCancelHandle(SQLSMALLINT HandleType,
 /* }}} */
 
 /* {{{ SQLCloseCursor */
-SQLRETURN SQL_API SQLCloseCursor(SQLHSTMT StatementHandle)
+SQLRETURN SQL_API XXSQLCloseCursor(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
@@ -305,14 +334,14 @@ SQLRETURN SQL_API SQLCloseCursor(SQLHSTMT StatementHandle)
     ret= Stmt->Error.ReturnValue;
   }
   else
-    ret= SQLFreeStmt(StatementHandle, SQL_CLOSE);
+    ret= MA_SQLFreeStmt(StatementHandle, SQL_CLOSE);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
 
 /* {{{ SQLColAttribute */
-SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLColAttribute (SQLHSTMT StatementHandle,
     SQLUSMALLINT ColumnNumber,
     SQLUSMALLINT FieldIdentifier,
     SQLPOINTER CharacterAttributePtr,
@@ -344,10 +373,28 @@ SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN MA_SQLColAttribute (SQLHSTMT StatementHandle,
+    SQLUSMALLINT ColumnNumber,
+    SQLUSMALLINT FieldIdentifier,
+    SQLPOINTER CharacterAttributePtr,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT *StringLengthPtr,
+#ifdef SQLCOLATTRIB_SQLPOINTER
+    SQLPOINTER NumericAttributePtr
+#else
+    SQLLEN *NumericAttributePtr
+#endif
+    )
+{
+  return MA_SQLColAttribute(StatementHandle, ColumnNumber, FieldIdentifier, CharacterAttributePtr, 
+                            BufferLength, StringLengthPtr, NumericAttributePtr);
+}
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLColAttributeW */
-SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLColAttributeW (SQLHSTMT StatementHandle,
     SQLUSMALLINT ColumnNumber,
     SQLUSMALLINT FieldIdentifier,
     SQLPOINTER CharacterAttributePtr,
@@ -380,7 +427,9 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
+#endif
 
+/* {{{ MapColAttributesDescType */
 SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
 {
   /* we need to map the old field identifiers, see bug ODBC-8 */
@@ -400,8 +449,10 @@ SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
     return FieldIdentifier;
   }
 }
+/* }}} */
 
-SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt, 
+/* {{{ SQLColAttributes */
+SQLRETURN SQL_API XXSQLColAttributes(SQLHSTMT hstmt, 
 	SQLUSMALLINT icol,
 	SQLUSMALLINT fDescType,
 	SQLPOINTER rgbDesc,
@@ -409,10 +460,13 @@ SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt,
 	SQLSMALLINT * pcbDesc,
 	SQLLEN * pfDesc)
 {
-  return SQLColAttribute(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
+  return MA_SQLColAttribute(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
 }
+/* }}} */
 
-SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt, 
+#ifdef HAVE_UNICODE
+/* {{{ SQLColAttributesW */
+SQLRETURN SQL_API XXSQLColAttributesW(SQLHSTMT hstmt, 
 	SQLUSMALLINT icol,
 	SQLUSMALLINT fDescType,
 	SQLPOINTER rgbDesc,
@@ -422,10 +476,11 @@ SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt,
 {
   return SQLColAttributeW(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
 }
-
+/* }}} */
+#endif
 
 /* {{{ SQLColumnPrivileges */
-SQLRETURN SQL_API SQLColumnPrivileges(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLColumnPrivileges(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -448,8 +503,9 @@ SQLRETURN SQL_API SQLColumnPrivileges(SQLHSTMT StatementHandle,
  }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLColumnPrivilegesW */
-SQLRETURN SQL_API SQLColumnPrivilegesW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLColumnPrivilegesW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -489,10 +545,10 @@ SQLRETURN SQL_API SQLColumnPrivilegesW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLColumns */
-SQLRETURN SQL_API SQLColumns(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLColumns(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -515,8 +571,9 @@ SQLRETURN SQL_API SQLColumns(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLColumnsW */
-SQLRETURN SQL_API SQLColumnsW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLColumnsW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -556,11 +613,11 @@ SQLRETURN SQL_API SQLColumnsW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLCompleteAsync */
 /* ODBC 3.8 */
-SQLRETURN SQL_API SQLCompleteAsync(SQLSMALLINT HandleType,
+SQLRETURN SQL_API XXSQLCompleteAsync(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     RETCODE *AsyncRetCodePtr)
 {
@@ -570,7 +627,7 @@ SQLRETURN SQL_API SQLCompleteAsync(SQLSMALLINT HandleType,
 
 /* }}} */
 
-/* {{{ SQLConnect */
+/* {{{ SQLConnectCommon */
 SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
     SQLCHAR *ServerName,
     SQLSMALLINT NameLength1,
@@ -634,7 +691,8 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
 }
 /* }}} */
 
-SQLRETURN SQL_API SQLConnect(SQLHDBC ConnectionHandle,
+/* {{{ SQLConnect */
+SQLRETURN SQL_API XXSQLConnect(SQLHDBC ConnectionHandle,
     SQLCHAR *ServerName,
     SQLSMALLINT NameLength1,
     SQLCHAR *UserName,
@@ -643,12 +701,13 @@ SQLRETURN SQL_API SQLConnect(SQLHDBC ConnectionHandle,
     SQLSMALLINT NameLength3)
 {
   return SQLConnectCommon(ConnectionHandle, ServerName, NameLength1,
-	                      UserName, NameLength2, Authentication, NameLength3);
+                          UserName, NameLength2, Authentication, NameLength3);
 }
+/* }}} */
 
-
+#ifdef HAVE_UNICODE
 /* {{{ SQLConnectW */
-SQLRETURN SQL_API SQLConnectW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLConnectW(SQLHDBC ConnectionHandle,
     SQLWCHAR *ServerName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *UserName,
@@ -679,18 +738,18 @@ SQLRETURN SQL_API SQLConnectW(SQLHDBC ConnectionHandle,
   return ret;
 }
 /* }}} */
-
-
+#endif
 
 /* {{{ SQLCopyDesc */
-SQLRETURN SQL_API SQLCopyDesc(SQLHDESC SourceDescHandle,
+SQLRETURN SQL_API XXSQLCopyDesc(SQLHDESC SourceDescHandle,
     SQLHDESC TargetDescHandle)
 {
   return MADB_DescCopyDesc((MADB_Desc *)SourceDescHandle, (MADB_Desc *)TargetDescHandle);
 }
 /* }}} */
+
 /* {{{ SQLDataSources */
-SQLRETURN SQL_API SQLDataSources(SQLHENV EnvironmentHandle,
+SQLRETURN SQL_API XXSQLDataSources(SQLHENV EnvironmentHandle,
     SQLUSMALLINT Direction,
     SQLCHAR *ServerName,
     SQLSMALLINT BufferLength1,
@@ -705,8 +764,9 @@ SQLRETURN SQL_API SQLDataSources(SQLHENV EnvironmentHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLDataSourcesW */
-SQLRETURN SQL_API SQLDataSourcesW(SQLHENV EnvironmentHandle,
+SQLRETURN SQL_API XXSQLDataSourcesW(SQLHENV EnvironmentHandle,
     SQLUSMALLINT Direction,
     SQLWCHAR *ServerName,
     SQLSMALLINT BufferLength1,
@@ -720,10 +780,10 @@ SQLRETURN SQL_API SQLDataSourcesW(SQLHENV EnvironmentHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLDescribeCol */
-SQLRETURN SQL_API SQLDescribeCol(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLDescribeCol(SQLHSTMT StatementHandle,
     SQLUSMALLINT ColumnNumber,
     SQLCHAR *ColumnName,
     SQLSMALLINT BufferLength,
@@ -750,8 +810,9 @@ SQLRETURN SQL_API SQLDescribeCol(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLDescribeColW */
-SQLRETURN SQL_API SQLDescribeColW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLDescribeColW(SQLHSTMT StatementHandle,
     SQLUSMALLINT ColumnNumber,
     SQLWCHAR *ColumnName,
     SQLSMALLINT BufferLength,
@@ -778,10 +839,10 @@ SQLRETURN SQL_API SQLDescribeColW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLDescribeParam */
-SQLRETURN SQL_API SQLDescribeParam(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLDescribeParam(SQLHSTMT StatementHandle,
     SQLUSMALLINT ParameterNumber,
     SQLSMALLINT *DataTypePtr,
     SQLULEN *ParameterSizePtr,
@@ -801,7 +862,7 @@ SQLRETURN SQL_API SQLDescribeParam(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLDisconnect */
-SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
+SQLRETURN SQL_API XXSQLDisconnect(SQLHDBC ConnectionHandle)
 {
   SQLRETURN ret= SQL_ERROR;
   MADB_Dbc *Connection = (MADB_Dbc *)ConnectionHandle;
@@ -817,14 +878,14 @@ SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
   for (Element= Connection->Stmts; Element; Element= NextElement)
   {
     NextElement= Element->next;
-    SQLFreeStmt((SQLHSTMT)Element->data, SQL_DROP);
+    MA_SQLFreeStmt((SQLHSTMT)Element->data, SQL_DROP);
   }
 
   /* Close all explicitly aloocated descriptors */
   for (Element= Connection->Descrs; Element; Element= NextElement)
   {
     NextElement= Element->next;
-    SQLFreeHandle(SQL_HANDLE_DESC, (SQLHANDLE)Element->data);
+    MA_SQLFreeHandle(SQL_HANDLE_DESC, (SQLHANDLE)Element->data);
   }
 
   if (Connection->mariadb)
@@ -843,7 +904,7 @@ SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
 /* }}} */
 
 /* {{{ SQLDriverConnect */
-SQLRETURN SQL_API SQLDriverConnect(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLDriverConnect(SQLHDBC ConnectionHandle,
     SQLHWND WindowHandle,
     SQLCHAR *InConnectionString,
     SQLSMALLINT StringLength1,
@@ -872,8 +933,9 @@ SQLRETURN SQL_API SQLDriverConnect(SQLHDBC ConnectionHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLDriverConnectW */
-SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLDriverConnectW(SQLHDBC ConnectionHandle,
     SQLHWND WindowHandle,
     SQLWCHAR *InConnectionString,
     SQLSMALLINT StringLength1,
@@ -941,10 +1003,10 @@ end:
   MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLDrivers */
-SQLRETURN SQL_API SQLDrivers(SQLHENV EnvironmentHandle,
+SQLRETURN SQL_API XXSQLDrivers(SQLHENV EnvironmentHandle,
     SQLUSMALLINT Direction,
     SQLCHAR *DriverDescription,
     SQLSMALLINT BufferLength1,
@@ -959,8 +1021,9 @@ SQLRETURN SQL_API SQLDrivers(SQLHENV EnvironmentHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLDriversW */
-SQLRETURN SQL_API SQLDriversW(SQLHENV EnvironmentHandle,
+SQLRETURN SQL_API XXSQLDriversW(SQLHENV EnvironmentHandle,
     SQLUSMALLINT Direction,
     SQLWCHAR *DriverDescription,
     SQLSMALLINT BufferLength1,
@@ -974,10 +1037,10 @@ SQLRETURN SQL_API SQLDriversW(SQLHENV EnvironmentHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLEndTran */
-SQLRETURN SQL_API SQLEndTran(SQLSMALLINT HandleType,
+SQLRETURN MA_SQLEndTran(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT CompletionType)
 {
@@ -1010,10 +1073,17 @@ SQLRETURN SQL_API SQLEndTran(SQLSMALLINT HandleType,
 
   return ret;
 }
+
+SQLRETURN SQL_API XXSQLEndTran(SQLSMALLINT HandleType,
+    SQLHANDLE Handle,
+    SQLSMALLINT CompletionType)
+{
+  return MA_SQLEndTran(HandleType, Handle, CompletionType);
+}
 /* }}} */
 
 /* {{{ SQLError */
-SQLRETURN SQL_API SQLError(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, 
+SQLRETURN SQL_API XXSQLError(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, 
                            SQLCHAR *Sqlstate, SQLINTEGER *NativeError, 
                            SQLCHAR *Message, SQLSMALLINT MessageMax,
                            SQLSMALLINT *MessageLen)
@@ -1037,10 +1107,11 @@ SQLRETURN SQL_API SQLError(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt,
     HandleType= SQL_HANDLE_STMT;
   }
 
-  return SQLGetDiagRec(HandleType, Handle, 1, Sqlstate, NativeError, Message, MessageMax, MessageLen);
+  return MA_SQLGetDiagRec(HandleType, Handle, 1, Sqlstate, NativeError, Message, MessageMax, MessageLen);
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /*{{{ SQLErrorW */
 SQLRETURN SQL_API
 SQLErrorW(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, SQLWCHAR *Sqlstate,
@@ -1067,25 +1138,25 @@ SQLErrorW(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, SQLWCHAR *Sqlstate,
     HandleType= SQL_HANDLE_STMT;
   }
 
-  return SQLGetDiagRecW(HandleType, Handle, 1, Sqlstate, NativeError, Message, MessageMax, MessageLen);
+  return MA_SQLGetDiagRecW(HandleType, Handle, 1, Sqlstate, NativeError, Message, MessageMax, MessageLen);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLTransact */
-SQLRETURN SQL_API SQLTransact(SQLHENV Env, SQLHDBC Dbc, SQLUSMALLINT CompletionType)
+SQLRETURN SQL_API XXSQLTransact(SQLHENV Env, SQLHDBC Dbc, SQLUSMALLINT CompletionType)
 {
   if (Env != SQL_NULL_HENV)
-    return SQLEndTran(SQL_HANDLE_ENV, Env, CompletionType);
+    return MA_SQLEndTran(SQL_HANDLE_ENV, Env, CompletionType);
   else if (Dbc != SQL_NULL_HDBC)
-    return SQLEndTran(SQL_HANDLE_DBC, Dbc, CompletionType);
+    return MA_SQLEndTran(SQL_HANDLE_DBC, Dbc, CompletionType);
   else
     return SQL_INVALID_HANDLE;
 }
 /* }}} */
 
 /* {{{ SQLExecDirect */
-SQLRETURN SQL_API SQLExecDirect(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLExecDirect(SQLHSTMT StatementHandle,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength)
 {
@@ -1101,10 +1172,17 @@ SQLRETURN SQL_API SQLExecDirect(SQLHSTMT StatementHandle,
     ret= Stmt->Methods->ExecDirect(Stmt, (char *)StatementText, TextLength);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+SQLRETURN SQL_API XXSQLExecDirect(SQLHSTMT StatementHandle,
+    SQLCHAR *StatementText,
+    SQLINTEGER TextLength)
+{
+  return MA_SQLExecDirect(StatementHandle, StatementText, TextLength);
+}
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLExecDirectW */
-SQLRETURN SQL_API SQLExecDirectW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLExecDirectW(SQLHSTMT StatementHandle,
     SQLWCHAR *StatementText,
     SQLINTEGER TextLength)
 {
@@ -1134,9 +1212,9 @@ SQLRETURN SQL_API SQLExecDirectW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 /* {{{ SQLExecute */
-SQLRETURN SQL_API SQLExecute(SQLHSTMT StatementHandle)
+SQLRETURN MA_SQLExecute(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt = (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
@@ -1150,10 +1228,15 @@ SQLRETURN SQL_API SQLExecute(SQLHSTMT StatementHandle)
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN SQL_API XXSQLExecute(SQLHSTMT StatementHandle)
+{
+  return MA_SQLExecute(StatementHandle);
+}
 /* }}} */
 
 /* {{{ SQLExtendedFetch */
-SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLExtendedFetch(SQLHSTMT StatementHandle,
     SQLUSMALLINT FetchOrientation,
     SQLLEN FetchOffset,
     SQLULEN *RowCountPtr,
@@ -1176,7 +1259,7 @@ SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
    
   Stmt->Ird->Header.RowsProcessedPtr= RowCountPtr;
   Stmt->Ird->Header.ArrayStatusPtr= RowStatusArray;
-  ret= SQLFetchScroll((SQLHSTMT)Stmt, FetchOrientation, FetchOffset);
+  ret= MA_SQLFetchScroll((SQLHSTMT)Stmt, FetchOrientation, FetchOffset);
 
   if (RowStatusArray && SaveArrayStatusPtr)
   {
@@ -1202,7 +1285,7 @@ SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLFetch */
-SQLRETURN SQL_API SQLFetch(SQLHSTMT StatementHandle)
+SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
@@ -1214,10 +1297,15 @@ SQLRETURN SQL_API SQLFetch(SQLHSTMT StatementHandle)
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN SQL_API XXSQLFetch(SQLHSTMT StatementHandle)
+{
+  return MA_SQLFetch(StatementHandle);
+}
 /* }}} */
 
 /* {{{ SQLFetchScroll */
-SQLRETURN SQL_API SQLFetchScroll(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
     SQLSMALLINT FetchOrientation,
     SQLLEN FetchOffset)
 {
@@ -1234,10 +1322,17 @@ SQLRETURN SQL_API SQLFetchScroll(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN SQL_API XXSQLFetchScroll(SQLHSTMT StatementHandle,
+    SQLSMALLINT FetchOrientation,
+    SQLLEN FetchOffset)
+{
+  return MA_SQLFetchScroll(StatementHandle, FetchOrientation, FetchOffset);
+}
 /* }}} */
 
 /* {{{ SQLFreeHandle */
-SQLRETURN SQL_API SQLFreeHandle(SQLSMALLINT HandleType,
+SQLRETURN MA_SQLFreeHandle(SQLSMALLINT HandleType,
     SQLHANDLE Handle)
 {
   SQLRETURN ret= SQL_ERROR;
@@ -1287,33 +1382,45 @@ SQLRETURN SQL_API SQLFreeHandle(SQLSMALLINT HandleType,
   MDBUG_DUMP(ret, d);
   MDBUG_RETURN(ret);
 }
+
+SQLRETURN SQL_API XXSQLFreeHandle(SQLSMALLINT HandleType,
+                                SQLHANDLE Handle)
+{
+  return MA_SQLFreeHandle(HandleType, Handle);
+}
 /* }}} */
 
 /* {{{ SQLFreeEnv */
-SQLRETURN SQL_API SQLFreeEnv(SQLHANDLE henv)
+SQLRETURN SQL_API XXSQLFreeEnv(SQLHANDLE henv)
 {
-  return SQLFreeHandle(SQL_HANDLE_ENV, henv);
+  return MA_SQLFreeHandle(SQL_HANDLE_ENV, henv);
 }
 /* }}} */
 
 /* {{{ SQLFreeConnect */
-SQLRETURN SQL_API SQLFreeConnect(SQLHANDLE hdbc)
+SQLRETURN SQL_API XXSQLFreeConnect(SQLHANDLE hdbc)
 {
-  return SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+  return MA_SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
 }
 /* }}} */
 
 /* {{{ SQLFreeStmt */
-SQLRETURN SQL_API SQLFreeStmt(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
            SQLUSMALLINT Option)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   return Stmt->Methods->StmtFree(Stmt, Option);
 }
+
+SQLRETURN SQL_API XXSQLFreeStmt(SQLHSTMT StatementHandle,
+           SQLUSMALLINT Option)
+{
+  return MA_SQLFreeStmt(StatementHandle, Option);
+}
 /* }}} */
 
 /* {{{ SQLForeignKeys */
-SQLRETURN SQL_API SQLForeignKeys(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLForeignKeys(SQLHSTMT StatementHandle,
     SQLCHAR *PKCatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *PKSchemaName,
@@ -1343,8 +1450,9 @@ SQLRETURN SQL_API SQLForeignKeys(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLForeignKeysW */
-SQLRETURN SQL_API SQLForeignKeysW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLForeignKeysW(SQLHSTMT StatementHandle,
     SQLWCHAR *PKCatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *PKSchemaName,
@@ -1392,10 +1500,10 @@ SQLRETURN SQL_API SQLForeignKeysW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetConnectAttr */
-SQLRETURN SQL_API SQLGetConnectAttr(SQLHDBC ConnectionHandle,
+SQLRETURN MA_SQLGetConnectAttr(SQLHDBC ConnectionHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER BufferLength,
@@ -1417,10 +1525,19 @@ SQLRETURN SQL_API SQLGetConnectAttr(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Dbc, ret, d);
   MDBUG_C_RETURN(Dbc, ret);
 }
+SQLRETURN SQL_API XXSQLGetConnectAttr(SQLHDBC ConnectionHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER BufferLength,
+    SQLINTEGER *StringLengthPtr)
+{
+  return MA_SQLGetConnectAttr(ConnectionHandle, Attribute, ValuePtr, BufferLength, StringLengthPtr);
+}
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetConnectAttrW */
-SQLRETURN SQL_API SQLGetConnectAttrW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLGetConnectAttrW(SQLHDBC ConnectionHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER BufferLength,
@@ -1443,22 +1560,23 @@ SQLRETURN SQL_API SQLGetConnectAttrW(SQLHDBC ConnectionHandle,
   MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetConnectOption */
-SQLRETURN SQL_API SQLGetConnectOption(SQLHDBC ConnectionHandle, SQLUSMALLINT Option, SQLPOINTER ValuePtr)
+SQLRETURN SQL_API XXSQLGetConnectOption(SQLHDBC ConnectionHandle, SQLUSMALLINT Option, SQLPOINTER ValuePtr)
 {
   MADB_Dbc *Dbc= (MADB_Dbc *)ConnectionHandle;
   
   if (!Dbc)
     return SQL_INVALID_HANDLE;
-  return SQLGetConnectAttr(ConnectionHandle, Option, ValuePtr,
+  return MA_SQLGetConnectAttr(ConnectionHandle, Option, ValuePtr,
                            Option == SQL_ATTR_CURRENT_CATALOG ? SQL_MAX_OPTION_STRING_LENGTH : 0, NULL);
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetConnectOptionW */
-SQLRETURN SQL_API SQLGetConnectOptionW(SQLHDBC ConnectionHandle, SQLUSMALLINT Option, SQLPOINTER ValuePtr)
+SQLRETURN SQL_API XXSQLGetConnectOptionW(SQLHDBC ConnectionHandle, SQLUSMALLINT Option, SQLPOINTER ValuePtr)
 {
   MADB_Dbc *Dbc= (MADB_Dbc *)ConnectionHandle;
   if (!Dbc)
@@ -1467,10 +1585,10 @@ SQLRETURN SQL_API SQLGetConnectOptionW(SQLHDBC ConnectionHandle, SQLUSMALLINT Op
                            Option == SQL_ATTR_CURRENT_CATALOG ? SQL_MAX_OPTION_STRING_LENGTH : 0, NULL);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetCursorName */
-SQLRETURN SQL_API SQLGetCursorName(
+SQLRETURN SQL_API XXSQLGetCursorName(
      SQLHSTMT        StatementHandle,
      SQLCHAR *       CursorName,
      SQLSMALLINT     BufferLength,
@@ -1483,8 +1601,9 @@ SQLRETURN SQL_API SQLGetCursorName(
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetCursorNameW */
-SQLRETURN SQL_API SQLGetCursorNameW(
+SQLRETURN SQL_API XXSQLGetCursorNameW(
      SQLHSTMT        StatementHandle,
      SQLWCHAR *      CursorName,
      SQLSMALLINT     BufferLength,
@@ -1496,10 +1615,10 @@ SQLRETURN SQL_API SQLGetCursorNameW(
   return Stmt->Methods->GetCursorName(Stmt, CursorName, BufferLength, NameLengthPtr, TRUE);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetData */
-SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
     SQLUSMALLINT Col_or_Param_Num,
     SQLSMALLINT TargetType,
     SQLPOINTER TargetValuePtr,
@@ -1511,10 +1630,20 @@ SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
   return Stmt->Methods->GetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
 }
+
+SQLRETURN SQL_API XXSQLGetData(SQLHSTMT StatementHandle,
+    SQLUSMALLINT Col_or_Param_Num,
+    SQLSMALLINT TargetType,
+    SQLPOINTER TargetValuePtr,
+    SQLLEN BufferLength,
+    SQLLEN *StrLen_or_IndPtr)
+{
+  return MA_SQLGetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
+}
 /* }}} */
 
 /* {{{ SQLGetDescField */
-SQLRETURN SQL_API SQLGetDescField(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLGetDescField(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT FieldIdentifier,
     SQLPOINTER ValuePtr,
@@ -1527,8 +1656,9 @@ SQLRETURN SQL_API SQLGetDescField(SQLHDESC DescriptorHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetDescFieldW */
-SQLRETURN SQL_API SQLGetDescFieldW(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLGetDescFieldW(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT FieldIdentifier,
     SQLPOINTER ValuePtr,
@@ -1538,10 +1668,10 @@ SQLRETURN SQL_API SQLGetDescFieldW(SQLHDESC DescriptorHandle,
   return MADB_DescGetField(DescriptorHandle, RecNumber, FieldIdentifier, ValuePtr, BufferLength, StringLengthPtr, TRUE); 
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetDescRec */
-SQLRETURN SQL_API SQLGetDescRec(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLGetDescRec(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLCHAR *Name,
     SQLSMALLINT BufferLength,
@@ -1561,8 +1691,9 @@ SQLRETURN SQL_API SQLGetDescRec(SQLHDESC DescriptorHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetDescRecW */
-SQLRETURN SQL_API SQLGetDescRecW(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLGetDescRecW(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLWCHAR *Name,
     SQLSMALLINT BufferLength,
@@ -1581,10 +1712,10 @@ SQLRETURN SQL_API SQLGetDescRecW(SQLHDESC DescriptorHandle,
                          LengthPtr, PrecisionPtr, ScalePtr, NullablePtr, TRUE);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetDiagField */
-SQLRETURN SQL_API SQLGetDiagField(SQLSMALLINT HandleType,
+SQLRETURN SQL_API XXSQLGetDiagField(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT DiagIdentifier,
@@ -1598,8 +1729,9 @@ SQLRETURN SQL_API SQLGetDiagField(SQLSMALLINT HandleType,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetDiagFieldW */
-SQLRETURN SQL_API SQLGetDiagFieldW(SQLSMALLINT HandleType,
+SQLRETURN SQL_API XXSQLGetDiagFieldW(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT DiagIdentifier,
@@ -1612,10 +1744,10 @@ SQLRETURN SQL_API SQLGetDiagFieldW(SQLSMALLINT HandleType,
   return MADB_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr, TRUE);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetDiagRec */
-SQLRETURN SQL_API SQLGetDiagRec(SQLSMALLINT HandleType,
+SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT RecNumber,
     SQLCHAR *SQLState,
@@ -1671,10 +1803,23 @@ SQLRETURN SQL_API SQLGetDiagRec(SQLSMALLINT HandleType,
       break;
   }  
 }
+SQLRETURN SQL_API XXSQLGetDiagRec(SQLSMALLINT HandleType,
+    SQLHANDLE Handle,
+    SQLSMALLINT RecNumber,
+    SQLCHAR *SQLState,
+    SQLINTEGER *NativeErrorPtr,
+    SQLCHAR *MessageText,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT *TextLengthPtr)
+{
+  return MA_SQLGetDiagRec(HandleType, Handle, RecNumber, SQLState, NativeErrorPtr,
+                          MessageText, BufferLength, TextLengthPtr);
+}
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetDiagRecW */
-SQLRETURN SQL_API SQLGetDiagRecW(SQLSMALLINT HandleType,
+SQLRETURN SQL_API XXSQLGetDiagRecW(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT RecNumber,
     SQLWCHAR *SQLState,
@@ -1728,10 +1873,10 @@ SQLRETURN SQL_API SQLGetDiagRecW(SQLSMALLINT HandleType,
   }
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetEnvAttr */
-SQLRETURN SQL_API SQLGetEnvAttr(SQLHENV EnvironmentHandle,
+SQLRETURN SQL_API XXSQLGetEnvAttr(SQLHENV EnvironmentHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER BufferLength,
@@ -1757,7 +1902,7 @@ SQLRETURN SQL_API SQLGetEnvAttr(SQLHENV EnvironmentHandle,
 /* }}} */
 
 /* {{{ SQLGetFunctions */
-SQLRETURN SQL_API SQLGetFunctions(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLGetFunctions(SQLHDBC ConnectionHandle,
     SQLUSMALLINT FunctionId,
     SQLUSMALLINT *SupportedPtr)
 {
@@ -1776,7 +1921,7 @@ SQLRETURN SQL_API SQLGetFunctions(SQLHDBC ConnectionHandle,
 /* }}} */
 
 /* {{{ SQLGetInfo */
-SQLRETURN SQL_API SQLGetInfo(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLGetInfo(SQLHDBC ConnectionHandle,
     SQLUSMALLINT InfoType,
     SQLPOINTER InfoValuePtr,
     SQLSMALLINT BufferLength,
@@ -1794,8 +1939,9 @@ SQLRETURN SQL_API SQLGetInfo(SQLHDBC ConnectionHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetInfoW */
-SQLRETURN SQL_API SQLGetInfoW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLGetInfoW(SQLHDBC ConnectionHandle,
     SQLUSMALLINT InfoType,
     SQLPOINTER InfoValuePtr,
     SQLSMALLINT BufferLength,
@@ -1814,9 +1960,10 @@ SQLRETURN SQL_API SQLGetInfoW(SQLHDBC ConnectionHandle,
   MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
+#endif
 
 /* {{{ SQLGetStmtAttr */
-SQLRETURN SQL_API SQLGetStmtAttr(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLGetStmtAttr(SQLHSTMT StatementHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER BufferLength,
@@ -1827,10 +1974,19 @@ SQLRETURN SQL_API SQLGetStmtAttr(SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
   return Stmt->Methods->GetAttr(Stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr);
 }
+SQLRETURN SQL_API XXSQLGetStmtAttr(SQLHSTMT StatementHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER BufferLength,
+    SQLINTEGER *StringLengthPtr)
+{
+  return MA_SQLGetStmtAttr(StatementHandle, Attribute, ValuePtr, BufferLength, StringLengthPtr);
+}
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetStmtAttrW */
-SQLRETURN SQL_API SQLGetStmtAttrW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLGetStmtAttrW(SQLHSTMT StatementHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER BufferLength,
@@ -1842,19 +1998,19 @@ SQLRETURN SQL_API SQLGetStmtAttrW(SQLHSTMT StatementHandle,
   return Stmt->Methods->GetAttr(Stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLGetStmtOption */
-SQLRETURN  SQL_API SQLGetStmtOption(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLGetStmtOption(SQLHSTMT StatementHandle,
                                     SQLUSMALLINT Option, SQLPOINTER Value)
 {
-  return SQLGetStmtAttr(StatementHandle, Option, Value, SQL_NTS, (SQLINTEGER *)NULL);
+  return MA_SQLGetStmtAttr(StatementHandle, Option, Value, SQL_NTS, (SQLINTEGER *)NULL);
 }
 
 /* }}} */
 
 /* {{{ SQLGetTypeInfo */
-SQLRETURN SQL_API SQLGetTypeInfo(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLGetTypeInfo(SQLHSTMT StatementHandle,
     SQLSMALLINT DataType)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -1865,8 +2021,9 @@ SQLRETURN SQL_API SQLGetTypeInfo(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLGetTypeInfoW */
-SQLRETURN SQL_API SQLGetTypeInfoW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLGetTypeInfoW(SQLHSTMT StatementHandle,
     SQLSMALLINT DataType)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -1876,10 +2033,10 @@ SQLRETURN SQL_API SQLGetTypeInfoW(SQLHSTMT StatementHandle,
 
   return MADB_GetTypeInfo(Stmt, DataType);}
 /* }}} */
-
+#endif
 
 /* {{{ SQLMoreResults */
-SQLRETURN SQL_API SQLMoreResults(SQLHSTMT StatementHandle)
+SQLRETURN SQL_API XXSQLMoreResults(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   if (!Stmt)
@@ -1890,7 +2047,7 @@ SQLRETURN SQL_API SQLMoreResults(SQLHSTMT StatementHandle)
 /* }}} */
 
 /* {{{ SQLNativeSql */
-SQLRETURN SQL_API SQLNativeSql(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLNativeSql(SQLHDBC ConnectionHandle,
     SQLCHAR *InStatementText,
     SQLINTEGER TextLength1,
     SQLCHAR *OutStatementText,
@@ -1914,8 +2071,9 @@ SQLRETURN SQL_API SQLNativeSql(SQLHDBC ConnectionHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLNativeSqlW */
-SQLRETURN SQL_API SQLNativeSqlW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLNativeSqlW(SQLHDBC ConnectionHandle,
     SQLWCHAR *InStatementText,
     SQLINTEGER TextLength1,
     SQLWCHAR *OutStatementText,
@@ -1942,10 +2100,10 @@ SQLRETURN SQL_API SQLNativeSqlW(SQLHDBC ConnectionHandle,
   return Conn->Error.ReturnValue;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLNumParams */
-SQLRETURN SQL_API SQLNumParams(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLNumParams(SQLHSTMT StatementHandle,
     SQLSMALLINT *ParameterCountPtr)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -1956,7 +2114,7 @@ SQLRETURN SQL_API SQLNumParams(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLNumResultCols */
-SQLRETURN SQL_API SQLNumResultCols(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLNumResultCols(SQLHSTMT StatementHandle,
     SQLSMALLINT *ColumnCountPtr)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -1965,7 +2123,7 @@ SQLRETURN SQL_API SQLNumResultCols(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLParamData */
-SQLRETURN SQL_API SQLParamData(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLParamData(SQLHSTMT StatementHandle,
     SQLPOINTER *ValuePtrPtr)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -1976,7 +2134,7 @@ SQLRETURN SQL_API SQLParamData(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLPrepare */
-SQLRETURN SQL_API SQLPrepare(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength)
 {
@@ -1992,10 +2150,18 @@ SQLRETURN SQL_API SQLPrepare(SQLHSTMT StatementHandle,
   ret= Stmt->Methods->Prepare(Stmt, (char *)StatementText, TextLength);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
+
+SQLRETURN SQL_API XXSQLPrepare(SQLHSTMT StatementHandle,
+    SQLCHAR *StatementText,
+    SQLINTEGER TextLength)
+{
+  return MA_SQLPrepare(StatementHandle, StatementText, TextLength);
+}
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLPrepareW */
-SQLRETURN SQL_API SQLPrepareW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLPrepareW(SQLHSTMT StatementHandle,
     SQLWCHAR *StatementText,
     SQLINTEGER TextLength)
 {
@@ -2028,10 +2194,10 @@ SQLRETURN SQL_API SQLPrepareW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLPrimaryKeys */
-SQLRETURN SQL_API SQLPrimaryKeys(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLPrimaryKeys(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -2061,8 +2227,9 @@ SQLRETURN SQL_API SQLPrimaryKeys(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLPrimaryKeysW */
-SQLRETURN SQL_API SQLPrimaryKeysW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLPrimaryKeysW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -2103,10 +2270,10 @@ SQLRETURN SQL_API SQLPrimaryKeysW(SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLProcedureColumns */
-SQLRETURN SQL_API SQLProcedureColumns(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLProcedureColumns(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -2126,8 +2293,9 @@ SQLRETURN SQL_API SQLProcedureColumns(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLProcedureColumnsW */
-SQLRETURN SQL_API SQLProcedureColumnsW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLProcedureColumnsW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -2163,10 +2331,10 @@ SQLRETURN SQL_API SQLProcedureColumnsW(SQLHSTMT StatementHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLProcedures */
-SQLRETURN SQL_API SQLProcedures(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLProcedures(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -2184,8 +2352,9 @@ SQLRETURN SQL_API SQLProcedures(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLProceduresW */
-SQLRETURN SQL_API SQLProceduresW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLProceduresW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -2215,10 +2384,10 @@ SQLRETURN SQL_API SQLProceduresW(SQLHSTMT StatementHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLPutData */
-SQLRETURN SQL_API SQLPutData(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLPutData(SQLHSTMT StatementHandle,
     SQLPOINTER DataPtr,
     SQLLEN StrLen_or_Ind)
 {
@@ -2240,7 +2409,7 @@ SQLRETURN SQL_API SQLPutData(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLRowCount */
-SQLRETURN SQL_API SQLRowCount(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLRowCount(SQLHSTMT StatementHandle,
     SQLLEN *RowCountPtr)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -2251,7 +2420,7 @@ SQLRETURN SQL_API SQLRowCount(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLSetConnectAttr */
-SQLRETURN SQL_API SQLSetConnectAttr(SQLHDBC ConnectionHandle,
+SQLRETURN MA_SQLSetConnectAttr(SQLHDBC ConnectionHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength)
@@ -2273,9 +2442,17 @@ SQLRETURN SQL_API SQLSetConnectAttr(SQLHDBC ConnectionHandle,
   MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
+SQLRETURN SQL_API XXSQLSetConnectAttr(SQLHDBC ConnectionHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER StringLength)
+{
+  return MA_SQLSetConnectAttr(ConnectionHandle, Attribute, ValuePtr, StringLength);
+}
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLSetConnectAttrW */
-SQLRETURN SQL_API SQLSetConnectAttrW(SQLHDBC ConnectionHandle,
+SQLRETURN SQL_API XXSQLSetConnectAttrW(SQLHDBC ConnectionHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength)
@@ -2294,12 +2471,10 @@ SQLRETURN SQL_API SQLSetConnectAttrW(SQLHDBC ConnectionHandle,
   MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
-
-
+#endif
 
 /* {{{ SQLSetConnectOption */
-SQLRETURN SQL_API
-SQLSetConnectOption(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULEN Param)
+SQLRETURN SQL_API XXSQLSetConnectOption(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULEN Param)
 {
   SQLINTEGER StringLength= 0;
   SQLRETURN ret;
@@ -2310,14 +2485,14 @@ SQLSetConnectOption(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULEN Param)
   /* todo: do we have more string options ? */
   if (Option == SQL_ATTR_CURRENT_CATALOG)
     StringLength= SQL_NTS;
-  ret= SQLSetConnectAttr(Hdbc, Option, (SQLPOINTER)Param, StringLength);
+  ret= MA_SQLSetConnectAttr(Hdbc, Option, (SQLPOINTER)Param, StringLength);
   return ret;
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLSetConnectOptionW */
-SQLRETURN SQL_API
-SQLSetConnectOptionW(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULEN Param)
+SQLRETURN SQL_API XXSQLSetConnectOptionW(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULEN Param)
 {
   SQLINTEGER StringLength= 0;
   SQLRETURN ret;
@@ -2331,15 +2506,15 @@ SQLSetConnectOptionW(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULEN Param)
   /* todo: do we have more string options ? */
   if (Option == SQL_ATTR_CURRENT_CATALOG)
     StringLength= SQL_NTS;
-  ret= SQLSetConnectAttrW(Hdbc, Option, (SQLPOINTER)Param, StringLength);
+  ret= MA_SQLSetConnectAttrW(Hdbc, Option, (SQLPOINTER)Param, StringLength);
   MDBUG_C_DUMP((MADB_Dbc *)Hdbc, ret, d);
   MDBUG_C_RETURN((MADB_Dbc *)Hdbc, ret);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLSetCursorName */
-SQLRETURN SQL_API SQLSetCursorName(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSetCursorName(SQLHSTMT StatementHandle,
     SQLCHAR *CursorName,
     SQLSMALLINT NameLength)
 {
@@ -2350,8 +2525,9 @@ SQLRETURN SQL_API SQLSetCursorName(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLSetCursorNameW */
-SQLRETURN SQL_API SQLSetCursorNameW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSetCursorNameW(SQLHSTMT StatementHandle,
     SQLWCHAR *CursorName,
     SQLSMALLINT NameLength)
 {
@@ -2364,10 +2540,10 @@ SQLRETURN SQL_API SQLSetCursorNameW(SQLHSTMT StatementHandle,
   return Stmt->Methods->SetCursorName(Stmt, (char *)CpName, Length);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLSetDescField */
-SQLRETURN SQL_API SQLSetDescField(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLSetDescField(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT FieldIdentifier,
     SQLPOINTER ValuePtr,
@@ -2380,8 +2556,9 @@ SQLRETURN SQL_API SQLSetDescField(SQLHDESC DescriptorHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLSetDescFieldW */
-SQLRETURN SQL_API SQLSetDescFieldW(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLSetDescFieldW(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT FieldIdentifier,
     SQLPOINTER ValuePtr,
@@ -2393,10 +2570,10 @@ SQLRETURN SQL_API SQLSetDescFieldW(SQLHDESC DescriptorHandle,
   return MADB_DescSetField(DescriptorHandle, RecNumber, FieldIdentifier, ValuePtr, BufferLength, TRUE); 
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLSetDescRec */
-SQLRETURN SQL_API SQLSetDescRec(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLSetDescRec(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT Type,
     SQLSMALLINT SubType,
@@ -2412,9 +2589,9 @@ SQLRETURN SQL_API SQLSetDescRec(SQLHDESC DescriptorHandle,
 }
 /* }}} */
 
-
+#ifdef HAVE_UNICODE
 /* {{{ SQLSetDescRecW */
-SQLRETURN SQL_API SQLSetDescRecW(SQLHDESC DescriptorHandle,
+SQLRETURN SQL_API XXSQLSetDescRecW(SQLHDESC DescriptorHandle,
     SQLSMALLINT RecNumber,
     SQLSMALLINT Type,
     SQLSMALLINT SubType,
@@ -2429,10 +2606,10 @@ SQLRETURN SQL_API SQLSetDescRecW(SQLHDESC DescriptorHandle,
   MADB_NOT_IMPLEMENTED(Desc);
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLSetEnvAttr */
-SQLRETURN SQL_API SQLSetEnvAttr(SQLHENV EnvironmentHandle,
+SQLRETURN SQL_API XXSQLSetEnvAttr(SQLHENV EnvironmentHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength)
@@ -2453,7 +2630,7 @@ SQLRETURN SQL_API SQLSetEnvAttr(SQLHENV EnvironmentHandle,
 
 
 /* {{{ SQLSetPos */
-SQLRETURN SQL_API SQLSetPos(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSetPos(SQLHSTMT StatementHandle,
     SQLSETPOSIROW RowNumber,
     SQLUSMALLINT Operation,
     SQLUSMALLINT LockType)
@@ -2476,7 +2653,7 @@ SQLRETURN SQL_API SQLSetPos(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLSetParam */
-SQLRETURN SQL_API SQLSetParam(SQLHSTMT stmt,
+SQLRETURN SQL_API XXSQLSetParam(SQLHSTMT stmt,
 	                            SQLUSMALLINT par,
 	                            SQLSMALLINT type,
 	                            SQLSMALLINT sqltype,
@@ -2487,14 +2664,14 @@ SQLRETURN SQL_API SQLSetParam(SQLHSTMT stmt,
 {
   if (!stmt)
     return SQL_INVALID_HANDLE;
-  return SQLBindParameter(stmt, par, SQL_PARAM_INPUT_OUTPUT, type, sqltype, coldef,
-                       scale, val, SQL_SETPARAM_VALUE_MAX, nval);
+  return MA_SQLBindParameter(stmt, par, SQL_PARAM_INPUT_OUTPUT, type, sqltype, coldef,
+                             scale, val, SQL_SETPARAM_VALUE_MAX, nval);
 }
 
 /* }}} */
 
 /* {{{ SQLSetStmtAttr */
-SQLRETURN SQL_API SQLSetStmtAttr(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength)
@@ -2515,29 +2692,38 @@ SQLRETURN SQL_API SQLSetStmtAttr(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
-/* }}} */
 
-/* {{{ SQLSetStmtAttrW */
-SQLRETURN SQL_API SQLSetStmtAttrW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSetStmtAttr(SQLHSTMT StatementHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength)
 {
-  return SQLSetStmtAttr(StatementHandle, Attribute, ValuePtr, StringLength); 
+  return MA_SQLSetStmtAttr(StatementHandle, Attribute, ValuePtr, StringLength);
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
+/* {{{ SQLSetStmtAttrW */
+SQLRETURN SQL_API XXSQLSetStmtAttrW(SQLHSTMT StatementHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER StringLength)
+{
+  return MA_SQLSetStmtAttr(StatementHandle, Attribute, ValuePtr, StringLength); 
+}
+/* }}} */
+#endif
 
 /* {{{ SQLSetStmtOption */
-SQLRETURN  SQL_API SQLSetStmtOption(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSetStmtOption(SQLHSTMT StatementHandle,
                                     SQLUSMALLINT Option, SQLULEN Value)
 {
-  return SQLSetStmtAttr(StatementHandle, Option, (SQLPOINTER)Value, SQL_NTS);
+  return MA_SQLSetStmtAttr(StatementHandle, Option, (SQLPOINTER)Value, SQL_NTS);
 }
 /* }}} */
 
 /* {{{ SQLSpecialColumns */
-SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSpecialColumns(SQLHSTMT StatementHandle,
     SQLUSMALLINT IdentifierType,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
@@ -2558,8 +2744,9 @@ SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLSpecialColumnsW */
-SQLRETURN SQL_API SQLSpecialColumnsW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLSpecialColumnsW(SQLHSTMT StatementHandle,
     SQLUSMALLINT IdentifierType,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
@@ -2592,10 +2779,10 @@ SQLRETURN SQL_API SQLSpecialColumnsW(SQLHSTMT StatementHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLStatistics */
-SQLRETURN SQL_API SQLStatistics(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLStatistics(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -2615,8 +2802,9 @@ SQLRETURN SQL_API SQLStatistics(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-/* {{{ SQLStatistics */
-SQLRETURN SQL_API SQLStatisticsW(SQLHSTMT StatementHandle,
+#ifdef HAVE_UNICODE
+/* {{{ SQLStatisticsW */
+SQLRETURN SQL_API XXSQLStatisticsW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -2650,10 +2838,10 @@ SQLRETURN SQL_API SQLStatisticsW(SQLHSTMT StatementHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLTablePrivileges */
-SQLRETURN SQL_API SQLTablePrivileges(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLTablePrivileges(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -2671,8 +2859,9 @@ SQLRETURN SQL_API SQLTablePrivileges(SQLHSTMT StatementHandle,
   }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLTablePrivilegesW */
-SQLRETURN SQL_API SQLTablePrivilegesW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLTablePrivilegesW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -2703,10 +2892,10 @@ SQLRETURN SQL_API SQLTablePrivilegesW(SQLHSTMT StatementHandle,
   return ret;
 }
 /* }}} */
-
+#endif
 
 /* {{{ SQLTables */
-SQLRETURN SQL_API SQLTables(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLTables(SQLHSTMT StatementHandle,
     SQLCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLCHAR *SchemaName,
@@ -2724,8 +2913,9 @@ SQLRETURN SQL_API SQLTables(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+#ifdef HAVE_UNICODE
 /* {{{ SQLTablesW */
-SQLRETURN SQL_API SQLTablesW(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API XXSQLTablesW(SQLHSTMT StatementHandle,
     SQLWCHAR *CatalogName,
     SQLSMALLINT NameLength1,
     SQLWCHAR *SchemaName,
@@ -2760,9 +2950,10 @@ SQLRETURN SQL_API SQLTablesW(SQLHSTMT StatementHandle,
   return ret;
 }
 /* }}} */
+#endif
 
-
-SQLRETURN SQL_API SQLSetScrollOptions(SQLHSTMT     hstmt,
+/* {{{ SQLSetScrollOptions */
+SQLRETURN SQL_API XXSQLSetScrollOptions(SQLHSTMT     hstmt,
                                       SQLUSMALLINT Concurrency,
                                       SQLLEN       crowKeySet,
                                       SQLUSMALLINT crowRowSet)
@@ -2772,8 +2963,10 @@ SQLRETURN SQL_API SQLSetScrollOptions(SQLHSTMT     hstmt,
     return SQL_INVALID_HANDLE;
   return MADB_DescSetField(Stmt->Ard, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)(SQLULEN)crowKeySet, SQL_IS_USMALLINT, 0);
 }
+/* }}} */
 
-SQLRETURN SQL_API SQLParamOptions(
+/* {{{ SQLParamOptions */
+SQLRETURN SQL_API XXSQLParamOptions(
     SQLHSTMT hstmt,
     SQLULEN  crow,
     SQLULEN  *pirow)
@@ -2783,3 +2976,4 @@ SQLRETURN SQL_API SQLParamOptions(
     return SQL_INVALID_HANDLE;
   return MADB_DescSetField(Stmt->Apd, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)crow, SQL_IS_USMALLINT, 0);
 }
+/* }}} */

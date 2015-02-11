@@ -469,4 +469,96 @@ void CloseClientCharset(Client_Charset *cc);
 #include <ma_driver.h>
 #include <ma_helper.h>
 
+/* SQLFunction calls inside MariaDB Connector/ODBC needs to be mapped,
+ * on non Windows platforms these function calls will call the driver
+ * manager function instead of our own function */
+SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
+    SQLHANDLE InputHandle,
+    SQLHANDLE *OutputHandlePtr);
+
+SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
+    SQLUSMALLINT ParameterNumber,
+    SQLSMALLINT InputOutputType,
+    SQLSMALLINT ValueType,
+    SQLSMALLINT ParameterType,
+    SQLULEN ColumnSize,
+    SQLSMALLINT DecimalDigits,
+    SQLPOINTER ParameterValuePtr,
+    SQLLEN BufferLength,
+    SQLLEN *StrLen_or_IndPtr);
+
+SQLRETURN MA_SQLExecDirect(SQLHSTMT StatementHandle,
+    SQLCHAR *StatementText,
+    SQLINTEGER TextLength);
+
+SQLRETURN MA_SQLExecute(SQLHSTMT StatementHandle);
+
+SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
+
+SQLRETURN MA_SQLFreeHandle(SQLSMALLINT HandleType,
+    SQLHANDLE Handle);
+
+SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
+    SQLUSMALLINT Option);
+
+SQLRETURN MA_SQLGetConnectAttr(SQLHDBC ConnectionHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER BufferLength,
+    SQLINTEGER *StringLengthPtr);
+
+SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
+    SQLUSMALLINT Col_or_Param_Num,
+    SQLSMALLINT TargetType,
+    SQLPOINTER TargetValuePtr,
+    SQLLEN BufferLength,
+    SQLLEN *StrLen_or_IndPtr);
+
+SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
+    SQLCHAR *StatementText,
+    SQLINTEGER TextLength);
+
+SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle);
+
+SQLRETURN SQL_API MA_SQLColAttribute (SQLHSTMT StatementHandle,
+    SQLUSMALLINT ColumnNumber,
+    SQLUSMALLINT FieldIdentifier,
+    SQLPOINTER CharacterAttributePtr,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT *StringLengthPtr,
+#ifdef SQLCOLATTRIB_SQLPOINTER
+    SQLPOINTER NumericAttributePtr
+#else
+    SQLLEN *NumericAttributePtr
+#endif
+    );
+
+SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
+    SQLSMALLINT FetchOrientation,
+    SQLLEN FetchOffset);
+
+SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
+    SQLHANDLE Handle,
+    SQLSMALLINT RecNumber,
+    SQLCHAR *SQLState,
+    SQLINTEGER *NativeErrorPtr,
+    SQLCHAR *MessageText,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT *TextLengthPtr);
+
+SQLRETURN MA_SQLGetStmtAttr(SQLHSTMT StatementHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER BufferLength,
+    SQLINTEGER *StringLengthPtr);
+
+SQLRETURN MA_SQLSetConnectAttr(SQLHDBC ConnectionHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER StringLength);
+
+SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
+    SQLINTEGER Attribute,
+    SQLPOINTER ValuePtr,
+    SQLINTEGER StringLength);
 #endif /* _ma_odbc_h_ */

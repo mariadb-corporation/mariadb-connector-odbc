@@ -479,17 +479,17 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   char Buffer[65 * sizeof(WCHAR)];
 
   MADB_CLEAR_ERROR(&Connection->Error);
-  ret= SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, &Stmt);
+  ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, &Stmt);
   if (!SQL_SUCCEEDED(ret))
     return ret;
-  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-      !SQL_SUCCEEDED(SQLFetch(Stmt)))
+  if (!SQL_SUCCEEDED(MA_SQLExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
+      !SQL_SUCCEEDED(MA_SQLFetch(Stmt)))
   {
     MADB_CopyError(&Connection->Error, &((MADB_Stmt *)Stmt)->Error);
     goto end;
   }
   
-  ret= SQLGetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
+  ret= MA_SQLGetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
  /* Size= (SQLINTEGER)MADB_SetString(isWChar ? Connection->CodePage : 0, CurrentDB, 
                       (isWChar) ? (int)(MIN(Size + sizeof(SQLWCHAR), CurrentDBLength) / sizeof(SQLWCHAR)) : 
                       (int)(MIN(Size + 1, CurrentDBLength)),
@@ -501,7 +501,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
     *StringLengthPtr= isWChar ? (SQLSMALLINT)Size * sizeof(SQLWCHAR) : (SQLSMALLINT)Size;
   
 end:
-  SQLFreeStmt(Stmt, SQL_CLOSE);
+  MA_SQLFreeStmt(Stmt, SQL_CLOSE);
   return Connection->Error.ReturnValue;
 }
 /* }}} */

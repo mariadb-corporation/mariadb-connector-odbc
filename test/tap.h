@@ -107,7 +107,7 @@ SQLCHAR *my_dsn= (SQLCHAR *)"test";
 SQLCHAR *my_uid= (SQLCHAR *)"root";
 SQLCHAR *my_pwd= (SQLCHAR *)"";
 SQLCHAR *my_schema= (SQLCHAR *)"odbc_test";
-SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB ODBC 1.0 Driver";
+SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 2.0";
 SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 unsigned long my_options= 67108866;
 

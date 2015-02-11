@@ -158,15 +158,15 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   SQLHSTMT Stmt= NULL;
   MADB_Stmt *KeyStmt;
   
-  SQLGetConnectAttr((SQLHDBC)Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL);
+  MA_SQLGetConnectAttr((SQLHDBC)Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL);
   p+= my_snprintf(p, 1024, "SELECT * FROM ");
   if (Database)
     p+= my_snprintf(p, 1024 - strlen(p), "`%s`.", Database);
   p+= my_snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
-  if (SQLAllocStmt((SQLHDBC)Connection, &Stmt) == SQL_ERROR ||
-      SQLPrepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
-      SQLExecute(Stmt) == SQL_ERROR ||
-      SQLFetch(Stmt) == SQL_ERROR)
+  if (MA_SQLAllocStmt((SQLHDBC)Connection, &Stmt) == SQL_ERROR ||
+      MA_SQLPrepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
+      MA_SQLExecute(Stmt) == SQL_ERROR ||
+      MA_SQLFetch(Stmt) == SQL_ERROR)
       goto end;
   KeyStmt= (MADB_Stmt *)Stmt;
   for (i=0; i < mysql_stmt_field_count(KeyStmt->stmt); i++)
@@ -174,7 +174,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
       Count++;
 end:
   if (Stmt)
-    SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+    MA_SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
   return Count;
 }
 
@@ -1086,7 +1086,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   if (Stmt->DaeStmt)
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
   Stmt->DaeStmt= NULL;
-  if (!SQL_SUCCEEDED(SQLAllocStmt(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
+  if (!SQL_SUCCEEDED(MA_SQLAllocStmt(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
     goto end;
@@ -1134,7 +1134,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(SQLPrepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
+  if (!SQL_SUCCEEDED(MA_SQLPrepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);

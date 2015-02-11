@@ -19,7 +19,7 @@
 #ifndef _ma_debug_h_
 #define _ma_debug_h_
 
-#ifndef MAODBC_DEBUG
+#ifndef MAODBC_DEBUG1
 
 #define MDBUG_C_ENTER(C,A) {}
 #define MDBUG_C_RETURN(C,A) return (A)

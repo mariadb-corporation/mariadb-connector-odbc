@@ -230,11 +230,11 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
     char StmtStr[256];
     SQLHANDLE CountStmt;
     int FieldCount= 0;
-    SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, &CountStmt);
+    MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, &CountStmt);
     my_snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
-    SQLExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
+    MA_SQLExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
-    SQLFreeStmt(CountStmt, SQL_CLOSE);
+    MA_SQLFreeStmt(CountStmt, SQL_CLOSE);
     if (FieldCount != mysql_stmt_field_count(Stmt->stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
