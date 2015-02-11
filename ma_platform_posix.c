@@ -29,19 +29,7 @@
 extern CHARSET_INFO  *utf16;
 extern Client_Charset utf8;
 
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
-{
-  MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
-  return Dbc->Error.ReturnValue;
-}
-
-
-int DSNPrompt_Free  (MADB_Prompt *prompt)
-{
-  prompt->LibraryHandle= NULL;
-
-  return 0;
-}
+char LogFile[256];
 
 
 /* Mimicking of VS' _snprintf */
@@ -90,6 +78,36 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
   return 0;
 }
 
+const char* GetDefaultLogDir()
+{
+  const char *DefaultLogDir="/tmp";
+  char *tmp= getenv("HOME");
+
+  if (tmp)
+  {
+    DefaultLogDir= tmp;
+  }
+
+  _snprintf(LogFile, sizeof(LogFile), "%s/maodbc.log", DefaultLogDir);
+
+  return LogFile;
+}
+
+
+SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
+{
+  MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
+  return Dbc->Error.ReturnValue;
+}
+
+
+int DSNPrompt_Free  (MADB_Prompt *prompt)
+{
+  prompt->LibraryHandle= NULL;
+
+  return 0;
+}
+
 
 /* Length in SQLWCHAR units*/
 SQLINTEGER SqlwcsLen(SQLWCHAR *str)
@@ -110,7 +128,7 @@ SQLINTEGER SqlwcsLen(SQLWCHAR *str)
 
 
 /* CharLen < 0 - treat as NTS */
-SQLINTEGER SqlwcsOctetlen(SQLWCHAR *str, SQLINTEGER *CharLen)
+SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)
 {
   SQLINTEGER result= 0, inChars= *CharLen;
 

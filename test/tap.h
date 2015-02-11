@@ -133,6 +133,7 @@ void usage()
   fprintf(stdout, "-u Username\n");
   fprintf(stdout, "-p Password\n");
   fprintf(stdout, "-s default database (schema)\n");
+  fprintf(stdout, "-S Server name/address\n");
   fprintf(stdout, "-P Port number\n");
   fprintf(stdout, "?  Displays this text\n");
 }
@@ -183,7 +184,7 @@ void get_options(int argc, char **argv)
 
   get_env_defaults();
 
-  while ((c=getopt(argc,argv, "d:u:p:P:s:?")) >= 0)
+  while ((c=getopt(argc,argv, "d:u:p:P:s:S:?")) >= 0)
   {
     switch(c) {
     case 'd':
@@ -200,6 +201,9 @@ void get_options(int argc, char **argv)
       break;
     case 'P':
       my_port= atoi(optarg);
+      break;
+    case 'S':
+      my_servername= (SQLCHAR*)optarg;
       break;
     case '?':
       usage();
@@ -521,10 +525,11 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   rc= SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection);
   FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate connection handle");
 
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;", my_dsn, my_uid,
-           my_pwd, my_port, my_schema, my_options );
-  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;", my_dsn, my_uid,
-           "********", my_port, my_schema, my_options);
+  /* my_options |= 4; */
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
+           my_pwd, my_port, my_schema, my_options, my_servername);
+  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
+           "********", my_port, my_schema, my_options, my_servername);
   
   rc= SQLDriverConnect(*Connection,NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
   FAIL_IF(rc != SQL_SUCCESS, "Connection failed");

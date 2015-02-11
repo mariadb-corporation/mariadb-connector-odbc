@@ -32,7 +32,6 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
  
-
   if (!(Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb)) ||
       !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
       !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||

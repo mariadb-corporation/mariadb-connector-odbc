@@ -26,6 +26,28 @@
 #include <ma_odbc.h>
 
 extern Client_Charset utf8;
+char LogFile[256];
+
+const char* GetDefaultLogDir()
+{
+  const char *DefaultLogFile= "c:";
+  char *tmp= getenv("USERPROFILE");
+  if (tmp)
+  {
+    DefaultLogDir= tmp;
+  }
+
+  tmp= getenv("TMP");
+  if (tmp)
+  {
+    DefaultLogDir= tmp;
+  }
+
+  _snprintf(LogFile, sizeof(LogFile), "%s\\MAODBC.LOG", DefaultLogDir);
+ 
+  return LogFile;
+}
+
 
 /* Connection is needed to set custom error */
 SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)

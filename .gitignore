@@ -23,6 +23,33 @@ ipch
 
 *.so
 Makefile
+CPackConfig.cmake
+CPackSourceConfig.cmake
+test/basic
+test/blob
+test/bulk
+test/catalog
+test/curext
+test/cursor
+test/datetime
+test/desc
+test/dyn_cursor
+test/error
+test/info
+test/keys
+test/multistatement
+test/odbc.ini
+test/odbcinst.ini
+test/param
+test/prepare
+test/relative
+test/result1
+test/result2
+test/scroll
+test/tran
+test/types
+test/unicode
+test/use_result
 
 # Keep empty directories:
 # Keep empty directories: >> .gitignore/.git*

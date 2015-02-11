@@ -18,9 +18,11 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
+extern char LogFile[];
+
 void ma_debug_print(my_bool ident, char *format, ...)
 {
-  FILE *fp= fopen("C:\\MAODBC.LOG", "a");
+  FILE *fp= fopen(LogFile, "a");
   if (fp)
   {
     va_list va;
@@ -36,7 +38,7 @@ void ma_debug_print(my_bool ident, char *format, ...)
 
 void ma_debug_printw(wchar_t *format, ...)
 {
-  FILE *fp= fopen("C:\\MAODBC.LOG", "a");
+  FILE *fp= fopen(LogFile, "a");
   if (fp)
   {
     va_list va;
@@ -50,7 +52,7 @@ void ma_debug_printw(wchar_t *format, ...)
 
 void ma_debug_printv(char *format, va_list args)
 {
-  FILE *fp= fopen("C:\\MAODBC.LOG", "a");
+  FILE *fp= fopen(LogFile, "a");
   if (fp)
   {
     vfprintf(fp, format, args);

@@ -24,7 +24,7 @@ extern CHARSET_INFO*  utf16;
 CHARSET_INFO * mysql_find_charset_name(const char *name);
 
 #ifdef _WIN32
-#pragma comment(lib, "ws2_32.lib")
+# pragma comment(lib, "ws2_32.lib")
 #endif
 
 /* {{{ MADB_EnvFree */
@@ -81,11 +81,13 @@ MADB_Env *MADB_EnvInit()
   InitializeCriticalSection(&Env->cs);
   Env->OdbcVersion= SQL_OV_ODBC3;
 
+  /* This is probably is better todo with thread_once */
   if (utf16 == NULL)
   {
     utf16= mysql_find_charset_name("utf16");
   }
   utf8.cs_info= my_charset_utf8_general_ci;
+  GetDefaultLogDir();
 
 cleanup:
 #ifdef _WIN32  

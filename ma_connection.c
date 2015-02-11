@@ -609,8 +609,8 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     client_flags|= CLIENT_MULTI_STATEMENTS;
 
   /* enable truncation reporting */
-   mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
-  
+  mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
+
   if (!mysql_real_connect(Connection->mariadb,
         Dsn->ServerName, Dsn->UserName, Dsn->Password,
         Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, NULL, client_flags))
@@ -992,6 +992,8 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_DRIVER_ODBC_VER:
     {
       char *OdbcVersion = "03.51";
+      /* DM requests this info before Dbc->charset initialized. Thus checking if it is, and use utf8 by default
+         The other way would be to use utf8 when Dbc initialized */
       SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Dbc->charset.cs_info ? &Dbc->charset : &utf8 ): NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      OdbcVersion, SQL_NTS, &Dbc->Error);

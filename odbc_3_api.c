@@ -29,11 +29,6 @@ SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
 {
   SQLRETURN ret= SQL_ERROR;
 
-  MDBUG_ENTER("SQLAllocHandle");
-  MDBUG_DUMP(HandleType, d);
-  MDBUG_DUMP(InputHandle, 0x);
-  MDBUG_DUMP(OutputHandlePtr, 0x);
-  
   switch(HandleType) {
     case SQL_HANDLE_DBC:
       EnterCriticalSection(&((MADB_Env *)InputHandle)->cs);
@@ -68,15 +63,25 @@ SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
       /* todo: set error message */
       break;
   }
-  MDBUG_DUMP(ret,d);
-  MDBUG_RETURN(ret);
+  return ret;
 }
+/* }}} */
 
+/* {{{ SQLAllocHandle */
 SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
     SQLHANDLE InputHandle,
     SQLHANDLE *OutputHandlePtr)
 {
-  return MA_SQLAllocHandle(HandleType, InputHandle, OutputHandlePtr);
+  SQLRETURN ret;
+  MDBUG_ENTER("SQLAllocHandle");
+  MDBUG_DUMP(HandleType, d);
+  MDBUG_DUMP(InputHandle, 0x);
+  MDBUG_DUMP(OutputHandlePtr, 0x);
+  
+  ret= MA_AllocHandle(HandleType, InputHandle, OutputHandlePtr);
+
+  MDBUG_DUMP(ret,d);
+  MDBUG_RETURN(ret);
 }
 /* }}} */
 
@@ -88,16 +93,10 @@ SQLRETURN SQL_API SQLAllocConnect(SQLHANDLE InputHandle,
 }
 /* }}} */
 
-/* {{{ SQLAllocStmt */
-SQLRETURN MA_SQLAllocStmt(SQLHANDLE InputHandle,
-                               SQLHANDLE *OutputHandlePtr)
-{
-  return MA_SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
-}
 SQLRETURN SQL_API SQLAllocStmt(SQLHANDLE InputHandle,
                                SQLHANDLE *OutputHandlePtr)
 {
-  return MA_SQLAllocStmt(InputHandle, OutputHandlePtr);
+  return MA_AllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
 }
 /* }}} */
 

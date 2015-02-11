@@ -49,5 +49,8 @@ int _snprintf(char *buffer, size_t count, const char *format, ...);
 #endif
 int strcpy_s(char *dest, size_t buffer_size, const char *src);
 
+#ifndef TryEnterCriticalSection
+# define TryEnterCriticalSection !pthread_mutex_trylock
+#endif
 #endif /*_ma_platform_x_h_ */
 
