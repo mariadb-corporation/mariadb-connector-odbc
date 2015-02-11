@@ -35,6 +35,7 @@
 
 #define _strdup strdup
 #define _stricmp strcasecmp
+#define _strnicmp strncasecmp
 
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...);

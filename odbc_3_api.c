@@ -1777,7 +1777,7 @@ SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
         MADB_Dbc *Dbc= (MADB_Dbc *)Handle;
         return MADB_GetDiagRec(&Dbc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
                               (void *) MessageText, BufferLength, TextLengthPtr, FALSE,
-+                              Dbc->Environment->OdbcVersion);
+                              Dbc->Environment->OdbcVersion);
       }
       break;
     case SQL_HANDLE_STMT:
