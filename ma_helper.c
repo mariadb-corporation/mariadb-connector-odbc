@@ -163,7 +163,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   if (Database)
     p+= my_snprintf(p, 1024 - strlen(p), "`%s`.", Database);
   p+= my_snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
-  if (MA_SQLAllocStmt((SQLHDBC)Connection, &Stmt) == SQL_ERROR ||
+  if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
       MA_SQLPrepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
       MA_SQLExecute(Stmt) == SQL_ERROR ||
       MA_SQLFetch(Stmt) == SQL_ERROR)
@@ -1086,7 +1086,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   if (Stmt->DaeStmt)
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
   Stmt->DaeStmt= NULL;
-  if (!SQL_SUCCEEDED(MA_SQLAllocStmt(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
+  if (!SQL_SUCCEEDED(MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
     goto end;

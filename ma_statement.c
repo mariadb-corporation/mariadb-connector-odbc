@@ -2378,6 +2378,9 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->TypeName, strlen(Record->TypeName), &Stmt->Error);
     break;
+  case SQL_DESC_NULLABLE:
+    NumericAttribute= Record->Nullable;
+    break;
   case SQL_DESC_UNNAMED:
     NumericAttribute= Record->Unnamed;
     break;
