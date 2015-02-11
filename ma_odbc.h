@@ -561,4 +561,7 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength);
+
+SQLRETURN MA_SQLAllocStmt(SQLHANDLE InputHandle,
+                          SQLHANDLE *OutputHandlePtr);
 #endif /* _ma_odbc_h_ */
