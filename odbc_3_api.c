@@ -266,7 +266,10 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
     char StmtStr[30];
 
     if (!(MariaDb= mysql_init(NULL)))
-      return SQL_ERROR;
+    {
+      ret= SQL_ERROR;
+      goto end;
+    }
     if (!(mysql_real_connect(MariaDb, Kill->host, Kill->user, Kill->passwd,
                              "", Kill->port, Kill->unix_socket, 0)))
     {

@@ -95,10 +95,12 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
     else
     {
       Desc->Dbc= Dbc;
-      EnterCriticalSection(&Dbc->cs);
+      if (!isExternal)
+        EnterCriticalSection(&Dbc->cs);
       Desc->ListItem.data= (void *)Desc;
       Dbc->Descrs= list_add(Dbc->Descrs, &Desc->ListItem);
-      LeaveCriticalSection(&Dbc->cs);
+      if (!isExternal)
+        LeaveCriticalSection(&Dbc->cs);
     }
   }
   if (Desc)
