@@ -105,7 +105,7 @@ ODBC_TEST(my_transaction)
 
 ODBC_TEST(t_tran)
 {
-  int Rows= 0;
+  SQLLEN Rows= 0;
   
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_tran");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_tran (a INT, b VARCHAR(30)) ENGINE=InnoDB");
