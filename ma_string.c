@@ -442,3 +442,26 @@ void CloseClientCharset(Client_Charset *cc)
 {
 }
 
+
+SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
+{
+  SQLLEN result= 0;
+  char *ptr= str;
+
+  if (str)
+  {
+    if (cs->mb_charlen == NULL || cs->char_maxlen == 1)
+    {
+      return OctetLen;
+    }
+    while (ptr < str + OctetLen)
+    {
+      ptr+= cs->mb_charlen(*ptr);
+      ++result;
+    }
+  }
+
+  return result;
+}
+
+

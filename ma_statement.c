@@ -1521,11 +1521,12 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
           break;
           case SQL_C_WCHAR:
           {
-            int Length=
-              MultiByteToWideChar(Stmt->Connection->charset.CodePage, 0, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length + 1,
-                                (SQLWCHAR *)DataPtr, ArdRecord->OctetLength);
+            SQLLEN CharLen;
+            MADB_ConvertAnsi2Unicode(&Stmt->Connection->charset, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
+                                     (SQLWCHAR *)DataPtr, ArdRecord->OctetLength, &CharLen, 1, &Stmt->Error);
+            /* Not quite right */
             if (IndicatorPtr)
-              *IndicatorPtr= Length * sizeof(SQLWCHAR);
+              *IndicatorPtr= CharLen * sizeof(SQLWCHAR);
           }
           break;
           default:
@@ -2100,9 +2101,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
             
       /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
       if (Stmt->stmt->fields[Offset].max_length)
-        Length= MultiByteToWideChar(Stmt->Connection->charset.CodePage, 0, ClientValue, 
-                                    Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
-                                    NULL, 0);
+      {
+        Length= MbstrCharLen(ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
+                             Stmt->Connection->charset.cs_info);
+      }
 
       if (!BufferLength)
       {

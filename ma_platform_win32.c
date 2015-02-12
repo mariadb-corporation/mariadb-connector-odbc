@@ -144,11 +144,10 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
 
 int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLength, 
                              SQLWCHAR *UnicodeString, int UnicodeLength, 
-                             int *LengthIndicator, MADB_Error *Error)
+                             SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
-  SQLINTEGER RequiredLength;
+  SQLLEN RequiredLength;
   SQLWCHAR *Tmp= UnicodeString;
-  char IsNull= 0;
   int rc= 0;
 
   if (LengthIndicator)
@@ -207,7 +206,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error)
 {
   char *p= (char *)Dest;
-  int Length= 0;
+  SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)
   {
@@ -251,7 +250,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
   }
   else
   {
-    MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, Error);
+    MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, 1, Error);
     return Length;
   }
 }

@@ -184,28 +184,6 @@ SQLINTEGER MbstrOctetLen(char *str, SQLINTEGER *CharLen, CHARSET_INFO *cs)
 }
 
 
-SQLINTEGER MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
-{
-  SQLINTEGER result= 0;
-  char *ptr= str;
-
-  if (str)
-  {
-    if (cs->mb_charlen == NULL || cs->char_maxlen == 1)
-    {
-      return OctetLen;
-    }
-    while (ptr < str + OctetLen)
-    {
-      ptr+= cs->mb_charlen(*ptr);
-      ++result;
-    }
-  }
-
-  return result;
-}
-
-
 SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
@@ -291,14 +269,18 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
 }
 /* }}} */
 
-
+/* {{{ MADB_ConvertAnsi2Unicode
+       @AnsiLength[in]    - number of bytes to copy, negative if AnsiString is Null terminated and the terminating blank has to be copied
+       @UnicodeLength[in] - size of output buffer in chars, that effectively mean in SQLWCHAR units
+       @LengthIndicator[out] - number of available characters
+       @IsNull[in]        - whether to copy terminating blank. The value has to be 1 or 0(TRUE/FALSE)
+                            If AnsiString is negative, its value is neglected(null is copied) */
 int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLength, 
                              SQLWCHAR *UnicodeString, int UnicodeLength, 
-                             int *LengthIndicator, MADB_Error *Error)
+                             SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
   SQLINTEGER RequiredLength;
   SQLWCHAR *Tmp= UnicodeString;
-  char IsNull= 0;
   int rc= 0, error;
   size_t src_octet_len, dest_octet_len;
 
@@ -327,6 +309,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
   /* Set LengthIndicator */
   if (LengthIndicator)
     *LengthIndicator= RequiredLength - IsNull;
+  /* No buffer length, no need to copy - got length and run */
   if (!UnicodeLength)
     return 0;
 
@@ -359,12 +342,14 @@ end:
     free(Tmp);
   return rc;
 }
+/* }}} */
+
 
 size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error)
 {
   char *p= (char *)Dest;
-  int Length= 0;
+  SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)
   {
@@ -408,7 +393,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
   }
   else
   {
-    MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, Error);
+    MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, TRUE, Error);
     return Length;
   }
 }
