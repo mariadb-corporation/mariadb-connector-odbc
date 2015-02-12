@@ -86,17 +86,29 @@ SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
 /* }}} */
 
 /* {{{ SQLAllocConnect */
-SQLRETURN SQL_API SQLAllocConnect(SQLHANDLE InputHandle,
-                                  SQLHANDLE *OutputHandlePtr)
+SQLRETURN MA_SQLAllocConnect(SQLHANDLE InputHandle,
+                             SQLHANDLE *OutputHandlePtr)
 {
   return MA_SQLAllocHandle(SQL_HANDLE_DBC, InputHandle, OutputHandlePtr);
 }
+SQLRETURN SQL_API SQLAllocConnect(SQLHANDLE InputHandle,
+                                  SQLHANDLE *OutputHandlePtr)
+{
+  return MA_SQLAllocConnect(InputHandle, OutputHandlePtr);
+}
 /* }}} */
+
+/* {{{ SQLAllocStmt */
+SQLRETURN MA_SQLAllocStmt(SQLHANDLE InputHandle,
+                          SQLHANDLE *OutputHandlePtr)
+{
+  return MA_SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
+}
 
 SQLRETURN SQL_API SQLAllocStmt(SQLHANDLE InputHandle,
                                SQLHANDLE *OutputHandlePtr)
 {
-  return MA_SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
+  return MA_SQLAllocStmt(InputHandle, OutputHandlePtr);
 }
 /* }}} */
 
