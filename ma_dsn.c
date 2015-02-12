@@ -125,6 +125,7 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
 {
   char *Value;
   /* if no key/value pair was specified, we will try to read Dsn->DSNName */
+
   if (!KeyValue)
   {
     if (!Dsn->DSNName)
@@ -144,7 +145,7 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
     Dsn->DSNName= _strdup(Value);
     while (DsnKeys[i].DsnKey)
     {
-      if (SQLGetPrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, NULL, KeyVal, 1024, "ODBC.INI") > 0)
+      if (SQLGetPrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, "", KeyVal, 1024, "ODBC.INI") > 0)
       {
         if (!MADB_DsnStoreValue(Dsn, DsnKeys[i].DsnOffset, KeyVal, DsnKeys[i].Type, OverWrite))
           return FALSE;
