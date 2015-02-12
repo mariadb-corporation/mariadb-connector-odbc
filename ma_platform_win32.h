@@ -31,6 +31,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCKAPI_
 #define DONT_DEFINE_VOID
+#define HAVE_UNICODE
 
 #include <windows.h>
 

@@ -393,23 +393,6 @@ SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret);
 }
 
-SQLRETURN MA_SQLColAttribute (SQLHSTMT StatementHandle,
-    SQLUSMALLINT ColumnNumber,
-    SQLUSMALLINT FieldIdentifier,
-    SQLPOINTER CharacterAttributePtr,
-    SQLSMALLINT BufferLength,
-    SQLSMALLINT *StringLengthPtr,
-#ifdef SQLCOLATTRIB_SQLPOINTER
-    SQLPOINTER NumericAttributePtr
-#else
-    SQLLEN *NumericAttributePtr
-#endif
-    )
-{
-  return MA_SQLColAttribute(StatementHandle, ColumnNumber, FieldIdentifier, CharacterAttributePtr, 
-                            BufferLength, StringLengthPtr, NumericAttributePtr);
-}
-/* }}} */
 
 #ifdef HAVE_UNICODE
 /* {{{ SQLColAttributeW */
@@ -479,7 +462,12 @@ SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt,
 	SQLSMALLINT * pcbDesc,
 	SQLLEN * pfDesc)
 {
-  return MA_SQLColAttribute(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
+  MADB_Stmt *Stmt= (MADB_Stmt *)hstmt;
+  if (!Stmt)
+    return SQL_INVALID_HANDLE;
+
+  return Stmt->Methods->ColAttribute(Stmt, icol, MapColAttributeDescType(fDescType), rgbDesc,
+                                     cbDescMax, pcbDesc, pfDesc, FALSE);
 }
 /* }}} */
 
@@ -1131,6 +1119,62 @@ SQLRETURN SQL_API SQLError(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt,
 /* }}} */
 
 #ifdef HAVE_UNICODE
+/* {{{ MA_SQLGetDiagRecW */
+SQLRETURN SQL_API MA_SQLGetDiagRecW(SQLSMALLINT HandleType,
+    SQLHANDLE Handle,
+    SQLSMALLINT RecNumber,
+    SQLWCHAR *SQLState,
+    SQLINTEGER *NativeErrorPtr,
+    SQLWCHAR *MessageText,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT *TextLengthPtr)
+{
+  if (!Handle)
+    return SQL_INVALID_HANDLE;
+
+  /* Maria ODBC driver doesn't support error lists, so only the first record can be retrieved */
+  if (RecNumber != 1)
+    return SQL_NO_DATA_FOUND;
+  
+  switch (HandleType) {
+    case SQL_HANDLE_DBC:
+      {
+        MADB_Dbc *Dbc= (MADB_Dbc *)Handle;
+        return MADB_GetDiagRec(&Dbc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
+                               Dbc->Environment->OdbcVersion);
+      }
+      break;
+    case SQL_HANDLE_STMT:
+      {
+        MADB_Stmt *Stmt= (MADB_Stmt *)Handle;
+        return MADB_GetDiagRec(&Stmt->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
+                               Stmt->Connection->Environment->OdbcVersion);
+      }
+      break;
+    case SQL_HANDLE_DESC:
+      {
+        MADB_Desc *Desc= (MADB_Desc *)Handle;
+        return MADB_GetDiagRec(&Desc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
+                               SQL_OV_ODBC3);
+      }
+      break;
+    case SQL_HANDLE_ENV:
+      {
+        MADB_Env *Env= (MADB_Env *)Handle;
+        return MADB_GetDiagRec(&Env->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
+                               Env->OdbcVersion);
+      }
+    default:
+      return SQL_ERROR;  
+      break;
+  }
+}
+/* }}} */
+
 /*{{{ SQLErrorW */
 SQLRETURN SQL_API
 SQLErrorW(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, SQLWCHAR *Sqlstate,
@@ -1138,7 +1182,7 @@ SQLErrorW(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, SQLWCHAR *Sqlstate,
           SQLSMALLINT *MessageLen)
 
 {
-    SQLSMALLINT HandleType= 0;
+  SQLSMALLINT HandleType= 0;
   SQLHANDLE Handle= NULL;
 
   if (Env)
@@ -1847,49 +1891,8 @@ SQLRETURN SQL_API SQLGetDiagRecW(SQLSMALLINT HandleType,
     SQLSMALLINT BufferLength,
     SQLSMALLINT *TextLengthPtr)
 {
-  if (!Handle)
-    return SQL_INVALID_HANDLE;
-
-  /* Maria ODBC driver doesn't support error lists, so only the first record can be retrieved */
-  if (RecNumber != 1)
-    return SQL_NO_DATA_FOUND;
-  
-  switch (HandleType) {
-    case SQL_HANDLE_DBC:
-      {
-        MADB_Dbc *Dbc= (MADB_Dbc *)Handle;
-        return MADB_GetDiagRec(&Dbc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
-                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
-                               Dbc->Environment->OdbcVersion);
-      }
-      break;
-    case SQL_HANDLE_STMT:
-      {
-        MADB_Stmt *Stmt= (MADB_Stmt *)Handle;
-        return MADB_GetDiagRec(&Stmt->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
-                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
-                               Stmt->Connection->Environment->OdbcVersion);
-      }
-      break;
-    case SQL_HANDLE_DESC:
-      {
-        MADB_Desc *Desc= (MADB_Desc *)Handle;
-        return MADB_GetDiagRec(&Desc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
-                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
-                               SQL_OV_ODBC3);
-      }
-      break;
-    case SQL_HANDLE_ENV:
-      {
-        MADB_Env *Env= (MADB_Env *)Handle;
-        return MADB_GetDiagRec(&Env->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
-                               (void *)MessageText, BufferLength, TextLengthPtr, TRUE,
-                               Env->OdbcVersion);
-      }
-    default:
-      return SQL_ERROR;  
-      break;
-  }
+  return MA_SQLGetDiagRecW(HandleType, Handle, RecNumber, SQLState, NativeErrorPtr, MessageText,
+                           BufferLength, TextLengthPtr);
 }
 /* }}} */
 #endif
@@ -2152,7 +2155,7 @@ SQLRETURN SQL_API SQLParamData(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-/* {{{ SQLPrepare */
+/* {{{ MA_SQLPrepare */
 SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength)
@@ -2515,19 +2518,20 @@ SQLRETURN SQL_API SQLSetConnectOptionW(SQLHDBC Hdbc, SQLUSMALLINT Option, SQLULE
 {
   SQLINTEGER StringLength= 0;
   SQLRETURN ret;
+  MADB_Dbc *Dbc= (MADB_Dbc *)Hdbc;
 
-  if (!Hdbc)
+  if (!Dbc)
     return SQL_INVALID_HANDLE;
 
-  MDBUG_C_ENTER((MADB_Dbc *)Hdbc, "SetSetConnectOptionW");
-  MDBUG_C_DUMP((MADB_Dbc *)Hdbc, Option, d);
-  MDBUG_C_DUMP((MADB_Dbc *)Hdbc, Param, u);
+  MDBUG_C_ENTER(Dbc, "SetSetConnectOptionW");
+  MDBUG_C_DUMP(Dbc, Option, d);
+  MDBUG_C_DUMP(Ddbc, Param, u);
   /* todo: do we have more string options ? */
   if (Option == SQL_ATTR_CURRENT_CATALOG)
     StringLength= SQL_NTS;
-  ret= MA_SQLSetConnectAttrW(Hdbc, Option, (SQLPOINTER)Param, StringLength);
-  MDBUG_C_DUMP((MADB_Dbc *)Hdbc, ret, d);
-  MDBUG_C_RETURN((MADB_Dbc *)Hdbc, ret);
+  ret= Dbc->Methods->SetAttr(Dbc, Option, (SQLPOINTER)Param, StringLength, TRUE);
+  MDBUG_C_DUMP(Dbc, ret, d);
+  MDBUG_C_RETURN(Dbc, ret);
 }
 /* }}} */
 #endif

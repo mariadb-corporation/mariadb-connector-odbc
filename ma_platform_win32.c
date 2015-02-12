@@ -30,7 +30,7 @@ char LogFile[256];
 
 const char* GetDefaultLogDir()
 {
-  const char *DefaultLogFile= "c:";
+  const char *DefaultLogDir= "c:";
   char *tmp= getenv("USERPROFILE");
   if (tmp)
   {

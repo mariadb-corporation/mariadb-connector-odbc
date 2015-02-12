@@ -21,6 +21,8 @@
 
 #ifndef MAODBC_DEBUG1
 
+void ma_debug_print(my_bool ident, char *format, ...);
+
 #define MDBUG_C_ENTER(C,A) {}
 #define MDBUG_C_RETURN(C,A) return (A)
 #define MDBUG_C_PRINT(C, format, args) {}
