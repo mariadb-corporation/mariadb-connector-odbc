@@ -35,7 +35,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
   int quote[2]= {0,0}, comment= 0;
   char *end;
   MYSQL_STMT *stmt;
-  p= last= StmtStr;
+  char *StmtCopy= NULL;
 
   /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
      protocol */
@@ -61,8 +61,9 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
       end--;
     Length= end - StmtStr;
   }
-
-  while (p < StmtStr + Length)
+  p= last= StmtCopy= my_strdup(StmtStr, MYF(0));
+  
+  while (p < StmtCopy + Length)
   {
     switch (*p) {
     case ';':
@@ -70,13 +71,13 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
       {
         statements++;
         last= p + 1;
-        *p= 0;
+        *p= '\0';
       }
       break;
     case '/':
-      if (!comment && (p < StmtStr + Length + 1) && (char)*(p+1) ==  '*')
+      if (!comment && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '*')
         comment= 1;
-      else if (comment && (p > StmtStr) && (char)*(p-1) == '*')
+      else if (comment && (p > StmtCopy) && (char)*(p-1) == '*')
         comment= 0;
       break;
     case '\"':
@@ -99,18 +100,20 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     int i=0;
     unsigned int MaxParams= 0;
 
-    p= StmtStr;
+    p= StmtCopy;
     Stmt->MultiStmtCount= 0;
     Stmt->MultiStmtNr= 0;
     Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * statements);
 
-    while (p < StmtStr + Length)
+    while (p < StmtCopy + Length)
     {
       Stmt->MultiStmts[i]= mysql_stmt_init(Stmt->Connection->mariadb);
       if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, strlen(p)))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
+        if (StmtCopy)
+          my_free(StmtCopy, MYF(0));
         return 0;
       }
       if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
@@ -122,6 +125,8 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     if (MaxParams)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
   }
+  if (StmtCopy)
+    my_free(StmtCopy, MYF(0));
   return statements;
 }
 
