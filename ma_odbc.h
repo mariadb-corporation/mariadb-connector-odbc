@@ -62,6 +62,8 @@ typedef struct
   char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
   SQLRETURN ReturnValue;
   MADB_ERROR *ErrRecord;
+  /* Order number of last requested error record */
+  unsigned int ErrorNum;
 } MADB_Error;
 
 typedef struct

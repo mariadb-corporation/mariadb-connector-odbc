@@ -166,7 +166,7 @@ my_bool MADB_DSN_Exists(char *DsnName)
   if (!DsnName)
     return FALSE;
 
-  ret= (SQLGetPrivateProfileString(DsnName, NULL, p, buffer, 1024, "ODBC.INI") > 0);
+  ret= (SQLGetPrivateProfileString(DsnName, "", p, buffer, 1024, "ODBC.INI") > 0);
   return ret;
 }
 
