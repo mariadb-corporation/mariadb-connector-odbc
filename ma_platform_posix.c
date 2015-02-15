@@ -377,7 +377,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
     }
   }
 
-  if (!Src || !strlen(Src) || !SrcLength)
+  if (!SrcLength || !Src || !strlen(Src))
   {
     memset(p, 0, cc && cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;

@@ -449,7 +449,15 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field)
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    return Field.length;
+    if (Field.charsetnr != 63)
+    {
+      CHARSET_INFO *cs= mysql_get_charset_by_nr(Field.charsetnr);
+      return Field.length/(cs? cs->char_maxlen : 1);
+    }
+    else
+    {
+      return Field.length;
+    }
     /*
     if (Field.flags & BINARY_FLAG)
       return Field.length * 2;

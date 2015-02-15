@@ -66,6 +66,7 @@ ODBC_TEST(test_CONO3)
   return OK;
 }
 
+
 ODBC_TEST(simple_test)
 {
   SQLRETURN rc= SQL_SUCCESS;
@@ -94,16 +95,17 @@ ODBC_TEST(simple_test)
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, 20, 0);
   FAIL_IF(value != 1, "Expected value=1");
-  FAIL_IF(sqlwcharcmp(Buffer, latin_as_sqlwchar("Row no 1", sqlwchar_buff)) != 0, "Expected Buffer = Row no 1");
+  is_wstr(Buffer, LW("Row no 1"), 9);
 
   rc= SQLFetch(Stmt);
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, 20, 0);
   FAIL_IF(value != 2, "Expected value=2");
-  FAIL_IF(sqlwcharcmp(Buffer, latin_as_sqlwchar("Row no 2", sqlwchar_buff)) != 0, "Expected Buffer = Row no 2");
+  is_wstr(Buffer, LW("Row no 2"), 9);
 
   return OK;
 }
+
 
 ODBC_TEST(simple_test1)
 {

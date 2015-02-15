@@ -2260,9 +2260,9 @@ SQLRETURN SQL_API SQLNativeSqlW(SQLHDBC ConnectionHandle,
 {
   MADB_Dbc *Conn= (MADB_Dbc *)ConnectionHandle;
   SQLINTEGER Length= (TextLength1 == SQL_NTS) ? wcslen(InStatementText) : TextLength1;
-  if (!Dbc)
+  if (!Conn)
     return SQL_INVALID_HANDLE;
-  MADB_CLEAR_ERROR(&Dbc->Error);
+  MADB_CLEAR_ERROR(&Conn->Error);
 
   if (TextLength2Ptr)
     *TextLength2Ptr= Length;

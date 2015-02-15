@@ -637,7 +637,7 @@ ODBC_TEST(t_tables_bug)
 ODBC_TEST(t_current_catalog_unicode)
 {
   SQLWCHAR    db[255];
-  wchar_t     cur_db[255];
+  SQLWCHAR    cur_db[255];
   SQLRETURN   rc;
   SQLINTEGER  len;
 
@@ -648,7 +648,7 @@ ODBC_TEST(t_current_catalog_unicode)
   CHECK_DBC_RC(Connection,rc);
 
   is_num(len, strlen(my_schema) * sizeof(SQLWCHAR));
-  //is_wstr(sqlwchar_to_wchar_t(db), L"test", 5);
+  is_wstr(db, LW("test"), 5);
 
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, SQL_NTS);
   CHECK_DBC_RC(Connection,rc);
@@ -662,7 +662,7 @@ ODBC_TEST(t_current_catalog_unicode)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE test_odbc_current");
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
 
-  wcscpy(cur_db, L"test_odbc_current");
+  latin_as_sqlwchar("test_odbc_current", cur_db);
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, SQL_NTS);
   CHECK_DBC_RC(Connection,rc);
 
@@ -670,9 +670,7 @@ ODBC_TEST(t_current_catalog_unicode)
   CHECK_DBC_RC(Connection,rc);
 
   is_num(len, strlen("test_odbc_current") * sizeof(SQLWCHAR));
-  //is_wstr(sqlwchar_to_wchar_t(db), cur_db, 18);
-
- 
+  is_wstr(db, cur_db, 18);
 
   /* reset for further tests */
   rc = SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS);
@@ -773,7 +771,8 @@ ODBC_TEST(t_sqltables)
   sprintf(query, "CREATE SCHEMA %s", my_schema);
   OK_SIMPLE_STMT(Stmt, query);
 
-  FAIL_IF(SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS) != SQL_SUCCESS, "Error occured while setting default db");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS));
 
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (a int)");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t2 LIKE t1");

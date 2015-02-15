@@ -397,7 +397,7 @@ int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
 
 
 #define is_wstr(a, b, c) \
-  if (wcsncmp(a,b,c) != 0)\
+  if (sqlwcharcmp(a,b,c) != 0)\
   {\
     diag("Comparison failed in %s line %d", __FILE__, __LINE__);\
     return FAIL;\
@@ -783,18 +783,20 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 
 #define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
 
-int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2)
+/* @n[in] - number of characters to compare. Negative means treating of strings as null-terminated */
+int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
 {
   if(s1 == NULL || s2 == NULL)
   {
     return s1!=s2;
   }
 
-  while (*s1 && *s2 && *s1==*s2)
+  while (n != 0 && *s1 && *s2 && *s1==*s2)
   {
-    ++s1; ++s2;
+    ++s1; ++s2; --n;
   }
 
-  return *s1!=*s2;
+  return n != 0 && *s1!=*s2;
 }
+
 #endif      /* #ifndef _tap_h_ */
