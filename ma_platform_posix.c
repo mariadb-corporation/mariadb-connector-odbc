@@ -158,10 +158,15 @@ SQLINTEGER MbstrOctetLen(char *str, SQLINTEGER *CharLen, CHARSET_INFO *cs)
   {
     if (cs->mb_charlen == NULL)
     {
-      result= strlen(str);
+      /* Charset uses no more than a byte per char. Result is strlen or umber of chars */
       if (*CharLen < 0)
       {
-        *CharLen-= inChars;
+        result= strlen(str);
+        *CharLen= result;
+      }
+      else
+      {
+        result= *CharLen;
       }
       return result;
     }
@@ -272,9 +277,11 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
 /* {{{ MADB_ConvertAnsi2Unicode
        @AnsiLength[in]    - number of bytes to copy, negative if AnsiString is Null terminated and the terminating blank has to be copied
        @UnicodeLength[in] - size of output buffer in chars, that effectively mean in SQLWCHAR units
-       @LengthIndicator[out] - number of available characters
+       @LengthIndicator[out] - number of available characters not counting terminating null(unless it was included in AnsiLength, and IsNull
+                            is FALSE) 
        @IsNull[in]        - whether to copy terminating blank. The value has to be 1 or 0(TRUE/FALSE)
-                            If AnsiString is negative, its value is neglected(null is copied) */
+                            If AnsiString is negative, its value is neglected(null is copied)
+       @returns 1 in case of error, 0 otherwise */
 int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLength, 
                              SQLWCHAR *UnicodeString, int UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
@@ -344,7 +351,8 @@ end:
 }
 /* }}} */
 
-
+/* {{{ MADB_ConvertAnsi2Unicode
+       @returns number of characters available at Src */
 size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error)
 {
@@ -385,9 +393,8 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
 
   if (!cc)
   {
-    size_t len= SrcLength;
     strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
-    if (Error && len >= DestLength)
+    if (Error && SrcLength >= DestLength)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
     return SrcLength;
   }
@@ -397,4 +404,5 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
     return Length;
   }
 }
+/* }}} */
 

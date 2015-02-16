@@ -682,6 +682,7 @@ int run_tests(MA_ODBC_TESTS *tests)
     SQLFreeStmt(Stmt, SQL_DROP);
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
+    fflush(stdout);
   }
   ODBC_Disconnect(Env,Connection,Stmt);
   if (failed)

@@ -1499,7 +1499,7 @@ ODBC_TEST(t_bug30770)
 
   /* Connect with no default daabase */
   sprintf((char *)conn, "DRIVER=%s;SERVER=%s;" \
-                        "UID=%s;PASSWORD=%s;DATABASE=%s;PORT=%u", my_drivername, "localhost",
+                        "UID=%s;PASSWORD=%s;DATABASE=%s;PORT=%u", my_drivername, my_servername,
                         my_uid, my_pwd, my_schema, my_port);
   
   is_num(mydrvconnect(&Env1, &Connection1, &Stmt1, conn), OK);
@@ -2432,8 +2432,8 @@ ODBC_TEST(sqlcolumns_nodbselected)
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
   /* Connecting not specifying default db */
-  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s", my_drivername,
-                              "localhost", my_uid, my_pwd);
+  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;PORT=%d", my_drivername,
+                              my_servername, my_uid, my_pwd, my_port);
 
   
 
