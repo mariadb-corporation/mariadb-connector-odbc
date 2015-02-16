@@ -363,6 +363,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
   {
     if (Src != NULL)
     {
+      /* Thinking about utf8 - Should be probably len in characters */
       SrcLength= strlen(Src);
     }
     else
@@ -387,13 +388,16 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
 
   if (!SrcLength || !Src || !strlen(Src))
   {
-    memset(p, 0, cc && cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
+    memset(p, 0, cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;
   }
 
   if (!cc)
   {
     strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
+    /* strncpy does not write null at the end */
+    *(p + DestLength - 1)= '\0';
+
     if (Error && SrcLength >= DestLength)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
     return SrcLength;

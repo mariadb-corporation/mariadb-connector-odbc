@@ -354,9 +354,9 @@ if (!(SQL_SUCCEEDED(rc)))\
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
 #define is_num(A,B) \
-  if ((int)(A) != (int)(B))\
+  if ((long long)(A) != (long long)(B))\
   {\
-    diag("%s %d: expected value %d instead of %d", __FILE__, __LINE__, (B), (A));\
+    diag("%s %d: expected value %lld instead of %lld", __FILE__, __LINE__, (B), (A));\
     return FAIL;\
   }
 

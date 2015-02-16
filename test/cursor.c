@@ -471,7 +471,7 @@ ODBC_TEST(t_pos_column_ignore)
   SQLLEN  pcbValue, nlen;
   SQLULEN pcrow;
   SQLUSMALLINT rgfRowStatus;
-  SQLINTEGER Rows;
+  SQLLEN Rows;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_column_ignore");
   OK_SIMPLE_STMT(Stmt,
@@ -648,118 +648,118 @@ ODBC_TEST(t_pos_datetime_delete1)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_delete");
 
-    rc = SQLAllocStmt(Connection,&hstmt1);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLAllocStmt(Connection,&hstmt1);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt,"create table t_pos_delete(id int not null default '0',\
-                                                      name varchar(20) NOT NULL default '',\
-                                                      created datetime NOT NULL default '2000-01-01')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"create table t_pos_delete(id int not null default '0',\
+                                                    name varchar(20) NOT NULL default '',\
+                                                    created datetime NOT NULL default '2000-01-01')", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_pos_delete values(1,'venu','2003-02-10 14:45:39')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_pos_delete values(1,'venu','2003-02-10 14:45:39')", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_pos_delete(name) values('')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_pos_delete(name) values('')", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(2)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(2)", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(3)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(3)", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(4)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(4)", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(5)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_pos_delete(id) values(5)", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"select * from t_pos_delete", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"select * from t_pos_delete", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    IS(6 == myresult(Stmt));
+  IS(6 == myresult(Stmt));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
-    SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
-    SQLSetStmtOption(Stmt,SQL_SIMULATE_CURSOR,SQL_SC_NON_UNIQUE);
+  SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
+  SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
+  SQLSetStmtOption(Stmt,SQL_SIMULATE_CURSOR,SQL_SC_NON_UNIQUE);
 
-    SQLSetStmtAttr(hstmt1, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
-    SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
-    SQLSetStmtOption(hstmt1,SQL_SIMULATE_CURSOR,SQL_SC_NON_UNIQUE);
+  SQLSetStmtAttr(hstmt1, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
+  SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
+  SQLSetStmtOption(hstmt1,SQL_SIMULATE_CURSOR,SQL_SC_NON_UNIQUE);
 
-    rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu_cur",8);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu_cur",8);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, &cur_type, 0, NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, &cur_type, 0, NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt,"select * from t_pos_delete");
+  OK_SIMPLE_STMT(Stmt,"select * from t_pos_delete");
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&int_data,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&int_data,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,3,NULL,&rgfRowStatus);
-    CHECK_STMT_RC(Stmt,rc);
-    fprintf(stdout,"current_row: %d\n", int_data);
-    IS(int_data == 2);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,3,NULL,&rgfRowStatus);
+  CHECK_STMT_RC(Stmt,rc);
+  fprintf(stdout,"current_row: %d\n", int_data);
+  IS(int_data == 2);
 
-    rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(hstmt1,"DELETE FROM t_pos_delete WHERE CURRENT OF venu_cur");
+  OK_SIMPLE_STMT(hstmt1,"DELETE FROM t_pos_delete WHERE CURRENT OF venu_cur");
 
-    rc = SQLRowCount(hstmt1,&row_count);
-    CHECK_STMT_RC(hstmt1,rc);
-    fprintf(stdout, "rows affected: %d\n", row_count);
-    IS(row_count == 1);
+  rc = SQLRowCount(hstmt1,&row_count);
+  CHECK_STMT_RC(hstmt1,rc);
+  fprintf(stdout, "rows affected: %d\n", (int)row_count);
+  IS(row_count == 1);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
-    CHECK_STMT_RC(Stmt,rc);
-    fprintf(stdout,"current_row: %d\n", int_data);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
+  CHECK_STMT_RC(Stmt,rc);
+  fprintf(stdout,"current_row: %d\n", int_data);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
-    CHECK_STMT_RC(Stmt,rc);
-    fprintf(stdout,"current_row: %d\n", int_data);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
+  CHECK_STMT_RC(Stmt,rc);
+  fprintf(stdout,"current_row: %d\n", int_data);
 
-    /*rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
-    CHECK_STMT_RC(Stmt,rc);*/
+  /*rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
+  CHECK_STMT_RC(Stmt,rc);*/
 
-    rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(hstmt1,"DELETE FROM t_pos_delete WHERE CURRENT OF venu_cur");
+  OK_SIMPLE_STMT(hstmt1,"DELETE FROM t_pos_delete WHERE CURRENT OF venu_cur");
 
-    rc = SQLRowCount(hstmt1,&row_count);
-    CHECK_STMT_RC(hstmt1,rc);
-    fprintf(stdout, "rows affected: %d\n", row_count);
-    IS(row_count == 1);
+  rc = SQLRowCount(hstmt1,&row_count);
+  CHECK_STMT_RC(hstmt1,rc);
+  fprintf(stdout, "rows affected: %d\n", (int)row_count);
+  IS(row_count == 1);
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
-    SQLFreeStmt(hstmt1,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_UNBIND);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(hstmt1,SQL_CLOSE);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt,"select * from t_pos_delete", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"select * from t_pos_delete", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    IS(4 == myresult(Stmt));
+  IS(4 == myresult(Stmt));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(hstmt1,SQL_DROP);
-    CHECK_STMT_RC(hstmt1,rc);
+  rc = SQLFreeStmt(hstmt1,SQL_DROP);
+  CHECK_STMT_RC(hstmt1,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_delete");
 
@@ -774,56 +774,56 @@ ODBC_TEST(t_getcursor)
   SQLCHAR curname[50];
   SQLSMALLINT nlen;
 
-    rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt1);
-    CHECK_DBC_RC(Connection, rc);
-    rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt2);
-    CHECK_DBC_RC(Connection, rc);
-    rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt3);
-    CHECK_DBC_RC(Connection, rc);
+  rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt1);
+  CHECK_DBC_RC(Connection, rc);
+  rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt2);
+  CHECK_DBC_RC(Connection, rc);
+  rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt3);
+  CHECK_DBC_RC(Connection, rc);
 
-    rc = SQLGetCursorName(hstmt1,curname,50,&nlen);
-    if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
-    {
-      fprintf(stdout,"default cursor name  : %s(%d)\n",curname,nlen);
-      is_num(nlen, 8);
-      IS_STR(curname,"SQL_CUR0", 9);
+  rc = SQLGetCursorName(hstmt1, curname, 50, &nlen);
+  if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
+  {
+    fprintf(stdout,"default cursor name  : %s(%d)\n", curname, nlen);
+    is_num(nlen, 8);
+    IS_STR(curname,"SQL_CUR0", 9);
 
-      rc = SQLGetCursorName(hstmt3,curname,50,&nlen);
-      CHECK_STMT_RC(hstmt1,rc);
-      fprintf(stdout,"default cursor name  : %s(%d)\n",curname,nlen);
+    rc = SQLGetCursorName(hstmt3, curname, 50, &nlen);
+    CHECK_STMT_RC(hstmt1, rc);
+    fprintf(stdout,"default cursor name  : %s(%d)\n", curname, nlen);
 
-      rc = SQLGetCursorName(hstmt1,curname,4,&nlen);
-      FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
-      fprintf(stdout,"truncated cursor name: %s(%d)\n",curname,nlen);
-      is_num(nlen, 8);
-      IS_STR(curname, "SQL", 4);
+    rc = SQLGetCursorName(hstmt1,curname, 4, &nlen);
+    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
+    fprintf(stdout,"truncated cursor name: %s(%d)\n", curname, nlen);
+    is_num(nlen, 8);
+    IS_STR(curname, "SQL", 4);
 
-      rc = SQLGetCursorName(hstmt1,curname,0,&nlen);
-      FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
-      fprintf(stdout,"untouched cursor name: %s(%d)\n",curname,nlen);
-      IS(nlen == 8);
+    rc = SQLGetCursorName(hstmt1, curname, 0, &nlen);
+    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
+    fprintf(stdout, "untouched cursor name: %s(%d)\n", curname, nlen);
+    IS(nlen == 8);
 
-      FAIL_IF(SQLGetCursorName(hstmt1, curname, 8, &nlen) != SQL_SUCCESS_WITH_INFO, "success with info expected");
-      fprintf(stdout,"truncated cursor name: %s(%d)\n",curname,nlen);
-      is_num(nlen, 8);
-      IS_STR(curname, "SQL_CUR", 8);
+    FAIL_IF(SQLGetCursorName(hstmt1, curname, 8, &nlen) != SQL_SUCCESS_WITH_INFO, "success with info expected");
+    fprintf(stdout, "truncated cursor name: %s(%d)\n", curname, nlen);
+    is_num(nlen, 8);
+    IS_STR(curname, "SQL_CUR", 8);
 
-      rc = SQLGetCursorName(hstmt1,curname,9,&nlen);
-      fprintf(stdout,"full cursor name     : %s(%d)\n",curname,nlen);
-      is_num(nlen, 8);
-      IS_STR(curname, "SQL_CUR0", 9);
-    }
+    rc = SQLGetCursorName(hstmt1,curname, 9, &nlen);
+    fprintf(stdout, "full cursor name     : %s(%d)\n", curname, nlen);
+    is_num(nlen, 8);
+    IS_STR(curname, "SQL_CUR0", 9);
+  }
 
-    rc = SQLSetCursorName(hstmt1, (SQLCHAR *)"venucur123",7);
-    CHECK_STMT_RC(hstmt1,rc);
+  rc = SQLSetCursorName(hstmt1, (SQLCHAR *)"venucur123", 7);
+  CHECK_STMT_RC(hstmt1, rc);
 
-    rc = SQLGetCursorName(hstmt1,curname,8,&nlen);
-    CHECK_STMT_RC(hstmt1,rc);
-    is_num(nlen, 7);
-    IS_STR(curname, "venucur", 8);
+  rc = SQLGetCursorName(hstmt1, curname, 8, &nlen);
+  CHECK_STMT_RC(hstmt1, rc);
+  is_num(nlen, 7);
+  IS_STR(curname, "venucur", 8);
 
-    rc = SQLFreeHandle(SQL_HANDLE_STMT,hstmt1);
-    CHECK_STMT_RC(hstmt1,rc);
+  rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt1);
+  CHECK_STMT_RC(hstmt1, rc);
 
   return OK;
 }
@@ -2586,7 +2586,7 @@ ODBC_TEST(t_update_type)
 */
 ODBC_TEST(t_update_offsets)
 {
-  SQLINTEGER rowcnt= 3;
+  SQLULEN rowcnt= 3;
   SQLINTEGER row_offset1= 5;
   /*
     TODO we should prob allow changing SQL_ATTR_ROW_BIND_OFFSET_PTR
