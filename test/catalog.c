@@ -648,7 +648,7 @@ ODBC_TEST(t_current_catalog_unicode)
   CHECK_DBC_RC(Connection,rc);
 
   is_num(len, strlen(my_schema) * sizeof(SQLWCHAR));
-  is_wstr(db, LW("test"), 5);
+  is_wstr(db, LW(my_schema), 5);
 
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, SQL_NTS);
   CHECK_DBC_RC(Connection,rc);
