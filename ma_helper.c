@@ -840,8 +840,8 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
   if (!*p)
     return FALSE;
 
-  number->precision= strlen(p);
-  number->scale= (SQLCHAR)ArdRecord->Scale;
+  if (!number->precision)
+    number->precision= 38;
    
   while (*p=='0')
     p++;
