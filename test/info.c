@@ -103,7 +103,7 @@ ODBC_TEST(t_stmt_attr_status)
 
 ODBC_TEST(t_msdev_bug)
 {
-  SQLCHAR    catalog[30];
+  SQLCHAR    catalog[SQL_MAX_OPTION_STRING_LENGTH];
   SQLINTEGER len;
 
   CHECK_DBC_RC(Connection, SQLGetConnectOption(Connection, SQL_CURRENT_QUALIFIER, catalog));
