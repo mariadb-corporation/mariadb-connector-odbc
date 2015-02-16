@@ -427,9 +427,9 @@ ODBC_TEST(t_mult_stmt_free)
   /* check that the original values worked */
   for (i= 0; i < mult_count; ++i)
   {
-    OK_SIMPLE_STMT(stmt[i], SQLExecDirect(stmt[i], (SQLCHAR *)"select ?", SQL_NTS));
-    OK_SIMPLE_STMT(stmt[i], SQLFetch(stmt[i]));
-    OK_SIMPLE_STMT(stmt[i], SQLFreeStmt(stmt[i], SQL_CLOSE));
+    CHECK_STMT_RC(stmt[i], SQLExecDirect(stmt[i], (SQLCHAR *)"select ?", SQL_NTS));
+    CHECK_STMT_RC(stmt[i], SQLFetch(stmt[i]));
+    CHECK_STMT_RC(stmt[i], SQLFreeStmt(stmt[i], SQL_CLOSE));
   }
 
   for (i= 0; i < mult_count; ++i)
