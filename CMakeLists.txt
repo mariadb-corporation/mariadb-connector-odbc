@@ -224,7 +224,19 @@ ENDIF()
 
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
+ELSE()
+  INSTALL(TARGETS
+          maodbc
+          RUNTIME DESTINATION "lib"
+          LIBRARY DESTINATION "lib"
+          ARCHIVE DESTINATION "lib")
+  INSTALL(FILES
+          ${CMAKE_SOURCE_DIR}/COPYING
+          ${CMAKE_SOURCE_DIR}/README
+          DESTINATION
+          .)
 ENDIF()
+
 ADD_SUBDIRECTORY(test)
 
 # Packaging
