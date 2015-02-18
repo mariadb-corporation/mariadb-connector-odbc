@@ -443,6 +443,45 @@ void CloseClientCharset(Client_Charset *cc)
 }
 
 
+SQLINTEGER MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
+{
+  SQLINTEGER result= 0, inChars= *CharLen;
+
+  if (str)
+  {
+    if (cs->mb_charlen == NULL)
+    {
+      /* Charset uses no more than a byte per char. Result is strlen or umber of chars */
+      if (*CharLen < 0)
+      {
+        result= strlen(str);
+        *CharLen= result;
+      }
+      else
+      {
+        result= *CharLen;
+      }
+      return result;
+    }
+    else
+    {
+      while (inChars > 0 || inChars < 0 && *str)
+      {
+        result+= cs->mb_charlen(*str);
+        --inChars;
+        str+= cs->mb_charlen(*str);
+      }
+    }
+  }
+
+  if (*CharLen < 0)
+  {
+    *CharLen-= inChars;
+  }
+  return result;
+}
+
+
 SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
 {
   SQLLEN result= 0;

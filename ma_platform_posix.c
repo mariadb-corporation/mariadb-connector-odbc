@@ -150,46 +150,7 @@ SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)
 }
 
 
-SQLINTEGER MbstrOctetLen(char *str, SQLINTEGER *CharLen, CHARSET_INFO *cs)
-{
-  SQLINTEGER result= 0, inChars= *CharLen;
-
-  if (str)
-  {
-    if (cs->mb_charlen == NULL)
-    {
-      /* Charset uses no more than a byte per char. Result is strlen or umber of chars */
-      if (*CharLen < 0)
-      {
-        result= strlen(str);
-        *CharLen= result;
-      }
-      else
-      {
-        result= *CharLen;
-      }
-      return result;
-    }
-    else
-    {
-      while (inChars > 0 || inChars < 0 && *str)
-      {
-        result+= cs->mb_charlen(*str);
-        --inChars;
-        str+= cs->mb_charlen(*str);
-      }
-    }
-  }
-
-  if (*CharLen < 0)
-  {
-    *CharLen-= inChars;
-  }
-  return result;
-}
-
-
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc)
+SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
   size_t Length= 0;
