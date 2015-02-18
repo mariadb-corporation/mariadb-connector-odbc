@@ -2733,9 +2733,9 @@ ODBC_TEST(t_bug32420)
   SQLULEN row_count;
 
   /* Don't cache result option in the connection string */
-  sprintf((char *)conn, "DSN=test;DRIVER=%s;UID=%s;PASSWORD=%s;"
+  sprintf((char *)conn, "DSN=%s;DRIVER=%s;UID=%s;PASSWORD=%s;"
           "DATABASE=%s;SERVER=%s;OPTION=1048576",
-          my_drivername, my_uid, my_pwd, my_schema, my_servername);
+          my_dsn, my_drivername, my_uid, my_pwd, my_schema, my_servername);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
