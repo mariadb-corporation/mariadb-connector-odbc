@@ -155,6 +155,27 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 }
 /* }}} */
 
+/* {{{ ResetMetadata */
+void ResetMetadata(MADB_Stmt *Stmt)
+{
+  if (Stmt->metadata != NULL)
+  {
+    mysql_free_result(Stmt->metadata);
+    Stmt->metadata= NULL;
+  }
+}
+/* }}} */
+
+/* {{{ FetchMetadata */
+MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
+{
+  ResetMetadata(Stmt);
+  Stmt->metadata= mysql_stmt_result_metadata(Stmt->stmt);
+
+  return Stmt->metadata;
+}
+/* }}} */
+
 /* {{{ MADB_StmtPrepare */
 SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength)
 {
@@ -272,7 +293,9 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   } else
   {
     if ((Stmt->ColumnCount= Stmt->stmt->field_count))
-      MADB_DescSetIrdMetadata(Stmt, Stmt->stmt->fields, Stmt->ColumnCount);
+    {
+      MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), Stmt->ColumnCount);
+    }
 
     if ((Stmt->ParamCount= mysql_stmt_param_count(Stmt->stmt)))
     {
@@ -549,7 +572,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   unsigned int StatementNr;
   unsigned int ParamOffset= 0; /* for multi statements */
   unsigned int Iterations= 1;
-  SQLINTEGER SaveColumnCount= Stmt->ColumnCount;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
@@ -623,8 +645,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             ret= Stmt->Error.ReturnValue;
             goto end;
           }
-        
-        
+
           if (ApdRecord->IndicatorPtr)
             IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Apd,ApdRecord, ApdRecord->IndicatorPtr, j, sizeof(SQLLEN));
           
@@ -913,11 +934,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
     Stmt->Cursor.Position= -1;
     
-    /* Several statements like calling a stored procedure don't return metadata
-       during prepare, so we need to set metadata after execute */
-    if (Stmt->ColumnCount != SaveColumnCount)
-      MADB_DescSetIrdMetadata(Stmt, Stmt->stmt->fields, Stmt->ColumnCount);
-
+    /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata*/
+    if ((Stmt->ColumnCount= Stmt->stmt->field_count))
+    {
+      MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), Stmt->ColumnCount);
+    }
     Stmt->AffectedRows= -1;
   }
 end:
@@ -1154,6 +1175,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         MADB_DescFree(Stmt->Ird, TRUE);
       if (!Stmt->EmulatedStmt && !Stmt->MultiStmtCount)
       {
+        ResetMetadata(Stmt);
         mysql_stmt_free_result(Stmt->stmt);
         mysql_stmt_reset(Stmt->stmt);
       }
@@ -1179,6 +1201,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
+    ResetMetadata(Stmt);
     MADB_DescFree(Stmt->Ard, TRUE);
     if (Stmt->DefaultsResult)
     {
@@ -1202,6 +1225,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->Cursor.Name);
     MADB_FREE(Stmt->StmtString);
     MADB_FREE(Stmt->NativeSql);
+    ResetMetadata(Stmt);
 
     /* For explicit descriptors we only remove reference to the stmt*/
     if (Stmt->Apd->AppType)
@@ -1232,6 +1256,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       Stmt->DefaultsResult= NULL;
     }
 
+    ResetMetadata(Stmt);
     if (Stmt->MultiStmtCount)
     {
       unsigned int i;
@@ -1355,9 +1380,9 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             break;
           case SQL_C_NUMERIC:
             MADB_FREE(ArdRecord->InternalBuffer);
-            ArdRecord->InternalBuffer= (char *)MADB_CALLOC(40);
+            ArdRecord->InternalBuffer= (char *)MADB_CALLOC(MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/);
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
-            Stmt->result[i].buffer_length= 40;
+            Stmt->result[i].buffer_length= MADB_DEFAULT_PRECISION + 2;
             Stmt->result[i].buffer_type= MYSQL_TYPE_STRING;
             break;
           case SQL_TYPE_TIMESTAMP:

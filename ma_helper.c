@@ -827,8 +827,10 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
   if (!*p)
     return FALSE;
 
-  number->precision= strlen(p);
-  number->scale= (SQLCHAR)ArdRecord->Scale;
+  if (number->precision == 0)
+  {
+    number->precision= MADB_DEFAULT_PRECISION;
+  }
    
   while (*p=='0')
     p++;
