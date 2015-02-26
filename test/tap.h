@@ -114,6 +114,7 @@ unsigned long my_options= 67108866;
 SQLHANDLE Env, Connection, Stmt;
 
 unsigned int my_port= 3306;
+char ma_strport[]= ";PORT=3306";
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR sqlwchar_buff[1024], sqlwchar_empty[]= {0};
@@ -215,6 +216,7 @@ void get_options(int argc, char **argv)
       exit(0);
     }
   }
+  _snprintf(ma_strport, sizeof(ma_strport), ";PORT=%u", my_port);
 }
 
 int myrowcount(SQLHSTMT Stmt)

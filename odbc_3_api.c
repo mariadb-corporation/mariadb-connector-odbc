@@ -944,7 +944,7 @@ SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
     MA_SQLFreeStmt((SQLHSTMT)Element->data, SQL_DROP);
   }
 
-  /* Close all explicitly aloocated descriptors */
+  /* Close all explicitly allocated descriptors */
   for (Element= Connection->Descrs; Element; Element= NextElement)
   {
     NextElement= Element->next;

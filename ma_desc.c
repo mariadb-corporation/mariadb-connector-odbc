@@ -1,6 +1,6 @@
 /************************************************************************************
    Copyright (C) 2013,2015 MariaDB Corporation AB
-   
+ 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
@@ -95,12 +95,9 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
     else
     {
       Desc->Dbc= Dbc;
-      if (!isExternal)
-        EnterCriticalSection(&Dbc->cs);
+      /* MADB_DescInit call for explicit descriptor is in critical section */
       Desc->ListItem.data= (void *)Desc;
       Dbc->Descrs= list_add(Dbc->Descrs, &Desc->ListItem);
-      if (!isExternal)
-        LeaveCriticalSection(&Dbc->cs);
     }
   }
   if (Desc)

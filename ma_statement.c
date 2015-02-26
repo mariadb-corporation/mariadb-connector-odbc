@@ -1129,7 +1129,6 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
  }
  /* }}} */
 
-
 /* {{{ remove_stmt_ref_from_desc
        Helper function removing references to the stmt in the descriptor when explisitly allocated descriptor is substituted
        by some other descriptor */

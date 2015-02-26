@@ -486,6 +486,7 @@ SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
 {
   SQLLEN result= 0;
   char *ptr= str;
+  unsigned int charlen;
 
   if (str)
   {
@@ -495,7 +496,13 @@ SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
     }
     while (ptr < str + OctetLen)
     {
-      ptr+= cs->mb_charlen(*ptr);
+      charlen= cs->mb_charlen((unsigned char)*ptr);
+      if (charlen == 0)
+      {
+        /* Dirty hack to avoid dead loop - Has to be the error! */
+        charlen= 1;
+      }
+      ptr+= charlen;
       ++result;
     }
   }
