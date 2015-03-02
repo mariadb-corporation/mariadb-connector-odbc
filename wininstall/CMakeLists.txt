@@ -2,16 +2,6 @@ SET(ODBC_BINARY_DIR ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
 SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/wininstall)
 MESSAGE(STATUS "BINARY_DIR ${ODBC_BINARY_DIR}")
 
-
-
-# Get revision number
-IF(WITH_REVNO)
-  EXECUTE_PROCESS(COMMAND bzr log -l1
-                  COMMAND FINDSTR revno
-  OUTPUT_VARIABLE revno)
-  STRING(REPLACE "revno: " "" revno ${revno})
-  STRING(REPLACE "\n" "" revno ${revno})
-ENDIF()
 IF(NOT WIX_DIR)
   SET(WIX_DIR "$ENV{WIX}/bin/")
 ENDIF()
