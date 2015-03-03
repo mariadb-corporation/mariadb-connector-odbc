@@ -36,6 +36,7 @@
 #define _strdup strdup
 #define _stricmp strcasecmp
 #define _strnicmp strncasecmp
+#define _atoi64(str) strtoll((str), NULL, 10)
 
 #define _i64toa(a,b,c) longlong2str((a),(b),(c))
 
