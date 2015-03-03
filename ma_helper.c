@@ -914,9 +914,16 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
     {
       int64_t OldVal, Val;
       int64_t RoundNumber= (int64_t)pow(10.0, -number->scale);
+#ifndef _WIN32
+      char *eptr;
+#endif
 
       digits[number->precision]= 0;
+#ifdef _WIN32
       Val= _atoi64(digits);
+#else
+      Val= (int64_t)strtoll(digits, &eptr, 10);
+#endif
       OldVal= Val;
       Val= (Val + RoundNumber / 2) / RoundNumber * RoundNumber;
       if (OldVal != Val)

@@ -37,6 +37,8 @@
 #define _stricmp strcasecmp
 #define _strnicmp strncasecmp
 
+#define _i64toa(a,b,c) longlong2str((a),(b),(c))
+
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...);
 
