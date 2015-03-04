@@ -39,6 +39,8 @@ SQLRETURN MADB_EnvFree(MADB_Env *Env)
 }
 /* }}} */
 
+const char* GetDefaultLogDir();
+
 /* {{{ MADB_EnvInit */
 MADB_Env *MADB_EnvInit()
 {
@@ -82,6 +84,7 @@ cleanup:
   if (!Env)
     WSACleanup();
 #endif
+  GetDefaultLogDir();
 
   return Env;
 }

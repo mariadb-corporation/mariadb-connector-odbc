@@ -448,6 +448,11 @@ int       DSNPrompt_Free  (MADB_Prompt *prompt);
 /* Default precision of SQL_NUMERIC */
 #define MADB_DEFAULT_PRECISION 38
 
+/* Macros to guard communications with the server.
+   TODO: make it(locking) optional depending on designated connection string option */
+#define LOCK_MARIADB(Dbc)   EnterCriticalSection(&(Dbc)->cs)
+#define UNLOCK_MARIADB(Dbc) LeaveCriticalSection(&(Dbc)->cs)
+
 #include <ma_error.h>
 #include <ma_compatibility.h>
 #include <ma_parse.h>

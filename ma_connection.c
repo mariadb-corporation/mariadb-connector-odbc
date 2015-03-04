@@ -259,11 +259,14 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
           char StmtStr[128];
           my_snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                       MADB_IsolationLevel[i].StrIsolation);
+          LOCK_MARIADB(Dbc);
           if (mysql_query(Dbc->mariadb, StmtStr))
           {
+            UNLOCK_MARIADB(Dbc);
             MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
             return Dbc->Error.ReturnValue;
           }
+          UNLOCK_MARIADB(Dbc);
           ValidTx= TRUE;
           break;
         }
@@ -379,12 +382,15 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         MYSQL_ROW row;
         const char *StmtString= "SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='TX_ISOLATION'";
 
+        LOCK_MARIADB(Dbc);
         if (mysql_query(Dbc->mariadb, StmtString))
         {
+          UNLOCK_MARIADB(Dbc);
           MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
           return Dbc->Error.ReturnValue;
         }
         result= mysql_store_result(Dbc->mariadb);
+        UNLOCK_MARIADB(Dbc);
         if ((row = mysql_fetch_row(result)))
         {
           unsigned int i;
@@ -513,6 +519,7 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
   if (!Dbc)
     return SQL_INVALID_HANDLE;
 
+  LOCK_MARIADB(Dbc);
   switch (CompletionType) {
   case SQL_ROLLBACK:
     if (Dbc->mariadb && mysql_rollback(Dbc->mariadb))
@@ -525,6 +532,8 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
   default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY012, NULL, 0);
   }
+  UNLOCK_MARIADB(Dbc);
+
   return Dbc->Error.ReturnValue;
 }
 /* }}} */
@@ -603,11 +612,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     client_flags|= CLIENT_MULTI_STATEMENTS;
 
   /* enable truncation reporting */
-   mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
+  mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
   
   if (!mysql_real_connect(Connection->mariadb,
-        Dsn->ServerName, Dsn->UserName, Dsn->Password,
-        Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, NULL, client_flags))
+       Dsn->ServerName, Dsn->UserName, Dsn->Password,
+       Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, NULL, client_flags))
   {
     goto err;
   }
@@ -1584,7 +1593,7 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
 
   DSNPrompt_Free(&DSNPrompt);
 
-  ret= MADB_DbcConnectDB(Dbc, (void *)Dsn);
+  ret= MADB_DbcConnectDB(Dbc, Dsn);
   if (!SQL_SUCCEEDED(ret))
     goto error;
 end:

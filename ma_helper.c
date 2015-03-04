@@ -122,6 +122,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     if (MaxParams)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
   }
+
   return statements;
 }
 
@@ -188,6 +189,8 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
 {
   MYSQL_RES *result;
   MYSQL_ROW row;
+
+  LOCK_MARIADB(Connection);
   if (mysql_real_query(Connection->mariadb, StmtString, Length) ||
       mysql_field_count(Connection->mariadb) < NumCols)
     return 1;
@@ -196,11 +199,16 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
       (row= mysql_fetch_row(result)))
   {
     unsigned int i;
+
+    UNLOCK_MARIADB(Connection);
+
     for (i=0; i < NumCols; i++)
       strncpy_s(Buffers[i], Buffer_Lengths[i], row[i], Connection->mariadb->fields[i].max_length);
     mysql_free_result(result);
     return 0;
   }
+  UNLOCK_MARIADB(Connection);
+
   return 1;
 }
 /* }}} */
@@ -342,11 +350,13 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
   if (dynstr_append(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
     goto error;
 
+  LOCK_MARIADB(Stmt->Connection);
   if (mysql_query(Stmt->Connection->mariadb, DynStr.str))
     goto error;
   result= mysql_store_result(Stmt->Connection->mariadb);
   
 error:
+    UNLOCK_MARIADB(Stmt->Connection);
     dynstr_free(&DynStr);
     return result;
 }

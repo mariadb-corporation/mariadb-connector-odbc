@@ -71,7 +71,11 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     if (!mysql_more_results(Stmt->Connection->mariadb))
       return SQL_NO_DATA;
     else
+    {
+      LOCK_MARIADB(Stmt->Connection);
       mysql_next_result(Stmt->Connection->mariadb);
+      UNLOCK_MARIADB(Stmt->Connection);
+    }
     return ret;
   }
 
@@ -80,25 +84,31 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   else
     return SQL_NO_DATA;
   
+  LOCK_MARIADB(Stmt->Connection);
   if (mysql_stmt_next_result(Stmt->stmt) ||
       !Stmt->stmt->field_count)
+  {
+    UNLOCK_MARIADB(Stmt->Connection);
     return SQL_NO_DATA;
+  }
 
-  
   if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
   {
     ret= Stmt->Methods->GetOutParams(Stmt, 0);
   }
   else
+  {
     if (Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
       mysql_stmt_store_result(Stmt->stmt);
+  }
+  UNLOCK_MARIADB(Stmt->Connection);
 
   if (/* mysql_stmt_field_count(Stmt->stmt) && */
         Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
   {
     mysql_stmt_data_seek(Stmt->stmt, 0);
   }
-  return ret;
 
+  return ret;
 }
 /* }}} */

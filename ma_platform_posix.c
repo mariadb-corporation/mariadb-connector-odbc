@@ -26,6 +26,8 @@
 #include <ma_odbc.h>
 #include <stdarg.h>
 
+char LogFile[256];
+
 
 SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
 {
@@ -57,4 +59,20 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
       return count - result - 1;
     }
     return result;
+}
+
+
+const char* GetDefaultLogDir()
+{
+  const char *DefaultLogDir="/tmp";
+  char *tmp= getenv("HOME");
+
+  if (tmp)
+  {
+    DefaultLogDir= tmp;
+  }
+
+  _snprintf(LogFile, sizeof(LogFile), "%s/maodbc.log", DefaultLogDir);
+
+  return LogFile;
 }

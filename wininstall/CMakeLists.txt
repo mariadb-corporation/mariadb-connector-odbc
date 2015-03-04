@@ -6,14 +6,15 @@ MESSAGE(STATUS "BINARY_DIR ${ODBC_BINARY_DIR}")
 
 # Get revision number
 IF(WITH_REVNO)
-  EXECUTE_PROCESS(COMMAND bzr log -l1
-                  COMMAND FINDSTR revno
+  EXECUTE_PROCESS(COMMAND git log HEAD^^..HEAD
+                  COMMAND FINDSTR commit
   OUTPUT_VARIABLE revno)
-  STRING(REPLACE "revno: " "" revno ${revno})
+  STRING(REPLACE "commit " "" revno ${revno})
   STRING(REPLACE "\n" "" revno ${revno})
 ENDIF()
 IF(NOT WIX_DIR)
   SET(WIX_DIR "$ENV{WIX}/bin/")
+  MESSAGE(STATUS "WiX directory: ${WIX_DIR}")
 ENDIF()
 SET(PRODUCT_NAME "MariaDB ODBC Driver")
 SET(PRODUCT_MANUFACTURER "MariaDB")
@@ -50,6 +51,8 @@ IF(${revno})
 ELSE()
   SET(MSI_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-${PLATFORM}.msi")
 ENDIF()
+
+MESSAGE(STATUS "MSI package name ${MSI_PACKAGE}")
 
 ADD_CUSTOM_TARGET(
         ${MSI_PACKAGE}
