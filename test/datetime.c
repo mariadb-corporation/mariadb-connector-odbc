@@ -196,7 +196,7 @@ ODBC_TEST(t_tstotime)
   rc = SQLExecDirect(Stmt,"select * from t_tstotime", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);  
 
-  IS( 1 == myresult(Stmt));
+  IS( 1 == myrowcount(Stmt));
 
   rc = SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
@@ -263,7 +263,7 @@ ODBC_TEST(t_tstotime1)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_tstotime1");
 
-  IS(1 == myresult(Stmt));
+  IS(1 == myrowcount(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));

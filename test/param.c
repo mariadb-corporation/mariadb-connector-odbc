@@ -94,7 +94,7 @@ ODBC_TEST(my_param_insert)
   /* Now fetch and verify the data */
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_demo_param");
 
-  FAIL_IF(10 != myresult(Stmt), "expected 10 rows");
+  FAIL_IF(10 != myrowcount(Stmt), "expected 10 rows");
 
   return OK;
 }
@@ -194,7 +194,7 @@ ODBC_TEST(my_param_update)
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_demo_param");
     CHECK_STMT_RC(Stmt,rc);
 
-    IS(10 == myresult(Stmt));
+    IS(10 == myrowcount(Stmt));
 
   return OK;
 }
@@ -255,7 +255,7 @@ ODBC_TEST(my_param_delete)
     /* Now fetch and verify the data */
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_demo_param");
 
-    IS(8 == myresult(Stmt));
+    IS(8 == myrowcount(Stmt));
 
     /* drop the table */
     OK_SIMPLE_STMT(Stmt,"DROP TABLE my_demo_param");

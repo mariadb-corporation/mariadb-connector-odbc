@@ -683,7 +683,7 @@ ODBC_TEST(t_pos_datetime_delete1)
     rc = SQLExecDirect(Stmt,"select * from t_pos_delete", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS(6 == myresult(Stmt));
+    IS(6 == myrowcount(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -753,7 +753,7 @@ ODBC_TEST(t_pos_datetime_delete1)
     rc = SQLExecDirect(Stmt,"select * from t_pos_delete", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS(4 == myresult(Stmt));
+    IS(4 == myrowcount(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -1120,7 +1120,7 @@ ODBC_TEST(tmysql_setpos_upd)
     rc = SQLExecDirect(Stmt,"select * from tmysql_setpos", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    myresult(Stmt);
+    myrowcount(Stmt);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -1141,7 +1141,7 @@ ODBC_TEST(tmysql_setpos_upd)
     rc = SQLExecDirect(Stmt,"select * from tmysql_setpos", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS(5 == myresult(Stmt));
+    IS(5 == myrowcount(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -1236,7 +1236,7 @@ ODBC_TEST(tmysql_setpos_add)
     rc = SQLExecDirect(Stmt,"select * from tmysql_setpos_add", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS(6 == myresult(Stmt));
+    IS(6 == myrowcount(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -1772,7 +1772,7 @@ ODBC_TEST(tmysql_setpos_pkdel)
     rc = SQLExecDirect(Stmt,"select * from tmysql_setpos1", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS( 3 == myresult(Stmt));
+    IS( 3 == myrowcount(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
@@ -1836,7 +1836,7 @@ ODBC_TEST(t_alias_setpos_pkdel)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_alias_setpos_pkdel");
 
-  IS(3 == myresult(Stmt));
+  IS(3 == myrowcount(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1897,7 +1897,7 @@ ODBC_TEST(t_alias_setpos_del)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_alias_setpos_del");
 
-  IS(3 == myresult(Stmt));
+  IS(3 == myrowcount(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2057,7 +2057,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   rc = SQLExecDirect(Stmt,"select * from t_setpos_upd_bug1", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
@@ -2078,7 +2078,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   rc = SQLExecDirect(Stmt,"select * from t_setpos_upd_bug1", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
-  IS(2 == myresult(Stmt));
+  IS(2 == myrowcount(Stmt));
 
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
@@ -2151,7 +2151,7 @@ ODBC_TEST(my_setpos_upd_pk_order)
   rc = SQLExecDirect(Stmt,"select * from my_setpos_upd_pk_order", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);

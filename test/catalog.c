@@ -390,7 +390,7 @@ ODBC_TEST(t_catalog)
 
     diag("total columns: %d", ncols);
     IS(ncols == 18);
-    IS(myresult(Stmt) == 3);
+    IS(myrowcount(Stmt) == 3);
 
     SQLFreeStmt(Stmt, SQL_UNBIND);
     SQLFreeStmt(Stmt, SQL_CLOSE);
@@ -437,7 +437,7 @@ ODBC_TEST(tmysql_specialcols)
 
   OK_SIMPLE_STMT(Stmt,"select * from tmysql_specialcols");
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
@@ -445,7 +445,7 @@ ODBC_TEST(tmysql_specialcols)
                                    (SQLCHAR *)"tmysql_specialcols",SQL_NTS,
                                    SQL_SCOPE_SESSION, SQL_NULLABLE));
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
@@ -749,7 +749,7 @@ ODBC_TEST(tmysql_showkeys)
   OK_SIMPLE_STMT(Stmt,"SHOW KEYS FROM tmysql_spk");
     
 
-  IS(1 == myresult(Stmt));
+  IS(1 == myrowcount(Stmt));
 
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
@@ -781,7 +781,7 @@ ODBC_TEST(t_sqltables)
 
   CHECK_STMT_RC(Stmt, SQLTables(Stmt,NULL,0,NULL,0,NULL,0,NULL,0));
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -790,7 +790,7 @@ ODBC_TEST(t_sqltables)
                  (SQLCHAR *)"system table", SQL_NTS);
   CHECK_STMT_RC(Stmt,r);
 
-  is_num(myresult(Stmt), 0);
+  is_num(myrowcount(Stmt), 0);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -801,7 +801,7 @@ ODBC_TEST(t_sqltables)
 
   CHECK_STMT_RC(Stmt,r);
 
-  is_num(myresult(Stmt), rowCount);
+  is_num(myrowcount(Stmt), rowCount);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -811,7 +811,7 @@ ODBC_TEST(t_sqltables)
                  (SQLCHAR *)"TABLE", SQL_NTS);
   CHECK_STMT_RC(Stmt,r);
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -819,7 +819,7 @@ ODBC_TEST(t_sqltables)
   r = SQLTables(Stmt, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0, NULL, 0);
   CHECK_STMT_RC(Stmt,r);
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -827,7 +827,7 @@ ODBC_TEST(t_sqltables)
   r = SQLTables(Stmt, NULL, 0, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0);
   CHECK_STMT_RC(Stmt,r);
 
-  myresult(Stmt);
+  myrowcount(Stmt);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,r);
@@ -835,7 +835,7 @@ ODBC_TEST(t_sqltables)
   r = SQLTables(Stmt, "", 0, "", 0, "", 0, (SQLCHAR *)"%", SQL_NTS);
   CHECK_STMT_RC(Stmt,r);
 
-  rows= myresult(Stmt);
+  rows= myrowcount(Stmt);
   is_num(rows, 3);
 
   r = SQLFreeStmt(Stmt, SQL_CLOSE);
@@ -2570,7 +2570,7 @@ ODBC_TEST(t_sqlcolumns_after_select)
                           (SQLCHAR *)"b14338051",
                           strlen("b14338051"), NULL, 0));
 
-  is_num(myresult(Stmt), 2);
+  is_num(myrowcount(Stmt), 2);
 
   return OK;
 }

@@ -713,7 +713,7 @@ ODBC_TEST(my_dynamic_cursor)
     OK_SIMPLE_STMT(Stmt, "select * from my_dynamic_cursor");
     CHECK_STMT_RC(Stmt,rc);
 
-    is_num(myresult(Stmt), 6);
+    is_num(myrowcount(Stmt), 6);
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);

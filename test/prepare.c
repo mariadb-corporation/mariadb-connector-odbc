@@ -801,7 +801,7 @@ ODBC_TEST(t_prepare1)
 
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_prepare1");
 
-    IS(3 == myresult(Stmt));/* unless prepare is supported..*/
+    IS(3 == myrowcount(Stmt));/* unless prepare is supported..*/
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);

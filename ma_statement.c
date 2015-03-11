@@ -1387,15 +1387,19 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             Stmt->result[i].flags&= ~MADB_BIND_DUMMY;
           switch(ArdRecord->Type) {
           case SQL_C_WCHAR:
-            ArdRecord->InternalBuffer= (char *)MADB_CALLOC((ArdRecord->OctetLength +1));
+            /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
+               For ASCII  we need 2 times less, in other cases we need same 2 of 4 bytes. */
+            ArdRecord->InternalBuffer= (char *)MADB_CALLOC((ArdRecord->OctetLength)*1.5);
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
-            Stmt->result[i].buffer_length= ArdRecord->OctetLength + 1;
+            Stmt->result[i].buffer_length= ArdRecord->OctetLength*1.5;
             Stmt->result[i].buffer_type= MYSQL_TYPE_STRING;
+            Stmt->result[i].length= &Stmt->result[i].length_value;
             break;
           case SQL_C_CHAR:
             Stmt->result[i].buffer=DataPtr;
             Stmt->result[i].buffer_length= ArdRecord->OctetLength;
             Stmt->result[i].buffer_type= MYSQL_TYPE_STRING;
+            Stmt->result[i].length= IndicatorPtr;
             break;
           case SQL_C_NUMERIC:
             MADB_FREE(ArdRecord->InternalBuffer);
@@ -1403,6 +1407,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
             Stmt->result[i].buffer_length= MADB_DEFAULT_PRECISION + 2;
             Stmt->result[i].buffer_type= MYSQL_TYPE_STRING;
+            Stmt->result[i].length= &Stmt->result[i].length_value;
             break;
           case SQL_TYPE_TIMESTAMP:
           case SQL_TYPE_DATE:
@@ -1415,6 +1420,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
             Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
             Stmt->result[i].buffer_type= MYSQL_TYPE_TIMESTAMP;
+            Stmt->result[i].length= IndicatorPtr;
             break;
           default:
             if (!MADB_CheckODBCType(ArdRecord->ConciseType))
@@ -1427,9 +1433,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             Stmt->result[i].buffer_type= MADB_GetTypeAndLength(ArdRecord->ConciseType,
                                                                  &Stmt->result[i].is_unsigned,
                                                                  &Stmt->result[i].buffer_length);
+            Stmt->result[i].length= IndicatorPtr;
             break;
           }
-          Stmt->result[i].length= IndicatorPtr;
+
         } else 
           Stmt->result[i].flags|= MADB_BIND_DUMMY;
       }
