@@ -114,7 +114,7 @@ unsigned long my_options= 67108866;
 SQLHANDLE Env, Connection, Stmt;
 
 unsigned int my_port= 3306;
-char ma_strport[]= ";PORT=3306";
+char ma_strport[12]= ";PORT=3306";
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR sqlwchar_buff[1024], sqlwchar_empty[]= {0};

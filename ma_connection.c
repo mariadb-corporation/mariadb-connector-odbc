@@ -434,6 +434,12 @@ MADB_Dbc *MADB_DbcInit(SQLHANDLE OutputHandle)
   Connection->Environment->Dbcs= list_add(Connection->Environment->Dbcs, &Connection->ListItem);
   LeaveCriticalSection(&Connection->cs);
 
+  if (!(Connection->mariadb= mysql_init(NULL)))
+  {
+    MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
+    goto cleanup;
+  }
+
   return Connection;      
 cleanup:
   if (Connection)
@@ -546,12 +552,6 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   MADB_CLEAR_ERROR(&Connection->Error);
 
-  if (!(Connection->mariadb= mysql_init(NULL)))
-  {
-    MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
-    goto end;
-  }
-
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
      for unicode connections we use utf8
@@ -611,9 +611,15 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* enable truncation reporting */
   mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
 
+  if (Dsn->Socket)
+  {
+    int protocol= MYSQL_PROTOCOL_SOCKET;
+    mysql_options(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+  }
+
   if (!mysql_real_connect(Connection->mariadb,
-        Dsn->ServerName, Dsn->UserName, Dsn->Password,
-        Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, NULL, client_flags))
+      Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password,
+        Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, Dsn->Socket, client_flags))
   {
     goto err;
   }

@@ -388,6 +388,7 @@ typedef struct st_madb_dsn
   my_bool MultiStatements;
   /* TRUE means "no prompt" */
   my_bool ConnectPrompt;
+  char *Socket;
   /* --- Internal --- */
   int isPrompt;
   MADB_DsnKey *Keys;

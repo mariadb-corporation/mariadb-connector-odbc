@@ -59,7 +59,6 @@ ELSE()
     MESSAGE(STATUS "Found ODBC Driver Manager includes: ${ODBC_INCLUDE_DIR}")
   ENDIF()
 
-
   # Try to find DM libraries, giving precedence to special variables
   FIND_PATH(ODBC_LIB_DIR libodbc.so
       HINTS ${DM_LIB_DIR}

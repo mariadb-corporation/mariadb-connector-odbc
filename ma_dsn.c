@@ -43,6 +43,7 @@ MADB_DsnKey DsnKeys[]=
   {"PASSWORD", offsetof(MADB_Dsn, Password), DSN_TYPE_STRING,0,1},
   {"DB", offsetof(MADB_Dsn, Catalog), DSN_TYPE_COMBO,0,1},
   {"OPTION", offsetof(MADB_Dsn, Options), DSN_TYPE_INT, 0,1},
+  {"SOCKET", offsetof(MADB_Dsn, Socket), DSN_TYPE_STRING,0,0},
   {NULL, 0, DSN_TYPE_BOOL}
 };
 
