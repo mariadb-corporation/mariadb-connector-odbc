@@ -343,12 +343,15 @@ if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
 }
 
 #define CHECK_HANDLE_RC(handletype, handle ,rc)\
-if (!(SQL_SUCCEEDED(rc)))\
-{\
-  fprintf(stdout, "Error (rc=%d) in %s:%d:\n", rc, __FILE__, __LINE__);\
-  odbc_print_error((handletype), (handle));\
-  return FAIL;\
-}
+do {\
+  SQLRETURN local_rc= (rc); \
+  if (!(SQL_SUCCEEDED(local_rc)))\
+  {\
+    fprintf(stdout, "Error (rc=%d) in %s:%d:\n", local_rc, __FILE__, __LINE__);\
+    odbc_print_error((handletype), (handle));\
+    return FAIL;\
+  }\
+} while(0)
 
 #define CHECK_STMT_RC(stmt,rc) CHECK_HANDLE_RC(SQL_HANDLE_STMT,stmt,rc)
 #define CHECK_DBC_RC(dbc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DBC,dbc,rc)
@@ -356,11 +359,14 @@ if (!(SQL_SUCCEEDED(rc)))\
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
 #define is_num(A,B) \
-  if ((long long)(A) != (long long)(B))\
+do {\
+  long long local_a= (long long)(A), local_b= (long long)(B);\
+  if (local_a != local_b)\
   {\
-    diag("%s %d: expected value %lld instead of %lld", __FILE__, __LINE__, (B), (A));\
+    diag("%s %d: expected value %lld instead of %lld", __FILE__, __LINE__, local_a, local_b);\
     return FAIL;\
-  }
+  }\
+} while(0)
 
 #define EXPECT_DBC(Dbc,Function, Expected)\
 do {\

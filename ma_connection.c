@@ -552,6 +552,14 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   MADB_CLEAR_ERROR(&Connection->Error);
 
+  if (Connection->mariadb == NULL)
+  {
+    if (!(Connection->mariadb= mysql_init(NULL)))
+    {
+      MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
+      goto end;
+    }
+  }
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
      for unicode connections we use utf8

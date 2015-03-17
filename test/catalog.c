@@ -111,7 +111,7 @@ ODBC_TEST(my_table_dbs)
     CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
     nrows = my_print_non_format_result(Stmt);
 
-    is_num(rowCount, nrows)
+    is_num(rowCount, nrows);
     rc = SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
@@ -2193,7 +2193,7 @@ ODBC_TEST(t_bug57182)
     NULL, 0));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  is_num(2, nRowCount)
+  is_num(2, nRowCount);
   
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   
@@ -2218,7 +2218,7 @@ ODBC_TEST(t_bug57182)
     "id", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  is_num(1, nRowCount)
+  is_num(1, nRowCount);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 

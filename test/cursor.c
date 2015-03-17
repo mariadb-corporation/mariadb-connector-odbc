@@ -211,7 +211,7 @@ ODBC_TEST(t_bug5853)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_DYNAMIC,0));
 
-  CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"bug5853", SQL_NTS))
+  CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"bug5853", SQL_NTS));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug5853");
 

@@ -679,7 +679,7 @@ ODBC_TEST(t_row_status)
   for (i= 0; i<2; ++i)
   {
     diag("Row %d, Desc %d, Parameter %d", i+1, arr1[i], arr2[i]);
-    is_num(expectedRow1[i], arr1[i])
+    is_num(expectedRow1[i], arr1[i]);
     is_num(arr1[i], arr2[i]);
   }
 
@@ -698,8 +698,7 @@ ODBC_TEST(t_row_status)
     {
       diag("Set %d Row %d, desc %d, parameter %d", i+1, j+1, arr1[j],
                     arr2[j]);
-      is_num(expectedRow2[i][j], arr1[j])
-
+      is_num(expectedRow2[i][j], arr1[j]);
     }
   }
 
@@ -775,7 +774,8 @@ ODBC_TEST(t_prefetch)
 ODBC_TEST(t_outparams)
 {
   SQLSMALLINT ncol, i;
-  SQLINTEGER par[3]= {10, 20, 30}, val, len;
+  SQLINTEGER  par[3]= {10, 20, 30}, val;
+  SQLLEN      len;
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS p_outparams");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE p_outparams("
@@ -853,12 +853,12 @@ ODBC_TEST(t_outparams)
 */
 ODBC_TEST(t_bug11766437)
 {
-  SQLINTEGER rowcnt= 3;
-  SQLINTEGER i, incr;
-  SQLCHAR tbuf[50];
-  char *ptr;
-  char rows[500]= {0};
-  SQLINTEGER MAX_CHAR_SIZE= 7; /*max size for character name*/ 
+  SQLULEN     rowcnt= 3;
+  SQLINTEGER  i, incr;
+  SQLCHAR     tbuf[50];
+  char        *ptr;
+  char        rows[500]= {0};
+  SQLINTEGER  MAX_CHAR_SIZE= 7; /*max size for character name*/ 
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug11766437");
   OK_SIMPLE_STMT(Stmt, "create table t_bug11766437 (id int not null, "
