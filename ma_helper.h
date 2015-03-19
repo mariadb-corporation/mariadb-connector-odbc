@@ -69,7 +69,7 @@ extern my_bool DummyError;
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) \
-  my_free((gptr)(a), MYF(MY_ALLOW_ZERO_PTR));\
+  my_free((a));\
   (a)= NULL;
 #define MADB_ALLOC(a) my_malloc((a), MYF(0))
 #define MADB_CALLOC(a) my_malloc((a), MYF(MY_ZEROFILL))
@@ -77,7 +77,7 @@ extern my_bool DummyError;
 
 /* If required to free old memory pointed by current ptr, and set new value */
 #define MADB_SUBSTITUTE(ptr, newptr) \
-  my_free((gptr)(ptr), MYF(MY_ALLOW_ZERO_PTR));\
+  my_free((ptr));\
   (ptr)= (newptr);
 
 #define MADB_SET_NUM_VAL(TYPE, PTR, VALUE, LENGTHPTR)\

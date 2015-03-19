@@ -113,7 +113,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
         if (StmtCopy)
-          my_free(StmtCopy, MYF(0));
+          my_free(StmtCopy);
         return 0;
       }
       if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
@@ -126,7 +126,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
   }
   if (StmtCopy)
-    my_free(StmtCopy, MYF(0));
+    my_free(StmtCopy);
   return statements;
 }
 
