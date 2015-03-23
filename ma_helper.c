@@ -28,6 +28,24 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
   MADB_FREE(Stmt->MultiStmts);
 }
 
+
+/* Required, but not sufficient condition */
+BOOL QueryIsPossiblyMultistmt(char *queryStr)
+{
+  if (strchr(queryStr, ';'))
+  {
+    /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
+        protocol */
+    if (!MADB_IsStatementSupported(queryStr, "CREATE", "PROCEDURE"))
+      return FALSE;
+    if (!MADB_IsStatementSupported(queryStr, "CREATE", "DEFINER"))
+      return FALSE;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
 {
   char *p, *last, *prev= NULL;
@@ -36,13 +54,6 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
   char *end;
   MYSQL_STMT *stmt;
   p= last= StmtStr;
-
-  /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
-     protocol */
-  if (!MADB_IsStatementSupported(StmtStr, "CREATE", "PROCEDURE"))
-    return 1;
-  if (!MADB_IsStatementSupported(StmtStr, "CREATE", "DEFINER"))
-    return 1;
 
   stmt= mysql_stmt_init(Stmt->Connection->mariadb);
 

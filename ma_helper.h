@@ -20,6 +20,7 @@
 #define _ma_helper_h_
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
+BOOL QueryIsPossiblyMultistmt(char *queryStr);
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
@@ -69,7 +70,7 @@ extern my_bool DummyError;
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) \
-  my_free((gptr)(a), MYF(MY_ALLOW_ZERO_PTR));\
+  my_free((gptr)(a));\
   (a)= NULL;
 #define MADB_ALLOC(a) my_malloc((a), MYF(0))
 #define MADB_CALLOC(a) my_malloc((a), MYF(MY_ZEROFILL))
@@ -77,7 +78,7 @@ extern my_bool DummyError;
 
 /* If required to free old memory pointed by current ptr, and set new value */
 #define MADB_SUBSTITUTE(ptr, newptr) \
-  my_free((gptr)(ptr), MYF(MY_ALLOW_ZERO_PTR));\
+  my_free((gptr)(ptr));\
   (ptr)= (newptr);
 
 #define MADB_UTF8_LEN(a) WideCharToMultiByte(CP_UTF8, 0, (a), -1, NULL, 0, NULL, NULL)

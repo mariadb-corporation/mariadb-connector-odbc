@@ -1374,7 +1374,7 @@ ODBC_TEST(odbc19)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_WSTR(a, a_ref, sizeof(a_ref)/sizeof(SQLWCHAR));
-  IS_WSTR(c, c_ref, sizeof(a_ref)/sizeof(SQLWCHAR));
+  IS_WSTR(c, c_ref, sizeof(c_ref)/sizeof(SQLWCHAR));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

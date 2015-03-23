@@ -84,12 +84,19 @@ SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER Te
   SQLRETURN ret= SQL_ERROR;
   
   LOCK_MARIADB(Stmt->Connection);
-  if (StatementText && !mysql_real_query(Stmt->Connection->mariadb, StatementText, TextLength))
+  if (StatementText)
   {
-    ret= SQL_SUCCESS;
-    MADB_CLEAR_ERROR(&Stmt->Error);
-    Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
-    Stmt->EmulatedStmt= 1;
+    if(!mysql_real_query(Stmt->Connection->mariadb, StatementText, TextLength))
+    {
+      ret= SQL_SUCCESS;
+      MADB_CLEAR_ERROR(&Stmt->Error);
+      Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
+      Stmt->EmulatedStmt= TRUE;
+    }
+    else
+    {
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_DBC, Stmt->Connection->mariadb);
+    }
   }
   else
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
@@ -127,16 +134,19 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
   /* In case statement is not supported, we use mysql_query instead */
   if (!SQL_SUCCEEDED(ret) )
   {
-    Stmt->EmulatedStmt= TRUE;
     if (Stmt->Error.NativeError == 1295 || Stmt->Error.NativeError == 1064)
-      return MADB_ExecuteQuery(Stmt, StatementText, TextLength == SQL_NTS ? strlen(StatementText) : TextLength);
+    {
+      Stmt->EmulatedStmt= TRUE;
+    }
     else
+    {
+      MADB_FREE(Stmt->StmtString);
+      MADB_FREE(Stmt->NativeSql);
       return ret;
+    }
   }
-  Stmt->EmulatedStmt= FALSE;
 
   return Stmt->Methods->Execute(Stmt);
-
 }
 /* }}} */
 
@@ -186,14 +196,15 @@ MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 /* {{{ MADB_StmtPrepare */
 SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength)
 {
-  char *CursorName= NULL;
-  char *p;
-  unsigned int WhereOffset, Need2CloseStmt= 0;
+  char                      *CursorName= NULL;
+  char                      *p;
+  unsigned int              WhereOffset, Need2CloseStmt= 0;
+  enum enum_madb_query_type QueryType;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
   MADB_FREE(Stmt->NativeSql);
   MADB_FREE(Stmt->StmtString);
-  Stmt->StmtString= Stmt->NativeSql= NULL;
+  Stmt->EmulatedStmt= FALSE;
 
   ADJUST_LENGTH(StatementText, TextLength);
 
@@ -215,7 +226,8 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stnt.>MultiStnts */
-  if (DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS) && strchr(StatementText, ';'))
+  if (DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS)
+   && QueryIsPossiblyMultistmt(StatementText))
   {
     int MultiStmts= GetMultiStatements(Stmt, StatementText, TextLength);
     if (!MultiStmts)
@@ -249,6 +261,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_FreeTokens(Stmt->Tokens);
   Stmt->Tokens= MADB_Tokenize(Stmt->StmtString);
 
+  QueryType= MADB_GetQueryType(Stmt);
   /* Transform WHERE CURRENT OF [cursorname]:
      Append WHERE with Parameter Markers
      In StmtExecute we will call SQLSetPos with update or delete:
@@ -260,11 +273,13 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     DYNAMIC_STRING StmtStr;
     char *TableName;
 
-    /* Make sure we have a delete or update statement */
-    if (_strnicmp(Stmt->StmtString, "DELETE", 6) == 0)
-      Stmt->PositionedCommand= SQL_DELETE;
-    else if (_strnicmp(Stmt->StmtString, "UPDATE", 6) == 0)
-      Stmt->PositionedCommand= SQL_UPDATE;
+    /* Make sure we have a delete or update statement
+       MADB_QUERY_DELETE and MADB_QUERY_UPDATE defined in the enum to have the same value
+       as SQL_UPDATE and SQL_DELETE, respectively */
+    if (QueryType == MADB_QUERY_DELETE || QueryType == MADB_QUERY_UPDATE)
+    {
+      Stmt->PositionedCommand= QueryType;
+    }
     else
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_42000, "Invalid SQL Syntax: DELETE or UPDATE expected for positioned update", 0);
@@ -292,33 +307,38 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     TextLength= strlen(Stmt->StmtString);
   }
 
+  if (QUERY_DOESNT_RETURN_RESULT(QueryType) && MADB_FindParamPlaceholder(Stmt) == 0
+   && !QueryIsPossiblyMultistmt(Stmt->StmtString))
+  {
+    Stmt->EmulatedStmt= TRUE;
+    return SQL_SUCCESS;
+  }
+
   LOCK_MARIADB(Stmt->Connection);
   if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, 
                          TextLength == SQL_NTS ? strlen(Stmt->StmtString) : TextLength))
   {
     UNLOCK_MARIADB(Stmt->Connection);
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-    MADB_FREE(Stmt->StmtString);
-    MADB_FREE(Stmt->NativeSql);
-    Stmt->StmtString= Stmt->NativeSql= NULL;
-    return Stmt->Error.ReturnValue;
-  } else
-  {
-    UNLOCK_MARIADB(Stmt->Connection);
-    if ((Stmt->ColumnCount= Stmt->stmt->field_count))
-    {
-      MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), Stmt->ColumnCount);
-    }
 
-    if ((Stmt->ParamCount= mysql_stmt_param_count(Stmt->stmt)))
-    {
-      if (Stmt->params)
-        MADB_FREE(Stmt->params);
-      Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
-      mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
-    }
-    return SQL_SUCCESS;
+    return Stmt->Error.ReturnValue;
   }
+  UNLOCK_MARIADB(Stmt->Connection);
+
+  if ((Stmt->ColumnCount= Stmt->stmt->field_count))
+  {
+    MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), Stmt->ColumnCount);
+  }
+
+  if ((Stmt->ParamCount= mysql_stmt_param_count(Stmt->stmt)))
+  {
+    if (Stmt->params)
+      MADB_FREE(Stmt->params);
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
+    mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
+  }
+
+  return SQL_SUCCESS;
 }
 /* }}} */
 
@@ -587,6 +607,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   unsigned int Iterations= 1;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+
+  if (Stmt->EmulatedStmt)
+  {
+    return MADB_ExecuteQuery(Stmt, Stmt->StmtString, strlen(Stmt->StmtString));
+  }
 
   if (Stmt->PositionedCommand && Stmt->PositionedCursor)
   {
@@ -1211,7 +1236,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
       MADB_FREE(Stmt->Lengths);
-      Stmt->EmulatedStmt= 0;
+      Stmt->EmulatedStmt= FALSE;
     }
     break;
   case SQL_UNBIND:
@@ -1388,7 +1413,8 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
           switch(ArdRecord->Type) {
           case SQL_C_WCHAR:
             /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
-               For ASCII  we need 2 times less, in other cases we need same 2 of 4 bytes. */
+               For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
+               in other cases we need same 2 of 4 bytes. */
             ArdRecord->InternalBuffer= (char *)MADB_CALLOC((ArdRecord->OctetLength)*1.5);
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
             Stmt->result[i].buffer_length= ArdRecord->OctetLength*1.5;
@@ -3494,7 +3520,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   case SQL_DELETE:
     {
       DYNAMIC_STRING DynamicStmt;
-      SQLHSTMT NewStmt= NULL;
       SQLINTEGER SaveArraySize= Stmt->Ard->Header.ArraySize;
       my_ulonglong Start=0, End=mysql_stmt_num_rows(Stmt->stmt);
       char *TableName= MADB_GetTableName(Stmt);
@@ -3520,7 +3545,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         End= MIN(End, Start + SaveArraySize - 1);
       else
         End= Start;
-           
+
+      LOCK_MARIADB(Stmt->Connection);
       while (Start <= End)
       {
         MADB_StmtDataSeek(Stmt, Start);
@@ -3531,19 +3557,27 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         {
           dynstr_free(&DynamicStmt);
           MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+
+          UNLOCK_MARIADB(Stmt->Connection);
+
           return Stmt->Error.ReturnValue;
         }
-        if (SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, &NewStmt) != SQL_SUCCESS ||
-            SQLExecDirect(NewStmt, (SQLCHAR *)DynamicStmt.str, SQL_NTS) != SQL_SUCCESS)
+        if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, DynamicStmt.length))
         {
           dynstr_free(&DynamicStmt);
+          MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
+                            mysql_errno(Stmt->Connection->mariadb));
+
+          UNLOCK_MARIADB(Stmt->Connection);
+
           return Stmt->Error.ReturnValue;
         }
         dynstr_free(&DynamicStmt);
-        Stmt->AffectedRows+= mysql_stmt_affected_rows(((MADB_Stmt *)NewStmt)->stmt);
-        SQLFreeStmt(NewStmt, SQL_CLOSE);
+        Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
         Start++;
       }
+      UNLOCK_MARIADB(Stmt->Connection);
+
       Stmt->Ard->Header.ArraySize= SaveArraySize;
       /* if we have a dynamic cursor we need to adjust the rowset size */
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)

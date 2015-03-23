@@ -128,3 +128,43 @@ char *MADB_ParseCursorName(MADB_Stmt *Stmt, unsigned int *Offset)
   }
   return NULL;
 }
+
+
+const char * SimpleParamDetector(const char *query)
+{
+  return strchr(query, '?');
+}
+
+
+const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt)
+{ 
+  /* Atm we do not need 100% accuracy with that. And unlikely will */
+  return SimpleParamDetector(Stmt->StmtString);
+}
+
+
+enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt)
+{
+  if (_strnicmp(Stmt->StmtString, "SELECT", 6) == 0)
+  {
+    return MADB_QUERY_SELECT;
+  }
+  if (_strnicmp(Stmt->StmtString, "UPDATE", 6) == 0)
+  {
+    return MADB_QUERY_UPDATE;
+  }
+  if (_strnicmp(Stmt->StmtString, "DELETE", 6) == 0)
+  {
+    return MADB_QUERY_DELETE;
+  }
+  if (_strnicmp(Stmt->StmtString, "CALL", 4) == 0)
+  {
+    return MADB_QUERY_CALL;
+  }
+  if (_strnicmp(Stmt->StmtString, "SHOW", 4) == 0)
+  {
+    return MADB_QUERY_SHOW;
+  }
+
+  return MADB_QUERY_NO_RESULT;
+}

@@ -19,9 +19,23 @@
 #ifndef _ma_parse_h_
 #define _ma_parse_h_
 
+#include <sqlext.h>
+
+enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the query types we are not interested in */ 
+                            MADB_QUERY_INSERT,
+                            MADB_QUERY_UPDATE= SQL_UPDATE,
+                            MADB_QUERY_DELETE= SQL_DELETE,
+                            MADB_QUERY_SELECT,
+                            MADB_QUERY_SHOW,
+                            MADB_QUERY_CALL
+                          };
+
+#define QUERY_DOESNT_RETURN_RESULT(query_type) ((query_type) < MADB_QUERY_SELECT)
+
 MADB_QUERY *MADB_Tokenize(const char *Stmt);
 char *MADB_ParseCursorName(MADB_Stmt *Stmt, unsigned int *Offset);
 unsigned int MADB_FindToken(MADB_Stmt *Stmt, char *Compare);
 void MADB_FreeTokens(MADB_QUERY *Query);
-
+enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt);
+const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt);
 #endif /* _ma_parse_h_ */
