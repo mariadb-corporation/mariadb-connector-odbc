@@ -19,6 +19,7 @@ Debug
 Win32
 ipch
 
+*.*~
 *.diff
 
 *.so

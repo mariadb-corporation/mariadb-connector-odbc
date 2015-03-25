@@ -1355,6 +1355,41 @@ ODBC_TEST(t_bug14363601)
   return OK;
 }
 
+
+/* Issue ODBC-19 - if same ptr used for StrLen_IndPtr when binding columns, */
+ODBC_TEST(odbc19)
+{
+  SQLLEN   lenPtr;
+  SQLWCHAR a[10], b[10], c[10];
+  SQLWCHAR a_ref[]= {'M', 'a', 'r', 'i', 'a', 'D', 'B', 0}, c_ref[]= {'S', 'k', 'y', 0};
+
+  a[0]= b[0]= c[0]= 0;
+
+  OK_SIMPLE_STMT(Stmt, "DROP table IF EXISTS t_odbc19");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE table t_odbc19(a varchar(10), b varchar(10), c varchar(10))");
+
+  OK_SIMPLE_STMT(Stmt, "insert into t_odbc19(a, c) values( 'MariaDB', 'Sky')");
+
+  OK_SIMPLE_STMTW(Stmt, L"select a, b, c from t_odbc19");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, a, sizeof(a), &lenPtr));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, b, sizeof(b), &lenPtr));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_WCHAR, c, sizeof(c), &lenPtr));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_WSTR(a, a_ref, sizeof(a_ref)/sizeof(SQLWCHAR));
+  IS_WSTR(c, c_ref, sizeof(c_ref)/sizeof(SQLWCHAR));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP table t_odbc19");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1, "test_CONO1"},
@@ -1382,6 +1417,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug34672, "t_bug34672"},
   {t_bug28168, "t_bug28168"},
   {t_bug14363601, "t_bug14363601"},
+  {odbc19, "test_issue_odbc19"},
   {NULL, NULL}
 };
 

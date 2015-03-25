@@ -133,7 +133,7 @@ ODBC_TEST(t_bug28657)
 #else
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_DATETIME));
 
-  FAIL_IF(myresult(Stmt) <= 1, "Expected > 1");
+  FAIL_IF(myrowcount(Stmt) <= 1, "Expected > 1");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -288,15 +288,15 @@ ODBC_TEST(t_bug30626)
   
   /* odbc 3 */
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_TIMESTAMP));
-  is_num(myresult(Stmt), 2);
+  is_num(myrowcount(Stmt), 2);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_TIME));
-  is_num(myresult(Stmt), 1);
+  is_num(myrowcount(Stmt), 1);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_DATE));
-  is_num(myresult(Stmt), 1);
+  is_num(myrowcount(Stmt), 1);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* odbc 2 */
@@ -312,15 +312,15 @@ ODBC_TEST(t_bug30626)
   CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
   
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_TIMESTAMP));
-  is_num(myresult(Stmt1), 2);
+  is_num(myrowcount(Stmt1), 2);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_TIME));
-  is_num(myresult(Stmt1), 1);
+  is_num(myrowcount(Stmt1), 1);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_DATE));
-  is_num(myresult(Stmt1), 1);
+  is_num(myrowcount(Stmt1), 1);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt1, SQLFreeHandle(SQL_HANDLE_STMT, Stmt1));

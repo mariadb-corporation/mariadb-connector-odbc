@@ -60,7 +60,7 @@ ODBC_TEST(t_longlong1)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_longlong");
 
-  FAIL_IF(50 != myresult(Stmt), "Expexted 50 rows");
+  FAIL_IF(50 != myrowcount(Stmt), "Expexted 50 rows");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -225,7 +225,7 @@ ODBC_TEST(t_bigint)
 
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 0 != myresult(Stmt), "expected 0 rows");
+    FAIL_IF( 0 != myrowcount(Stmt), "expected 0 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -234,7 +234,7 @@ ODBC_TEST(t_bigint)
 
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 2 != myresult(Stmt), "expected 2 rows");
+    FAIL_IF( 2 != myrowcount(Stmt), "expected 2 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -243,7 +243,7 @@ ODBC_TEST(t_bigint)
 
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 1 != myresult(Stmt), "Expected 1 row");
+    FAIL_IF( 1 != myrowcount(Stmt), "Expected 1 row");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -252,7 +252,7 @@ ODBC_TEST(t_bigint)
     rc = SQLGetTypeInfo(Stmt,SQL_BIGINT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 4 != myresult(Stmt), "expected 4 rows");
+    FAIL_IF( 4 != myrowcount(Stmt), "expected 4 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -263,7 +263,7 @@ ODBC_TEST(t_bigint)
     rc = SQLGetTypeInfo(Stmt,SQL_BIGINT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 4 != myresult(Stmt), "Expected 4 rows");
+    FAIL_IF( 4 != myrowcount(Stmt), "Expected 4 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -335,7 +335,7 @@ ODBC_TEST(t_enumset)
 
     OK_SIMPLE_STMT(Stmt,"select * from t_enumset");
   
-    FAIL_IF( 2 != myresult(Stmt), "expected 2 rows");
+    FAIL_IF( 2 != myrowcount(Stmt), "expected 2 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_UNBIND);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);

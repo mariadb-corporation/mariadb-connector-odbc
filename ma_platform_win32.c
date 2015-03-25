@@ -28,6 +28,7 @@
 extern Client_Charset utf8;
 char LogFile[256];
 
+
 const char* GetDefaultLogDir()
 {
   const char *DefaultLogDir= "c:";

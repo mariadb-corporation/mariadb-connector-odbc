@@ -119,14 +119,6 @@ char ma_strport[12]= ";PORT=3306";
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR sqlwchar_buff[1024], sqlwchar_empty[]= {0};
 
-unsigned long myresult(SQLHANDLE Stmt)
-{
-  unsigned long Rows= 0;
-  while (SQLFetch(Stmt) != SQL_NO_DATA)
-    Rows++;
-  return Rows;
-}
-
 void usage()
 {
   fprintf(stdout, "Valid options:\n");
@@ -313,7 +305,7 @@ int my_print_non_format_result(SQLHSTMT Stmt)
 }
 
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt),(stmtstr),strlen(stmtstr)) != SQL_SUCCESS)\
+if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), strlen(stmtstr)) != SQL_SUCCESS)\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -321,7 +313,7 @@ if (SQLExecDirect((stmt),(stmtstr),strlen(stmtstr)) != SQL_SUCCESS)\
 }
 
 #define OK_SIMPLE_STMTW(stmt, stmtstr)\
-if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_SUCCESS)\
+if (SQLExecDirectW((stmt), (SQLWCHAR*)(stmtstr), SQL_NTS) != SQL_SUCCESS)\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -329,14 +321,14 @@ if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_SUCCESS)\
 }
 
 #define ERR_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
+if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), SQL_NTS) != SQL_ERROR)\
 {\
   fprintf(stdout, "Error expected in %s:%d:\n", __FILE__, __LINE__);\
   return FAIL;\
 }
 
 #define ERR_SIMPLE_STMTW(stmt, stmtstr)\
-if (SQLExecDirectW((stmt),(stmtstr),SQL_NTS) != SQL_ERROR)\
+if (SQLExecDirectW((stmt), (SQLWCHAR*)(stmtstr), SQL_NTS) != SQL_ERROR)\
 {\
   fprintf(stdout, "Error expected in %s:%d:\n", __FILE__, __LINE__);\
   return FAIL;\
@@ -579,11 +571,12 @@ void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
 
 #define IS_WSTR(a, b, c) \
 do { \
-  wchar_t *val_a= (a), *val_b= (b); \
+  SQLWCHAR *val_a= (a), *val_b= (b); \
   int val_len= (int)(c); \
-  if (memcmp(val_a, val_b, val_len * sizeof(wchar_t)) != 0) { \
-    printf("# %s ('%*ls') != '%*ls' in %s on line %d\n", \
+  if (memcmp(val_a, val_b, val_len * sizeof(SQLWCHAR)) != 0) { \
+    printf("# %s ('%*ls') != '%*ls' in %s on line %d", \
            #a, val_len, val_a, val_len, val_b, __FILE__, __LINE__); \
+    printf("\n"); \
     return FAIL; \
   } \
 } while (0);

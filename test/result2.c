@@ -946,6 +946,7 @@ ODBC_TEST(t_bug11766437)
   return OK;
 }
 
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},

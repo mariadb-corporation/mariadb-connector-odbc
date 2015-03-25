@@ -78,6 +78,7 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
   return 0;
 }
 
+
 const char* GetDefaultLogDir()
 {
   const char *DefaultLogDir="/tmp";

@@ -276,49 +276,50 @@ typedef struct {
 
 struct st_ma_odbc_stmt
 {
-  MADB_Dbc *Connection;
+  MADB_Dbc                  *Connection;
   struct st_ma_stmt_methods *Methods;
-  MADB_StmtOptions Options;
-  MADB_Error Error;
-  MADB_Cursor Cursor;
-  MYSQL_STMT *stmt;
-  LIST ListItem;
-  MADB_QUERY *Tokens;
-  SQLINTEGER ColumnCount;
-  SQLINTEGER ParamCount;
-  my_bool isMultiQuery;
-  unsigned int FetchType;
-  enum MADB_DaeType DataExecutionType;
-  MYSQL_RES *DefaultsResult;
-  int ArrayOffset;
-  SQLSETPOSIROW DaeRowNumber;
-  int Status;
-  MADB_DescRecord *PutDataRec;
-  MADB_Stmt *DaeStmt;
-  char *StmtString;
-  char *NativeSql;
-  MADB_Stmt *PositionedCursor;
-  unsigned int PositionedCommand;
-  my_bool EmulatedStmt;
-  unsigned int MultiStmtCount;
-  MYSQL_STMT **MultiStmts;
-  unsigned int MultiStmtNr;
-  unsigned int MultiStmtMaxParam;
-  unsigned long LastRowFetched;
-  struct st_bind_column *bind_columns; /* ARD */
-  struct st_bind_param *bind_params;
-  MYSQL_BIND *result;
-  MYSQL_BIND *params;
-  int PutParam;
-  my_bool RebindParams;
-  my_bool bind_done;
-  SQLBIGINT AffectedRows;
-  unsigned long *CharOffset;
-  unsigned long *Lengths;
-  char *TableName;
-  char *CatalogName;
-  char TmpBuf[1]; /* for null bindings */
-  MYSQL_FIELD *BulkFields;
+  MADB_StmtOptions          Options;
+  MADB_Error                Error;
+  MADB_Cursor               Cursor;
+  MYSQL_STMT                *stmt;
+  MYSQL_RES                 *metadata;
+  LIST                      ListItem;
+  MADB_QUERY                *Tokens;
+  SQLINTEGER                ColumnCount;
+  SQLINTEGER                ParamCount;
+  my_bool                   isMultiQuery;
+  unsigned int              FetchType;
+  enum MADB_DaeType         DataExecutionType;
+  MYSQL_RES                 *DefaultsResult;
+  int                       ArrayOffset;
+  SQLSETPOSIROW             DaeRowNumber;
+  int                       Status;
+  MADB_DescRecord           *PutDataRec;
+  MADB_Stmt                 *DaeStmt;
+  char                      *StmtString;
+  char                      *NativeSql;
+  MADB_Stmt                 *PositionedCursor;
+  unsigned int              PositionedCommand;
+  my_bool                   EmulatedStmt;
+  unsigned int              MultiStmtCount;
+  MYSQL_STMT                **MultiStmts;
+  unsigned int              MultiStmtNr;
+  unsigned int              MultiStmtMaxParam;
+  unsigned long             LastRowFetched;
+  struct st_bind_column     *bind_columns; /* ARD */
+  struct st_bind_param      *bind_params;
+  MYSQL_BIND                *result;
+  MYSQL_BIND                *params;
+  int                       PutParam;
+  my_bool                   RebindParams;
+  my_bool                   bind_done;
+  SQLBIGINT                 AffectedRows;
+  unsigned long             *CharOffset;
+  unsigned long             *Lengths;
+  char                      *TableName;
+  char                      *CatalogName;
+  char                      TmpBuf[1]; /* for null bindings */
+  MYSQL_FIELD               *BulkFields;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;
@@ -455,8 +456,16 @@ SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName, MADB_D
 int       DSNPrompt_Free  (MADB_Prompt *prompt);
 
 Client_Charset* GetDefaultOsCharset(Client_Charset *cc);
-int InitClientCharset(Client_Charset *cc, const char * name);
-void CloseClientCharset(Client_Charset *cc);
+int             InitClientCharset  (Client_Charset *cc, const char * name);
+void            CloseClientCharset (Client_Charset *cc);
+
+/* Default precision of SQL_NUMERIC */
+#define MADB_DEFAULT_PRECISION 38
+
+/* Macros to guard communications with the server.
+   TODO: make it(locking) optional depending on designated connection string option */
+#define LOCK_MARIADB(Dbc)   EnterCriticalSection(&(Dbc)->cs)
+#define UNLOCK_MARIADB(Dbc) LeaveCriticalSection(&(Dbc)->cs)
 
 #include <ma_error.h>
 #include <ma_parse.h>

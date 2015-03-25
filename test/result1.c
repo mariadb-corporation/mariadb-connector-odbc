@@ -433,12 +433,12 @@ ODBC_TEST(t_max_rows)
 
   rc = SQLExecDirect(Stmt,"select count(*) from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  IS( 1 == myresult(Stmt) );
+  IS( 1 == myrowcount(Stmt) );
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
   rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
-  IS( 10 == myresult(Stmt) );
+  IS( 10 == myrowcount(Stmt) );
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
   /* MAX rows through connection attribute */
@@ -1026,7 +1026,7 @@ ODBC_TEST(t_empty_str_bug)
     rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS( 1 == myresult(Stmt));
+    IS( 1 == myrowcount(Stmt));
 
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
     CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
@@ -1620,7 +1620,7 @@ ODBC_TEST(tmysql_rowstatus)
     rc = SQLExecDirect(Stmt,"select * from tmysql_rowstatus", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    IS(5 == myresult(Stmt));
+    IS(5 == myrowcount(Stmt));
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
