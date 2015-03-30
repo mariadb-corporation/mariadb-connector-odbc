@@ -733,6 +733,52 @@ SQLRETURN MADB_DbcGetFunctions(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALL
 }
 /* }}} */
 
+/* {{{ IsString_GetInfo_Type */
+int IsString_GetInfo_Type(SQLSMALLINT InfoType)
+{
+  switch (InfoType)
+  {
+    case SQL_ACCESSIBLE_PROCEDURES:
+    case SQL_ACCESSIBLE_TABLES:
+    case SQL_CATALOG_NAME:
+    case SQL_CATALOG_NAME_SEPARATOR:
+    case SQL_CATALOG_TERM:
+    case SQL_COLLATION_SEQ:
+    case SQL_COLUMN_ALIAS:
+    case SQL_DATA_SOURCE_NAME:
+    case SQL_DATABASE_NAME:
+    case SQL_DBMS_NAME:
+    case SQL_DBMS_VER:
+    case SQL_DESCRIBE_PARAMETER:
+    case SQL_DRIVER_NAME:
+    case SQL_DRIVER_ODBC_VER:
+    case SQL_DRIVER_VER:
+    case SQL_EXPRESSIONS_IN_ORDERBY:
+    case SQL_INTEGRITY:
+    case SQL_KEYWORDS:
+    case SQL_LIKE_ESCAPE_CLAUSE:
+    case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
+    case SQL_MULT_RESULT_SETS:
+    case SQL_MULTIPLE_ACTIVE_TXN:
+    case SQL_NEED_LONG_DATA_LEN:
+    case SQL_ORDER_BY_COLUMNS_IN_SELECT:
+    case SQL_PROCEDURE_TERM:
+    case SQL_PROCEDURES:
+    case SQL_ROW_UPDATES:
+    case SQL_SCHEMA_TERM:
+    case SQL_SEARCH_PATTERN_ESCAPE:
+    case SQL_SERVER_NAME:
+    case SQL_SPECIAL_CHARACTERS:
+    case SQL_TABLE_TERM:
+    case SQL_USER_NAME:
+    case SQL_XOPEN_CLI_YEAR:
+    case SQL_DATA_SOURCE_READ_ONLY:
+      return 1;
+  }
+
+  return 0;
+}
+/* }}} */
 
 /* {{{ MADB_DbcGetInfo */
 SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
@@ -744,6 +790,13 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   if (!InfoValuePtr && !StringLengthPtr)
     return SQL_SUCCESS;
 
+  /* Prety special case - on Windows DM passes NULL instead of InfoValuePtr and own pointer instead of StringLengthPtr.
+     The logic here is not quite clear - I would imagine that truncated status is more appropriate.
+     But UnixODBC does not do so, and we are making connector's behavior consistent */
+  if (InfoValuePtr != NULL && BufferLength == 0 && StringLengthPtr == NULL && IsString_GetInfo_Type(InfoType))
+  {
+    return SQL_SUCCESS;
+  }
  
   MADB_CLEAR_ERROR(&Dbc->Error);
   switch(InfoType) {
