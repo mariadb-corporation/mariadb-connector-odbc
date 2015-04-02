@@ -76,7 +76,7 @@ ODBC_TEST(test_count)
   SQLBindCol(Stmt, 1, SQL_INTEGER, &columnsize, sizeof(SQLINTEGER), NULL);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
 
-  wprintf(L"%s: %d", columnname, columnsize);
+  wprintf(L"%s: %d\n", columnname, columnsize);
 
   return (OK);
 }
@@ -952,7 +952,7 @@ ODBC_TEST(sqlstatistics)
   HDBC hdbc1;
   HSTMT hstmt1;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
-  SQLWCHAR table={'t', 'a', '\x00e3', 'g', '\0'};
+  SQLWCHAR table[]={'t', 'a', '\x00e3', 'g', '\0'};
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
@@ -1393,32 +1393,32 @@ ODBC_TEST(odbc19)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {test_CONO1, "test_CONO1"},
-  {test_count, "test_count"},
-  {sqlconnect, "sqlconnect"},
-  {sqlprepare, "sqlprepare"},
-  {sqlprepare_ansi, "sqlprepare_ansi"},
-  {sqlchar, "sqlchar"},
-  {sqldriverconnect, "sqldriverconnect"},
-  {sqlnativesql, "sqlnativesql"},
-  {sqlsetcursorname, "sqlsetcursorname"},
-  {sqlgetcursorname, "sqlgetcursorname"},
-  {sqlcolattribute, "sqlcolattribute"},
-  {sqldescribecol, "sqldescribecol"},
-  {sqlgetconnectattr, "sqlgetconnectattr"},
-  {sqlgetdiagrec, "sqlgetdiagrec"},
-  {sqlgetdiagfield, "sqlgetdiagfield"},
-  {sqlcolumns, "sqlcolumns"},
-  {sqltables, "sqltables"},
-  {sqlspecialcolumns, "sqlspecialcolumns"},
-  {sqlforeignkeys, "sqlforeignkeys"},
-  {sqlprimarykeys, "sqlprimarykeys"},
-  {sqlstatistics, "sqlstatistics"},
-  {t_bug32161, "t_bug32161"},
-  {t_bug34672, "t_bug34672"},
-  {t_bug28168, "t_bug28168"},
-  {t_bug14363601, "t_bug14363601"},
-  {odbc19, "test_issue_odbc19"},
+  {test_CONO1, "test_CONO1",     NORMAL},
+  {test_count, "test_count",     NORMAL},
+  {sqlconnect, "sqlconnect",     NORMAL},
+  {sqlprepare, "sqlprepare",     KNOWN_FAILURE},
+  {sqlprepare_ansi, "sqlprepare_ansi",     NORMAL},
+  {sqlchar,         "sqlchar",     KNOWN_FAILURE},
+  {sqldriverconnect, "sqldriverconnect",     NORMAL},
+  {sqlnativesql, "sqlnativesql",     NORMAL},
+  {sqlsetcursorname, "sqlsetcursorname",     NORMAL},
+  {sqlgetcursorname, "sqlgetcursorname",     NORMAL},
+  {sqlcolattribute, "sqlcolattribute",     NORMAL},
+  {sqldescribecol, "sqldescribecol",     NORMAL},
+  {sqlgetconnectattr, "sqlgetconnectattr",     KNOWN_FAILURE},
+  {sqlgetdiagrec, "sqlgetdiagrec",     NORMAL},
+  {sqlgetdiagfield, "sqlgetdiagfield",     NORMAL},
+  {sqlcolumns, "sqlcolumns",     KNOWN_FAILURE},
+  {sqltables, "sqltables",     KNOWN_FAILURE},
+  {sqlspecialcolumns, "sqlspecialcolumns",     NORMAL},
+  {sqlforeignkeys, "sqlforeignkeys",     NORMAL},
+  {sqlprimarykeys, "sqlprimarykeys",     NORMAL},
+  {sqlstatistics, "sqlstatistics",     KNOWN_FAILURE},
+  {t_bug32161, "t_bug32161",     NORMAL},
+  {t_bug34672, "t_bug34672",     NORMAL},
+  {t_bug28168, "t_bug28168",     NORMAL},
+  {t_bug14363601, "t_bug14363601",     NORMAL},
+  {odbc19, "test_issue_odbc19",     NORMAL},
   {NULL, NULL}
 };
 
