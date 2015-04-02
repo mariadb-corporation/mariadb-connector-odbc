@@ -288,9 +288,11 @@ ODBC_TEST(sqldriverconnect)
   mbstowcs(dummy, (char *)my_schema, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";SERVER=");
-  mbstowcs(dummy, (char *)"localhost", sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char*)my_servername, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
- 
+  mbstowcs(dummy, (char*)ma_strport, sizeof(dummy)/sizeof(wchar_t));
+  wcscat(conn_in, dummy);
+
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, WL(conn_in, wcslen(conn_in)),
                                   wcslen(conn_in), conn_out, sizeof(conn_out),
                                   &conn_out_len, SQL_DRIVER_NOPROMPT));
@@ -950,6 +952,7 @@ ODBC_TEST(sqlstatistics)
   HDBC hdbc1;
   HSTMT hstmt1;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
+  SQLWCHAR table={'t', 'a', '\x00e3', 'g', '\0'};
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
@@ -1186,9 +1189,11 @@ ODBC_TEST(t_bug28168)
   mbstowcs(dummy, (char *)my_schema, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";SERVER=");
-  mbstowcs(dummy, (char *)"localhost", sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char *)my_servername, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  
+  mbstowcs(dummy, (char *)ma_strport, sizeof(dummy)/sizeof(wchar_t));
+  wcscat(conn_in, dummy);
+
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc2));
   CHECK_DBC_RC(hdbc2, SQLDriverConnectW(hdbc2, NULL, W(conn_in), SQL_NTS, NULL, 0,
     NULL, SQL_DRIVER_NOPROMPT));
@@ -1264,7 +1269,9 @@ ODBC_TEST(t_bug14363601)
   mbstowcs(dummy, (char *)my_schema, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";SERVER=");
-  mbstowcs(dummy, (char *)"localhost", sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char *)my_servername, sizeof(dummy)/sizeof(wchar_t));
+  wcscat(conn_in, dummy);
+  mbstowcs(dummy, (char *)ma_strport, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
  
   wcscat(conn_in, L";CHARSET=utf8");

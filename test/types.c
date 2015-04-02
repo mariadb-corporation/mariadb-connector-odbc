@@ -677,7 +677,7 @@ ODBC_TEST(sqlwchar)
   /* Note: this is an SQLCHAR, so it is 'ANSI' data. */
   SQLCHAR data[]= "S\xe3o Paolo", buff[30];
   SQLWCHAR wbuff[30]= {0};
-  wchar_t wcdata[]= L"S\x00e3o Paolo";
+  SQLWCHAR wcdata[]= {'S','\x00e3', 'o', 'P', 'a', 'o', 'l', 'o'};
 
   diag("fix me");
   return SKIP;
@@ -813,9 +813,9 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_TYPE,
                                (SQLPOINTER) SQL_C_NUMERIC, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_PRECISION,
-                               (SQLPOINTER)(SQLINTEGER) prec, SQL_IS_INTEGER));
+                               (SQLPOINTER)(SQLLEN) prec, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
-                               (SQLPOINTER)(SQLINTEGER) scale, SQL_IS_INTEGER));
+                               (SQLPOINTER)(SQLLEN) scale, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
                                sqlnum, SQL_IS_POINTER));
 
@@ -1112,7 +1112,7 @@ ODBC_TEST(t_bug29402)
 
   CHECK_HANDLE_RC(SQL_HANDLE_DBC, hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, L"SELECT CONCAT(_cp1250 0x80, 100) concated", SQL_NTS));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, LW("SELECT CONCAT(_cp1250 0x80, 100) concated"), SQL_NTS));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLDescribeCol(hstmt1, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,

@@ -34,7 +34,7 @@
  */
 ODBC_TEST(t_desc_paramset)
 {
-  SQLUINTEGER   parsetsize= 4;
+  SQLULEN       parsetsize= 4;
   SQLUSMALLINT  parstatus[4];
   SQLUSMALLINT  parop[4]; /* operation */
   SQLULEN       pardone; /* processed */
@@ -73,8 +73,8 @@ ODBC_TEST(t_desc_paramset)
 
   /* verify the fields */
   {
-    SQLPOINTER x_parstatus, x_parop, x_pardone;
-    SQLUINTEGER x_parsetsize;
+    SQLPOINTER  x_parstatus, x_parop, x_pardone;
+    SQLULEN     x_parsetsize;
     
     CHECK_DESC_RC(apd, SQLGetDescField(apd, 0, SQL_DESC_ARRAY_SIZE,
                                  &x_parsetsize, SQL_IS_UINTEGER, NULL));
@@ -427,9 +427,9 @@ ODBC_TEST(t_mult_stmt_free)
   /* check that the original values worked */
   for (i= 0; i < mult_count; ++i)
   {
-    OK_SIMPLE_STMT(stmt[i], SQLExecDirect(stmt[i], (SQLCHAR *)"select ?", SQL_NTS));
-    OK_SIMPLE_STMT(stmt[i], SQLFetch(stmt[i]));
-    OK_SIMPLE_STMT(stmt[i], SQLFreeStmt(stmt[i], SQL_CLOSE));
+    CHECK_STMT_RC(stmt[i], SQLExecDirect(stmt[i], (SQLCHAR *)"select ?", SQL_NTS));
+    CHECK_STMT_RC(stmt[i], SQLFetch(stmt[i]));
+    CHECK_STMT_RC(stmt[i], SQLFreeStmt(stmt[i], SQL_CLOSE));
   }
 
   for (i= 0; i < mult_count; ++i)
@@ -443,7 +443,7 @@ ODBC_TEST(t_mult_stmt_free)
   */
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(stmt[0], SQL_ATTR_APP_ROW_DESC,
                                &desc, SQL_IS_POINTER, NULL));
-  printf("# explicit ard = %x, stmt[0]'s implicit ard = %x\n", expard, desc);
+  printf("# explicit ard = %p, stmt[0]'s implicit ard = %p\n", expard, desc);
 #endif
 
   return OK;
@@ -584,7 +584,7 @@ ODBC_TEST(t_desc_curcatalog)
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Connection1));
 
   /* Connecting not specifying default db */
-  sprintf((char *)conn_in, "DRIVER=%s;SERVER=localhost;UID=%s;PWD=%s;PORT=%u", my_drivername,
+  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;PORT=%u", my_drivername, my_servername,
                               my_uid, my_pwd, my_port);
   
   CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn_in, sizeof(conn_in), NULL,

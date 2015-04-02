@@ -61,10 +61,11 @@ ODBC_TEST(test_CONO3)
   int i= 0;
 
   OK_SIMPLE_STMT(Stmt, "SET @a:=1");
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)i, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)(SQLLEN)i, 0, NULL));
 
   return OK;
 }
+
 
 ODBC_TEST(simple_test)
 {
@@ -82,45 +83,46 @@ ODBC_TEST(simple_test)
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "Eof expected");
 
 
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE IF EXISTS t1");
-  OK_SIMPLE_STMTW(Stmt, L"CREATE TABLE t1 (a int, b varchar(25))");
-  OK_SIMPLE_STMTW(Stmt, L"INSERT INTO t1 VALUES (1, 'Row no 1')");
-  OK_SIMPLE_STMTW(Stmt, L"INSERT INTO t1 VALUES (2, 'Row no 2')");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t1"));
+  OK_SIMPLE_STMTW(Stmt, LW("CREATE TABLE t1 (a int, b varchar(25))"));
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t1 VALUES (1, 'Row no 1')"));
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t1 VALUES (2, 'Row no 2')"));
   
-  rc= SQLPrepareW(Stmt, L"SELECT a, b FROM t1", SQL_NTS);
+  rc= SQLPrepareW(Stmt, LW("SELECT a, b FROM t1"), SQL_NTS);
   rc= SQLExecute(Stmt);
   
   SQLFetch(Stmt);
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, 20, 0);
   FAIL_IF(value != 1, "Expected value=1");
-  FAIL_IF(wcscmp(Buffer, L"Row no 1") != 0, "Expected Buffer = Row no 1");
+  is_wstr(Buffer, LW("Row no 1"), 9);
 
   rc= SQLFetch(Stmt);
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, 20, 0);
   FAIL_IF(value != 2, "Expected value=2");
-  FAIL_IF(wcscmp(Buffer, L"Row no 2") != 0, "Expected Buffer = Row no 2");
+  is_wstr(Buffer, LW("Row no 2"), 9);
 
   return OK;
 }
+
 
 ODBC_TEST(simple_test1)
 {
   SQLLEN nRowCount;
   SQLRETURN rc;
 
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE IF EXISTS t_basic, t_basic_2");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_basic, t_basic_2"));
 
   /* create the table 'myodbc3_demo_result' */
   OK_SIMPLE_STMTW(Stmt,
-         L"CREATE TABLE t_basic (id INT PRIMARY KEY, name VARCHAR(20))");
+         LW("CREATE TABLE t_basic (id INT PRIMARY KEY, name VARCHAR(20))"));
 
   /* insert 3 rows of data */
-  OK_SIMPLE_STMTW(Stmt, L"INSERT INTO t_basic VALUES (1,'foo'),(2,'bar'),(3,'baz')");
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t_basic VALUES (1,'foo'),(2,'bar'),(3,'baz')"));
 
   /* update second row */
-  OK_SIMPLE_STMTW(Stmt, L"UPDATE t_basic SET name = 'bop' WHERE id = 2");
+  OK_SIMPLE_STMTW(Stmt, LW("UPDATE t_basic SET name = 'bop' WHERE id = 2"));
 
   /* get the rows affected by update statement */
   rc= SQLRowCount(Stmt, &nRowCount);
@@ -128,7 +130,7 @@ ODBC_TEST(simple_test1)
   FAIL_IF(nRowCount != 1, "Rowcount != 1");
   
   /* delete third row */
-  OK_SIMPLE_STMTW(Stmt, L"DELETE FROM t_basic WHERE id = 3");
+  OK_SIMPLE_STMTW(Stmt, LW("DELETE FROM t_basic WHERE id = 3"));
 
   /* get the rows affected by delete statement */
   rc= SQLRowCount(Stmt, &nRowCount);
@@ -136,16 +138,16 @@ ODBC_TEST(simple_test1)
   FAIL_IF(nRowCount != 1, "Rowcount != 1");
 
   /* alter the table 't_basic' to 't_basic_2' */
-  OK_SIMPLE_STMTW(Stmt, L"ALTER TABLE t_basic RENAME t_basic_2");
+  OK_SIMPLE_STMTW(Stmt, LW("ALTER TABLE t_basic RENAME t_basic_2"));
 
   /*
     drop the table with the original table name, and it should
     return error saying 'table not found'
   */
-  ERR_SIMPLE_STMTW(Stmt, L"DROP TABLE t_basic");
+  ERR_SIMPLE_STMTW(Stmt, LW("DROP TABLE t_basic"));
 
  /* now drop the table, which is altered..*/
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE t_basic_2");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE t_basic_2"));
 
   return OK;
 }
@@ -156,11 +158,11 @@ ODBC_TEST(select1000)
   SQLINTEGER num;
   SQLCHAR    szData[20];
 
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE IF EXISTS t_max_select");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_max_select"));
 
-  OK_SIMPLE_STMTW(Stmt, L"CREATE TABLE t_max_select (a INT, b VARCHAR(30))");
+  OK_SIMPLE_STMTW(Stmt, LW("CREATE TABLE t_max_select (a INT, b VARCHAR(30))"));
 
-  rc= SQLPrepareW(Stmt, L"INSERT INTO t_max_select VALUES (?,?)", SQL_NTS);
+  rc= SQLPrepareW(Stmt, LW("INSERT INTO t_max_select VALUES (?,?)"), SQL_NTS);
   CHECK_STMT_RC(Stmt, rc);
 
   rc= SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
@@ -181,7 +183,7 @@ ODBC_TEST(select1000)
   rc= SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
   rc= SQLFreeStmt(Stmt, SQL_CLOSE);
 
-  OK_SIMPLE_STMTW(Stmt, L"SELECT * FROM t_max_select");
+  OK_SIMPLE_STMTW(Stmt, LW("SELECT * FROM t_max_select"));
   num= 0;
 
   while (SQL_SUCCESS == SQLFetch(Stmt))
@@ -192,7 +194,7 @@ ODBC_TEST(select1000)
   rc= SQLFreeStmt(Stmt, SQL_UNBIND);
   rc= SQLFreeStmt(Stmt, SQL_CLOSE);
 
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE IF EXISTS t_max_select");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_max_select"));
 
   return OK;
 }
@@ -203,18 +205,18 @@ ODBC_TEST(simple_2)
   SQLCHAR szOutData[31];
   SQLRETURN rc;
 
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE IF EXISTS t_myodbc");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_myodbc"));
 
-  OK_SIMPLE_STMTW(Stmt, L"CREATE TABLE t_myodbc (a INT, b VARCHAR(30))");
+  OK_SIMPLE_STMTW(Stmt, LW("CREATE TABLE t_myodbc (a INT, b VARCHAR(30))"));
 
   rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt, rc);
 
   /* DIRECT INSERT */
-  OK_SIMPLE_STMTW(Stmt, L"INSERT INTO t_myodbc VALUES (10, 'direct')");
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t_myodbc VALUES (10, 'direct')"));
 
   /* PREPARE INSERT */
-  rc= SQLPrepareW(Stmt, L"INSERT INTO t_myodbc VALUES (?, 'param')", SQL_NTS);
+  rc= SQLPrepareW(Stmt, LW("INSERT INTO t_myodbc VALUES (?, 'param')"), SQL_NTS);
   CHECK_STMT_RC(Stmt, rc);
 
   rc= SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
@@ -234,7 +236,7 @@ ODBC_TEST(simple_2)
   CHECK_STMT_RC(Stmt, rc);
 
   /* FETCH RESULT SET */
-  OK_SIMPLE_STMTW(Stmt, L"SELECT * FROM t_myodbc");
+  OK_SIMPLE_STMTW(Stmt, LW("SELECT * FROM t_myodbc"));
 
   rc= SQLBindCol(Stmt, 1, SQL_C_LONG, &nOutData, 0, NULL);
   CHECK_STMT_RC(Stmt, rc);
@@ -256,7 +258,7 @@ ODBC_TEST(simple_2)
   CHECK_STMT_RC(Stmt, rc);
   rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt, rc);
-  OK_SIMPLE_STMTW(Stmt, L"DROP TABLE IF EXISTS t_myodbc");
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_myodbc"));
 
   return OK;
 }
@@ -266,17 +268,17 @@ ODBC_TEST(test_reconnect)
   SQLHDBC hdbc1;
   SQLRETURN rc;
   int i;
-  SQLWCHAR *hostname= L"localhost",
-           *username= L"root",
-           *passwd= NULL;
+  SQLWCHAR dsn[256],
+           username[64],
+           passwd[64];
 
   for (i= 0; i < 10; i++)
   {
     rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
     
-    rc= SQLConnectW(hdbc1, L"test", SQL_NTS, username, SQL_NTS,
-                   passwd, SQL_NTS);
+    rc= SQLConnectW(hdbc1, latin_as_sqlwchar(my_dsn, dsn), SQL_NTS, latin_as_sqlwchar(my_uid, username), SQL_NTS,
+                   latin_as_sqlwchar(my_pwd, passwd), SQL_NTS);
     CHECK_DBC_RC(hdbc1, rc);
     rc= SQLDisconnect(hdbc1);
     CHECK_DBC_RC(hdbc1, rc);
@@ -294,13 +296,13 @@ ODBC_TEST(t_disconnect)
   SQLRETURN rc;
   int i;
   SQLHSTMT hstmt;
-  SQLWCHAR *hostname= L"localhost",
-           *username= L"root",
-           *passwd= NULL;
+  SQLWCHAR dsn[256],
+           username[64],
+           passwd[64];
   rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
-  rc= SQLConnectW(hdbc1, L"test", SQL_NTS, username, SQL_NTS,
-                   passwd, SQL_NTS);
+  rc= SQLConnectW(hdbc1, latin_as_sqlwchar(my_dsn, dsn), SQL_NTS, latin_as_sqlwchar(my_uid, username), SQL_NTS,
+                   latin_as_sqlwchar(my_pwd, passwd), SQL_NTS);
   CHECK_DBC_RC(hdbc1, rc);
 
   for (i=0; i < 100; i++)
@@ -448,7 +450,7 @@ int GetIntVal(SQLHANDLE hStmt, SQLINTEGER Column)
   int Value;
 
   CHECK_STMT_RC(hStmt, SQLGetData(hStmt, (SQLUSMALLINT)Column, SQL_C_LONG, &Value, 0, NULL));
-  printf("Value: %ld\n", Value);
+  printf("Value: %d\n", Value);
   return Value;
 }
 
@@ -711,11 +713,10 @@ ODBC_TEST(t_driverconnect_outstring)
   SQLWCHAR conn_out[1024];
   SQLSMALLINT conn_out_len;
   /* This has to be changed to use actual DSN(and not the default one) */
-  SQLWCHAR *conn= L"Driver={MariaDB ODBC 1.0 Driver};UID=root;CHARSET=utf8";
   SQLCHAR conna[512];
 
   /* Testing how driver's doing if no out string given. ODBC-17 */
-  sprintf((char*)conna, "DSN=%s;UID=root;CHARSET=utf8", my_dsn);
+  sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8", my_dsn, my_uid, my_pwd);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
@@ -727,7 +728,7 @@ ODBC_TEST(t_driverconnect_outstring)
   /* This part of test has to be changed to compare in and out strings */
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  rc= SQLDriverConnectW(hdbc1, NULL, conn, SQL_NTS, conn_out,
+  rc= SQLDriverConnectW(hdbc1, NULL, LW(conna), SQL_NTS, conn_out,
                                  sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_NOPROMPT);
   if (SQL_SUCCEEDED(rc))
@@ -1062,8 +1063,8 @@ ODBC_TEST(t_bug31959)
 {
   SQLCHAR level[50] = "uninitialized";
   SQLINTEGER i;
-  SQLINTEGER levelid[] = {SQL_TXN_SERIALIZABLE, SQL_TXN_REPEATABLE_READ,
-                          SQL_TXN_READ_COMMITTED, SQL_TXN_READ_UNCOMMITTED};
+  SQLLEN levelid[] = {SQL_TXN_SERIALIZABLE, SQL_TXN_REPEATABLE_READ,
+                      SQL_TXN_READ_COMMITTED, SQL_TXN_READ_UNCOMMITTED};
   SQLCHAR *levelname[] = {(SQLCHAR *)"SERIALIZABLE",
                           (SQLCHAR *)"REPEATABLE-READ",
                           (SQLCHAR *)"READ-COMMITTED",

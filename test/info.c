@@ -103,7 +103,7 @@ ODBC_TEST(t_stmt_attr_status)
 
 ODBC_TEST(t_msdev_bug)
 {
-  SQLCHAR    catalog[30];
+  SQLCHAR    catalog[SQL_MAX_OPTION_STRING_LENGTH];
   SQLINTEGER len;
 
   CHECK_DBC_RC(Connection, SQLGetConnectOption(Connection, SQL_CURRENT_QUALIFIER, catalog));
@@ -111,7 +111,7 @@ ODBC_TEST(t_msdev_bug)
 
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, catalog,
                                  sizeof(catalog), &len));
-  is_num(len, 9);
+  is_num(len, strlen(my_schema));
   IS_STR(catalog, my_schema, strlen(my_schema));
 
   return OK;
@@ -161,7 +161,7 @@ ODBC_TEST(t_bug14639)
   /* Check that connection is alive */
   CHECK_DBC_RC(Connection2, SQLGetConnectAttr(Connection2, SQL_ATTR_CONNECTION_DEAD, &is_dead,
                                  sizeof(is_dead), 0));
-  is_num(is_dead, SQL_CD_FALSE)
+  is_num(is_dead, SQL_CD_FALSE);
 
   /* From another connection, kill the connection created above */
   sprintf(buf, "KILL %d", connection_id);
@@ -170,7 +170,7 @@ ODBC_TEST(t_bug14639)
   /* Now check that the connection killed returns the right state */
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection2, SQL_ATTR_CONNECTION_DEAD, &is_dead,
                                  sizeof(is_dead), 0));
-  is_num(is_dead, SQL_CD_TRUE)
+  is_num(is_dead, SQL_CD_TRUE);
 
   return OK;
 }
@@ -369,7 +369,8 @@ MyODBC 5 - calling SQLGetConnectAttr before getting all results of "CALL ..." st
 ODBC_TEST(t_bug46910)
 {
 	SQLCHAR     catalog[30];
-	SQLINTEGER  len, i;
+	SQLINTEGER  len;
+  SQLLEN      i;
   SQLSMALLINT col_count;
 
 	SQLCHAR * initStmt[]= {"DROP PROCEDURE IF EXISTS `spbug46910_1`",

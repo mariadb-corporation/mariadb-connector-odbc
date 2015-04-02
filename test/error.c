@@ -451,7 +451,8 @@ ODBC_TEST(t_bug13542600)
 ODBC_TEST(t_bug14285620)
 {
   SQLSMALLINT cblen, data_type, dec_digits, nullable;
-  SQLUINTEGER info, col_size; 
+  SQLUINTEGER info;
+  SQLULEN col_size; 
   SQLINTEGER timeout= 20, cbilen;
   SQLCHAR szData[255]={0};
 
@@ -504,7 +505,7 @@ ODBC_TEST(t_bug14285620)
   is_num(cblen, strlen(szData));
 #endif
 
-  FAIL_IF( SQLGetInfo(Connection, SQL_DATABASE_NAME, szData, 0, NULL)!= SQL_SUCCESS, "success expected");
+  is_num( SQLGetInfo(Connection, SQL_DATABASE_NAME, szData, 0, NULL), SQL_SUCCESS);
 
   /* Get the native string for further checks */
   FAIL_IF( SQLNativeSql(Connection, "SELECT 10", SQL_NTS, szData, sizeof(szData), NULL) !=SQL_SUCCESS, "success expected");

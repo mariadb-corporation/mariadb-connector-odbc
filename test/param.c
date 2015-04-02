@@ -837,7 +837,7 @@ ODBC_TEST(t_bug56804)
   SQLLEN      d2[PARAMSET_SIZE]=      {4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
   SQLUSMALLINT status[PARAMSET_SIZE]= {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-  SQLSMALLINT	paramset_size	= PARAMSET_SIZE;
+  SQLLEN	    paramset_size	= PARAMSET_SIZE;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug56804");
   OK_SIMPLE_STMT(Stmt, "create table bug56804 (c1 int primary key not null, c2 int)");
