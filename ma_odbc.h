@@ -19,8 +19,6 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
-#include <ma_compatibility.h>
-
 #ifdef _WIN32
 # include "ma_platform_win32.h"
 #else
@@ -467,6 +465,9 @@ void            CloseClientCharset (Client_Charset *cc);
 #define LOCK_MARIADB(Dbc)   EnterCriticalSection(&(Dbc)->cs)
 #define UNLOCK_MARIADB(Dbc) LeaveCriticalSection(&(Dbc)->cs)
 
+/* Enabling tracing */
+#define MAODBC_DEBUG 1
+
 #include <ma_error.h>
 #include <ma_parse.h>
 #include <ma_dsn.h>
@@ -499,11 +500,11 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
     SQLLEN BufferLength,
     SQLLEN *StrLen_or_IndPtr);
 
-SQLRETURN MA_SQLExecDirect(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLExecDirect(MADB_Stmt *Stmt,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength);
 
-SQLRETURN MA_SQLExecute(SQLHSTMT StatementHandle);
+SQLRETURN MA_SQLExecute(MADB_Stmt *Stmt);
 
 SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
 
@@ -526,7 +527,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
     SQLLEN BufferLength,
     SQLLEN *StrLen_or_IndPtr);
 
-SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
+SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength);
 

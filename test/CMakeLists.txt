@@ -1,3 +1,9 @@
+IF (DIRECT_LINK_TESTS)
+  MESSAGE(STATUS "Configuring tests for direct linking against the connector")
+ELSE()
+  MESSAGE(STATUS "Configuring tests for linking against the DM library")
+ENDIF()
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 
 ENABLE_TESTING()

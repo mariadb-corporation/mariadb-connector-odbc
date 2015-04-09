@@ -19,7 +19,7 @@
 #ifndef _ma_debug_h_
 #define _ma_debug_h_
 
-#ifndef MAODBC_DEBUG1
+#ifndef MAODBC_DEBUG
 
 void ma_debug_print(my_bool ident, char *format, ...);
 
@@ -59,7 +59,7 @@ void ma_debug_print(my_bool ident, char *format, ...);
 
 #define MDBUG_C_RETURN(C,A)\
   if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
-    ma_debug_print(0, "<<< --- end of function ---");\
+    ma_debug_print(0, "<<< --- end of function, returning %d ---", A);\
   return (A);
 
 #define MDBUG_C_PRINT(C, format, ...)\

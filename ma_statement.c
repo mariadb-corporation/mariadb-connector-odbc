@@ -2526,7 +2526,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
     return Stmt->Error.ReturnValue;
   }
 
-   p= StmtStr;
+  p= StmtStr;
   p+= my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG as TABLE_SCHEM, TABLE_NAME,"
                                  "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
                                  "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
@@ -2543,7 +2543,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, strlen(StmtStr));
   if (SQL_SUCCEEDED(ret))
-    ret= MA_SQLExecute((SQLHSTMT)Stmt);
+    ret= MA_SQLExecute(Stmt);
   
   return ret;
 }
@@ -2575,7 +2575,7 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, strlen(StmtStr));
   if (SQL_SUCCEEDED(ret))
-    ret= MA_SQLExecute((SQLHSTMT)Stmt);
+    ret= MA_SQLExecute(Stmt);
   return ret;
 }
 /* }}} */
@@ -3567,7 +3567,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       else
         End= Start;
 
-      LOCK_MARIADB(Stmt->Connection);
       while (Start <= End)
       {
         MADB_StmtDataSeek(Stmt, Start);
@@ -3579,11 +3578,10 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           dynstr_free(&DynamicStmt);
           MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
 
-          UNLOCK_MARIADB(Stmt->Connection);
-
           return Stmt->Error.ReturnValue;
         }
 
+        LOCK_MARIADB(Stmt->Connection);
         if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, DynamicStmt.length))
         {
           dynstr_free(&DynamicStmt);

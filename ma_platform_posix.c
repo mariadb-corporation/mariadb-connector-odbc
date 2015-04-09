@@ -31,6 +31,14 @@ extern Client_Charset utf8;
 
 char LogFile[256];
 
+void InitializeCriticalSection(CRITICAL_SECTION *cs)
+{
+  pthread_mutexattr_t attr;
+
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(cs, &attr);
+}
 
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
@@ -188,9 +196,16 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
 {
   char *AscStr;
   size_t AscLen= PtrLength, PtrOctetLen;
+  BOOL dummyError= 0;
   
   if (Error)
+  {
     *Error= 0;
+  }
+  else
+  {
+    Error= &dummyError;
+  }
 
   if (cc == NULL || cc->CodePage < 1)
   {
