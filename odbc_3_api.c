@@ -1156,26 +1156,43 @@ SQLRETURN SQL_API SQLError(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt,
                            SQLSMALLINT *MessageLen)
 {
   SQLSMALLINT HandleType= 0;
-  SQLHANDLE Handle= NULL;
+  SQLHANDLE   Handle=     NULL;
   MADB_Error *error;
 
-  if (Env)
+  if (Stmt)
   {
-    Handle= Env;
-    HandleType= SQL_HANDLE_ENV;
-    error= &((MADB_Env*)Env)->Error;
-  } 
+    MDBUG_C_ENTER(((MADB_Stmt*)Stmt)->Connection, "SQLError->SQLGetDiagRec");
+
+    MDBUG_C_DUMP(((MADB_Stmt*)Stmt)->Connection, Env, 0x);
+    MDBUG_C_DUMP(((MADB_Stmt*)Stmt)->Connection, Dbc, 0x);
+    MDBUG_C_DUMP(((MADB_Stmt*)Stmt)->Connection, Stmt, 0x);
+
+    Handle= Stmt;
+    HandleType= SQL_HANDLE_STMT;
+    error= &((MADB_Stmt*)Stmt)->Error;
+  }
   else if (Dbc)
   {
+    MDBUG_C_ENTER((MADB_Dbc*)Dbc, "SQLError->SQLGetDiagRec");
+
+    MDBUG_C_DUMP((MADB_Dbc*)Dbc, Env, 0x);
+    MDBUG_C_DUMP((MADB_Dbc*)Dbc, Dbc, 0x);
+    MDBUG_C_DUMP((MADB_Dbc*)Dbc, Stmt, 0x);
+
     Handle= Dbc;
     HandleType= SQL_HANDLE_DBC;
     error= &((MADB_Dbc*)Dbc)->Error;
   }
   else
   {
-    Handle= Stmt;
-    HandleType= SQL_HANDLE_STMT;
-    error= &((MADB_Stmt*)Stmt)->Error;
+    MDBUG_ENTER("SQLError->SQLGetDiagRec");
+    MDBUG_DUMP(Env, 0x);
+    MDBUG_DUMP(Dbc, 0x);
+    MDBUG_DUMP(Stmt, 0x);
+
+    Handle= Env;
+    HandleType= SQL_HANDLE_ENV;
+    error= &((MADB_Env*)Env)->Error;
   }
 
   return MA_SQLGetDiagRec(HandleType, Handle, ++error->ErrorNum, Sqlstate, NativeError, Message, MessageMax, MessageLen);
@@ -1247,15 +1264,15 @@ SQLErrorW(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, SQLWCHAR *Sqlstate,
 
 {
   SQLSMALLINT HandleType= 0;
-  SQLHANDLE Handle= NULL;
+  SQLHANDLE   Handle=     NULL;
   MADB_Error *error;
 
-  if (Env)
+    if (Stmt)
   {
-    Handle= Env;
-    HandleType= SQL_HANDLE_ENV;
-    error= &((MADB_Env*)Env)->Error;
-  } 
+    Handle= Stmt;
+    HandleType= SQL_HANDLE_STMT;
+    error= &((MADB_Stmt*)Stmt)->Error;
+  }
   else if (Dbc)
   {
     Handle= Dbc;
@@ -1264,9 +1281,9 @@ SQLErrorW(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt, SQLWCHAR *Sqlstate,
   }
   else
   {
-    Handle= Stmt;
-    HandleType= SQL_HANDLE_STMT;
-    error= &((MADB_Stmt*)Stmt)->Error;
+    Handle= Env;
+    HandleType= SQL_HANDLE_ENV;
+    error= &((MADB_Env*)Env)->Error;
   }
 
   return MA_SQLGetDiagRecW(HandleType, Handle, ++error->ErrorNum, Sqlstate, NativeError, Message, MessageMax, MessageLen);
@@ -1956,21 +1973,31 @@ SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     SQLSMALLINT BufferLength,
     SQLSMALLINT *TextLengthPtr)
 {
+  SQLRETURN ret= SQL_ERROR;
+
   if (!Handle)
-    return SQL_INVALID_HANDLE;
+    MDBUG_RETURN(SQL_INVALID_HANDLE);
 
   if (RecNumber < 1 || BufferLength < 0)
-    return SQL_ERROR;
+    MDBUG_RETURN(SQL_ERROR);
 
   /* Maria ODBC driver doesn't support error lists, so only the first record can be retrieved */
   if (RecNumber != 1)
-    return SQL_NO_DATA_FOUND;
+    MDBUG_RETURN(SQL_NO_DATA_FOUND);
   
   switch (HandleType) {
     case SQL_HANDLE_DBC:
       {
         MADB_Dbc *Dbc= (MADB_Dbc *)Handle;
-        return MADB_GetDiagRec(&Dbc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+
+        MDBUG_C_ENTER(Dbc, "SQLGetDiagRec");
+        MDBUG_C_DUMP(Dbc, HandleType, d);
+        MDBUG_C_DUMP(Dbc, Handle, 0x);
+        MDBUG_C_DUMP(Dbc, MessageText, 0x);
+        MDBUG_C_DUMP(Dbc, BufferLength, d);
+        MDBUG_C_DUMP(Dbc, TextLengthPtr, 0x);
+
+        ret= MADB_GetDiagRec(&Dbc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
                               (void *) MessageText, BufferLength, TextLengthPtr, FALSE,
                               Dbc->Environment->OdbcVersion);
       }
@@ -1978,7 +2005,15 @@ SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     case SQL_HANDLE_STMT:
       {
         MADB_Stmt *Stmt= (MADB_Stmt *)Handle;
-        return MADB_GetDiagRec(&Stmt->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+
+        MDBUG_C_ENTER(Stmt->Connection, "SQLGetDiagRec");
+        MDBUG_C_DUMP(Stmt->Connection, HandleType, d);
+        MDBUG_C_DUMP(Stmt->Connection, Handle, 0x);
+        MDBUG_C_DUMP(Stmt->Connection, MessageText, 0x);
+        MDBUG_C_DUMP(Stmt->Connection, BufferLength, d);
+        MDBUG_C_DUMP(Stmt->Connection, TextLengthPtr, 0x);
+
+        ret= MADB_GetDiagRec(&Stmt->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
                                (void *)MessageText, BufferLength, TextLengthPtr, FALSE,
                                Stmt->Connection->Environment->OdbcVersion);
       }
@@ -1986,7 +2021,15 @@ SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     case SQL_HANDLE_DESC:
       {
         MADB_Desc *Desc= (MADB_Desc *)Handle;
-        return MADB_GetDiagRec(&Desc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+
+        MDBUG_C_ENTER(Desc->Dbc, "SQLGetDiagRec");
+        MDBUG_C_DUMP(Desc->Dbc, HandleType, d);
+        MDBUG_C_DUMP(Desc->Dbc, Handle, 0x);
+        MDBUG_C_DUMP(Desc->Dbc, MessageText, 0x);
+        MDBUG_C_DUMP(Desc->Dbc, BufferLength, d);
+        MDBUG_C_DUMP(Desc->Dbc, TextLengthPtr, 0x);
+
+        ret= MADB_GetDiagRec(&Desc->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
                                (void *)MessageText, BufferLength, TextLengthPtr, FALSE,
                                SQL_OV_ODBC3);
       }
@@ -1994,14 +2037,14 @@ SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     case SQL_HANDLE_ENV:
       {
         MADB_Env *Env= (MADB_Env *)Handle;
-        return MADB_GetDiagRec(&Env->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
+        ret= MADB_GetDiagRec(&Env->Error, RecNumber, (void *)SQLState, NativeErrorPtr,
                                (void *)MessageText, BufferLength, TextLengthPtr, FALSE,
                                Env->OdbcVersion);
       }
-    default:
-      return SQL_ERROR;  
       break;
-  }  
+  }
+
+  MDBUG_RETURN(ret);
 }
 SQLRETURN SQL_API SQLGetDiagRec(SQLSMALLINT HandleType,
     SQLHANDLE Handle,

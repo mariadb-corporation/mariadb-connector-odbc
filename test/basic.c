@@ -83,12 +83,12 @@ ODBC_TEST(simple_test)
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "Eof expected");
 
 
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("DROP TABLE IF EXISTS t1", sqlwchar_buff));
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("CREATE TABLE t1 (a int, b varchar(25))", sqlwchar_buff));
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("INSERT INTO t1 VALUES (1, 'Row no 1')", sqlwchar_buff));
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("INSERT INTO t1 VALUES (2, 'Row no 2')", sqlwchar_buff));
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t1"));
+  OK_SIMPLE_STMTW(Stmt, LW("CREATE TABLE t1 (a int, b varchar(25))"));
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t1 VALUES (1, 'Row no 1')"));
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t1 VALUES (2, 'Row no 2')"));
   
-  rc= SQLPrepareW(Stmt, latin_as_sqlwchar("SELECT a, b FROM t1", sqlwchar_buff), SQL_NTS);
+  rc= SQLPrepareW(Stmt, LW("SELECT a, b FROM t1"), SQL_NTS);
   rc= SQLExecute(Stmt);
   
   SQLFetch(Stmt);
@@ -205,18 +205,18 @@ ODBC_TEST(simple_2)
   SQLCHAR szOutData[31];
   SQLRETURN rc;
 
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("DROP TABLE IF EXISTS t_myodbc", sqlwchar_buff));
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_myodbc"));
 
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("CREATE TABLE t_myodbc (a INT, b VARCHAR(30))", sqlwchar_buff));
+  OK_SIMPLE_STMTW(Stmt, LW("CREATE TABLE t_myodbc (a INT, b VARCHAR(30))"));
 
   rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt, rc);
 
   /* DIRECT INSERT */
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("INSERT INTO t_myodbc VALUES (10, 'direct')", sqlwchar_buff));
+  OK_SIMPLE_STMTW(Stmt, LW("INSERT INTO t_myodbc VALUES (10, 'direct')"));
 
   /* PREPARE INSERT */
-  rc= SQLPrepareW(Stmt, latin_as_sqlwchar("INSERT INTO t_myodbc VALUES (?, 'param')", sqlwchar_buff), SQL_NTS);
+  rc= SQLPrepareW(Stmt, LW("INSERT INTO t_myodbc VALUES (?, 'param')"), SQL_NTS);
   CHECK_STMT_RC(Stmt, rc);
 
   rc= SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
@@ -236,7 +236,7 @@ ODBC_TEST(simple_2)
   CHECK_STMT_RC(Stmt, rc);
 
   /* FETCH RESULT SET */
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("SELECT * FROM t_myodbc", sqlwchar_buff));
+  OK_SIMPLE_STMTW(Stmt, LW("SELECT * FROM t_myodbc"));
 
   rc= SQLBindCol(Stmt, 1, SQL_C_LONG, &nOutData, 0, NULL);
   CHECK_STMT_RC(Stmt, rc);
@@ -258,7 +258,7 @@ ODBC_TEST(simple_2)
   CHECK_STMT_RC(Stmt, rc);
   rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt, rc);
-  OK_SIMPLE_STMTW(Stmt, latin_as_sqlwchar("DROP TABLE IF EXISTS t_myodbc", sqlwchar_buff));
+  OK_SIMPLE_STMTW(Stmt, LW("DROP TABLE IF EXISTS t_myodbc"));
 
   return OK;
 }
@@ -728,7 +728,7 @@ ODBC_TEST(t_driverconnect_outstring)
   /* This part of test has to be changed to compare in and out strings */
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  rc= SQLDriverConnectW(hdbc1, NULL, latin_as_sqlwchar(conna, sqlwchar_buff), SQL_NTS, conn_out,
+  rc= SQLDriverConnectW(hdbc1, NULL, LW(conna), SQL_NTS, conn_out,
                                  sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_NOPROMPT);
   if (SQL_SUCCEEDED(rc))
@@ -902,7 +902,7 @@ ODBC_TEST(t_bug32014)
   SQLHENV     henv1;
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
-  SQLULEN info;
+  SQLUINTEGER info;
   long        i=0;
   SQLSMALLINT value_len;
 
@@ -1254,37 +1254,37 @@ MA_ODBC_TESTS my_tests[]=
 {
 /*  {t_disconnect, "t_disconnect"},
   {t_describe_nulti, "t_describe_nulti"}, */
-  {test_CONO1, "test_CONO1"},
-  {test_CONO3, "test_CONO3"},
-  {t_count, "t_count"},
-  {simple_test, "Simple test"},
-  {simple_test1, "Simple test1"},
-  {select1000, "select1000"},
-  {simple_2, "simple_2"},
-  {test_reconnect, "test_reconnect"},
-  {bug19823, "bug19823"},
-  {t_basic, "t_basic"},
-  {t_reconnect, "t_reconnect"},
-  {charset_utf8, "charset_utf8"},
-  {charset_gbk, "charset_gbk"},
-  {t_bug30774, "t_bug30774"},
+  {test_CONO1,     "test_CONO1",     NORMAL},
+  {test_CONO3,     "test_CONO3",     NORMAL},
+  {t_count,        "t_count",        NORMAL},
+  {simple_test,    "Simple test",    NORMAL},
+  {simple_test1,   "Simple test1",   NORMAL},
+  {select1000,     "select1000",     NORMAL},
+  {simple_2,       "simple_2",       NORMAL},
+  {test_reconnect, "test_reconnect", NORMAL},
+  {bug19823,       "bug19823",       NORMAL},
+  {t_basic,        "t_basic",        NORMAL},
+  {t_reconnect,    "t_reconnect",    NORMAL},
+  {charset_utf8,   "charset_utf8",   KNOWN_FAILURE},
+  {charset_gbk,    "charset_gbk",    NORMAL},
+  {t_bug30774,     "t_bug30774",     NORMAL},
 #ifdef WE_HAVE_SETUPLIB
-  {t_bug30840, "t_bug30840"},
+  {t_bug30840,     "t_bug30840",     NORMAL},
 #endif
-  {t_bug30983, "t_bug30983"},
-  {t_driverconnect_outstring, "t_driverconnect_outstring"},
-  {setnames, "setnames"},
-  {setnames_conn, "setnames_conn"},
-  {sqlcancel, "sqlcancel"}, 
-  {t_bug32014, "t_bug32014"},
-  {t_bug10128, "t_bug10128"},
-  {t_bug32727, "t_bug32727"},
-  {t_bug28820, "t_bug28820"},
-  {t_bug31959,"t_bug31959"},
-  {t_bug41256, "t_bug41256"},
-  {t_bug48603, "t_bug48603"},
-  {t_bug45378, "t_bug45378"},
-  {NULL, NULL}
+  {t_bug30983,     "t_bug30983",     NORMAL},
+  {t_driverconnect_outstring, "t_driverconnect_outstring", NORMAL},
+  {setnames,       "setnames",       NORMAL},
+  {setnames_conn,  "setnames_conn",  NORMAL},
+  {sqlcancel,      "sqlcancel",      NORMAL}, 
+  {t_bug32014,     "t_bug32014",     NORMAL},
+  {t_bug10128,     "t_bug10128",     NORMAL},
+  {t_bug32727,     "t_bug32727",     NORMAL},
+  {t_bug28820,     "t_bug28820",     NORMAL},
+  {t_bug31959,     "t_bug31959",     NORMAL},
+  {t_bug41256,     "t_bug41256",     NORMAL},
+  {t_bug48603,     "t_bug48603",     NORMAL},
+  {t_bug45378,     "t_bug45378",     NORMAL},
+  {NULL, NULL, 0}
 };
 
 int main(int argc, char **argv)

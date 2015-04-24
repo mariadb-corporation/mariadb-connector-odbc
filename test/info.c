@@ -111,7 +111,7 @@ ODBC_TEST(t_msdev_bug)
 
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, catalog,
                                  sizeof(catalog), &len));
-  is_num(len, 9);
+  is_num(len, strlen(my_schema));
   IS_STR(catalog, my_schema, strlen(my_schema));
 
   return OK;
@@ -487,5 +487,6 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
+  mark_all_tests_normal(my_tests);
   return run_tests(my_tests);
 }

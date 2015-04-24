@@ -392,7 +392,7 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
   return NULL;
 }
 
-size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field)
+size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO *charset)
 {
   switch(Record->ConciseType)
   {
@@ -421,7 +421,17 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field)
   case SQL_TYPE_TIMESTAMP:
     return Field.length;
   default:
-    return Field.length;
+    {
+      if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR
+        || charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+      {
+        return Field.length;
+      }
+      else
+      {
+        return Field.length/charset->char_maxlen;
+      }
+    }
   }
 }
 
@@ -537,8 +547,8 @@ size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    if (!(Field.flags & BINARY_FLAG))
-      Length *= MaxCharLen ? MaxCharLen : 1;
+    /*if (!(Field.flags & BINARY_FLAG))
+      Length *= MaxCharLen ? MaxCharLen : 1;*/
     return MIN(INT_MAX32, Length);
   default:
     return SQL_NO_TOTAL;

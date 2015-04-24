@@ -257,7 +257,7 @@ MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFi
     }
     Record->DisplaySize= MADB_GetDisplaySize(Fields[i]);
     Record->OctetLength= MADB_GetOctetLength(Fields[i], Stmt->Connection->mariadb->charset->char_maxlen);
-    Record->Length= MADB_GetDataSize(Record, Fields[i]);
+    Record->Length= MADB_GetDataSize(Record, Fields[i], mysql_get_charset_by_nr(Fields[i].charsetnr));
     
     Record->TypeName= my_strdup(MADB_GetTypeName(Fields[i]), MYF(0));
     switch(Fields[i].type) {

@@ -36,7 +36,7 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
 bool MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
-size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field);
+size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO *charset);
 int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field);

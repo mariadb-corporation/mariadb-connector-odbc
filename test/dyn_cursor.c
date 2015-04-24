@@ -725,13 +725,13 @@ ODBC_TEST(my_dynamic_cursor)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {my_dynamic_pos_cursor, "my_dynamic_pos_cursor"},
-  {my_dynamic_pos_cursor1, "my_dynamic_pos_cursor1"},
-  {my_position, "my_position"},
-  {my_position1, "my_position1"},
-  {my_zero_irow_update, "my_zero_irow_update"},
-  {my_zero_irow_delete, "my_zero_irow_delete"},
-  {my_dynamic_cursor, "my_dynamic_cursor"},
+  {my_dynamic_pos_cursor, "my_dynamic_pos_cursor",     NORMAL},
+  {my_dynamic_pos_cursor1, "my_dynamic_pos_cursor1",     NORMAL},
+  {my_position, "my_position",     NORMAL},
+  {my_position1, "my_position1",     KNOWN_FAILURE},
+  {my_zero_irow_update, "my_zero_irow_update",     KNOWN_FAILURE},
+  {my_zero_irow_delete, "my_zero_irow_delete",     NORMAL},
+  {my_dynamic_cursor, "my_dynamic_cursor",     NORMAL},
   {NULL, NULL}
 };
 

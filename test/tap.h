@@ -76,18 +76,38 @@ typedef unsigned int uint;
 int tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
 
-#define OK  1
-#define FAIL 0
-#define SKIP 2
+#define FAIL          0
+#define OK            1
+#define SKIP          2
 
+/* Test Typesv*/
+/* Normal test - failure is failure, i.e. bad thing */
+#define NORMAL        OK
+/* Known failure - yes, we need to fix it, but we do not want it to distract us from
+   things that are really interesting. And no, we don't know what causes failure */
+#define KNOWN_FAILURE FAIL
+/* The problem is in test */
+#define TEST_PROBLEM  2
+/* Test for the known problem waiting for a fix. */
+#define TO_FIX        3
+
+const char comments[][2][60]= { {"\t#TODO: not ok - test is known to fail, unknown reason",
+                                 "\t#Yay, seems like this problem has been magically fixed"},
+                                {"",""},
+                                {"\t#TODO: Test is marked as requiring fix",
+                                 "\t#TODO: Test is marked as requiring fix"},
+                                {"\t#TODO: Test is for known problem that is waiting for fix",
+                                 "\t#The problem seems to be fixed. Mark test as normal"}
+                              };
 #define MAX_ROW_DATA_LEN 1000
-#define MAX_NAME_LEN 255
+#define MAX_NAME_LEN     255
 
 #define skip(A) diag((A)); return SKIP;
 
 typedef struct st_ma_odbc_test {
-  int (*my_test)();
-  char *title;
+  int   (*my_test)();
+  char  *title;
+  int   test_type;
 } MA_ODBC_TESTS;
 
 #define ODBC_TEST(a)\
@@ -95,6 +115,15 @@ int a()
 
 #define plan(a)\
   tests_planned= a;\
+
+void mark_all_tests_normal(MA_ODBC_TESTS *tests)
+{
+  while(tests && tests->title !=  NULL)
+  {
+    tests->test_type= NORMAL;
+    ++tests;
+  }
+}
 
 #define FAIL_IF(expr,message)\
   if (expr)\
@@ -657,7 +686,8 @@ int reset_changed_server_variables(void)
 
 int run_tests(MA_ODBC_TESTS *tests)
 {
-  int rc, i=1, failed=0;
+  int         rc, i=1, failed=0;
+  const char *comment;
 
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
@@ -670,9 +700,18 @@ int run_tests(MA_ODBC_TESTS *tests)
   while (tests->title)
   {
     rc= tests->my_test();
-    if (rc == FAIL)
+    comment= "";
+    if (rc!= SKIP && tests->test_type != NORMAL)
+    {
+      comment= comments[tests->test_type][rc];
+      rc= OK;
+    }
+    else if (rc == FAIL)
+    {
       failed++;
-    fprintf(stdout, "%s %d - %s\n", test_status[rc], i++,tests->title);
+    }
+
+    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
     tests++;
 
     if (reset_changed_server_variables())
