@@ -322,6 +322,7 @@ ODBC_TEST(t_desc_col)
   IS(desc_col_check(Stmt, 15, "c15", SQL_LONGVARCHAR, 255, 255, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt, 16, "c16", SQL_LONGVARCHAR, 65535, 65535, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt, 17, "c17", SQL_LONGVARCHAR, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
+  /* Test may fail here if connection charset mbmaxlen > 1 */
   IS(desc_col_check(Stmt, 18, "c18", SQL_LONGVARCHAR, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt, 19, "c19", SQL_LONGVARBINARY, 255, 255, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt, 20, "c20", SQL_LONGVARBINARY, 65535, 65535, 0,  SQL_NULLABLE) == OK);
@@ -518,6 +519,7 @@ ODBC_TEST(t_max_rows)
     /* max_rows IS bigger than a prefetch, and IS not divided evenly by it */
     CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1,SQL_ATTR_MAX_ROWS,(SQLPOINTER)7,0));
 
+    /* May fail id test dsn does not specify database to use */
     OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
 
     is_num(7, myrowcount(hstmt1));

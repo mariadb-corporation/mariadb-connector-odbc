@@ -3129,7 +3129,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
       *DataTypePtr= (isWChar && !Stmt->Connection->IsAnsi) ? MADB_GetWCharType(Record->ConciseType) : Record->ConciseType;
   /* Columnsize in characters, not bytes! */
   if (ColumnSizePtr)
-    *ColumnSizePtr= Record->Length / Stmt->Connection->mariadb->charset->char_maxlen;
+    *ColumnSizePtr= Record->Length;
      //Record->Precision ? MIN(Record->DisplaySize, Record->Precision) : Record->DisplaySize;
   if (DecimalDigitsPtr)
     *DecimalDigitsPtr= Record->Scale;

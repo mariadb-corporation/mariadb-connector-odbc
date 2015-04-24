@@ -447,6 +447,7 @@ int       DSNPrompt_Free  (MADB_Prompt *prompt);
 
 /* Default precision of SQL_NUMERIC */
 #define MADB_DEFAULT_PRECISION 38
+#define BINARY_CHARSETNR       63
 
 /* Macros to guard communications with the server.
    TODO: make it(locking) optional depending on designated connection string option */
