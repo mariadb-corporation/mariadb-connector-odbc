@@ -666,7 +666,7 @@ my_bool DSNDialog(HWND hwndParent,
 
   notCanceled= TRUE;
   hwndMain= CreateDialogParam(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), 0, DialogProc, 0);
-  SetWindowLongPtr(hwndMain, DWLP_USER, (LONG)Dsn);
+  SetWindowLongPtr(hwndMain, DWLP_USER, (LONG_PTR)Dsn);
 
   /* Setting first not disabled page */
   CurrentPage= -1;
