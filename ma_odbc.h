@@ -58,6 +58,7 @@ typedef struct
   char SqlState[SQLSTATE_LENGTH + 1];
   SQLINTEGER NativeError;
   char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
+  size_t PrefixLen;
   SQLRETURN ReturnValue;
   MADB_ERROR *ErrRecord;
   /* Order number of last requested error record */
@@ -508,9 +509,6 @@ SQLRETURN MA_SQLExecDirect(MADB_Stmt *Stmt,
 SQLRETURN MA_SQLExecute(MADB_Stmt *Stmt);
 
 SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
-
-SQLRETURN MA_SQLFreeHandle(SQLSMALLINT HandleType,
-    SQLHANDLE Handle);
 
 SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
     SQLUSMALLINT Option);

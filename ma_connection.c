@@ -419,10 +419,9 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
 
 
 /* {{{ MADB_DbcInit() */
-MADB_Dbc *MADB_DbcInit(SQLHANDLE OutputHandle)
+MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
 {
   MADB_Dbc *Connection= NULL;
-  MADB_Env *Env= (MADB_Env *)OutputHandle;
 
   MADB_CLEAR_ERROR(&Env->Error);
 
@@ -433,12 +432,17 @@ MADB_Dbc *MADB_DbcInit(SQLHANDLE OutputHandle)
   Connection->Environment= Env;
   Connection->Methods= &MADB_Dbc_Methods;
   InitializeCriticalSection(&Connection->cs);
+  /* Not sure that critical section is really needed here - this init routine is called when
+     no one has the handle yet */
   EnterCriticalSection(&Connection->cs);
 
   /* Save connection in Environment list */
   Connection->ListItem.data= (void *)Connection;
   Connection->Environment->Dbcs= list_add(Connection->Environment->Dbcs, &Connection->ListItem);
+
   LeaveCriticalSection(&Connection->cs);
+
+  MADB_PutErrorPrefix(NULL, &Connection->Error);
 
   if (!(Connection->mariadb= mysql_init(NULL)))
   {
@@ -460,15 +464,27 @@ cleanup:
 /* {{{ MADB_DbcFree() */
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
 {
+  MADB_Env *Env= NULL;
+
   if (!Connection)
     return SQL_ERROR;
+  MDBUG_C_PRINT(Connection, "%sMADB_DbcFree", "\t->");
+  MDBUG_C_DUMP(Connection, Connection, 0x);
 
+  Env= Connection->Environment;
+
+  /* TODO: If somebody uses connection it won't help if lock it here. At least it requires
+           more fingers movements
+    LOCK_MARIADB(Dbc);*/
   if (Connection->mariadb)
     mysql_close(Connection->mariadb);
+  /*UNLOCK_MARIADB(Dbc);*/
 
   /* todo: delete all descriptors */
 
+  EnterCriticalSection(&Env->cs);
   Connection->Environment->Dbcs= list_delete(Connection->Environment->Dbcs, &Connection->ListItem);
+  LeaveCriticalSection(&Env->cs);
 
   MADB_FREE(Connection->CatalogName);
   CloseClientCharset(&Connection->charset);

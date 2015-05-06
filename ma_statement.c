@@ -29,6 +29,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   if (!(Stmt = (MADB_Stmt *)MADB_CALLOC(sizeof(MADB_Stmt))))
     goto error;
  
+  MADB_PutErrorPrefix(Connection, &Stmt->Error);
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
  
@@ -38,7 +39,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
       !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
       !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
     goto error;
-
+  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
   mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
 
   Stmt->Connection= Connection;
@@ -200,6 +201,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   unsigned int              WhereOffset, Need2CloseStmt= 0;
   enum enum_madb_query_type QueryType;
 
+  MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtPrepare", "\t->");
   MADB_CLEAR_ERROR(&Stmt->Error);
   MADB_FREE(Stmt->NativeSql);
   MADB_FREE(Stmt->StmtString);
@@ -215,6 +217,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   {
     CloseMultiStatements(Stmt);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+    MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
     Stmt->MultiStmtCount= 0;
   }
   else
@@ -236,8 +239,10 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       /* Not optimal - if this is 1st use of STMT no need to close and re-init stmt */
       if (Stmt->stmt)
       {
+        MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
         mysql_stmt_close(Stmt->stmt);
         Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+        MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
       }
       /* all statemtens successfully prepared */
       Stmt->StmtString= _strdup(StatementText);
@@ -640,6 +645,8 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   unsigned int StatementNr;
   unsigned int ParamOffset= 0; /* for multi statements */
   unsigned int Iterations= 1;
+
+  MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
@@ -1228,6 +1235,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       {
         ResetMetadata(Stmt);
         mysql_stmt_free_result(Stmt->stmt);
+        MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
         LOCK_MARIADB(Stmt->Connection);
         mysql_stmt_reset(Stmt->stmt);
         UNLOCK_MARIADB(Stmt->Connection);
@@ -1237,7 +1245,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         unsigned int i;
         LOCK_MARIADB(Stmt->Connection);
         for (i=0; i < Stmt->MultiStmtCount; ++i)
+        {
+          MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i],i);
           mysql_stmt_reset(Stmt->MultiStmts[i]);
+        }
         UNLOCK_MARIADB(Stmt->Connection);
       }
       if (Stmt->DefaultsResult)
@@ -1323,6 +1334,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
            to avoid inconsistency(MultiStmtCount > 0 and MultiStmts is NULL */
         if (Stmt->MultiStmts!= NULL && Stmt->MultiStmts[i] != NULL)
         {
+          MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x(%u)", Stmt->MultiStmts[i], i);
           mysql_stmt_close(Stmt->MultiStmts[i]);
         }
       }
@@ -1331,6 +1343,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     }
     else if (Stmt->stmt != NULL)
     {
+      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
       mysql_stmt_close(Stmt->stmt);
     }
 
@@ -1428,9 +1441,9 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
                For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
                in other cases we need same 2 of 4 bytes. */
-            ArdRecord->InternalBuffer= (char *)MADB_CALLOC((ArdRecord->OctetLength)*1.5);
+            ArdRecord->InternalBuffer= (char *)MADB_CALLOC((size_t)((ArdRecord->OctetLength)*1.5));
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
-            Stmt->result[i].buffer_length= ArdRecord->OctetLength*1.5;
+            Stmt->result[i].buffer_length= (unsigned long)(ArdRecord->OctetLength*1.5);
             Stmt->result[i].buffer_type= MYSQL_TYPE_STRING;
             Stmt->result[i].length= &Stmt->result[i].length_value;
             break;
@@ -2699,7 +2712,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   dynstr_free(&StmtStr);
-  MDBUG_C_RETURN(Stmt->Connection, ret);
+  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
 

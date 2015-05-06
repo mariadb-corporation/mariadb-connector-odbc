@@ -79,6 +79,7 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
     return NULL;
 
   Desc->DescType= DescType;
+  MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
   if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
   {
@@ -118,6 +119,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   if (!Desc)
     return SQL_ERROR;
 
+  MDBUG_C_PRINT(Desc->Dbc, "%sMADB_DescFree", "\t->");
   /* We need to free internal pointers first */
   for (i=0; i < Desc->Records.elements; i++)
   {

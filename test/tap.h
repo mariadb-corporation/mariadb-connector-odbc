@@ -554,7 +554,7 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   rc= SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection);
   FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate connection handle");
 
-  /* my_options |= 4; */
+   /*my_options |= 4;*/ 
   _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
            my_pwd, my_port, my_schema, my_options, my_servername);
   diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,

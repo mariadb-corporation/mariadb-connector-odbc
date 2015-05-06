@@ -59,3 +59,9 @@ void ma_debug_printv(char *format, va_list args)
     fclose(fp);
   }
 }
+
+
+void ma_debug_print_error(MADB_Error *err)
+{
+  ma_debug_print(1, "[%s](%u)%s", err->SqlState, err->NativeError, err->SqlErrorMsg);
+}

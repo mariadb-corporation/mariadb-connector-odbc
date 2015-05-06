@@ -24,8 +24,12 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
   unsigned int i;
 
   for (i=0; i < Stmt->MultiStmtCount; ++i)
+  {
+    MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->MultiStmts[i]);
     mysql_stmt_close(Stmt->MultiStmts[i]);
+  }
   MADB_FREE(Stmt->MultiStmts);
+  Stmt->MultiStmtCount= 0;
 }
 
 
@@ -118,7 +122,10 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
 
     while (p < StmtCopy + Length)
     {
+      /* Need to be incremented before CloseMultiStatements() */
+      ++Stmt->MultiStmtCount;
       Stmt->MultiStmts[i]= mysql_stmt_init(Stmt->Connection->mariadb);
+      MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d)", Stmt->MultiStmts[i], i);
       if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, strlen(p)))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
@@ -131,7 +138,6 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
         MaxParams= mysql_stmt_param_count(Stmt->MultiStmts[i]);
       p+= strlen(p) + 1;
       ++i;
-      ++Stmt->MultiStmtCount;
     }
     if (MaxParams)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
@@ -191,7 +197,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
       Count++;
 end:
   if (Stmt)
-    MA_SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+    MA_SQLFreeStmt(Stmt, SQL_DROP);
   return Count;
 }
 

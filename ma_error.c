@@ -148,6 +148,24 @@ MADB_ERROR MADB_ErrorList[] =
 };
 /* }}} */
 
+
+char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
+{
+  /* If prefix is already there - we do not write again. One shoud reset error->PrefixLen in order to force */
+  if (error->PrefixLen == 0)
+  {
+    error->PrefixLen= strlen(MARIADB_ODBC_ERR_PREFIX);
+    strcpy_s(error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, MARIADB_ODBC_ERR_PREFIX);
+    if (dbc != NULL && dbc->mariadb != NULL)
+    {
+      error->PrefixLen += my_snprintf(error->SqlErrorMsg + error->PrefixLen,
+        SQL_MAX_MESSAGE_LENGTH + 1 - error->PrefixLen, "[%s]", mysql_get_server_info(dbc->mariadb)); 
+    }
+  }
+  return error->SqlErrorMsg + error->PrefixLen;
+}
+
+
 void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
 {
   char *Sqlstate= NULL, *Errormsg= NULL;
@@ -170,7 +188,9 @@ void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
 
   Error->ReturnValue= SQL_ERROR;
   if (Errormsg)
-    strcpy_s(Error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, Errormsg);
+  {
+    strcpy_s(Error->SqlErrorMsg + Error->PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Error->PrefixLen, Errormsg);
+  }
   if (Sqlstate)
     strcpy_s(Error->SqlState, SQLSTATE_LENGTH + 1, Sqlstate);
   Error->NativeError= NativeError;
@@ -192,10 +212,16 @@ void MADB_SetError(MADB_Error *Error,
   Error->ErrRecord= &MADB_ErrorList[ErrorCode];
 
   Error->ReturnValue= SQL_ERROR;
+
   if (NativeErrorMsg)
-    strcpy_s(Error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, NativeErrorMsg);
+  {
+    strcpy_s(Error->SqlErrorMsg + Error->PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Error->PrefixLen, NativeErrorMsg);
+  }
   else
-    strcpy_s(Error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, MADB_ErrorList[ErrorCode].SqlErrorMsg);
+  {
+    strcpy_s(Error->SqlErrorMsg + Error->PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Error->PrefixLen,
+             MADB_ErrorList[ErrorCode].SqlErrorMsg);
+  }
   strcpy_s(Error->SqlState, SQLSTATE_LENGTH + 1, MADB_ErrorList[ErrorCode].SqlState);
   Error->NativeError= NativeError;
   /* Check the return code */
@@ -211,6 +237,7 @@ void MADB_CopyError(MADB_Error *ErrorTo, MADB_Error *ErrorFrom)
 {
   ErrorTo->NativeError= ErrorFrom->NativeError;
   ErrorTo->ReturnValue= ErrorFrom->ReturnValue;
+  ErrorTo->PrefixLen=   ErrorFrom->PrefixLen;
   strcpy_s(ErrorTo->SqlState, SQLSTATE_LENGTH + 1, ErrorFrom->SqlState);
   strcpy_s(ErrorTo->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, ErrorFrom->SqlErrorMsg);
 }
@@ -227,11 +254,11 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
   char *SqlStateVersion= Err->SqlState;
   SQLSMALLINT Length= 0;
 
+  InternalError.PrefixLen= 0;
   MADB_CLEAR_ERROR(&InternalError);
   if (RecNumber > 1)
     return SQL_NO_DATA;
-
-
+  
   /* check if we have to map the SQLState to ODBC version 2 state */
   if (OdbcVersion == SQL_OV_ODBC2)
   {
@@ -282,6 +309,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
   if (StringLengthPtr)
     *StringLengthPtr= 0;
 
+  Error.PrefixLen= 0;
   MADB_CLEAR_ERROR(&Error);
 
   if (RecNumber > 1)

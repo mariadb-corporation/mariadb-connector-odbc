@@ -20,6 +20,15 @@ PROJECT(mariadb_connector_odbc C)
 
 cmake_minimum_required(VERSION 2.8)
 
+SET(MARIADB_ODBC_VERSION_MAJOR 2)
+SET(MARIADB_ODBC_VERSION_MINOR 0)
+SET(MARIADB_ODBC_VERSION_PATCH 7)
+
+SET(MARIADB_ODBC_VERSION "02.00.0007")
+
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
+               ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
+
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_error.c
                           ma_connection.c
@@ -70,6 +79,7 @@ IF(WIN32)
                           ma_desc.h
                           ma_string.h
                           ma_odbc.h
+                          ma_odbc_version.h
                           ma_result.h)
   SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                           ma_platform_win32.c)
@@ -110,36 +120,7 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
-SET(MARIADB_ODBC_VERSION_MAJOR 2)
-SET(MARIADB_ODBC_VERSION_MINOR 0)
-SET(MARIADB_ODBC_VERSION_PATCH 7)
-
 SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
-
-IF(MSVC)
-  # Speedup system tests
-  IF (MSVC)
-    SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO")
-    FOREACH(BUILD_TYPE ${CONFIG_TYPES})
-      FOREACH(COMPILER CXX C)
-        SET(COMPILER_FLAGS "${CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}}")
-        IF (NOT COMPILER_FLAGS STREQUAL "")
-          STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
-          IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            SET(COMPILER_FLAGS "${COMPILER_FLAGS} ${RTC_OPTIONS}")
-            STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
-          ENDIF()
-          IF (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-            SET(CMAKE_${COMPILER_FLAGS}_${BUILD_TYPE} CMAKE_${COMPILER_FLAGS}_${BUILD_TYPE} "/Zi")
-          ENDIF()
-          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}") 
-          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE 
-               STRING "overwritten by libmariadb" FORCE)
-        ENDIF()
-      ENDFOREACH()
-    ENDFOREACH()
-  ENDIF()
-ENDIF()
 
 # TODO: Make it optional
 # Disable dbug information for release builds 
@@ -180,11 +161,6 @@ IF(WIN32)
   ENDIF()
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
-
-SET(MARIADB_ODBC_VERSION "02.00.0006")
-
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
-               ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
 
 # This is interim, we port ascii version to Linux first
 IF(WIN32)

@@ -144,6 +144,7 @@ enum enum_madb_error {
   MADB_ERR_S1107,
   MADB_ERR_S1C00,
 };
+char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error);
 
 void MADB_SetError(MADB_Error *Error, unsigned int SqlErrorCode, char *SqlErrorMsg, unsigned int NativeError);
 void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr);
@@ -160,7 +161,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 
 #define MADB_CLEAR_ERROR(a) \
   strcpy_s((a)->SqlState, SQL_SQLSTATE_SIZE+1, MADB_ErrorList[MADB_ERR_00000].SqlState); \
-  strcpy_s((a)->SqlErrorMsg, 1, ""); \
+  (a)->SqlErrorMsg[(a)->PrefixLen]= 0; \
   (a)->NativeError= 0;\
   (a)->ReturnValue= SQL_SUCCESS;\
   (a)->ErrorNum= 0;

@@ -38,41 +38,46 @@ void ma_debug_print(my_bool ident, char *format, ...);
 #endif
 
 void ma_debug_print(my_bool ident, char *format, ...);
+void ma_debug_print_error(MADB_Error *err);
 
 #ifdef WIN32
 #define MDBUG_C_ENTER(C,A)\
-  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
+  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
   {\
     SYSTEMTIME st;\
     GetSystemTime(&st);\
-    ma_debug_print(0, ">>> %02d:%02d:%02d --- %s (thread: %d) ---", st.wHour, st.wMinute, st.wSecond,  A, (C)->mariadb->thread_id);\
+    ma_debug_print(0, ">>> %02d:%02d:%02d --- %s (thread: %d) ---", st.wHour, st.wMinute, st.wSecond,  A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
   }
 #else
 #define MDBUG_C_ENTER(C,A)\
-  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
+  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
   {\
     time_t t = time(NULL);\
     struct tm tm = *localtime(&t);\
-    ma_debug_print(0, ">>> %02d:%02d:%02d --- %s (thread: %d) ---", tm.tm_hour, tm.tm_min, tm.tm_sec,  A, (C)->mariadb->thread_id);\
+    ma_debug_print(0, ">>> %02d:%02d:%02d --- %s (thread: %d) ---", tm.tm_hour, tm.tm_min, tm.tm_sec,  A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
   }
 #endif
 
-#define MDBUG_C_RETURN(C,A)\
-  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
-    ma_debug_print(0, "<<< --- end of function, returning %d ---", A);\
+#define MDBUG_C_RETURN(C,A,E)\
+  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
+  {\
+    if ((A) && (E)->ReturnValue)\
+      ma_debug_print_error(E);\
+    ma_debug_print(0, "<<< --- end of function, returning %d ---", (A));\
+  }\
   return (A);
 
 #define MDBUG_C_PRINT(C, format, ...)\
-  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
+  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
     ma_debug_print(1, format, __VA_ARGS__);
 
 #define MDBUG_C_VOID_RETURN(C)\
-  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
+  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
     ma_debug_print(0, "<<< --- end of function ---");\
   return;
 
 #define MDBUG_C_DUMP(C,A,B)\
-  if ((C) && ((C)->Options & MA_DEBUG_FLAG))\
+  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
   ma_debug_print(1, #A ":\t%" #B, A);
 
 #endif /* MAODBC_DEBUG */

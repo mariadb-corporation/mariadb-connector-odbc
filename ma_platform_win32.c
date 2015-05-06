@@ -79,7 +79,7 @@ int DSNPrompt_Free(MADB_Prompt *prompt)
 }
 
 
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, Client_Charset* cc)
+SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
   int Length;

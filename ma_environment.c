@@ -80,6 +80,9 @@ MADB_Env *MADB_EnvInit()
     /* todo: optional debug output */
     goto cleanup;
   }
+
+  MADB_PutErrorPrefix(NULL, &Env->Error);
+
   InitializeCriticalSection(&Env->cs);
   Env->OdbcVersion= SQL_OV_ODBC3;
 
