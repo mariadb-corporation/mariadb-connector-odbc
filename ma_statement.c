@@ -198,7 +198,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 {
   char                      *CursorName= NULL;
   char                      *p;
-  unsigned int              WhereOffset, Need2CloseStmt= 0;
+  unsigned int              WhereOffset;
   enum enum_madb_query_type QueryType;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -217,11 +217,6 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     CloseMultiStatements(Stmt);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
     Stmt->MultiStmtCount= 0;
-  }
-  else
-  {
-    /* If we are preparing multistatement, previous (single) statement has to be closed */
-    Need2CloseStmt= 1;
   }
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
@@ -318,8 +313,12 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, 
                          TextLength == SQL_NTS ? strlen(Stmt->StmtString) : TextLength))
   {
-    UNLOCK_MARIADB(Stmt->Connection);
+    /* Need to save error first */
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+    /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
+    mysql_stmt_close(Stmt->stmt);
+    UNLOCK_MARIADB(Stmt->Connection);
+    Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
 
     return Stmt->Error.ReturnValue;
   }

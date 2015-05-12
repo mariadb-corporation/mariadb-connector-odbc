@@ -1250,10 +1250,42 @@ ODBC_TEST(t_bug45378)
 }
 
 
+ODBC_TEST(t_mysqld_stmt_reset)
+{
+  OK_SIMPLE_STMT(Stmt, "drop table if exists t_reset");
+  OK_SIMPLE_STMT(Stmt, "create table t_reset (a int)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_reset(a) VALUES (1),(2),(3)");
+
+  /* Succesful query deploying PS */
+  OK_SIMPLE_STMT(Stmt, "SELECT count(*) FROM t_reset");
+  CHECK_STMT_RC(Stmt,SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Unsuccessful quer */
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT count(*) FROM t_reset_nonexistent", SQL_NTS), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Successful directly executed query */
+  OK_SIMPLE_STMT(Stmt, "delete from t_reset where a=2");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* And now successful query again */
+  OK_SIMPLE_STMT(Stmt, "SELECT count(*) FROM t_reset");
+  CHECK_STMT_RC(Stmt,SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 2);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "drop table if exists t_reset");
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
-/*  {t_disconnect, "t_disconnect"},
-  {t_describe_nulti, "t_describe_nulti"}, */
+  {t_disconnect, "t_disconnect"},
+  {t_describe_nulti, "t_describe_nulti"}, 
   {test_CONO1,     "test_CONO1",     NORMAL},
   {test_CONO3,     "test_CONO3",     NORMAL},
   {t_count,        "t_count",        NORMAL},
@@ -1284,6 +1316,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug41256,     "t_bug41256",     NORMAL},
   {t_bug48603,     "t_bug48603",     NORMAL},
   {t_bug45378,     "t_bug45378",     NORMAL},
+  {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
   {NULL, NULL, 0}
 };
 

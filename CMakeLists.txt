@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2014 SkySQL AB
+#   Copyright (C) 2013,2015 MariaDB Corporation AB
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -19,6 +19,15 @@
 PROJECT(mariadb_connector_odbc C)
 
 cmake_minimum_required(VERSION 2.8)
+
+SET(MARIADB_ODBC_VERSION_MAJOR 1)
+SET(MARIADB_ODBC_VERSION_MINOR 0)
+SET(MARIADB_ODBC_VERSION_PATCH 4)
+
+SET(MARIADB_ODBC_VERSION "01.00.0004")
+
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
+               ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
 
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_error.c
@@ -68,11 +77,16 @@ IF(WIN32)
                           ma_desc.h
                           ma_string.h
                           ma_odbc.h
+                          ma_odbc_version.h
                           ma_result.h)
+  SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
+                          ma_platform_win32.c)
 
   SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
   SET(PLATFORM_DEPENDENCIES ws2_32)
 ELSE()
+  SEARCH_LIBRARY(LIB_MATH floor m)
+  SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES} ma_platform_posix.c)
   SET(MARIADB_CLIENT_FILENAME libmariadbclient.a)
   SET(ODBC_LIBS odbc)
@@ -88,51 +102,14 @@ ENDIF()
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindMariaDB.cmake)
 IF(MARIADB_FOUND)
   INCLUDE_DIRECTORIES(${MARIADB_INCLUDE_DIR})
-  IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/debug/${MARIADB_CLIENT_FILENAME})
-  ELSE()
-    SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/${MARIADB_CLIENT_FILENAME})
-  ENDIF()
+  SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/${MARIADB_CLIENT_FILENAME})
 ELSE()
   MESSAGE(FATAL_ERROR "MariaDB not found")
 ENDIF()
 
-IF(WIN32)
-  OPTION(WITH_REVNO "Add revision number in msi packages" OFF)
-ENDIF()
-
-
-SET(MARIADB_ODBC_VERSION_MAJOR 1)
-SET(MARIADB_ODBC_VERSION_MINOR 0)
-SET(MARIADB_ODBC_VERSION_PATCH 4)
-
 SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
 
-IF(MSVC)
-  # Speedup system tests
-  IF (MSVC)
-    SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO")
-    FOREACH(BUILD_TYPE ${CONFIG_TYPES})
-      FOREACH(COMPILER CXX C)
-        SET(COMPILER_FLAGS "${CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}}")
-        IF (NOT COMPILER_FLAGS STREQUAL "")
-          STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
-          IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            SET(COMPILER_FLAGS "${COMPILER_FLAGS} ${RTC_OPTIONS}")
-            STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
-          ENDIF()
-          IF (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-            SET(CMAKE_${COMPILER_FLAGS}_${BUILD_TYPE} CMAKE_${COMPILER_FLAGS}_${BUILD_TYPE} "/Zi")
-          ENDIF()
-          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}") 
-          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE 
-               STRING "overwritten by libmariadb" FORCE)
-        ENDIF()
-      ENDFOREACH()
-    ENDFOREACH()
-  ENDIF()
-ENDIF()
-
+# TODO: Make it optional
 # Disable dbug information for release builds 
 SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
@@ -172,19 +149,14 @@ IF(WIN32)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
 
-SET(MARIADB_ODBC_VERSION "00.91.0000")
-
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
-               ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
-
-
 SET(UNICODE "W")
+
 SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_LIBS} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
+TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
 
 # Currently on Windows only
@@ -200,6 +172,8 @@ ENDIF()
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
 ENDIF()
+
+# Tests
 ADD_SUBDIRECTORY(test)
 
 # Packaging
