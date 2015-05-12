@@ -519,7 +519,7 @@ ODBC_TEST(t_max_rows)
     /* max_rows IS bigger than a prefetch, and IS not divided evenly by it */
     CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1,SQL_ATTR_MAX_ROWS,(SQLPOINTER)7,0));
 
-    /* May fail id test dsn does not specify database to use */
+    /* May fail if test dsn does not specify database to use */
     OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
 
     is_num(7, myrowcount(hstmt1));

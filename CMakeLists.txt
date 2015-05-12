@@ -204,6 +204,7 @@ ELSE()
           .)
 ENDIF()
 
+# Tests
 ADD_SUBDIRECTORY(test)
 
 # Packaging
