@@ -2179,7 +2179,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
      // memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
       if (Stmt->stmt->fields[Offset].max_length)
         Length= MADB_SetString(Stmt->Connection->CodePage, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
-                                   ClientValue, Stmt->stmt->fields[i].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
+                                   ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
       if (Length > BufferLength / sizeof(SQLWCHAR)) {
         if (StrLen_or_IndPtr)
@@ -2624,7 +2624,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   else
   {
     init_dynamic_string(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
-                                  "TABLE_TYPE ,"
+                                  "if(TABLE_TYPE='BASE TABLE','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
                                   "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
                                   8192, 512);
     if (Stmt->Options.MetadataId== SQL_TRUE)
