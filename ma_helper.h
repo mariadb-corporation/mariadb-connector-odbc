@@ -43,7 +43,7 @@ SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 
-size_t MADB_GetDisplaySize(MYSQL_FIELD field);
+size_t MADB_GetDisplaySize(MYSQL_FIELD field, CHARSET_INFO *charset);
 size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
 char *MADB_GetTypeName(MYSQL_FIELD Field);
 char *trim(char *Str);

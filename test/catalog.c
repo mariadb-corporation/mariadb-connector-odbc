@@ -1042,7 +1042,7 @@ ODBC_TEST(t_bug23031)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buff, 3), "t_bug23031_t", 12);
-  IS_STR(my_fetch_str(Stmt, buff, 4), "BASE TABLE", 10);
+  IS_STR(my_fetch_str(Stmt, buff, 4), "TABLE", 10);
   IS_STR(my_fetch_str(Stmt, buff, 5), "Whee!", 5);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1056,11 +1056,11 @@ ODBC_TEST(t_bug23031)
   /* Get just the table. */
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
                            (SQLCHAR *)"t_bug23031%", SQL_NTS,
-                           (SQLCHAR *)"BASE TABLE", SQL_NTS));
+                           (SQLCHAR *)"TABLE", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buff, 3), "t_bug23031_t", 12);
-  IS_STR(my_fetch_str(Stmt, buff, 4), "BASE TABLE", 10);
+  IS_STR(my_fetch_str(Stmt, buff, 4), "TABLE", 10);
   IS_STR(my_fetch_str(Stmt, buff, 5), "Whee!", 5);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");

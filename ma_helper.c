@@ -431,7 +431,7 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO
 }
 
 /* {{{ MADB_GetDisplaySize */
-size_t MADB_GetDisplaySize(MYSQL_FIELD Field)
+size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
 {
   /* Todo: check these values with output from mysql --with-columntype-info */
   switch (Field.type) {
@@ -475,12 +475,20 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field)
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    return Field.length;
-    /*
-    if (Field.flags & BINARY_FLAG)
-      return Field.length * 2;
+  {
+    if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR)
+    {
+      return Field.length*2; /* ODBC specs says we should give 2 characters per byte to display binaray data in hex form */
+    }
+    else if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+    {
+      return Field.length;
+    }
     else
-      return Field.length * 3; */ /* UTF8 is 3-bytes */
+    {
+      return Field.length/charset->char_maxlen;
+    }
+  }
   default:
     return SQL_NO_TOTAL;
   }

@@ -450,7 +450,7 @@ ODBC_TEST(t_bug27862_1)
   is_num(len, 4);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
-  /* Octet length shoul *not* include terminanting null character according to ODBC specs */
+  /* Octet length should *not* include terminanting null character according to ODBC specs. This check may fail if multibyte charset is used for connection */
   is_num(len, 4);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

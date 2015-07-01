@@ -187,13 +187,7 @@ MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFi
     Record->Unsigned= (Fields[i].flags & UNSIGNED_FLAG) ? SQL_TRUE : SQL_FALSE;
     /* We assume it might be updatable if tablename exists */
     Record->Updateable= (Fields[i].table && Fields[i].table[0]) ? SQL_ATTR_READWRITE_UNKNOWN : SQL_ATTR_READONLY;
-    /* 
-       SEARCHABLE:
-       Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
-    */
-    Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
-                         Record->ConciseType == SQL_WLONGVARCHAR ||
-                         Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
+
     /*
        RADIX:
        If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field 
@@ -254,7 +248,15 @@ MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFi
       Record->DateTimeIntervalCode= SQL_CODE_TIMESTAMP;
       break;
     }
-    Record->DisplaySize= MADB_GetDisplaySize(Fields[i]);
+    /* 
+       SEARCHABLE:
+       Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
+    */
+    Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
+                         Record->ConciseType == SQL_WLONGVARCHAR ||
+                         Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
+
+    Record->DisplaySize= MADB_GetDisplaySize(Fields[i], mysql_get_charset_by_nr(Fields[i].charsetnr));
     Record->OctetLength= MADB_GetOctetLength(Fields[i], Stmt->Connection->mariadb->charset->char_maxlen);
     Record->Length= MADB_GetDataSize(Record, Fields[i], mysql_get_charset_by_nr(Fields[i].charsetnr));
     

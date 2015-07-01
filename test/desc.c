@@ -128,7 +128,7 @@ ODBC_TEST(t_desc_set_error)
   /* Test bad header field permissions */
   FAIL_IF(SQLSetDescField(ard, 0, SQL_DESC_ROWS_PROCESSED_PTR,
                                    NULL, SQL_IS_POINTER) != SQL_ERROR, "Error exppected");
- FAIL_IF(check_sqlstate_ex(ard, SQL_HANDLE_DESC, "HY091") != OK, "sqlstate != HY091");
+  FAIL_IF(check_sqlstate_ex(ard, SQL_HANDLE_DESC, "HY091") != OK, "sqlstate != HY091");
 
   /* Test the HY016 error received when setting any field on an IRD
    * besides SQL_DESC_ARRAY_STATUS_PTR or SQL_DESC_ROWS_PROCESSED_PTR.
