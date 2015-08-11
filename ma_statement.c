@@ -741,6 +741,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 Length= MIN(Length, ApdRecord->OctetLength);
             }
             Stmt->params[i-ParamOffset].length= 0;
+
             switch (ApdRecord->ConciseType) {
             case SQL_C_WCHAR:
               {
@@ -1964,17 +1965,17 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
                            SQLLEN BufferLength,
                            SQLLEN * StrLen_or_IndPtr)
 {
-  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLUSMALLINT Offset= Col_or_Param_Num - 1;
-  SQLSMALLINT OdbcType= 0, MadbType= 0;
-/*  MYSQL_FIELD Field; */
-  MYSQL_BIND Bind;
-  my_bool IsNull= FALSE;
-  my_bool ZeroTerminated= 0;
-  size_t Length;
-  my_bool Error;
-  unsigned int i;
-  unsigned char *SavePtr=Stmt->stmt->bind[Offset].row_ptr;
+  MADB_Stmt       *Stmt= (MADB_Stmt *)StatementHandle;
+  SQLUSMALLINT    Offset= Col_or_Param_Num - 1;
+  SQLSMALLINT     OdbcType= 0, MadbType= 0;
+  MYSQL_BIND      Bind;
+  my_bool         IsNull= FALSE;
+  my_bool         ZeroTerminated= 0;
+  size_t          Length;
+  my_bool         Error;
+  unsigned int    i;
+  unsigned char   *SavePtr=Stmt->stmt->bind[Offset].row_ptr;
+  MADB_DescRecord *IrdRec= NULL;
 
   if (BufferLength < 0)
   {
@@ -1990,7 +1991,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       return Stmt->Error.ReturnValue;
     }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
-    return SQL_SUCCESS_WITH_INFO;
+    return SQL_SUCCESS;
   }
 
   /* Bookmark */
@@ -2038,9 +2039,20 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     }
     break;
   case SQL_C_DEFAULT:
-    /* SQL C Type needs to be mapped from MYSQL_TYPES */
-    MadbType= Stmt->stmt->fields[Offset].type;
-    OdbcType= MADB_GetODBCType(&Stmt->stmt->fields[Offset]);
+    {
+      IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, Offset, MADB_DESC_READ);
+      if (!IrdRec)
+      {
+        MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+        return Stmt->Error.ReturnValue;
+      }
+      /* Taking type from IRD record. This way, if mysql type was fixed(currently that is mainly for catalog functions, we don't lose it.
+         (Access uses default types on getting catalog functions results, and not quite happy when it gets something unexpected. Seemingly it cares about returned data lenghts even for types,
+         for which standard says application should not care about */
+      OdbcType= IrdRec->ConciseType;
+      /* Restoring mariadb/mysql type from odbc type */
+      MadbType= MADB_GetTypeAndLength(OdbcType, &Bind.is_unsigned, &Bind.buffer_length);
+    }
     break;
   default:
     OdbcType= TargetType;
@@ -2290,19 +2302,36 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   default:
     {
        /* Set the conversion function */
-      Bind.fetch_result= mysql_ps_fetch_functions[MadbType].func;
       Bind.buffer_type= MadbType;
       Bind.buffer= TargetValuePtr;
       if (BufferLength)
         Bind.buffer_length= BufferLength;
       mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+      if (StrLen_or_IndPtr != NULL)
+      {
+        if (Length > 0)
+        {
+          *StrLen_or_IndPtr= Length;
+        }
+        else if (TargetType == SQL_C_DEFAULT)
+        {
+          *StrLen_or_IndPtr= IrdRec->OctetLength;
+        }
+      }
       /* Bind.fetch_result(&Bind, &Stmt->stmt->fields[Offset], &Stmt->stmt->bind[Offset].row_ptr); */
-      Stmt->stmt->bind[Offset].row_ptr= SavePtr; 
+      Stmt->stmt->bind[Offset].row_ptr= SavePtr;
     }
     break;
   }
   if (IsNull)
+  {
+    if (!StrLen_or_IndPtr)
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+      return Stmt->Error.ReturnValue;
+    }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
+  }
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -2682,6 +2711,12 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
 }
 /* }}} */
 
+static MADB_ShortTypeInfo SqlStatsColType[13]=
+                               /*1*/    {{SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+                               /*5*/     {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+                               /*9*/     {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_CHAR, 0, SQL_NULLABLE, 2}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
+                               /*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
+
 /* {{{ MADB_StmtStatistics */
 SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
                               char *SchemaName, SQLSMALLINT NameLength2,
@@ -2728,9 +2763,21 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
+  if (SQL_SUCCEEDED(ret))
+  {
+    MADB_FixColumnDataTypes(Stmt, SqlStatsColType);
+  }
   return ret;
 }
 /* }}} */
+
+
+static MADB_ShortTypeInfo SqlColumnsColType[18]=
+                               /*1*/    {{SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+                               /*5*/     {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
+                               /*9*/     {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+                               /*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+                               /*16*/    {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
 
 /* {{{ MADB_StmtColumns */
 SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,char *CatalogName, SQLSMALLINT NameLength1,
@@ -2787,8 +2834,13 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,char *CatalogName, SQLSMALLINT NameLe
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS);
   if (SQL_SUCCEEDED(ret))
+  {
     ret= Stmt->Methods->Execute(Stmt);
-
+  }
+  if (SQL_SUCCEEDED(ret))
+  {
+    MADB_FixColumnDataTypes(Stmt, SqlColumnsColType);
+  }
   dynstr_free(&StmtStr);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
   return ret;
@@ -2910,7 +2962,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
                            "  WHEN DATA_TYPE in ('timestamp', 'datetime') THEN 19 "
                            "END AS COLUMN_SIZE,"
                            "CHARACTER_OCTET_LENGTH AS BUFFER_LENGTH,"
-                           "NUMERIC_SCALE DECIMAL_DIGITS, "
+                           "NUMERIC_SCALE DECIMAL_DIGITS, " 
                            XSTR(SQL_PC_UNKNOWN) " PSEUDO_COLUMN "
                            "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ");
   if (CatalogName && CatalogName[0])

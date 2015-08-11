@@ -108,6 +108,10 @@ MADB_TypeInfo TypeInfoV2[]=
   {NULL,0,0,NULL,NULL,NULL,0,0,0,0,0,0,NULL,0,0,0,0,0}
 };
 
+static MADB_ShortTypeInfo gtiDefType[19]= {{0, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_INTEGER, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0},
+                                 /*7*/     {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0},
+                                 /*11*/    {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {0, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0},
+                                 /*16*/    {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_INTEGER, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0} };
 /* {{{ MADB_GetTypeInfo */
 SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
                            SQLSMALLINT DataType)
@@ -181,6 +185,10 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
+  if (SQL_SUCCEEDED(ret))
+  {
+    MADB_FixColumnDataTypes(Stmt, gtiDefType);
+  }
   return ret;
 }
 /* }}} */

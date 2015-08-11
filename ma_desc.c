@@ -161,135 +161,443 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
 }
 /* }}} */ 
 
+/* {{{ MADB_SetIrdRecord */
+my_bool
+MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
+{
+  if (Record == NULL)
+  {
+    return 1;
+  }
+
+  Record->CatalogName= Field->catalog ? my_strdup(Field->catalog, MYF(0)) : NULL;
+  Record->TableName= Field->table ? my_strdup(Field->table, MYF(0)) : NULL;
+  Record->ColumnName= Field->name ? my_strdup(Field->name, MYF(0)) : NULL;
+  Record->BaseTableName= Field->org_table ? my_strdup(Field->org_table, MYF(0)) : NULL;
+  Record->BaseColumnName= Field->org_name ? my_strdup(Field->org_name, MYF(0)) : NULL;
+  Record->AutoUniqueValue= (Field->flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
+  Record->CaseSensitive= (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
+  Record->Nullable= ( (Field->flags & NOT_NULL_FLAG) &&
+                      !Record->AutoUniqueValue &&
+                      Field->type != MYSQL_TYPE_TIMESTAMP) ? SQL_NO_NULLS : SQL_NULLABLE;
+  Record->Unsigned= (Field->flags & UNSIGNED_FLAG) ? SQL_TRUE : SQL_FALSE;
+  /* We assume it might be updatable if tablename exists */
+  Record->Updateable= (Field->table && Field->table[0]) ? SQL_ATTR_READWRITE_UNKNOWN : SQL_ATTR_READONLY;
+
+  /*
+      RADIX:
+      If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field 
+      contains a value of 2 because the SQL_DESC_PRECISION field contains the number of bits. 
+      If the data type in the SQL_DESC_TYPE field is an exact numeric data type, this field contains a value of 10 
+      because the SQL_DESC_PRECISION field contains the number of decimal digits. 
+      This field is set to 0 for all non-numeric data types.
+  */
+  switch (Field->type) {
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+    Record->FixedPrecScale= SQL_FALSE;
+    Record->NumPrecRadix= 10;
+    Record->Precision= (SQLSMALLINT)Field->length - 2;
+    Record->Scale= Field->decimals;
+    break;
+  case MYSQL_TYPE_FLOAT:
+    Record->FixedPrecScale= SQL_FALSE;
+    Record->NumPrecRadix= 2;
+    Record->Precision= (SQLSMALLINT)Field->length - 2;
+    //Record->Scale= Field->decimals;
+    break;
+  case MYSQL_TYPE_BIT:
+    if (Field->length > 1)
+      Record->Type= SQL_BINARY;
+    break;
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+    Record->NumPrecRadix= 10;
+    break;
+  default:
+    Record->NumPrecRadix= 0;
+    break;
+  }
+  Record->ConciseType= MADB_GetODBCType(Field);
+  /* 
+      TYPE:
+      For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.
+  */
+  Record->Type= (Record->ConciseType ==  SQL_TYPE_DATE || Record->ConciseType ==  SQL_DATE ||
+                  Record->ConciseType ==  SQL_TYPE_TIME || Record->ConciseType ==  SQL_TIME ||
+                  Record->ConciseType ==  SQL_TYPE_TIMESTAMP || Record->ConciseType == SQL_TIMESTAMP) ?
+                    SQL_DATETIME : Record->ConciseType;
+
+  switch(Record->ConciseType) {
+  case SQL_TYPE_DATE:
+    Record->DateTimeIntervalCode= SQL_CODE_DATE;
+    break;
+  case SQL_TYPE_TIME:
+    Record->DateTimeIntervalCode= SQL_CODE_TIME;
+    break;
+  case SQL_TYPE_TIMESTAMP:
+    Record->DateTimeIntervalCode= SQL_CODE_TIMESTAMP;
+    break;
+  }
+  /* 
+      SEARCHABLE:
+      Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
+  */
+  Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
+                        Record->ConciseType == SQL_WLONGVARCHAR ||
+                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
+
+  Record->DisplaySize= MADB_GetDisplaySize(*Field, mysql_get_charset_by_nr(Field->charsetnr));
+  Record->OctetLength= MADB_GetOctetLength(*Field, Stmt->Connection->mariadb->charset->char_maxlen);
+  Record->Length= MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
+    
+  Record->TypeName= my_strdup(MADB_GetTypeName(*Field), MYF(0));
+  switch(Field->type) {
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+    if (Field->flags & BINARY_FLAG)
+    {
+      Record->LiteralPrefix= "0x";
+      Record->LiteralSuffix= "";
+      break;
+    }
+    /* else default */
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_YEAR:
+    Record->LiteralPrefix="'";
+    Record->LiteralSuffix= "'";
+    break;
+  default:
+    Record->LiteralPrefix= "";
+    Record->LiteralSuffix= "";
+    break;
+  }
+
+  return 0;
+}
+/* }}} */
+
 /* {{{ MADB_DescSetIrdMetadata */
 my_bool 
 MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFields)
 {
-  MADB_Desc *Desc= Stmt->Ird;
-  MADB_DescRecord *Record;
   SQLUINTEGER i;
 
   for (i=0; i < NumFields; i++)
   {
-    if (!(Record= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_WRITE)))
+    if (MADB_SetIrdRecord(Stmt, MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_WRITE), &Fields[i]))
+    {
       return 1;
-    
-    Record->CatalogName= Fields[i].catalog ? my_strdup(Fields[i].catalog, MYF(0)) : NULL;
-    Record->TableName= Fields[i].table ? my_strdup(Fields[i].table, MYF(0)) : NULL;
-    Record->ColumnName= Fields[i].name ? my_strdup(Fields[i].name, MYF(0)) : NULL;
-    Record->BaseTableName= Fields[i].org_table ? my_strdup(Fields[i].org_table, MYF(0)) : NULL;
-    Record->BaseColumnName= Fields[i].org_name ? my_strdup(Fields[i].org_name, MYF(0)) : NULL;
-    Record->AutoUniqueValue= (Fields[i].flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
-    Record->CaseSensitive= (Fields[i].flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
-    Record->Nullable= ( (Fields[i].flags & NOT_NULL_FLAG) &&
-                        !Record->AutoUniqueValue &&
-                        Fields[i].type != MYSQL_TYPE_TIMESTAMP) ? SQL_NO_NULLS : SQL_NULLABLE;
-    Record->Unsigned= (Fields[i].flags & UNSIGNED_FLAG) ? SQL_TRUE : SQL_FALSE;
-    /* We assume it might be updatable if tablename exists */
-    Record->Updateable= (Fields[i].table && Fields[i].table[0]) ? SQL_ATTR_READWRITE_UNKNOWN : SQL_ATTR_READONLY;
-
-    /*
-       RADIX:
-       If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field 
-       contains a value of 2 because the SQL_DESC_PRECISION field contains the number of bits. 
-       If the data type in the SQL_DESC_TYPE field is an exact numeric data type, this field contains a value of 10 
-       because the SQL_DESC_PRECISION field contains the number of decimal digits. 
-       This field is set to 0 for all non-numeric data types.
-   */
-    switch (Fields[i].type) {
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_NEWDECIMAL:
-      Record->FixedPrecScale= SQL_FALSE;
-      Record->NumPrecRadix= 10;
-      Record->Precision= (SQLSMALLINT)Fields[i].length - 2;
-      Record->Scale= Fields[i].decimals;
-      break;
-    case MYSQL_TYPE_FLOAT:
-      Record->FixedPrecScale= SQL_FALSE;
-      Record->NumPrecRadix= 2;
-      Record->Precision= (SQLSMALLINT)Fields[i].length - 2;
-      //Record->Scale= Fields[i].decimals;
-      break;
-    case MYSQL_TYPE_BIT:
-      if (Fields[i].length > 1)
-        Record->Type= SQL_BINARY;
-      break;
-    case MYSQL_TYPE_DOUBLE:
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_YEAR:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-      Record->NumPrecRadix= 10;
-      break;
-    default:
-      Record->NumPrecRadix= 0;
-      break;
-    }
-    Record->ConciseType= MADB_GetODBCType(&Fields[i]);
-    /* 
-       TYPE:
-       For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.
-    */
-    Record->Type= (Record->ConciseType ==  SQL_TYPE_DATE || Record->ConciseType ==  SQL_DATE ||
-                   Record->ConciseType ==  SQL_TYPE_TIME || Record->ConciseType ==  SQL_TIME ||
-                   Record->ConciseType ==  SQL_TYPE_TIMESTAMP || Record->ConciseType == SQL_TIMESTAMP) ?
-                     SQL_DATETIME : Record->ConciseType;
-
-    switch(Record->ConciseType) {
-    case SQL_TYPE_DATE:
-      Record->DateTimeIntervalCode= SQL_CODE_DATE;
-      break;
-    case SQL_TYPE_TIME:
-      Record->DateTimeIntervalCode= SQL_CODE_TIME;
-      break;
-    case SQL_TYPE_TIMESTAMP:
-      Record->DateTimeIntervalCode= SQL_CODE_TIMESTAMP;
-      break;
-    }
-    /* 
-       SEARCHABLE:
-       Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
-    */
-    Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
-                         Record->ConciseType == SQL_WLONGVARCHAR ||
-                         Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
-
-    Record->DisplaySize= MADB_GetDisplaySize(Fields[i], mysql_get_charset_by_nr(Fields[i].charsetnr));
-    Record->OctetLength= MADB_GetOctetLength(Fields[i], Stmt->Connection->mariadb->charset->char_maxlen);
-    Record->Length= MADB_GetDataSize(Record, Fields[i], mysql_get_charset_by_nr(Fields[i].charsetnr));
-    
-    Record->TypeName= my_strdup(MADB_GetTypeName(Fields[i]), MYF(0));
-    switch(Fields[i].type) {
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_VAR_STRING:
-      if (Fields[i].flags & BINARY_FLAG)
-      {
-        Record->LiteralPrefix= "0x";
-        Record->LiteralSuffix= "";
-        break;
-      }
-      /* else default */
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_NEWDATE:
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_YEAR:
-      Record->LiteralPrefix="'";
-      Record->LiteralSuffix= "'";
-      break;
-    default:
-      Record->LiteralPrefix= "";
-      Record->LiteralSuffix= "";
-      break;
     }
   }
+  return 0;
+}
+/* }}} */
+
+/* {{{ MADB_FixOctetLength */
+void MADB_FixOctetLength(MADB_DescRecord *Record)
+{
+  switch (Record->ConciseType) {
+  case SQL_BIT:
+  case SQL_TINYINT:
+    Record->OctetLength= 1;
+    break;
+  case SQL_SMALLINT:
+    Record->OctetLength= 2;
+    break;
+  case SQL_INTEGER:
+  case SQL_REAL:
+    Record->OctetLength= 4;
+    break;
+  case SQL_BIGINT:
+  case SQL_DOUBLE:
+    Record->OctetLength= 8;
+    break;
+  case SQL_TYPE_DATE:
+    Record->OctetLength= SQL_DATE_LEN;
+    break;
+  case SQL_TYPE_TIME:
+    Record->OctetLength= SQL_TIME_LEN;
+    break;
+  case SQL_TYPE_TIMESTAMP:
+    Record->OctetLength= SQL_TIMESTAMP_LEN;
+    break;
+  default:
+    Record->OctetLength= MIN(INT_MAX32, Record->OctetLength);
+  }
+}
+/* }}} */
+
+/* {{{ MADB_FixDisplayLength */
+void MADB_FixDisplaySize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
+{
+  switch (Record->ConciseType) {
+  case SQL_BIT:
+    Record->DisplaySize= 1;
+    break;
+  case SQL_TINYINT:
+    Record->DisplaySize= 4 - test(Record->Unsigned == SQL_TRUE);
+    break;
+  case SQL_SMALLINT:
+    Record->DisplaySize= 6 - test(Record->Unsigned == SQL_TRUE);
+    break;
+  case SQL_INTEGER:
+    Record->DisplaySize= 11 - test(Record->Unsigned == SQL_TRUE);
+    break;
+  case SQL_REAL:
+    Record->DisplaySize= 14;
+    break;
+  case SQL_BIGINT:
+    Record->DisplaySize= 20;
+    break;
+  case SQL_FLOAT:
+  case SQL_DOUBLE:
+    Record->DisplaySize= 24;
+    break;
+  case SQL_DECIMAL:
+  case SQL_NUMERIC:
+    Record->DisplaySize= Record->Precision + 2;
+    break;
+  case SQL_TYPE_DATE:
+    Record->DisplaySize= SQL_DATE_LEN;
+    break;
+  case SQL_TYPE_TIME:
+    Record->DisplaySize= SQL_TIME_LEN;
+    break;
+  case SQL_TYPE_TIMESTAMP:
+    Record->DisplaySize= SQL_TIMESTAMP_LEN;
+    break;
+  case SQL_BINARY:
+  case SQL_VARBINARY:
+  case SQL_LONGVARBINARY:
+    Record->DisplaySize=Record->OctetLength*2; /* For display in hex */
+    break;
+  case SQL_GUID:
+    Record->DisplaySize= 36;
+    break;
+  default:
+    if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+    {
+      Record->DisplaySize=Record->OctetLength;
+    }
+    else
+    {
+      Record->DisplaySize=Record->OctetLength/charset->char_maxlen;
+    }
+  }
+}
+/* }}} */
+
+/* {{{ MADB_FixDataSize - aka Column size */
+void MADB_FixDataSize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
+{
+  switch (Record->ConciseType) {
+  case SQL_BIT:
+    Record->Length= 1;
+    break;
+  case SQL_TINYINT:
+    Record->Length= 3;
+    break;
+  case SQL_SMALLINT:
+    Record->Length= 5;
+    break;
+  case SQL_INTEGER:
+    Record->Length= 10;
+    break;
+  case SQL_REAL:
+    Record->Length= 7;
+    break;
+  case SQL_BIGINT:
+    Record->Length= 20 - test(Record->Unsigned == SQL_TRUE);
+    break;
+  case SQL_FLOAT:
+  case SQL_DOUBLE:
+    Record->Length= 15;
+    break;
+  case SQL_DECIMAL:
+    Record->Length= Record->Precision;
+    break;
+  case SQL_TYPE_DATE:
+    Record->Length= SQL_DATE_LEN;
+    break;
+  case SQL_TYPE_TIME:
+    Record->Length= SQL_TIME_LEN;
+    break;
+  case SQL_TYPE_TIMESTAMP:
+    Record->Length= SQL_TIMESTAMP_LEN;
+    break;
+  case SQL_BINARY:
+  case SQL_VARBINARY:
+  case SQL_LONGVARBINARY:
+    Record->Length= Record->OctetLength;
+    break;
+  case SQL_GUID:
+    Record->Length= 36;
+    break;
+  default: /* Above some time are missing(like intervals), thus this 'default' can lead to errors */
+    if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+    {
+      Record->Length=Record->OctetLength;
+    }
+    else
+    {
+      Record->Length=Record->OctetLength/charset->char_maxlen;
+    }
+  }
+}
+/* }}} */
+
+/* {{{ MADB_FixIrdRecord */
+my_bool
+MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
+{
+  if (Record == NULL)
+  {
+    return 1;
+  }
+
+  MADB_FixOctetLength(Record);
+  /*
+      RADIX:
+      If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field 
+      contains a value of 2 because the SQL_DESC_PRECISION field contains the number of bits. 
+      If the data type in the SQL_DESC_TYPE field is an exact numeric data type, this field contains a value of 10 
+      because the SQL_DESC_PRECISION field contains the number of decimal digits. 
+      This field is set to 0 for all non-numeric data types.
+  */
+  switch (Record->ConciseType) {
+  case SQL_DECIMAL:
+    Record->FixedPrecScale= SQL_FALSE;
+    Record->NumPrecRadix= 10;
+    Record->Precision= (SQLSMALLINT)Record->OctetLength - 2;
+    /*Record->Scale= Fields[i].decimals;*/
+    break;
+  case SQL_REAL:
+    /* Float*/
+    Record->FixedPrecScale= SQL_FALSE;
+    Record->NumPrecRadix= 2;
+    Record->Precision= (SQLSMALLINT)Record->OctetLength - 2;
+    break;
+  case SQL_DOUBLE:
+  case SQL_TINYINT:
+  case SQL_SMALLINT:
+  case SQL_INTEGER:
+  case SQL_BIGINT:
+    Record->NumPrecRadix= 10;
+    break;
+  default:
+    Record->NumPrecRadix= 0;
+    break;
+  }
+  /* 
+      TYPE:
+      For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.
+  */
+  Record->Type= (Record->ConciseType ==  SQL_TYPE_DATE || Record->ConciseType ==  SQL_DATE ||
+                  Record->ConciseType ==  SQL_TYPE_TIME || Record->ConciseType ==  SQL_TIME ||
+                  Record->ConciseType ==  SQL_TYPE_TIMESTAMP || Record->ConciseType == SQL_TIMESTAMP) ?
+                    SQL_DATETIME : Record->ConciseType;
+
+  switch(Record->ConciseType) {
+  case SQL_TYPE_DATE:
+    Record->DateTimeIntervalCode= SQL_CODE_DATE;
+    break;
+  case SQL_TYPE_TIME:
+    Record->DateTimeIntervalCode= SQL_CODE_TIME;
+    break;
+  case SQL_TYPE_TIMESTAMP:
+    Record->DateTimeIntervalCode= SQL_CODE_TIMESTAMP;
+    break;
+  }
+  /* 
+      SEARCHABLE:
+      Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
+  */
+  Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
+                        Record->ConciseType == SQL_WLONGVARCHAR ||
+                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
+
+  MADB_FixDisplaySize(Record, Stmt->Connection->mariadb->charset);
+  MADB_FixDataSize(Record, Stmt->Connection->mariadb->charset);
+    
+  /*Record->TypeName= my_strdup(MADB_GetTypeName(Fields[i]), MYF(0));*/
+
+  switch(Record->ConciseType) {
+  case SQL_BINARY:
+  case SQL_VARBINARY:
+  case SQL_LONGVARBINARY:
+      Record->LiteralPrefix= "0x";
+      Record->LiteralSuffix= "";
+      break;
+  /* else default */
+  case SQL_TYPE_DATE:
+  case SQL_TYPE_TIME:
+  case SQL_TYPE_TIMESTAMP:
+    Record->LiteralPrefix="'";
+    Record->LiteralSuffix= "'";
+    break;
+  default:
+    Record->LiteralPrefix= "";
+    Record->LiteralSuffix= "";
+    break;
+  }
+
+  return 0;
+}
+/* }}} */
+
+/* {{{ MADB_FixColumnDataTypes */
+my_bool
+MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
+{
+  SQLUINTEGER      i;
+  MADB_DescRecord *Record= NULL;
+
+  if (ColTypesArr == NULL)
+  {
+    return 1;
+  }
+  for (i=0; i < Stmt->Ird->Header.Count; ++i)
+  {
+    if (ColTypesArr[i].SqlType != 0)
+    {
+      Record= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
+
+      if (Record == NULL)
+      {
+        return 1;
+      }
+      Record->ConciseType= ColTypesArr[i].SqlType;
+      Record->Nullable= ColTypesArr[i].Nullable;
+
+      Record->Unsigned= ColTypesArr[i].Unsigned != 0 ? SQL_TRUE : SQL_FALSE;
+
+      if (ColTypesArr[i].OctetLength > 0)
+      {
+        Record->OctetLength= ColTypesArr[i].OctetLength;
+      }
+      if (MADB_FixIrdRecord(Stmt, Record))
+      {
+        return 1;
+      }
+    }
+  }
+
+  /* If the stmt is re-executed, we should be able to fix columns again */
+  Stmt->ColsTypeFixArr= ColTypesArr;
   return 0;
 }
 /* }}} */
