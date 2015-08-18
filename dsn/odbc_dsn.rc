@@ -175,13 +175,14 @@ BEGIN
     GROUPBOX        "Miscellanous Options",IDC_STATIC,7,7,277,124,0,WS_EX_TRANSPARENT
     CONTROL         "Ignore schema in column specification",ckIgnoreSchema,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,25,136,10,WS_EX_TRANSPARENT
-    CONTROL         "Disable catalog support",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,91,10,WS_EX_TRANSPARENT
-    CONTROL         "Ignore space after function names",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,53,127,10,WS_EX_TRANSPARENT
+//    CONTROL         "Disable catalog support",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,91,10,WS_EX_TRANSPARENT
+//    CONTROL         "Ignore space after function names",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,53,127,10,WS_EX_TRANSPARENT
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
     PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
     PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
     PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
-    CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,67,97,10,WS_EX_TRANSPARENT
+    CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,97,10,WS_EX_TRANSPARENT
+//   CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,67,97,10,WS_EX_TRANSPARENT
 END
 
 Page_4 DIALOGEX 0, 0, 299, 182
@@ -193,20 +194,20 @@ BEGIN
     PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
     PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
     GROUPBOX        "Cursor/Results",IDC_STATIC,7,7,277,132,0,WS_EX_TRANSPARENT
-    CONTROL         "Enable dynamic cursors",ckEnableDynamicCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,19,91,10,WS_EX_TRANSPARENT
+    CONTROL         "Enable dynamic cursors",ckEnableDynamicCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,19,91,10,WS_EX_TRANSPARENT
     CONTROL         "Disable driver provided cursor support",ckDisableDriverCursor,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,33,138,10,WS_EX_TRANSPARENT
-    CONTROL         "Don't cache results of forward only cursors",ckDontCacheForwardCursor,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,48,153,10,WS_EX_TRANSPARENT
-    CONTROL         "Force use of forward only cursors",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,63,124,10,WS_EX_TRANSPARENT
-    CONTROL         "Prefetch rows",ckPrefetchRows,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,16,61,10,WS_EX_TRANSPARENT
-    CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,31,37,10,WS_EX_TRANSPARENT
+    CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,19,37,10,WS_EX_TRANSPARENT
     CONTROL         "Return matched rows instead of affected rows",ckReturnMatchedRows,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,79,165,10,WS_EX_TRANSPARENT
-    CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,94,105,10,WS_EX_TRANSPARENT
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,48,165,10,WS_EX_TRANSPARENT
+    CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,63,105,10,WS_EX_TRANSPARENT
     CONTROL         "Pad Char to fulllength with SPACE",ckPadCharFullLength,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,108,124,10,WS_EX_TRANSPARENT
-    CONTROL         "Return SQL_NULL_DATA for zero date",ckNullDate,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,124,139,10,WS_EX_TRANSPARENT
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,78,124,10,WS_EX_TRANSPARENT
+    CONTROL         "Return SQL_NULL_DATA for zero date",ckNullDate,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,93,139,10,WS_EX_TRANSPARENT
+//    CONTROL         "Don't cache results of forward only cursors",ckDontCacheForwardCursor,
+//                   "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,108,153,10,WS_EX_TRANSPARENT
+//    CONTROL         "Force use of forward only cursors",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,123,124,10,WS_EX_TRANSPARENT
+//    CONTROL         "Prefetch rows",ckPrefetchRows,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,33,61,10,WS_EX_TRANSPARENT
 END
 
 
