@@ -59,3 +59,13 @@ void ma_debug_printv(char *format, va_list args)
     fclose(fp);
   }
 }
+
+
+void ma_debug_print_error(MADB_Error *err)
+{
+  SYSTEMTIME st;
+
+  GetSystemTime(&st);
+  ma_debug_print(1, "%d-%02d-%02d %02d:%02d:%02d [%s](%u)%s", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, err->SqlState, err->NativeError, err->SqlErrorMsg);
+}
+

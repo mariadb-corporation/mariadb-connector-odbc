@@ -54,8 +54,8 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_helper.c
                      )
-
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DMAODBC_DEBUG")
+#Debug log is controlled by conenction option solely
+ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
 IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)

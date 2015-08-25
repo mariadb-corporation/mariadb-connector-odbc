@@ -2707,7 +2707,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   dynstr_free(&StmtStr);
-  MDBUG_C_RETURN(Stmt->Connection, ret);
+  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
 
