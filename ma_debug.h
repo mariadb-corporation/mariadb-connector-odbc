@@ -23,8 +23,9 @@
 
 void ma_debug_print(my_bool ident, char *format, ...);
 
+#define MDBUG_C_IS_ON(C) (0)
 #define MDBUG_C_ENTER(C,A) {}
-#define MDBUG_C_RETURN(C,A) return (A)
+#define MDBUG_C_RETURN(C,A,E) return (A)
 #define MDBUG_C_PRINT(C, format, args) {}
 #define MDBUG_C_VOID_RETURN(C) {}
 #define MDBUG_C_DUMP(C,A,B) {}
@@ -40,8 +41,10 @@ void ma_debug_print(my_bool ident, char *format, ...);
 void ma_debug_print(my_bool ident, char *format, ...);
 void ma_debug_print_error(MADB_Error *err);
 
+#define MDBUG_C_IS_ON(C) ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))
+
 #define MDBUG_C_ENTER(C,A)\
-  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
+  if (MDBUG_C_IS_ON(C))\
   {\
     SYSTEMTIME st;\
     GetSystemTime(&st);\
@@ -49,7 +52,7 @@ void ma_debug_print_error(MADB_Error *err);
   }
 
 #define MDBUG_C_RETURN(C,A,E)\
-  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
+  if (MDBUG_C_IS_ON(C))\
   {\
     if ((A) && (E)->ReturnValue)\
       ma_debug_print_error(E);\
@@ -58,16 +61,16 @@ void ma_debug_print_error(MADB_Error *err);
   return (A);
 
 #define MDBUG_C_PRINT(C, format, ...)\
-  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
+  if (MDBUG_C_IS_ON(C))\
     ma_debug_print(1, format, __VA_ARGS__);
 
 #define MDBUG_C_VOID_RETURN(C)\
-  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
+  if (MDBUG_C_IS_ON(C))\
     ma_debug_print(0, "<<< --- end of function ---");\
   return;
 
 #define MDBUG_C_DUMP(C,A,B)\
-  if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
+  if (MDBUG_C_IS_ON(C))\
   ma_debug_print(1, #A ":\t%" #B, A);
 
 #endif /* MAODBC_DEBUG */

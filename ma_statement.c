@@ -2024,6 +2024,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
   memset(&Bind, 0, sizeof(MYSQL_BIND));
 
+  /* We might need it for SQL_C_DEFAULT type, or to obtain length of fixed length types(Access likes to have it) */
+  IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, Offset, MADB_DESC_READ);
+  if (!IrdRec)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
+
   switch (TargetType) {
   case SQL_ARD_TYPE:
     {
@@ -2040,12 +2048,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     break;
   case SQL_C_DEFAULT:
     {
-      IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, Offset, MADB_DESC_READ);
-      if (!IrdRec)
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
-        return Stmt->Error.ReturnValue;
-      }
       /* Taking type from IRD record. This way, if mysql type was fixed(currently that is mainly for catalog functions, we don't lose it.
          (Access uses default types on getting catalog functions results, and not quite happy when it gets something unexpected. Seemingly it cares about returned data lenghts even for types,
          for which standard says application should not care about */
@@ -2313,7 +2315,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         {
           *StrLen_or_IndPtr= Length;
         }
-        else if (TargetType == SQL_C_DEFAULT)
+        else/* if (TargetType == SQL_C_DEFAULT)*/
         {
           *StrLen_or_IndPtr= IrdRec->OctetLength;
         }
@@ -2332,6 +2334,13 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
   }
+#ifdef MAODBC_DEBUG_DEVELOPER
+  else if (MDBUG_C_IS_ON(Stmt->Connection) && (TargetType == SQL_C_DEFAULT || TargetType == SQL_ARD_TYPE))
+  {
+    ma_debug_print(1, "%s(%s)", IrdRec->BaseColumnName, IrdRec->ColumnName);
+    ma_print_value(OdbcType, TargetValuePtr, Length > 0 ? Length : IrdRec->OctetLength);
+  }
+#endif
   return SQL_SUCCESS;
 }
 /* }}} */
