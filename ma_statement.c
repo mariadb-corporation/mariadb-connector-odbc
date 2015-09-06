@@ -1350,8 +1350,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   if (!Stmt || !Stmt->stmt)
     return SQL_INVALID_HANDLE;
 
-  MDBUG_C_ENTER(Stmt->Connection, "MADB_StmtFetch");
-
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType != SQL_C_VARBOOKMARK) ||
@@ -2043,7 +2041,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         return Stmt->Error.ReturnValue;
       }
       OdbcType= Ard->ConciseType;
-      MadbType= MADB_GetTypeAndLength(OdbcType, &Bind.is_unsigned, &Bind.buffer_length);
     }
     break;
   case SQL_C_DEFAULT:
@@ -2052,15 +2049,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
          (Access uses default types on getting catalog functions results, and not quite happy when it gets something unexpected. Seemingly it cares about returned data lenghts even for types,
          for which standard says application should not care about */
       OdbcType= IrdRec->ConciseType;
-      /* Restoring mariadb/mysql type from odbc type */
-      MadbType= MADB_GetTypeAndLength(OdbcType, &Bind.is_unsigned, &Bind.buffer_length);
     }
     break;
   default:
     OdbcType= TargetType;
-    MadbType= MADB_GetTypeAndLength(OdbcType, &Bind.is_unsigned, &Bind.buffer_length);
     break;  
   }
+  /* Restoring mariadb/mysql type from odbc type */
+  MadbType= MADB_GetTypeAndLength(OdbcType, &Bind.is_unsigned, &Bind.buffer_length);
 
   /* set global values for Bind */
   Bind.error= &Error;
@@ -2314,6 +2310,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         if (Length > 0)
         {
           *StrLen_or_IndPtr= Length;
+        }
+        else if (Bind.buffer_length > 0)
+        {
+          *StrLen_or_IndPtr= Bind.buffer_length;
         }
         else/* if (TargetType == SQL_C_DEFAULT)*/
         {
