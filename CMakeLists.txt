@@ -54,6 +54,9 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_helper.c
                      )
+
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
+
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
@@ -177,6 +180,9 @@ ENDIF()
 ADD_SUBDIRECTORY(test)
 
 # Packaging
+SET(CPACK_PACKAGE_VERSION_MAJOR "${MARIADB_ODBC_VERSION_MAJOR}")
+SET(CPACK_PACKAGE_VERSION_MINOR "${MARIADB_ODBC_VERSION_MINOR}")
+SET(CPACK_PACKAGE_VERSION_MINOR "${MARIADB_ODBC_VERSION_PATCH}")
 SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation Ab")
 SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. ODBC driver library for connecting to MariaDB and MySQL servers")
 SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
@@ -187,14 +193,14 @@ SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-src")
 
 SET(CPACK_SOURCE_IGNORE_FILES
-.bzr/
-.bzrignore
+.git/
+.gitignore
+.gitattributes
 CMakeCache.txt
 cmake_dist.cmake
 CPackSourceConfig.cmake
 CPackConfig.cmake
 .build/
-test/
 /cmake_install.cmake
 /CTestTestfile.cmake
 /CMakeFiles/
@@ -218,11 +224,21 @@ Makefile$
 )
 
 IF(WIN32)
-  SET(CPACK_GENERATOR "ZIP")
-  SET(CPACK_SOURCE_GENERATOR "ZIP")
+  SET(DEFAULT_GENERATOR "ZIP")
 ELSE()
-  SET(CPACK_GENERATOR "TGZ")
-  SET(CPACK_SOURCE_GENERATOR "TGZ")
+  SET(DEFAULT_GENERATOR "TGZ")
 ENDIF()
+
+IF(NOT CPACK_GENERATOR)
+  SET(CPACK_GENERATOR "${DEFAULT_GENERATOR}")
+ENDIF()
+IF(NOT CPACK_SOURCE_GENERATOR)
+  SET(CPACK_SOURCE_GENERATOR "${DEFAULT_GENERATOR}")
+ENDIF()
+
+MESSAGE(STATUS "License File: ${CPACK_RESOURCE_FILE_LICENSE}")
+MESSAGE(STATUS "ReadMe File: ${CPACK_PACKAGE_DESCRIPTION_FILE}")
+MESSAGE(STATUS "Source Package Filename: ${CPACK_SOURCE_PACKAGE_FILE_NAME}.${CPACK_SOURCE_GENERATOR}")
+
 INCLUDE(CPack)
 
