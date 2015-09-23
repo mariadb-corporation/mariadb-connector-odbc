@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,6 +24,7 @@
 #include <tchar.h>
 #include <windowsx.h>
 #include <winuser.h>
+#include <shlobj.h>
 #include "resource.h"
 #include <ma_odbc.h>
 #include <ma_odbc_setup.h>
@@ -73,6 +74,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[12], 2, ckReconnect,          0, 0},
   {&DsnKeys[13], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[14], 2, cbCharset,            0, 0},
+  {&DsnKeys[17], 3, txtPluginDir,       260, 0},
   {NULL, 0, 0, 0, 0}
 };
 
@@ -442,6 +444,56 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
 }
 
 
+static int CALLBACK SelectFolderCallbackProc(HWND hwnd,UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+
+  if(uMsg == BFFM_INITIALIZED)
+  {
+    SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
+  }
+
+  return 0;
+}
+
+
+INT_PTR SelectFolder(HWND ParentWnd, int BoundEditId, const TCHAR *Caption)
+{
+  TCHAR        Path[MAX_PATH];
+  HWND         BoundEditWnd= GetDlgItem(ParentWnd, BoundEditId);
+  BROWSEINFO   bi;
+  LPITEMIDLIST pidl;
+
+  Edit_GetText(BoundEditWnd, Path, sizeof(Path));
+
+  bi.hwndOwner=  ParentWnd;
+  bi.lpszTitle=  Caption;
+  bi.ulFlags=    BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+  bi.lpfn=       SelectFolderCallbackProc;
+  bi.lParam=     (LPARAM)Path;
+
+  pidl= SHBrowseForFolder(&bi);
+
+  if (pidl != 0)
+  {
+    IMalloc *imalloc= NULL;
+
+    SHGetPathFromIDList(pidl, Path);
+
+    Edit_SetText(BoundEditWnd, Path);
+
+    if (SUCCEEDED(SHGetMalloc(&imalloc)))
+    {
+      imalloc->lpVtbl->Free(imalloc, pidl);
+      imalloc->lpVtbl->Release(imalloc);
+    }
+
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
 INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	  switch(uMsg)
@@ -483,7 +535,9 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                  "Warning", MB_OK);
         return FALSE;
       }
-	    return TRUE; 
+	    return TRUE;
+    case pbPlugindirBrowse:
+      return SelectFolder(hDlg, txtPluginDir, _T("Select Plugins Directory"));
   case rbTCP:
 	case rbPipe:
 		if (HIWORD(wParam) == BN_CLICKED)
