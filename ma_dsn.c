@@ -38,6 +38,13 @@ MADB_DsnKey DsnKeys[]=
   {"OPTIONS", offsetof(MADB_Dsn, Options), DSN_TYPE_INT, 0,0},
   {"TRACE", offsetof(MADB_Dsn, TraceFile), DSN_TYPE_STRING, 0, 0},
   {"PLUGIN_DIR", offsetof(MADB_Dsn, ConnCPluginsDir), DSN_TYPE_STRING,0,1},
+  /* SSL */
+  {"SSL_KEY", offsetof(MADB_Dsn, SslKey), DSN_TYPE_STRING,0,1},
+  {"SSL_CERT", offsetof(MADB_Dsn, SslCert), DSN_TYPE_STRING,0,1},
+  {"SSL_CERT_AUTH", offsetof(MADB_Dsn, SslCertAuth), DSN_TYPE_STRING,0,1},
+  {"SSL_CA_PATH", offsetof(MADB_Dsn, SslCaPath), DSN_TYPE_STRING,0,1},
+  {"SSL_CIPHER", offsetof(MADB_Dsn, SslCipher), DSN_TYPE_STRING,0,1},
+  {"SSL_VERIFY", offsetof(MADB_Dsn, SslVerify), DSN_TYPE_BOOL,0,1},
   /* Aliases */
   {"SERVERNAME", offsetof(MADB_Dsn, ServerName), DSN_TYPE_STRING,0,1},
   {"USER", offsetof(MADB_Dsn, UserName), DSN_TYPE_STRING,0,1},
@@ -78,6 +85,11 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->InitCommand);
   MADB_FREE(Dsn->TraceFile);
   MADB_FREE(Dsn->ConnCPluginsDir);
+  MADB_FREE(Dsn->SslKey);
+  MADB_FREE(Dsn->SslCert);
+  MADB_FREE(Dsn->SslCertAuth);
+  MADB_FREE(Dsn->SslCaPath);
+  MADB_FREE(Dsn->SslCipher);
 
   if (Dsn->FreeMe)
     MADB_FREE(Dsn); 

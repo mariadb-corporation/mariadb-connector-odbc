@@ -31,7 +31,7 @@
 
 #pragma comment(lib, "ComCtl32.lib")
 
-#define LASTPAGE 4
+#define LASTPAGE 5
 
 HINSTANCE     hInstance;
 unsigned int  CurrentPage=  0;
@@ -47,9 +47,9 @@ const int    *EffectiveDisabledPages=    NULL,
              *EffectiveDisabledControls= NULL;
 
 const int DisabledPages[MAODBC_PROMPT_REQUIRED + 1][LASTPAGE + 1]= {
-                                                                    { 0, 0, 0, 0, 0},
-                                                                    { 0, 0, 0, 0, 0},
-                                                                    { 1, 0, 1, 1, 1}
+                                                                    { 0, 0, 0, 0, 0, 0},
+                                                                    { 0, 0, 0, 0, 0, 0},
+                                                                    { 1, 0, 1, 1, 1, 1}
                                                                    };
 const int   PromptDisabledControls[]= { txtDsnName, 0 },
             EmptyDisabledControls[]=  { 0 };
@@ -75,28 +75,35 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[13], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[14], 2, cbCharset,            0, 0},
   {&DsnKeys[17], 3, txtPluginDir,       260, 0},
+  {&DsnKeys[18], 4, txtSslKey,          260, 0},
+  {&DsnKeys[19], 4, txtSslCert,         260, 0},
+  {&DsnKeys[20], 4, txtSslCertAuth,     260, 0},
+  {&DsnKeys[21], 4, txtSslCaPath,       260, 0},
+  {&DsnKeys[22], 4, txtSslCipher,        32, 0},
+  {&DsnKeys[23], 4, cbSslVerify,          0, 0},
+
   {NULL, 0, 0, 0, 0}
 };
 
 MADB_OptionsMap OptionsMap[]= {
-  {1, rbPipe,                   MADB_OPT_FLAG_NAMED_PIPE},
-  {2, ckReconnect,              MADB_OPT_FLAG_AUTO_RECONNECT},
-  {2, ckConnectPrompt,          MADB_OPT_FLAG_NO_PROMPT},
-  {2, ckCompressed,             MADB_OPT_FLAG_COMPRESSED_PROTO},
-  {3, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
-  {3, ckIgnoreSpace,            MADB_OPT_FLAG_IGNORE_SPACE},
-  {3, ckMultiStmt,              MADB_OPT_FLAG_MULTI_STATEMENTS},
-  {4, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
-  {4, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
-  {4, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
-  {4, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
-  {4, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
-  {4, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
-  {4, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
-  {4, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
-  {4, ckNullDate,               MADB_OPT_FLAG_ZERO_DATE_TO_MIN},
-  {4, ckDebug,                  MADB_OPT_FLAG_DEBUG},
-  {4, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
+  {1, rbPipe,                          MADB_OPT_FLAG_NAMED_PIPE},
+  {2, ckReconnect,                     MADB_OPT_FLAG_AUTO_RECONNECT},
+  {2, ckConnectPrompt,                 MADB_OPT_FLAG_NO_PROMPT},
+  {2, ckCompressed,                    MADB_OPT_FLAG_COMPRESSED_PROTO},
+  {3, ckIgnoreSchema,                  MADB_OPT_FLAG_NO_SCHEMA},
+  {3, ckIgnoreSpace,                   MADB_OPT_FLAG_IGNORE_SPACE},
+  {3, ckMultiStmt,                     MADB_OPT_FLAG_MULTI_STATEMENTS},
+  {LASTPAGE, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
+  {LASTPAGE, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
+  {LASTPAGE, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
+  {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
+  {LASTPAGE, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
+  {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
+  {LASTPAGE, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
+  {LASTPAGE, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
+  {LASTPAGE, ckNullDate,               MADB_OPT_FLAG_ZERO_DATE_TO_MIN},
+  {LASTPAGE, ckDebug,                  MADB_OPT_FLAG_DEBUG},
+  {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   /* last element */
   {0, 0, 0}
 };
@@ -580,7 +587,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return TRUE;
   case WM_INITDIALOG:
   {
-	  static int Dialogs[] = {Page_0, Page_1, Page_2, Page_3, Page_4};
+	  static int Dialogs[] = {Page_0, Page_1, Page_2, Page_3, Page_4, Page_5};
   	int i;
   	RECT rc;
   	GetWindowRect(hDlg, &rc);
