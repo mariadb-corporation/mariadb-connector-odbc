@@ -451,12 +451,13 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
 }
 
 
-static int CALLBACK SelectFolderCallbackProc(HWND hwnd,UINT uMsg, LPARAM lParam, LPARAM lpData)
+static int CALLBACK SelectFolderCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
 {
 
   if(uMsg == BFFM_INITIALIZED)
   {
-    SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
+    SendMessage(hWnd, BFFM_SETSELECTION, TRUE, lpData);
+    //SendMessage(hWnd, BFFM_SETEXPANDED, TRUE, lpData) ;
   }
 
   return 0;
@@ -545,6 +546,8 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	    return TRUE;
     case pbPlugindirBrowse:
       return SelectFolder(hDlg, txtPluginDir, _T("Select Plugins Directory"));
+    case pbCaPathBrowse:
+      return SelectFolder(hDlg, txtSslCaPath, _T("Select CA Path"));
   case rbTCP:
 	case rbPipe:
 		if (HIWORD(wParam) == BN_CLICKED)

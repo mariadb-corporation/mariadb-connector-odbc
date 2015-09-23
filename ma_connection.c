@@ -614,6 +614,13 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* enable truncation reporting */
   mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
   
+  mysql_ssl_set(Connection->mariadb, Dsn->SslKey, Dsn->SslCert, Dsn->SslCertAuth, Dsn->SslCaPath, Dsn->SslCipher);
+  if (Dsn->SslVerify)
+  {
+    const SQLPOINTER verify= (SQLPOINTER)1;
+    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)verify);
+  }
+
   if (!mysql_real_connect(Connection->mariadb,
        Dsn->ServerName, Dsn->UserName, Dsn->Password,
        Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, NULL, client_flags))
