@@ -400,9 +400,13 @@ typedef struct st_madb_dsn
   /* SSL Settings */
   char * SslKey;
   char * SslCert;
-  char * SslCertAuth;
+  char * SslCa;
   char * SslCaPath;
   char * SslCipher;
+  char *SslCrl;
+  char *SslCrlPath;
+  char *SslFp;
+  char *SslFpList;
   my_bool SslVerify;
   /* --- Internal --- */
   int isPrompt;

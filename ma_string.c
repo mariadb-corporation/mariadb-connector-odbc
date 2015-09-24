@@ -387,7 +387,7 @@ my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2)
   my_bool ret= TRUE;
   char *Copy= _strdup(StmtStr);
   char *p;
-#ifndef WIN32
+#ifndef _WIN32
   char *r;
 #endif
 
@@ -437,7 +437,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLINTEGER *Len
   if (Error)
     *Error= 0;
 
-#ifdef WIN32
+#ifdef _WIN32
   if (CodePage < 1)
     CodePage= CP_UTF8;
   if (PtrLength == SQL_NTS)

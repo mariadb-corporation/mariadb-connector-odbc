@@ -803,7 +803,7 @@ ODBC_TEST(sqlcancel)
 }
 #else
 
-#ifdef WIN32
+#ifdef _WIN32
 DWORD WINAPI cancel_in_one_second(LPVOID arg)
 {
   HSTMT Stmt= (HSTMT)arg;
@@ -864,7 +864,7 @@ ODBC_TEST(sqlcancel)
 
   return OK;
 }
-#endif  // ifdef WIN32
+#endif  // ifdef _WIN32
 #endif  // ifndef THREAD
 
 ODBC_TEST(t_describe_nulti)

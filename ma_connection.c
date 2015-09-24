@@ -118,7 +118,7 @@ my_bool CheckConnection(MADB_Dbc *Dbc)
 {
   if (!Dbc->mariadb)
     return FALSE;
-  if (!Dbc->mariadb->net.vio)
+  if (mysql_get_socket(Dbc->mariadb) != -1)
   {
     /* Check if reconnect option was set */
     if (DSN_OPTION(Dbc, MADB_OPT_FLAG_AUTO_RECONNECT))
@@ -561,6 +561,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     goto end;
   }
 
+  if( !MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
+  {
+    mysql_options(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
+  }
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
      for unicode connections we use utf8
@@ -614,11 +618,22 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* enable truncation reporting */
   mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
   
-  mysql_ssl_set(Connection->mariadb, Dsn->SslKey, Dsn->SslCert, Dsn->SslCertAuth, Dsn->SslCaPath, Dsn->SslCipher);
+  if (!MADB_IS_EMPTY(Dsn->SslCa)
+   || !MADB_IS_EMPTY(Dsn->SslCaPath)
+   || !MADB_IS_EMPTY(Dsn->SslCipher)
+   || !MADB_IS_EMPTY(Dsn->SslCert)
+   || !MADB_IS_EMPTY(Dsn->SslKey))
+  {
+    mysql_ssl_set(Connection->mariadb, Dsn->SslKey, Dsn->SslCert, Dsn->SslCa, Dsn->SslCaPath, Dsn->SslCipher);
+  }
   if (Dsn->SslVerify)
   {
     const SQLPOINTER verify= (SQLPOINTER)1;
     mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)verify);
+  }
+  if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
+  {
+    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
   }
 
   if (!mysql_real_connect(Connection->mariadb,

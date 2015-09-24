@@ -107,6 +107,6 @@ if((PTR))\
   MultiByteToWideChar(CP_UTF8, 0, VALUE, strlen(VALUE), \
                       InfoValuePtr, BufferLength / sizeof(SQLWCHAR))
 
-
+#define MADB_IS_EMPTY(STR) ((STR)==NULL || *(STR)=='\0')
 
 #endif
