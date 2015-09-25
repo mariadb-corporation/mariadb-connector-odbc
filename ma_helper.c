@@ -442,7 +442,7 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO
 }
 
 /* {{{ MADB_GetDisplaySize */
-size_t MADB_GetDisplaySize(MYSQL_FIELD Field)
+size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
 {
   /* Todo: check these values with output from mysql --with-columntype-info */
   switch (Field.type) {
@@ -460,7 +460,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field)
   case MYSQL_TYPE_LONG:
     return 11 - test(Field.flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_LONGLONG:
-    return 20 - test(Field.flags & UNSIGNED_FLAG);
+    return 20;
   case MYSQL_TYPE_DOUBLE:
     return 15;
   case MYSQL_TYPE_FLOAT:
@@ -486,20 +486,20 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field)
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    if (Field.charsetnr != 63)
+  {
+    if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR)
     {
-      CHARSET_INFO *cs= mysql_get_charset_by_nr(Field.charsetnr);
-      return Field.length/(cs? cs->char_maxlen : 1);
+      return Field.length*2; /* ODBC specs says we should give 2 characters per byte to display binaray data in hex form */
     }
-    else
+    else if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
     {
       return Field.length;
     }
-    /*
-    if (Field.flags & BINARY_FLAG)
-      return Field.length * 2;
     else
-      return Field.length * 3; */ /* UTF8 is 3-bytes */
+    {
+      return Field.length/charset->char_maxlen;
+    }
+  }
   default:
     return SQL_NO_TOTAL;
   }
@@ -548,14 +548,14 @@ size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
-    return MIN(INT_MAX32, Length);
+    return Length;
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
     /*if (!(Field.flags & BINARY_FLAG))
       Length *= MaxCharLen ? MaxCharLen : 1;*/
-    return MIN(INT_MAX32, Length);
+    return Length;
   default:
     return SQL_NO_TOTAL;
   }
@@ -615,27 +615,28 @@ int MADB_GetDefaultType(int SQLDataType)
 /* }}} */
 
 /* {{{ MADB_GetODBCType */
+       /* It's not quite right to mix here C and SQL types, even though constants are sort of equal */
 SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field)
 {
   switch (field->type) {
     case MYSQL_TYPE_BIT:
       if (field->length > 1)
         return SQL_BINARY;
-      return SQL_C_BIT;
+      return SQL_BIT;
     case MYSQL_TYPE_NULL:
       return SQL_VARCHAR;
     case MYSQL_TYPE_TINY:
       return field->flags & NUM_FLAG ? SQL_TINYINT : SQL_CHAR;
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_SHORT:
-      return SQL_C_SHORT;
+      return SQL_SMALLINT;
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
-      return SQL_C_LONG;
+      return SQL_INTEGER;
     case MYSQL_TYPE_FLOAT:
-      return SQL_C_FLOAT;
+      return SQL_REAL;
     case MYSQL_TYPE_DOUBLE:
-      return SQL_C_DOUBLE;
+      return SQL_DOUBLE;
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
       return SQL_TYPE_TIMESTAMP;

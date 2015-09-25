@@ -273,6 +273,16 @@ typedef struct {
   DYNAMIC_ARRAY tokens;
 } MADB_QUERY;
 
+/* Struct used to define column type when driver has to fix it (in catalog functions + SQLGetTypeInfo) */
+typedef struct
+{
+  SQLSMALLINT SqlType;
+  my_bool     Unsigned;
+  SQLSMALLINT Nullable;
+  SQLLEN      OctetLength;
+
+} MADB_ShortTypeInfo;
+
 struct st_ma_odbc_stmt
 {
   MADB_Dbc                  *Connection;
@@ -319,6 +329,7 @@ struct st_ma_odbc_stmt
   char                      *CatalogName;
   char                      TmpBuf[1]; /* for null bindings */
   MYSQL_FIELD               *BulkFields;
+  MADB_ShortTypeInfo        *ColsTypeFixArr;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;

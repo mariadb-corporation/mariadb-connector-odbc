@@ -107,8 +107,7 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
   case DSN_TYPE_BOOL:
     if (*(my_bool *)((char *)Dsn +Offset) && OverWrite == FALSE)
       break;
-    /* *(my_bool *)((char *)Dsn +Offset)= atoi(Value); */
-    Dsn->Options+= atoi(Value);
+    *(my_bool *)((char *)Dsn +Offset)= atoi(Value);
     break;
   case DSN_TYPE_INT:
     if (*(int *)((char *)Dsn +Offset) && OverWrite == FALSE)
