@@ -123,7 +123,7 @@ ODBC_TEST(t_msdev_bug)
 */
 ODBC_TEST(t_bug28657)
 {
-#ifdef WIN32
+#ifdef _WIN32
   /*
    The Microsoft Windows ODBC driver manager automatically maps a request
    for SQL_DATETIME to SQL_TYPE_DATE, which means our little workaround to

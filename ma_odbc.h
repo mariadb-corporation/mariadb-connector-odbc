@@ -400,6 +400,18 @@ typedef struct st_madb_dsn
   /* TRUE means "no prompt" */
   my_bool ConnectPrompt;
   char *Socket;
+  char * ConnCPluginsDir;
+  /* SSL Settings */
+  char * SslKey;
+  char * SslCert;
+  char * SslCa;
+  char * SslCaPath;
+  char * SslCipher;
+  char *SslCrl;
+  char *SslCrlPath;
+  char *SslFp;
+  char *SslFpList;
+  my_bool SslVerify;
   /* --- Internal --- */
   int isPrompt;
   MADB_DsnKey *Keys;

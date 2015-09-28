@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,13 +24,14 @@
 #include <tchar.h>
 #include <windowsx.h>
 #include <winuser.h>
+#include <shlobj.h>
 #include "resource.h"
 #include <ma_odbc.h>
 #include <ma_odbc_setup.h>
 
 #pragma comment(lib, "ComCtl32.lib")
 
-#define LASTPAGE 4
+#define LASTPAGE 5
 
 HINSTANCE     hInstance;
 unsigned int  CurrentPage=  0;
@@ -46,9 +47,9 @@ const int    *EffectiveDisabledPages=    NULL,
              *EffectiveDisabledControls= NULL;
 
 const int DisabledPages[MAODBC_PROMPT_REQUIRED + 1][LASTPAGE + 1]= {
-                                                                    { 0, 0, 0, 0, 0},
-                                                                    { 0, 0, 0, 0, 0},
-                                                                    { 1, 0, 1, 1, 1}
+                                                                    { 0, 0, 0, 0, 0, 0},
+                                                                    { 0, 0, 0, 0, 0, 0},
+                                                                    { 1, 0, 1, 1, 1, 1}
                                                                    };
 const int   PromptDisabledControls[]= { txtDsnName, 0 },
             EmptyDisabledControls[]=  { 0 };
@@ -73,28 +74,36 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[12], 2, ckReconnect,          0, 0},
   {&DsnKeys[13], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[14], 2, cbCharset,            0, 0},
+  {&DsnKeys[17], 3, txtPluginDir,       260, 0},
+  {&DsnKeys[18], 4, txtSslKey,          260, 0},
+  {&DsnKeys[19], 4, txtSslCert,         260, 0},
+  {&DsnKeys[20], 4, txtSslCertAuth,     260, 0},
+  {&DsnKeys[21], 4, txtSslCaPath,       260, 0},
+  {&DsnKeys[22], 4, txtSslCipher,        32, 0},
+  {&DsnKeys[23], 4, cbSslVerify,          0, 0},
+
   {NULL, 0, 0, 0, 0}
 };
 
 MADB_OptionsMap OptionsMap[]= {
-  {1, rbPipe,                   MADB_OPT_FLAG_NAMED_PIPE},
-  {2, ckReconnect,              MADB_OPT_FLAG_AUTO_RECONNECT},
-  {2, ckConnectPrompt,          MADB_OPT_FLAG_NO_PROMPT},
-  {2, ckCompressed,             MADB_OPT_FLAG_COMPRESSED_PROTO},
-  {3, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
-  {3, ckIgnoreSpace,            MADB_OPT_FLAG_IGNORE_SPACE},
-  {3, ckMultiStmt,              MADB_OPT_FLAG_MULTI_STATEMENTS},
-  {4, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
-  {4, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
-  {4, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
-  {4, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
-  {4, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
-  {4, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
-  {4, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
-  {4, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
-  {4, ckNullDate,               MADB_OPT_FLAG_ZERO_DATE_TO_MIN},
-  {4, ckDebug,                  MADB_OPT_FLAG_DEBUG},
-  {4, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
+  {1, rbPipe,                          MADB_OPT_FLAG_NAMED_PIPE},
+  {2, ckReconnect,                     MADB_OPT_FLAG_AUTO_RECONNECT},
+  {2, ckConnectPrompt,                 MADB_OPT_FLAG_NO_PROMPT},
+  {2, ckCompressed,                    MADB_OPT_FLAG_COMPRESSED_PROTO},
+  {3, ckIgnoreSchema,                  MADB_OPT_FLAG_NO_SCHEMA},
+  {3, ckIgnoreSpace,                   MADB_OPT_FLAG_IGNORE_SPACE},
+  {3, ckMultiStmt,                     MADB_OPT_FLAG_MULTI_STATEMENTS},
+  {LASTPAGE, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
+  {LASTPAGE, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
+  {LASTPAGE, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
+  {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
+  {LASTPAGE, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
+  {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
+  {LASTPAGE, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
+  {LASTPAGE, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
+  {LASTPAGE, ckNullDate,               MADB_OPT_FLAG_ZERO_DATE_TO_MIN},
+  {LASTPAGE, ckDebug,                  MADB_OPT_FLAG_DEBUG},
+  {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   /* last element */
   {0, 0, 0}
 };
@@ -442,6 +451,57 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
 }
 
 
+static int CALLBACK SelectFolderCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+
+  if(uMsg == BFFM_INITIALIZED)
+  {
+    SendMessage(hWnd, BFFM_SETSELECTION, TRUE, lpData);
+    //SendMessage(hWnd, BFFM_SETEXPANDED, TRUE, lpData) ;
+  }
+
+  return 0;
+}
+
+
+INT_PTR SelectFolder(HWND ParentWnd, int BoundEditId, const TCHAR *Caption)
+{
+  TCHAR        Path[MAX_PATH];
+  HWND         BoundEditWnd= GetDlgItem(ParentWnd, BoundEditId);
+  BROWSEINFO   bi;
+  LPITEMIDLIST pidl;
+
+  Edit_GetText(BoundEditWnd, Path, sizeof(Path));
+
+  bi.hwndOwner=  ParentWnd;
+  bi.lpszTitle=  Caption;
+  bi.ulFlags=    BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+  bi.lpfn=       SelectFolderCallbackProc;
+  bi.lParam=     (LPARAM)Path;
+
+  pidl= SHBrowseForFolder(&bi);
+
+  if (pidl != 0)
+  {
+    IMalloc *imalloc= NULL;
+
+    SHGetPathFromIDList(pidl, Path);
+
+    Edit_SetText(BoundEditWnd, Path);
+
+    if (SUCCEEDED(SHGetMalloc(&imalloc)))
+    {
+      imalloc->lpVtbl->Free(imalloc, pidl);
+      imalloc->lpVtbl->Release(imalloc);
+    }
+
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
 INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	  switch(uMsg)
@@ -483,7 +543,11 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
                  "Warning", MB_OK);
         return FALSE;
       }
-	    return TRUE; 
+	    return TRUE;
+    case pbPlugindirBrowse:
+      return SelectFolder(hDlg, txtPluginDir, _T("Select Plugins Directory"));
+    case pbCaPathBrowse:
+      return SelectFolder(hDlg, txtSslCaPath, _T("Select CA Path"));
   case rbTCP:
 	case rbPipe:
 		if (HIWORD(wParam) == BN_CLICKED)
@@ -526,7 +590,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return TRUE;
   case WM_INITDIALOG:
   {
-	  static int Dialogs[] = {Page_0, Page_1, Page_2, Page_3, Page_4};
+	  static int Dialogs[] = {Page_0, Page_1, Page_2, Page_3, Page_4, Page_5};
   	int i;
   	RECT rc;
   	GetWindowRect(hDlg, &rc);

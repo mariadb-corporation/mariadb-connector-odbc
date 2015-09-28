@@ -62,7 +62,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
 /**************** Helper macros ****************/
 /* check if the connection is established */
 #define MADB_Dbc_ACTIVE(a) \
-  ((a)->mariadb && (a)->mariadb->net.vio)
+  ((a)->mariadb && mysql_get_socket((a)->mariadb) != -1)
 
 #define MADB_Dbc_DSN(a) \
 (a) && (a)->Dsn  
@@ -71,6 +71,6 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   ((a)->mariadb && ((a)->mariadb->server_status && SERVER_STATUS_AUTOCOMMIT))
 
 #define MADB_Dbc_TRANSACTION(a) \
-  ((a)->mariadb && ((a)->mariadb->server_capabilities && CLIENT_TRANSACTIONS))
+  ((a)->mariadb && ((a)->mariadb->server_capabilities && CLIENT_TRANSACTIONS)) 
 
 #endif /* _ma_connection_h */

@@ -37,6 +37,18 @@ MADB_DsnKey DsnKeys[]=
   {"CHARSET", offsetof(MADB_Dsn, CharacterSet), DSN_TYPE_COMBO,0,0},
   {"OPTIONS", offsetof(MADB_Dsn, Options), DSN_TYPE_INT, 0,0},
   {"TRACE", offsetof(MADB_Dsn, TraceFile), DSN_TYPE_STRING, 0, 0},
+  {"PLUGIN_DIR", offsetof(MADB_Dsn, ConnCPluginsDir), DSN_TYPE_STRING,0,1},
+  /* SSL */
+  {"SSLKEY", offsetof(MADB_Dsn, SslKey), DSN_TYPE_STRING,0,0},
+  {"SSLCERT", offsetof(MADB_Dsn, SslCert), DSN_TYPE_STRING,0,0},
+  {"SSLCA", offsetof(MADB_Dsn, SslCa), DSN_TYPE_STRING,0,0},
+  {"SSLCAPATH", offsetof(MADB_Dsn, SslCaPath), DSN_TYPE_STRING,0,0},
+  {"SSLCIPHER", offsetof(MADB_Dsn, SslCipher), DSN_TYPE_STRING,0,0},
+  {"SSLVERIFY", offsetof(MADB_Dsn, SslVerify), DSN_TYPE_BOOL,0,0},
+  {"SSLFP", offsetof(MADB_Dsn, SslFp), DSN_TYPE_STRING, 0, 0},
+  {"SSLFPLIST", offsetof(MADB_Dsn, SslFpList), DSN_TYPE_STRING, 0, 0},
+  {"SSLCRL", offsetof(MADB_Dsn, SslCrl), DSN_TYPE_STRING,0,0},
+  {"SSLCRLPATH", offsetof(MADB_Dsn, SslCrlPath), DSN_TYPE_STRING,0,0},
   /* Aliases */
   {"SERVERNAME", offsetof(MADB_Dsn, ServerName), DSN_TYPE_STRING,0,1},
   {"USER", offsetof(MADB_Dsn, UserName), DSN_TYPE_STRING,0,1},
@@ -44,6 +56,7 @@ MADB_DsnKey DsnKeys[]=
   {"DB", offsetof(MADB_Dsn, Catalog), DSN_TYPE_COMBO,0,1},
   {"OPTION", offsetof(MADB_Dsn, Options), DSN_TYPE_INT, 0,1},
   {"SOCKET", offsetof(MADB_Dsn, Socket), DSN_TYPE_STRING,0,0},
+
   {NULL, 0, DSN_TYPE_BOOL}
 };
 
@@ -77,6 +90,16 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->CharacterSet);
   MADB_FREE(Dsn->InitCommand);
   MADB_FREE(Dsn->TraceFile);
+  MADB_FREE(Dsn->ConnCPluginsDir);
+  MADB_FREE(Dsn->SslKey);
+  MADB_FREE(Dsn->SslCert);
+  MADB_FREE(Dsn->SslCa);
+  MADB_FREE(Dsn->SslCaPath);
+  MADB_FREE(Dsn->SslCipher);
+  MADB_FREE(Dsn->SslCrl);
+  MADB_FREE(Dsn->SslCrlPath);
+  MADB_FREE(Dsn->SslFp);
+  MADB_FREE(Dsn->SslFpList);
 
   if (Dsn->FreeMe)
     MADB_FREE(Dsn); 

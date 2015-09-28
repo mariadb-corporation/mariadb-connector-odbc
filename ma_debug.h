@@ -57,8 +57,8 @@ void ma_debug_print_error(MADB_Error *err);
   if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
   {\
     time_t t = time(NULL);\
-    struct tm tm = *gmtime(&t);\
-    ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,  A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
+    struct tm st= *gmtime(&t);\
+    ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, st.tm_hour, st.tm_min, st.tm_sec,  A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
   }
 #endif
 

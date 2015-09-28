@@ -96,4 +96,6 @@ extern my_bool DummyError;
   LEN=sizeof(INTTYPE);\
 }
 
+#define MADB_IS_EMPTY(STR) ((STR)==NULL || *(STR)=='\0')
+
 #endif

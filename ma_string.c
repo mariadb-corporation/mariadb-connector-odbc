@@ -390,7 +390,7 @@ my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2)
   my_bool ret= TRUE;
   char *Copy= _strdup(StmtStr);
   char *p;
-#ifndef WIN32
+#ifndef _WIN32
   char *r;
 #endif
 
