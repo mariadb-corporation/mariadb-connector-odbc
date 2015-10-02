@@ -1284,8 +1284,8 @@ ODBC_TEST(t_mysqld_stmt_reset)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {t_disconnect, "t_disconnect"},
-  {t_describe_nulti, "t_describe_nulti"}, 
+  {t_disconnect, "t_disconnect",     NORMAL},
+  {t_describe_nulti, "t_describe_nulti", NORMAL}, 
   {test_CONO1,     "test_CONO1",     NORMAL},
   {test_CONO3,     "test_CONO3",     NORMAL},
   {t_count,        "t_count",        NORMAL},
