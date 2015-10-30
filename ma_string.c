@@ -482,10 +482,11 @@ SQLINTEGER MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
 }
 
 
+/* Number of characters in given number of bytes */
 SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
 {
-  SQLLEN result= 0;
-  char *ptr= str;
+  SQLLEN       result= 0;
+  char        *ptr= str;
   unsigned int charlen;
 
   if (str)
@@ -510,4 +511,26 @@ SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
   return result;
 }
 
+
+/* Length of NT SQLWCHAR string in characters */
+SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
+{
+  SQLINTEGER result= 0;
+  SQLWCHAR   *end=   octets != (SQLLEN)-1 ? str + octets/sizeof(SQLWCHAR) : (SQLWCHAR*)octets /*for simplicity - the address to be always bigger */;
+
+  if (str)
+  {
+    while (str < end && *str)
+    {
+      str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR);
+
+      if (str > end)
+      {
+        break;
+      }
+      ++result;
+    }
+  }
+  return result;
+}
 

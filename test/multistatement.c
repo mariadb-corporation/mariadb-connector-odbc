@@ -78,7 +78,7 @@ ODBC_TEST(test_multi_on_off)
 ODBC_TEST(test_params)
 {
   SQLRETURN rc;
-  int i,j;
+  int i, j;
 
   rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
   FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
@@ -86,19 +86,18 @@ ODBC_TEST(test_params)
   rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)", SQL_NTS);
   FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
 
-  rc= SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?); INSERT INTO t2 VALUES (?)", SQL_NTS);
+  rc= SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?), (?)", SQL_NTS);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc= SQLBindParam(Stmt, 1, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, NULL);
-  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
+  CHECK_STMT_RC(Stmt, SQLBindParam(Stmt, 1, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, NULL));
+
   rc= SQLBindParam(Stmt, 2, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, NULL);
   FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
 
   for (i=0; i < 100; i++)
   {
     j= i + 100;
-    rc= SQLExecute(Stmt);
-    CHECK_STMT_RC(Stmt, rc); 
+    CHECK_STMT_RC(Stmt, SQLExecute(Stmt)); 
 
     while (SQLMoreResults(Stmt) == SQL_SUCCESS);
   }

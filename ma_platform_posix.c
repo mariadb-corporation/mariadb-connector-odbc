@@ -232,7 +232,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
 
   AscLen= mariadb_convert_string((char*)Ptr, &PtrOctetLen, utf16, AscStr, &AscLen, cc->cs_info, Error);
 
-  if (AscLen > 0)
+  if (AscLen != (size_t)-1 && AscLen != 0)
   {
     if (PtrLength == -1)
     {
@@ -263,10 +263,10 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
                              SQLWCHAR *UnicodeString, int UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
-  SQLINTEGER RequiredLength;
-  SQLWCHAR *Tmp= UnicodeString;
-  int rc= 0, error;
-  size_t src_octet_len, dest_octet_len;
+  SQLINTEGER  RequiredLength;
+  SQLWCHAR   *Tmp= UnicodeString;
+  int         rc= 0, error;
+  size_t      src_octet_len, dest_octet_len;
 
   if (LengthIndicator)
     *LengthIndicator= 0;
@@ -302,8 +302,10 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
 
   src_octet_len= AnsiLength + IsNull;
   dest_octet_len= sizeof(SQLWCHAR) * RequiredLength;
+
   RequiredLength= mariadb_convert_string(AnsiString, &src_octet_len, cc->cs_info, 
                                         (char*)Tmp, &dest_octet_len, utf16, &error);
+
   if (RequiredLength < 1)
   {
     if (Error)
@@ -312,11 +314,14 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
     goto end;
   }
 
+  if (LengthIndicator)
+    *LengthIndicator= SqlwcsCharLen(Tmp, RequiredLength);
+
   /* Truncation */
   if (Tmp != UnicodeString)
   {
     memcpy((void*)UnicodeString, (void*)Tmp, (UnicodeLength-1)*sizeof(SQLWCHAR));
-    *(UnicodeString+UnicodeLength)= 0;
+    *(UnicodeString + UnicodeLength - 1)= 0;
 
     if (Error)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
@@ -333,7 +338,7 @@ end:
 size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength, MADB_Error *Error)
 {
-  char *p= (char *)Dest;
+  char  *p=     (char *)Dest;
   SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)

@@ -470,9 +470,6 @@ ODBC_TEST(t_bug27862_2)
 {
   SQLLEN len;
 
-  diag("probably incorrect test case");
-  return SKIP;
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug27862");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug27862 (c DATE, d INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug27862 VALUES ('2007-01-13',5)");
@@ -679,9 +676,6 @@ ODBC_TEST(sqlwchar)
   SQLWCHAR wbuff[30]= {0};
   SQLWCHAR wcdata[]= {'S','\x00e3', 'o', 'P', 'a', 'o', 'l', 'o'};
 
-  diag("fix me");
-  return SKIP;
-
   diag(data);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_sqlwchar");
@@ -730,10 +724,10 @@ ODBC_TEST(sqlwchar)
   OK_SIMPLE_STMT(Stmt, "SELECT a FROM t_sqlwchar");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
-  is_wstr(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 9);
+  IS_WSTR(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 9);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
-  is_wstr(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 9);
+  IS_WSTR(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 9);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected EOF"); 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1085,19 +1079,16 @@ ODBC_TEST(t_bug31220)
 ODBC_TEST(t_bug29402)
 {
   SQLSMALLINT name_length, data_type, decimal_digits, nullable;
-  SQLCHAR column_name[SQL_MAX_COLUMN_NAME_LEN];
-  SQLCHAR conn[512], conn_out[512];
+  SQLCHAR     column_name[SQL_MAX_COLUMN_NAME_LEN];
+  SQLCHAR     conn[512], conn_out[512];
   SQLSMALLINT conn_out_len;
-  SQLULEN column_size;
-  SQLCHAR buf[80]= {0};
-  SQLTCHAR wbuf[80];
-  SQLLEN buflen= 0;
-  SQLHDBC    hdbc1;
-  SQLHSTMT   hstmt1;
+  SQLULEN     column_size;
+  //SQLCHAR     buf[80]= {0};
+  SQLTCHAR    wbuf[80];
+  SQLLEN      buflen= 0;
+  SQLHDBC     hdbc1;
+  SQLHSTMT    hstmt1;
   const SQLCHAR *expected= "\x80""100";
-
-  diag("fix me");
-  return SKIP;
 
   CHECK_HANDLE_RC(SQL_HANDLE_ENV, Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
@@ -1112,7 +1103,7 @@ ODBC_TEST(t_bug29402)
 
   CHECK_HANDLE_RC(SQL_HANDLE_DBC, hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, LW("SELECT CONCAT(_cp1250 0x80, 100) concated"), SQL_NTS));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, CW("SELECT CONCAT(_cp1250 0x80, 100) concated"), SQL_NTS));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLDescribeCol(hstmt1, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,
@@ -1125,14 +1116,14 @@ ODBC_TEST(t_bug29402)
 
   is_num(buflen, 4);
 
-  if (strncmp(buf, expected, buflen) != 0)
+  if (strncmp(wbuf, expected, buflen) != 0)
   {
     /* Because of this
        http://msdn.microsoft.com/en-us/library/ms716540%28v=vs.85%29.aspx
        test can fail. Rather test problem.
        Hopefully the test is fixed, but keeping this message so far */
     diag("%s != %s(%#x!=%#x) - this test may fail on some "
-                 "platforms - TODO", buf, "\x80""100", buf[0], expected[0]);
+                 "platforms - TODO", wbuf, "\x80""100", wbuf[0], expected[0]);
     return FAIL;
   }
 
@@ -1169,27 +1160,27 @@ ODBC_TEST(t_bug29402)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {t_longlong1, "t_longlong1"},
-  {t_decimal, "t_decimal"},
-  {t_bigint, "t_bigint"},
-  {t_enumset, "t_enumset"},
-  {t_bug16917, "t_bug16917"},
-  {t_bug16235, "t_bug16235"},
-  {t_bug27862_1, "t_bug27862_1"},
-  {t_bug27862_2, "t_bug27862_2"},
-  {decimal_scale, "decimal_scale"},
-  {binary_suffix, "binary_suffix"},
-  {float_scale, "float_scale"},
-  {bit, "bit"},
-  {t_bug32171, "t_bug32171"},
-  {sqlwchar, "sqlwchar"},
-  {t_sqlnum_msdn, "t_sqlnum_msdn"},
-  {t_sqlnum_from_str, "t_sqlnum_from_str"},
-  {t_bindsqlnum_basic, "t_bindsqlnum_basic"},
-  {t_sqlnum_to_str, "t_sqlnum_to_str"},
-  {t_bug31220, "t_bug31220"},
-  {t_bug29402, "t_bug29402"},
-  {NULL, NULL}
+  {t_longlong1,        "t_longlong1",       NORMAL},
+  {t_decimal,          "t_decimal",         NORMAL},
+  {t_bigint,           "t_bigint",          NORMAL},
+  {t_enumset,          "t_enumset",         NORMAL},
+  {t_bug16917,         "t_bug16917",        NORMAL},
+  {t_bug16235,         "t_bug16235",        NORMAL},
+  {t_bug27862_1,       "t_bug27862_1",      KNOWN_FAILURE},
+  {t_bug27862_2,       "t_bug27862_2",      KNOWN_FAILURE},
+  {decimal_scale,      "decimal_scale",     NORMAL},
+  {binary_suffix,      "binary_suffix",     NORMAL},
+  {float_scale,        "float_scale",       NORMAL},
+  {bit,                "bit",               NORMAL},
+  {t_bug32171,         "t_bug32171",        NORMAL},
+  {sqlwchar,           "sqlwchar",          KNOWN_FAILURE},
+  {t_sqlnum_msdn,      "t_sqlnum_msdn",     NORMAL},
+  {t_sqlnum_from_str,  "t_sqlnum_from_str", NORMAL},
+  {t_bindsqlnum_basic, "t_bindsqlnum_basic",NORMAL},
+  {t_sqlnum_to_str,    "t_sqlnum_to_str",   NORMAL},
+  {t_bug31220,         "t_bug31220",        NORMAL},
+  {t_bug29402,         "t_bug29402",        NORMAL},
+  {NULL, NULL, NORMAL}
 };
 
 int main(int argc, char **argv)
@@ -1197,6 +1188,5 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
-  mark_all_tests_normal(my_tests);
   return run_tests(my_tests);
 }

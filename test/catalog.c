@@ -648,14 +648,14 @@ ODBC_TEST(t_current_catalog_unicode)
   CHECK_DBC_RC(Connection,rc);
 
   is_num(len, strlen(my_schema) * sizeof(SQLWCHAR));
-  is_wstr(db, LW(my_schema), 5);
+  IS_WSTR(db, wschema, 5);
 
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, SQL_NTS);
   CHECK_DBC_RC(Connection,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS test_odbc_current");
 
-  wcscpy(cur_db, L"test_odbc_current");
+  latin_as_sqlwchar("test_odbc_current", cur_db);
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, SQL_NTS);
   FAIL_IF(rc == SQL_SUCCESS, "Error expected");
 
@@ -670,7 +670,7 @@ ODBC_TEST(t_current_catalog_unicode)
   CHECK_DBC_RC(Connection,rc);
 
   is_num(len, strlen("test_odbc_current") * sizeof(SQLWCHAR));
-  is_wstr(db, cur_db, 18);
+  IS_WSTR(db, cur_db, 18);
 
   /* reset for further tests */
   rc = SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS);

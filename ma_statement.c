@@ -775,7 +775,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
               if (DataPtr)
               {
                 if (ApdRecord->ConciseType == SQL_C_WCHAR)
-                  Length= wcslen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
+                  Length= SqlwcsLen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
                 else if (ApdRecord->ConciseType == SQL_C_CHAR)
                   Length= strlen((SQLCHAR *)DataPtr);
               }
@@ -2219,9 +2219,12 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         Length= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
                                    ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
-      if (Length > BufferLength / sizeof(SQLWCHAR)) {
-        if (StrLen_or_IndPtr)
-          *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
+      if (StrLen_or_IndPtr)
+      {
+        *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
+      }
+      if (Length > BufferLength / sizeof(SQLWCHAR))
+      {
         /* calculate new offset and substract 1 byte for null termination. Do we really need to substract 1 here? We get here only in
            buffer is not big enough to fit available string. Thus terminationg null was not copied for sure. Removing it so far. 
            TODO check this ! */

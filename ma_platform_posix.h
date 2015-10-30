@@ -71,6 +71,5 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src);
 
 void InitializeCriticalSection(CRITICAL_SECTION *cs);
 
-
 #endif /*_ma_platform_x_h_ */
 

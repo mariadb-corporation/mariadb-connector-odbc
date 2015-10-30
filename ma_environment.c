@@ -27,6 +27,16 @@ CHARSET_INFO * mysql_find_charset_name(const char *name);
 # pragma comment(lib, "ws2_32.lib")
 #endif
 
+
+static my_bool little_endian()
+{
+  int x= 1;
+  char *c= (char*)&x;
+
+  return *c;
+}
+
+
 /* {{{ MADB_EnvFree */
 SQLRETURN MADB_EnvFree(MADB_Env *Env)
 {
@@ -89,7 +99,7 @@ MADB_Env *MADB_EnvInit()
   /* This is probably is better todo with thread_once */
   if (utf16 == NULL)
   {
-    utf16= mysql_find_charset_name("utf16");
+    utf16= mysql_find_charset_name(little_endian() ? "utf16le" : "utf16");
   }
   utf8.cs_info= my_charset_utf8_general_ci;
   GetDefaultLogDir();

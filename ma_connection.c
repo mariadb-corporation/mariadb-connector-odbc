@@ -118,7 +118,7 @@ my_bool CheckConnection(MADB_Dbc *Dbc)
 {
   if (!Dbc->mariadb)
     return FALSE;
-  if (mysql_get_socket(Dbc->mariadb) != -1)
+  if (mysql_get_socket(Dbc->mariadb) == MARIADB_INVALID_SOCKET)
   {
     /* Check if reconnect option was set */
     if (DSN_OPTION(Dbc, MADB_OPT_FLAG_AUTO_RECONNECT))
