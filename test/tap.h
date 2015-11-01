@@ -36,6 +36,7 @@
 # include <windows.h>
 #else
 # include <string.h>
+# include <errno.h>
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
 {
