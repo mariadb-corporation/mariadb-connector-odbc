@@ -1,6 +1,5 @@
 #
 # FindMariaDB.cmake
-# Note: Windows only
 #
 # Try to find the include directory
 
