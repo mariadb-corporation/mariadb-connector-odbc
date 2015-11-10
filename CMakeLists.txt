@@ -208,8 +208,10 @@ ELSE()
           .)
 ENDIF()
 
-# Tests
-ADD_SUBDIRECTORY(test)
+# Tests. Checking if we have them. May be not the case if we are building from source package
+IF(EXISTS("${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt"))
+  ADD_SUBDIRECTORY(test)
+ENDIF()
 
 # Packaging
 SET(CPACK_PACKAGE_VERSION_MAJOR "${MARIADB_ODBC_VERSION_MAJOR}")
@@ -225,6 +227,7 @@ SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${MARIADB_ODBC_VERSION_QUALITY}-src")
 
 SET(CPACK_SOURCE_IGNORE_FILES
+test/
 .git/
 .gitignore
 .gitattributes
