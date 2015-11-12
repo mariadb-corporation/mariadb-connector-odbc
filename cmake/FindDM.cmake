@@ -36,11 +36,22 @@ IF(ODBC_CONFIG)
   STRING(REPLACE "\n" "" ODBC_LIB_DIR ${result})
 ELSE()
   # Try to find the include directory, giving precedence to special variables
-  IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    SET(LIB_SUFFIX "lib64")
+  SET(LIB_PATHS /usr/local /usr)
+
+  IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+    SET(LIB_PATHS "${LIB_PATHS}" "/usr/lib/x86_64-linux-gnu")
+
+    IF(EXISTS "/usr/lib64/")
+      SET(LIB_SUFFIX "lib64" "x86_64-linux-gnu")
+    ELSE()
+      SET(LIB_SUFFIX "lib" "x86_64-linux-gnu")
+    ENDIF()
+ 
   ELSE()
-    SET(LIB_SUFFIX "lib")
+    SET(LIB_PATHS "${LIB_PATHS}" "/usr/local/lib/i386-linux-gnu" "/usr/lib/i386-linux-gnu" "/usr/local/lib/i686-linux-gnu" "/usr/lib/i686-linux-gnu")
+    SET(LIB_SUFFIX "lib" "i386-linux-gnu" "i686-linux-gnu")
   ENDIF()
+
   FIND_PATH(ODBC_INCLUDE_DIR sql.h
       HINTS ${DM_INCLUDE_DIR}
             ${DM_DIR}
@@ -65,8 +76,7 @@ ELSE()
             ${DM_DIR}
             ENV DM_LIB_DIR
             ENV DM_DIR
-      PATHS /usr/local
-            /usr
+      PATHS ${LIB_PATHS}
       PATH_SUFFIXES ${LIB_SUFFIX} 
       NO_DEFAULT_PATH
       DOC "Driver Manager Libraries")
