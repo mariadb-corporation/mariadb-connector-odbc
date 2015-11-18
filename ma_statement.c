@@ -1413,9 +1413,9 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
             /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
                For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
                in other cases we need same 2 of 4 bytes. */
-            ArdRecord->InternalBuffer= (char *)MADB_CALLOC((ArdRecord->OctetLength)*1.5);
+            ArdRecord->InternalBuffer= (char *)MADB_CALLOC((size_t)((ArdRecord->OctetLength)*1.5));
             Stmt->result[i].buffer= ArdRecord->InternalBuffer;
-            Stmt->result[i].buffer_length= ArdRecord->OctetLength*1.5;
+            Stmt->result[i].buffer_length= (unsigned long)(ArdRecord->OctetLength*1.5);
             Stmt->result[i].buffer_type= MYSQL_TYPE_STRING;
             Stmt->result[i].length= &Stmt->result[i].length_value;
             break;

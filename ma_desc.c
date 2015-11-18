@@ -563,7 +563,7 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
 my_bool
 MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
 {
-  SQLUINTEGER      i;
+  SQLLEN           i;
   MADB_DescRecord *Record= NULL;
 
   if (ColTypesArr == NULL)
@@ -574,7 +574,7 @@ MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
   {
     if (ColTypesArr[i].SqlType != 0)
     {
-      Record= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
+      Record= MADB_DescGetInternalRecord(Stmt->Ird, (SQLINTEGER)i, MADB_DESC_READ);
 
       if (Record == NULL)
       {
@@ -618,7 +618,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->LocalTypeName= "";
     Record->Nullable= SQL_NULLABLE;
     Record->ParameterType= SQL_PARAM_INPUT;
-    Record->TypeName= "VARCHAR";
+    Record->TypeName= my_strdup("VARCHAR", MYF(0));
     Record->Unsigned= SQL_FALSE;
     Record->ColumnName= "";
     break;
@@ -629,7 +629,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->ConciseType= SQL_VARCHAR;
     Record->AutoUniqueValue= SQL_FALSE;
     Record->Type= SQL_VARCHAR;
-    Record->TypeName= "VARCHAR";
+    Record->TypeName= my_strdup("VARCHAR", MYF(0));
     Record->Unsigned= SQL_FALSE;
     break;
   }
