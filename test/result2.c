@@ -911,7 +911,7 @@ ODBC_TEST(t_bug11766437)
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
     ptr= rows;
-    for (i= 0; i < rowcnt; ++i)
+    for (i= 0; (SQLUINTEGER)i < rowcnt; ++i)
     {
       /* Verifying inserted id field */
       is_num(*((SQLINTEGER *)ptr), i);

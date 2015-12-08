@@ -118,23 +118,6 @@ int DSNPrompt_Free  (MADB_Prompt *prompt)
 }
 
 
-/* Length in SQLWCHAR units*/
-SQLINTEGER SqlwcsLen(SQLWCHAR *str)
-{
-  SQLINTEGER result= 0;
-
-  if (str)
-  {
-    while (*str)
-    {
-      ++result;
-      /* str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR)); */
-      ++str;
-    }
-  }
-  return result;
-}
-
 
 /* CharLen < 0 - treat as NTS */
 SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)

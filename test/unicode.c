@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2015 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -89,9 +89,9 @@ ODBC_TEST(sqlconnect)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            CW(my_dsn), SQL_NTS,
-                            CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
@@ -108,9 +108,9 @@ ODBC_TEST(sqlprepare)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            CW(my_dsn), SQL_NTS,
-                            CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -228,9 +228,9 @@ ODBC_TEST(sqlchar)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            CW(my_dsn), SQL_NTS,
-                            CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLPrepareW(hstmt1, W(L"SELECT ? FROM DUAL"), SQL_NTS));
@@ -362,8 +362,8 @@ ODBC_TEST(sqlsetcursorname)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -519,8 +519,8 @@ ODBC_TEST(sqlcolattribute)
   SQLSMALLINT len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -564,8 +564,8 @@ ODBC_TEST(sqldescribecol)
   SQLSMALLINT len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -607,20 +607,26 @@ ODBC_TEST(sqlgetconnectattr)
   SQLINTEGER len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
+  /* Since we use SQLConnectW here, there is the chance that my_schema/wschema is different from the one defined in the my_dsn/wdsn */
+  CHECK_STMT_RC(hstmt1, SQLSetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG, wschema, SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLGetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG, wbuff,
                                      sizeof(wbuff), &len));
-  is_num(len, 9 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"odbc_test", 5);
+  /* Since we use SQLConnectW here, there is the chance that my_schema/wschema is different from the one defined in the */
+  is_num(len, SqlwcsLen(wschema) * sizeof(SQLWCHAR));
+  IS_WSTR(wbuff, wschema, len/sizeof(SQLWCHAR) + 1);
 
   FAIL_IF(SQLGetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG,
                                          wbuff, 3 * sizeof(SQLWCHAR), &len) != SQL_SUCCESS_WITH_INFO, "expected SUCCESS_WITH_INFO");
-  is_num(len, 9 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"od", 3);
+  is_num(len, SqlwcsLen(wschema) * sizeof(SQLWCHAR));
+  /* Comparing 2 chars */
+  IS_WSTR(wbuff, wschema, 2);
+  /* And verifying that 3rd char is terminating NULL */
+  is_num(wbuff[2], 0);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -640,8 +646,8 @@ ODBC_TEST(sqlgetdiagrec)
   HSTMT hstmt1;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -689,8 +695,8 @@ ODBC_TEST(sqlgetdiagfield)
   HSTMT hstmt1;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -734,8 +740,8 @@ ODBC_TEST(sqlcolumns)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -744,7 +750,7 @@ ODBC_TEST(sqlcolumns)
                                  W(L"CREATE TABLE t_columns (a\x00e3g INT)"),
                                  SQL_NTS));
 
-  CHECK_STMT_RC(hstmt1, SQLColumnsW(hstmt1, CW("odbc_test"), 9, NULL, 0,
+  CHECK_STMT_RC(hstmt1, SQLColumnsW(hstmt1, wschema, SQL_NTS, NULL, 0,
                               CW("t_columns"), SQL_NTS,
                               W(L"a\x00e3g"), SQL_NTS));
 
@@ -773,8 +779,8 @@ ODBC_TEST(sqltables)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -816,8 +822,8 @@ ODBC_TEST(sqlspecialcolumns)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -859,8 +865,8 @@ ODBC_TEST(sqlforeignkeys)
 
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -916,8 +922,8 @@ ODBC_TEST(sqlprimarykeys)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -958,8 +964,8 @@ ODBC_TEST(sqlstatistics)
   SQLWCHAR table[]= {'t', 'a', '\x00e3', 'g', '\0'};
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -1008,8 +1014,8 @@ ODBC_TEST(t_bug32161)
   SQLSMALLINT ctype;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, CW(my_dsn), SQL_NTS, CW(my_uid), SQL_NTS,
-                            CW(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -1395,32 +1401,32 @@ ODBC_TEST(odbc19)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {test_CONO1, "test_CONO1",     NORMAL},
-  {test_count, "test_count",     NORMAL},
-  {sqlconnect, "sqlconnect",     NORMAL},
-  {sqlprepare, "sqlprepare",     NORMAL},
-  {sqlprepare_ansi, "sqlprepare_ansi",     NORMAL},
-  {sqlchar,         "sqlchar",     NORMAL},
-  {sqldriverconnect, "sqldriverconnect",     NORMAL},
-  {sqlnativesql, "sqlnativesql",     NORMAL},
-  {sqlsetcursorname, "sqlsetcursorname",     NORMAL},
-  {sqlgetcursorname, "sqlgetcursorname",     NORMAL},
-  {sqlcolattribute, "sqlcolattribute",     NORMAL},
-  {sqldescribecol, "sqldescribecol",     NORMAL},
-  {sqlgetconnectattr, "sqlgetconnectattr",     KNOWN_FAILURE},
-  {sqlgetdiagrec, "sqlgetdiagrec",     NORMAL},
-  {sqlgetdiagfield, "sqlgetdiagfield",     NORMAL},
-  {sqlcolumns, "sqlcolumns",     KNOWN_FAILURE},
-  {sqltables, "sqltables",     NORMAL},
-  {sqlspecialcolumns, "sqlspecialcolumns",     NORMAL},
-  {sqlforeignkeys, "sqlforeignkeys",     NORMAL},
-  {sqlprimarykeys, "sqlprimarykeys",     NORMAL},
-  {sqlstatistics, "sqlstatistics",     KNOWN_FAILURE},
-  {t_bug32161, "t_bug32161",     NORMAL},
-  {t_bug34672, "t_bug34672",     NORMAL},
-  {t_bug28168, "t_bug28168",     NORMAL},
-  {t_bug14363601, "t_bug14363601",     NORMAL},
-  {odbc19, "test_issue_odbc19",     NORMAL},
+  {test_CONO1,        "test_CONO1",         NORMAL},
+  {test_count,        "test_count",         NORMAL},
+  {sqlconnect,        "sqlconnect",         NORMAL},
+  {sqlprepare,        "sqlprepare",         NORMAL},
+  {sqlprepare_ansi,   "sqlprepare_ansi",    NORMAL},
+  {sqlchar,           "sqlchar",            NORMAL},
+  {sqldriverconnect,  "sqldriverconnect",   NORMAL},
+  {sqlnativesql,      "sqlnativesql",       NORMAL},
+  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL},
+  {sqlgetcursorname,  "sqlgetcursorname",   NORMAL},
+  {sqlcolattribute,   "sqlcolattribute",    NORMAL},
+  {sqldescribecol,    "sqldescribecol",     NORMAL},
+  {sqlgetconnectattr, "sqlgetconnectattr",  NORMAL},
+  {sqlgetdiagrec,     "sqlgetdiagrec",      NORMAL},
+  {sqlgetdiagfield,   "sqlgetdiagfield",    NORMAL},
+  {sqlcolumns,        "sqlcolumns",         NORMAL},
+  {sqltables,         "sqltables",          NORMAL},
+  {sqlspecialcolumns, "sqlspecialcolumns",  NORMAL},
+  {sqlforeignkeys,    "sqlforeignkeys",     NORMAL},
+  {sqlprimarykeys,    "sqlprimarykeys",     NORMAL},
+  {sqlstatistics,     "sqlstatistics",      NORMAL},
+  {t_bug32161,        "t_bug32161",         NORMAL},
+  {t_bug34672,        "t_bug34672",         NORMAL},
+  {t_bug28168,        "t_bug28168",         NORMAL},
+  {t_bug14363601,     "t_bug14363601",      NORMAL},
+  {odbc19,            "test_issue_odbc19",  NORMAL},
   {NULL, NULL}
 };
 

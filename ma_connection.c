@@ -167,10 +167,8 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_AUTOCOMMIT:
     {
-      SQLINTEGER ValidAttrs[]= {2, SQL_AUTOCOMMIT_ON, SQL_AUTOCOMMIT_OFF};
-      /* (Here and in other places)We need to double-cast to avoid compiler warnings.
-         size_t is chosen as integer type that has the same size with pointer */
-      MADB_CHECK_ATTRIBUTE(Dbc, (SQLINTEGER)(size_t)ValuePtr, ValidAttrs);
+      SQLULEN ValidAttrs[]= {2, SQL_AUTOCOMMIT_ON, SQL_AUTOCOMMIT_OFF};
+      MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
       /* if a connection is open, try to apply setting to the connection */
       if (Dbc->mariadb)
       {
@@ -184,7 +182,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
           return SQL_ERROR;
         }
       }
-      Dbc->AutoCommit= (SQLUINTEGER)(size_t)ValuePtr;
+      Dbc->AutoCommit= (SQLUINTEGER)(SQLULEN)ValuePtr;
     }
     break;
   case SQL_ATTR_CONNECTION_DEAD:
@@ -209,15 +207,15 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     }
     break;
   case SQL_ATTR_LOGIN_TIMEOUT:
-    Dbc->LoginTimeout= (SQLUINTEGER)(size_t)ValuePtr;
+    Dbc->LoginTimeout= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_METADATA_ID:
-    Dbc->MetadataId= (SQLUINTEGER)(size_t)ValuePtr;
+    Dbc->MetadataId= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_ODBC_CURSORS:
     {
-      SQLINTEGER ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
-      MADB_CHECK_ATTRIBUTE(Dbc, (SQLULEN)ValuePtr, ValidAttrs);
+      SQLULEN ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
+      MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
       if ((SQLULEN)ValuePtr != SQL_CUR_USE_ODBC)
         MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
       Dbc->OdbcCursors= SQL_CUR_USE_ODBC;
@@ -235,7 +233,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
       return Dbc->Error.ReturnValue;
     }
-    Dbc->PacketSize= (SQLUINTEGER)(size_t)ValuePtr;
+    Dbc->PacketSize= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_QUIET_MODE:
     Dbc->QuietMode= (HWND)ValuePtr;

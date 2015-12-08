@@ -494,7 +494,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   /* To make sure that we will not consume the doble amount of memory, we need to send
      data via mysql_send_long_data directly to the server instead of allocating a separate
      buffer. This means we need to process Update and Insert statements row by row. */
-  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (wDataPtr ? (char *)wDataPtr : DataPtr), (unsigned long)Length))
+  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (wDataPtr ? (char *)wDataPtr : DataPtr), (size_t)Length))
   {
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
   }
@@ -1882,12 +1882,12 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Options.SimulateCursor= (SQLULEN) ValuePtr;
     break;
   case SQL_ATTR_CURSOR_SCROLLABLE:
-    Stmt->Options.CursorType=  ((SQLLEN)ValuePtr == SQL_NONSCROLLABLE) ?
+    Stmt->Options.CursorType=  ((SQLULEN)ValuePtr == SQL_NONSCROLLABLE) ?
                                SQL_CURSOR_FORWARD_ONLY : SQL_CURSOR_STATIC;
     break;
   case SQL_ATTR_CURSOR_SENSITIVITY:
     /* we only support default value = SQL_UNSPECIFIED */
-    if ((SQLLEN)ValuePtr != SQL_UNSPECIFIED)
+    if ((SQLULEN)ValuePtr != SQL_UNSPECIFIED)
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default cursor sensitivity", 0);
       ret= SQL_SUCCESS_WITH_INFO;
@@ -1895,7 +1895,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     break;
   case SQL_ATTR_CURSOR_TYPE:
     /* We need to check global DSN/Connection settings */
-    if (MA_ODBC_CURSOR_FORWARD_ONLY(Stmt->Connection) && (SQLLEN)ValuePtr != SQL_CURSOR_FORWARD_ONLY)
+    if (MA_ODBC_CURSOR_FORWARD_ONLY(Stmt->Connection) && (SQLULEN)ValuePtr != SQL_CURSOR_FORWARD_ONLY)
     {
       Stmt->Options.CursorType= SQL_CURSOR_FORWARD_ONLY;
       MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (SQL_CURSOR_FORWARD_ONLY)", 0);
@@ -1903,7 +1903,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     else if (MA_ODBC_CURSOR_DYNAMIC(Stmt->Connection))
     {
-      if ((SQLLEN)ValuePtr == SQL_CURSOR_KEYSET_DRIVEN)
+      if ((SQLULEN)ValuePtr == SQL_CURSOR_KEYSET_DRIVEN)
       {
         Stmt->Options.CursorType= SQL_CURSOR_STATIC;
         MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (SQL_CURSOR_STATIC)", 0);
@@ -1914,8 +1914,8 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     /* only FORWARD or Static is allowed */
     else
     {
-      if ((SQLLEN)ValuePtr != SQL_CURSOR_FORWARD_ONLY &&
-          (SQLLEN)ValuePtr != SQL_CURSOR_STATIC)
+      if ((SQLULEN)ValuePtr != SQL_CURSOR_FORWARD_ONLY &&
+          (SQLULEN)ValuePtr != SQL_CURSOR_STATIC)
       {
         Stmt->Options.CursorType= SQL_CURSOR_STATIC;
         MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (SQL_CURSOR_STATIC)", 0);

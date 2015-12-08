@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -62,7 +62,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
 /**************** Helper macros ****************/
 /* check if the connection is established */
 #define MADB_Dbc_ACTIVE(a) \
-  ((a)->mariadb && mysql_get_socket((a)->mariadb) != -1)
+  ((a)->mariadb && mysql_get_socket((a)->mariadb) != MARIADB_INVALID_SOCKET)
 
 #define MADB_Dbc_DSN(a) \
 (a) && (a)->Dsn  

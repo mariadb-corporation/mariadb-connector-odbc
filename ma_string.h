@@ -38,9 +38,10 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
 my_bool MADB_ValidateStmt(char *StmtStr);
 my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);
 
-SQLINTEGER  MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
-SQLLEN      MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
-SQLINTEGER  SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
+SQLINTEGER MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
+SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
+SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
+SQLINTEGER SqlwcsLen(SQLWCHAR *str);
 
 #define ADJUST_LENGTH(ptr, len)\
   if((ptr) && ((len) == SQL_NTS))\

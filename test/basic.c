@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2015 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -497,7 +497,7 @@ ODBC_TEST(charset_utf8)
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
-  CHECK_STMT_RC(hstmt1, SQLColumns(hstmt1, (SQLCHAR *)"odbc_test", SQL_NTS, NULL, 0,
+  CHECK_STMT_RC(hstmt1, SQLColumns(hstmt1, (SQLCHAR *)my_schema, SQL_NTS, NULL, 0,
                              (SQLCHAR *)"t_bug19345", SQL_NTS,
                              (SQLCHAR *)"%", 1));
 
@@ -906,6 +906,7 @@ ODBC_TEST(t_bug32014)
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
   SQLUINTEGER info;
+  SQLULEN     attr;
   long        i=0;
   SQLSMALLINT value_len;
 
@@ -944,26 +945,26 @@ ODBC_TEST(t_bug32014)
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE
             , SQL_CURSOR_FORWARD_ONLY ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &info));
-    is_num(info, expectedCurType[i][SQL_CURSOR_FORWARD_ONLY]);
+            (SQLPOINTER) &attr));
+    is_num(attr, expectedCurType[i][SQL_CURSOR_FORWARD_ONLY]);
 
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_KEYSET_DRIVEN ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &info));
-    is_num(info, expectedCurType[i][SQL_CURSOR_KEYSET_DRIVEN]);
+            (SQLPOINTER) &attr));
+    is_num(attr, expectedCurType[i][SQL_CURSOR_KEYSET_DRIVEN]);
 
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_DYNAMIC ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &info));
-    is_num(info, expectedCurType[i][SQL_CURSOR_DYNAMIC]);
+            (SQLPOINTER) &attr));
+    is_num(attr, expectedCurType[i][SQL_CURSOR_DYNAMIC]);
 
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_STATIC ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &info));
-    is_num(info, expectedCurType[i][SQL_CURSOR_STATIC]);
+            (SQLPOINTER) &attr));
+    is_num(attr, expectedCurType[i][SQL_CURSOR_STATIC]);
 
     ODBC_Disconnect(henv1, hdbc1, hstmt1);
 
@@ -1300,7 +1301,7 @@ MA_ODBC_TESTS my_tests[]=
   {bug19823,       "bug19823",       NORMAL},
   {t_basic,        "t_basic",        NORMAL},
   {t_reconnect,    "t_reconnect",    NORMAL},
-  {charset_utf8,   "charset_utf8",   KNOWN_FAILURE},
+  {charset_utf8,   "charset_utf8",   NORMAL},
   {charset_gbk,    "charset_gbk",    NORMAL},
   {t_bug30774,     "t_bug30774",     NORMAL},
 #ifdef WE_HAVE_SETUPLIB
