@@ -2601,7 +2601,7 @@ ODBC_TEST(t_update_offsets)
   } rows[8];
   size_t row_size= sizeof(rows[0]);
   SQLLEN bind_offset= -100000;
-  SQLINTEGER i;
+  SQLUINTEGER i;
   SQLCHAR buf[50];
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_offsets");

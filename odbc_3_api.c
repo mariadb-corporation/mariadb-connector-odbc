@@ -526,9 +526,9 @@ SQLRETURN SQL_API SQLColumnsW(SQLHSTMT StatementHandle,
   MDBUG_C_ENTER(Stmt->Connection, "SQLColumns");
 
   CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->CodePage, NULL);
-  CpSchema= MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->CodePage, NULL);
-  CpTable= MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->CodePage,NULL);
-  CpColumn= MADB_ConvertFromWChar(ColumnName, NameLength4, &CpLength4, Stmt->Connection->CodePage, NULL);
+  CpSchema=  MADB_ConvertFromWChar(SchemaName,  NameLength2, &CpLength2, Stmt->Connection->CodePage, NULL);
+  CpTable=   MADB_ConvertFromWChar(TableName,   NameLength3, &CpLength3, Stmt->Connection->CodePage, NULL);
+  CpColumn=  MADB_ConvertFromWChar(ColumnName,  NameLength4, &CpLength4, Stmt->Connection->CodePage, NULL);
 
   ret= Stmt->Methods->Columns(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, (SQLSMALLINT)CpLength2,
                               CpTable, (SQLSMALLINT)CpLength3, CpColumn, (SQLSMALLINT)CpLength4);

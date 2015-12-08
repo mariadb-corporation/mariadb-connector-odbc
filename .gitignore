@@ -19,7 +19,15 @@ Debug
 Win32
 ipch
 
+Makefile
+
+*.msi
+*.wixobj
+*.wixpdb
+
 *.diff
+*.bak
+*.*~
 
 # Keep empty directories:
 # Keep empty directories: >> .gitignore/.git*

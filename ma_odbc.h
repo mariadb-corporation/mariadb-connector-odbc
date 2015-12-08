@@ -58,8 +58,11 @@ typedef struct
   char SqlState[SQLSTATE_LENGTH + 1];
   SQLINTEGER NativeError;
   char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
+  size_t PrefixLen;
   SQLRETURN ReturnValue;
   MADB_ERROR *ErrRecord;
+  /* Order number of last requested error record */
+  unsigned int ErrorNum;
 } MADB_Error;
 
 typedef struct
@@ -478,7 +481,6 @@ int       DSNPrompt_Free  (MADB_Prompt *prompt);
 #define UNLOCK_MARIADB(Dbc) LeaveCriticalSection(&(Dbc)->cs)
 
 #include <ma_error.h>
-#include <ma_compatibility.h>
 #include <ma_parse.h>
 #include <ma_dsn.h>
 #include <ma_info.h>

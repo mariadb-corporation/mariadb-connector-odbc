@@ -429,7 +429,7 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, unsigned int CodePage)
 }
 
 /* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLINTEGER *Length, CODEPAGE CodePage, BOOL *Error)
+char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLINTEGER *Length, CODEPAGE CodePage, BOOL *Error)
 {
   char *AscStr;
   int AscLen, AllocLen;
@@ -440,18 +440,18 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLINTEGER *Len
 #ifdef _WIN32
   if (CodePage < 1)
     CodePage= CP_UTF8;
-  if (PtrLength == SQL_NTS)
-    PtrLength= -1;
+  if (WstrCharLen == SQL_NTS)
+    WstrCharLen= -1;
 
-  AllocLen= AscLen= WideCharToMultiByte(CodePage, 0, Ptr, PtrLength, NULL, 0, NULL, NULL);
-  if (PtrLength != -1)
+  AllocLen= AscLen= WideCharToMultiByte(CodePage, 0, Wstr, WstrCharLen, NULL, 0, NULL, NULL);
+  if (WstrCharLen != -1)
     ++AllocLen;
   
   if (!(AscStr = (char *)MADB_CALLOC(AllocLen)))
     return NULL;
 
-  AscLen= WideCharToMultiByte(CodePage,  0, Ptr, PtrLength, AscStr, AscLen, NULL, (CodePage != CP_UTF8) ? Error : NULL);
-  if (AscLen && PtrLength == -1)
+  AscLen= WideCharToMultiByte(CodePage,  0, Wstr, WstrCharLen, AscStr, AscLen, NULL, (CodePage != CP_UTF8) ? Error : NULL);
+  if (AscLen && WstrCharLen == -1)
     --AscLen;
 #else
 

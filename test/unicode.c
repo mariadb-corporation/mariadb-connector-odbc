@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2015 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -34,22 +34,24 @@ ODBC_TEST(test_CONO1)
   /* check SQLColumns with ANSI_QUOTES on and off */
   SQLRETURN ret;
   SQLLEN rowCount;
-  SQLWCHAR *create_table= L"CREATE TABLE cono1 (InitialStartDateTime datetime NOT NULL,  TicketId int(11) NOT NULL AUTO_INCREMENT,  CallCount int(11) NOT NULL DEFAULT '1',  CalledNumber varchar(30) DEFAULT NULL,  CallingNumber varchar(30) DEFAULT NULL,  CallType tinyint(3) unsigned DEFAULT NULL,  ChargeUnits smallint(6) DEFAULT NULL,  NetworkAndTrunkNode int(11) DEFAULT NULL,  TrunkGroupIdentity varchar(10) DEFAULT NULL,  EntityId int(11) DEFAULT NULL,  PersonalOrBusiness tinyint(3) unsigned DEFAULT NULL,   WaitingDuration smallint(6) DEFAULT '0',  EffectiveCallDuration int(11) DEFAULT NULL,  ComType tinyint(3) unsigned DEFAULT NULL,  CostInfo double DEFAULT NULL,  InitialDialledNumber varchar(30) DEFAULT NULL,  Carrier varchar(5) DEFAULT NULL,  UserToUserVolume smallint(6) DEFAULT '0',  StartDateTime datetime DEFAULT NULL,  Duration int(11) DEFAULT NULL,  RedirectedCallIndicator tinyint(3) unsigned DEFAULT NULL,  Subaddress varchar(20) DEFAULT NULL,  HighLevelComp tinyint(3) unsigned DEFAULT NULL,  CostType tinyint(3) unsigned DEFAULT NULL,  TrunkIdentity smallint(6) DEFAULT NULL,  SpecificChargeInfo char(7) DEFAULT NULL,  BearerCapability tinyint(3) unsigned DEFAULT NULL,  DataVolume int(11) DEFAULT NULL,  AdditionalEntityId int(11) DEFAULT NULL,  FirstCarrierCost double NOT NULL,  FirstCarrierCostT double DEFAULT NULL,  SecondCarrierCost double NOT NULL,  SecondCarrierCostT double DEFAULT NULL,  FacilityCost double NOT NULL,  FacilityCostT double DEFAULT NULL,  FacturedCost double DEFAULT NULL,  FacturedCostT double DEFAULT NULL,  SubscriptionCost double NOT NULL DEFAULT '0',  SubscriptionCostT double DEFAULT NULL,  FirstCarrierId int(11) DEFAULT NULL,  SecondCarrierId int(11) DEFAULT NULL,  FirstCarrierDirectionId int(11) DEFAULT NULL,  SecondCarrierDirectionId int(11) DEFAULT NULL,  FirstCarrierCcnId int(11) DEFAULT NULL,  SecondCarrierCcnId int(11) DEFAULT NULL,  ActingExtensionNumber varchar(30) DEFAULT NULL,  TransitTrunkGroupIdentity varchar(5) DEFAULT NULL,  NodeTimeOffset smallint(6) DEFAULT NULL,  ExternFacilities binary(5) DEFAULT NULL,  InternFacilities binary(5) DEFAULT NULL,  TicketOrigin tinyint(3) unsigned DEFAULT '0',  TimeDlt int(11) DEFAULT NULL,  PRIMARY KEY (TicketId),  UNIQUE KEY IX_Ticket (TicketId),  KEY IX2_Ticket (EntityId),  KEY IX3_Ticket (InitialStartDateTime),  KEY IX4_Ticket (StartDateTime))";
+  SQLWCHAR *create_table;
+  
+  create_table= CW("CREATE TABLE cono1 (InitialStartDateTime datetime NOT NULL,  TicketId int(11) NOT NULL AUTO_INCREMENT,  CallCount int(11) NOT NULL DEFAULT '1',  CalledNumber varchar(30) DEFAULT NULL,  CallingNumber varchar(30) DEFAULT NULL,  CallType tinyint(3) unsigned DEFAULT NULL,  ChargeUnits smallint(6) DEFAULT NULL,  NetworkAndTrunkNode int(11) DEFAULT NULL,  TrunkGroupIdentity varchar(10) DEFAULT NULL,  EntityId int(11) DEFAULT NULL,  PersonalOrBusiness tinyint(3) unsigned DEFAULT NULL,   WaitingDuration smallint(6) DEFAULT '0',  EffectiveCallDuration int(11) DEFAULT NULL,  ComType tinyint(3) unsigned DEFAULT NULL,  CostInfo double DEFAULT NULL,  InitialDialledNumber varchar(30) DEFAULT NULL,  Carrier varchar(5) DEFAULT NULL,  UserToUserVolume smallint(6) DEFAULT '0',  StartDateTime datetime DEFAULT NULL,  Duration int(11) DEFAULT NULL,  RedirectedCallIndicator tinyint(3) unsigned DEFAULT NULL,  Subaddress varchar(20) DEFAULT NULL,  HighLevelComp tinyint(3) unsigned DEFAULT NULL,  CostType tinyint(3) unsigned DEFAULT NULL,  TrunkIdentity smallint(6) DEFAULT NULL,  SpecificChargeInfo char(7) DEFAULT NULL,  BearerCapability tinyint(3) unsigned DEFAULT NULL,  DataVolume int(11) DEFAULT NULL,  AdditionalEntityId int(11) DEFAULT NULL,  FirstCarrierCost double NOT NULL,  FirstCarrierCostT double DEFAULT NULL,  SecondCarrierCost double NOT NULL,  SecondCarrierCostT double DEFAULT NULL,  FacilityCost double NOT NULL,  FacilityCostT double DEFAULT NULL,  FacturedCost double DEFAULT NULL,  FacturedCostT double DEFAULT NULL,  SubscriptionCost double NOT NULL DEFAULT '0',  SubscriptionCostT double DEFAULT NULL,  FirstCarrierId int(11) DEFAULT NULL,  SecondCarrierId int(11) DEFAULT NULL,  FirstCarrierDirectionId int(11) DEFAULT NULL,  SecondCarrierDirectionId int(11) DEFAULT NULL,  FirstCarrierCcnId int(11) DEFAULT NULL,  SecondCarrierCcnId int(11) DEFAULT NULL,  ActingExtensionNumber varchar(30) DEFAULT NULL,  TransitTrunkGroupIdentity varchar(5) DEFAULT NULL,  NodeTimeOffset smallint(6) DEFAULT NULL,  ExternFacilities binary(5) DEFAULT NULL,  InternFacilities binary(5) DEFAULT NULL,  TicketOrigin tinyint(3) unsigned DEFAULT '0',  TimeDlt int(11) DEFAULT NULL,  PRIMARY KEY (TicketId),  UNIQUE KEY IX_Ticket (TicketId),  KEY IX2_Ticket (EntityId),  KEY IX3_Ticket (InitialStartDateTime),  KEY IX4_Ticket (StartDateTime))");
 
-  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, L"SET SQL_MODE='ANSI_QUOTES'", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, L"DROP TABLE IF EXISTS cono1", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("SET SQL_MODE='ANSI_QUOTES'"), SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("DROP TABLE IF EXISTS cono1"), SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, create_table, SQL_NTS));
 
-  ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, L"cono1", SQL_NTS, NULL, 0);
+  ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, CW("cono1"), SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
   SQLRowCount(Stmt, &rowCount);
   diag("row_count: %u", rowCount);
 
-  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, L"SET SQL_MODE=''", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("SET SQL_MODE=''"), SQL_NTS));
 
-  ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, L"cono1", SQL_NTS, NULL, 0);
+  ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, CW("cono1"), SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
@@ -66,10 +68,10 @@ ODBC_TEST(test_count)
   SQLLEN columnsize;
   SQLRETURN rc;
  
-  rc= SQLExecDirectW(Stmt, L"DROP TABLE IF EXISTS test_count", SQL_NTS);
-  rc= SQLExecDirectW(Stmt, L"CREATE TABLE test_count (a int)", SQL_NTS);
-  rc= SQLExecDirectW(Stmt, L"INSERT INTO test_count VALUES (1),(2)", SQL_NTS);
-  rc= SQLExecDirectW(Stmt, L"SELECT count(*) RELEATED FROM test_count", SQL_NTS);
+  rc= SQLExecDirectW(Stmt, CW("DROP TABLE IF EXISTS test_count"), SQL_NTS);
+  rc= SQLExecDirectW(Stmt, CW("CREATE TABLE test_count (a int)"), SQL_NTS);
+  rc= SQLExecDirectW(Stmt, CW("INSERT INTO test_count VALUES (1),(2)"), SQL_NTS);
+  rc= SQLExecDirectW(Stmt, CW("SELECT count(*) RELEATED FROM test_count"), SQL_NTS);
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));  
   SQLDescribeColW(Stmt,1, columnname, 64, &columnlength, &datatype, &columnsize, &digits, &nullable);
@@ -87,9 +89,9 @@ ODBC_TEST(sqlconnect)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            WC("test"), SQL_NTS,
-                            WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
@@ -106,15 +108,15 @@ ODBC_TEST(sqlprepare)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            WC(my_dsn), SQL_NTS,
-                            WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLPrepareW(hstmt1,
-                             L"SELECT '\x30a1' FROM DUAL WHERE 1 = ?",
-                              SQL_NTS));
+                                    WW("SELECT '\x30a1' FROM DUAL WHERE 1 = ?"),
+                                    SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLBindParameter(hstmt1, 1, SQL_PARAM_INPUT, SQL_C_LONG,
                                    SQL_INTEGER, 0, 0, &data, 0, NULL));
@@ -130,7 +132,7 @@ ODBC_TEST(sqlprepare)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), L"\x30a1", 1);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), W(L"\x30a1"), 1);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -222,13 +224,13 @@ ODBC_TEST(sqlchar)
   HSTMT hstmt1;
   SQLCHAR data[]= "S\xc3\xA3o Paolo", buff[30];
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
-  wchar_t wcdata[]= L"S\x00e3o Paolo";
+  SQLWCHAR wcdata[]= {'S', 0x00e3, 'o', ' ', 'P', 'a', 'o', 'l', 'o'};
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            WC(my_dsn), SQL_NTS,
-                            WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLPrepareW(hstmt1, W(L"SELECT ? FROM DUAL"), SQL_NTS));
@@ -265,11 +267,11 @@ ODBC_TEST(sqlchar)
 
 ODBC_TEST(sqldriverconnect)
 {
-  HDBC hdbc1;
-  HSTMT hstmt1;
-  wchar_t conn_in[512];
-  wchar_t dummy[256];
-  SQLWCHAR conn_out[1024];
+  HDBC        hdbc1;
+  HSTMT       hstmt1;
+  wchar_t     conn_in[512];
+  wchar_t     dummy[256];
+  SQLWCHAR    conn_out[1024];
   SQLSMALLINT conn_out_len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
@@ -293,13 +295,13 @@ ODBC_TEST(sqldriverconnect)
   mbstowcs(dummy, (char*)ma_strport, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, WL(conn_in, wcslen(conn_in)),
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, W(conn_in),
                                   wcslen(conn_in), conn_out, sizeof(conn_out),
                                   &conn_out_len, SQL_DRIVER_NOPROMPT));
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
 
-  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, L"SELECT 1234", SQL_NTS));
+  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, CW("SELECT 1234"), SQL_NTS));
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
   is_num(my_fetch_int(hstmt1, 1), 1234);
 
@@ -314,22 +316,23 @@ ODBC_TEST(sqldriverconnect)
 
 ODBC_TEST(sqlnativesql)
 {
-  HDBC hdbc1;
+  HDBC        hdbc1;
   SQLWCHAR    out[128];
-  wchar_t in[]= L"SELECT * FROM venu";
-  SQLINTEGER len;
+  wchar_t     in[]= L"SELECT * FROM sanja";
+  SQLINTEGER  len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            WC(my_dsn), SQL_NTS,
-                            WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+                            wdsn, SQL_NTS,
+                            wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
-  CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, in, SQL_NTS, out, sizeof(out), &len));
+  /* According to https://support.microsoft.com/en-us/kb/294169 out buffer length parameter is in chars, not in bytes */
+  CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, W(in), SQL_NTS, out, sizeof(out)/sizeof(SQLWCHAR), &len));
   is_num(len, sizeof(in) / sizeof(wchar_t) - 1);
   IS_WSTR(sqlwchar_to_wchar_t(out), in, sizeof(in) / sizeof(wchar_t) - 1);
 
-  CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, in, SQL_NTS, out, 8, &len));
+  CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, W(in), SQL_NTS, out, 8, &len));
   is_num(len, sizeof(in) / sizeof(wchar_t) - 1);
   IS_WSTR(sqlwchar_to_wchar_t(out), in, 7);
   IS(out[7] == 0);
@@ -359,15 +362,15 @@ ODBC_TEST(sqlsetcursorname)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLSetStmtAttrW(hstmt1, SQL_ATTR_CURSOR_TYPE,
                                   (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
 
-  CHECK_STMT_RC(hstmt1, SQLSetCursorNameW(hstmt1, L"a\x00e3b", SQL_NTS));
+  CHECK_STMT_RC(hstmt1, SQLSetCursorNameW(hstmt1, WW("a\x00e3b"), SQL_NTS));
 
   /* Open the resultset of table 'my_demo_cursor' */
   OK_SIMPLE_STMT(hstmt1, "SELECT * FROM my_demo_cursor");
@@ -381,8 +384,8 @@ ODBC_TEST(sqlsetcursorname)
   /* now update the name field to 'updated' using positioned cursor */
   CHECK_STMT_RC(hstmt_pos,
           SQLExecDirectW(hstmt_pos,
-                         L"UPDATE my_demo_cursor SET name='updated' "
-                           L"WHERE CURRENT OF a\x00e3b", SQL_NTS));
+                         W(L"UPDATE my_demo_cursor SET name='updated' "
+                           L"WHERE CURRENT OF a\x00e3b"), SQL_NTS));
 
   CHECK_STMT_RC(hstmt_pos, SQLRowCount(hstmt_pos, &nRowCount));
   is_num(nRowCount, 1);
@@ -399,8 +402,8 @@ ODBC_TEST(sqlsetcursorname)
   /* now delete the current row */
   CHECK_STMT_RC(hstmt_pos,
           SQLExecDirectW(hstmt_pos,
-                           L"DELETE FROM my_demo_cursor "
-                           L"WHERE CURRENT OF a\x00e3b", SQL_NTS));
+                           W(L"DELETE FROM my_demo_cursor "
+                             L"WHERE CURRENT OF a\x00e3b"), SQL_NTS));
 
   CHECK_STMT_RC(hstmt_pos, SQLRowCount(hstmt_pos, &nRowCount));
   is_num(nRowCount, 1);
@@ -455,8 +458,8 @@ ODBC_TEST(sqlgetcursorname)
 
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt2));
@@ -466,14 +469,14 @@ ODBC_TEST(sqlgetcursorname)
   if (SQL_SUCCEEDED(rc))
   {
     is_num(nlen, 8);
-    IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL_CUR0", 8);
+    IS_WSTR(curname, CW("SQL_CUR0"), 8);
 
     CHECK_STMT_RC(hstmt3,  SQLGetCursorNameW(hstmt3, curname, 50, &nlen));
 
     FAIL_IF(SQLGetCursorNameW(hstmt1, curname, 4, &nlen) !=
                 SQL_SUCCESS_WITH_INFO, "SUCCESS_WITH_INFO expected");
     is_num(nlen, 8);
-    IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL", 4);
+    IS_WSTR(curname, CW("SQL"), 4);
 
     FAIL_IF(SQLGetCursorNameW(hstmt1, curname, 0, &nlen) !=
                 SQL_SUCCESS_WITH_INFO, "SUCCESS_WITH_INFO expected");
@@ -484,18 +487,18 @@ ODBC_TEST(sqlgetcursorname)
     FAIL_IF(SQLGetCursorNameW(hstmt1, curname, 8, &nlen) !=
                 SQL_SUCCESS_WITH_INFO, "SUCCESS_WITH_INFO expected");
     is_num(nlen, 8);
-    IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL_CUR", 8);
+    IS_WSTR(curname, CW("SQL_CUR"), 8);
 
     CHECK_STMT_RC(hstmt1, SQLGetCursorNameW(hstmt1, curname, 9, &nlen));
     is_num(nlen, 8);
-    IS_WSTR(sqlwchar_to_wchar_t(curname), L"SQL_CUR0", 8);
+    IS_WSTR(curname, CW("SQL_CUR0"), 8);
   }
 
-  CHECK_STMT_RC(hstmt1,  SQLSetCursorNameW(hstmt1, L"venucur123", 7));
+  CHECK_STMT_RC(hstmt1,  SQLSetCursorNameW(hstmt1, CW("venucur123"), 7));
 
   CHECK_STMT_RC(hstmt1,  SQLGetCursorNameW(hstmt1, curname, 8, &nlen));
   is_num(nlen, 7);
-  IS_WSTR(sqlwchar_to_wchar_t(curname), L"venucur", 8);
+  IS_WSTR(curname, CW("venucur"), 8);
 
   CHECK_STMT_RC(hstmt3, SQLFreeStmt(hstmt3, SQL_DROP));
   CHECK_STMT_RC(hstmt2, SQLFreeStmt(hstmt2, SQL_DROP));
@@ -516,14 +519,14 @@ ODBC_TEST(sqlcolattribute)
   SQLSMALLINT len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_colattrib");
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1,
-                                 L"CREATE TABLE t_colattrib (a\x00E3g INT)",
+                                 W(L"CREATE TABLE t_colattrib (a\x00E3g INT)"),
                                  SQL_NTS));
 
   OK_SIMPLE_STMT(hstmt1, "SELECT * FROM t_colattrib AS b");
@@ -531,17 +534,17 @@ ODBC_TEST(sqlcolattribute)
   CHECK_STMT_RC(hstmt1, SQLColAttributeW(hstmt1, 1, SQL_DESC_NAME,
                                    wbuff, sizeof(wbuff), &len, NULL));
   is_num(len, 3 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"a\x00e3g", 4);
+  IS_WSTR(wbuff, W(L"a\x00e3g"), 4);
 
   FAIL_IF(SQLColAttributeW(hstmt1, 1, SQL_DESC_BASE_TABLE_NAME,
                                        wbuff, 5 * sizeof(SQLWCHAR), &len, NULL) != SQL_SUCCESS_WITH_INFO, "Expected success_with_info");
   is_num(len, 11 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"t_co", 5);
+  IS_WSTR(wbuff, CW("t_co"), 5);
 
   CHECK_STMT_RC(hstmt1, SQLColAttributeW(hstmt1, 1, SQL_DESC_TYPE_NAME,
                                    wbuff, sizeof(wbuff), &len, NULL));
   is_num(len, 7 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"integer", 8);
+  IS_WSTR(wbuff, CW("integer"), 8);
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_colattrib");
 
@@ -561,8 +564,8 @@ ODBC_TEST(sqldescribecol)
   SQLSMALLINT len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -577,12 +580,12 @@ ODBC_TEST(sqldescribecol)
                                   sizeof(wbuff) / sizeof(wbuff[0]), &len,
                                   NULL, NULL, NULL, NULL));
   is_num(len, 3);
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"a\x00e3g", 4);
+  IS_WSTR(wbuff, W(L"a\x00e3g"), 4);
 
   FAIL_IF(SQLDescribeColW(hstmt1, 1, wbuff, 3, &len,
                                       NULL, NULL, NULL, NULL) != SQL_SUCCESS_WITH_INFO, "Expected SQL_SUCCESS_WITH_INFO");
   is_num(len, 3);
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"a\x00e3", 3);
+  IS_WSTR(wbuff, W(L"a\x00e3"), 3);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -604,20 +607,26 @@ ODBC_TEST(sqlgetconnectattr)
   SQLINTEGER len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
+  /* Since we use SQLConnectW here, there is the chance that my_schema/wschema is different from the one defined in the my_dsn/wdsn */
+  CHECK_STMT_RC(hstmt1, SQLSetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG, wschema, SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLGetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG, wbuff,
                                      sizeof(wbuff), &len));
-  is_num(len, 9 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"odbc_test", 5);
+  /* Since we use SQLConnectW here, there is the chance that my_schema/wschema is different from the one defined in the */
+  is_num(len, SqlwcsLen(wschema) * sizeof(SQLWCHAR));
+  IS_WSTR(wbuff, wschema, len/sizeof(SQLWCHAR) + 1);
 
   FAIL_IF(SQLGetConnectAttrW(hdbc1, SQL_ATTR_CURRENT_CATALOG,
                                          wbuff, 3 * sizeof(SQLWCHAR), &len) != SQL_SUCCESS_WITH_INFO, "expected SUCCESS_WITH_INFO");
-  is_num(len, 9 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(wbuff), L"od", 3);
+  is_num(len, SqlwcsLen(wschema) * sizeof(SQLWCHAR));
+  /* Comparing 2 chars */
+  IS_WSTR(wbuff, wschema, 2);
+  /* And verifying that 3rd char is terminating NULL */
+  is_num(wbuff[2], 0);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -637,8 +646,8 @@ ODBC_TEST(sqlgetdiagrec)
   HSTMT hstmt1;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -686,8 +695,8 @@ ODBC_TEST(sqlgetdiagfield)
   HSTMT hstmt1;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -702,19 +711,19 @@ ODBC_TEST(sqlgetdiagfield)
                                   SQL_DIAG_CLASS_ORIGIN, message,
                                   sizeof(message), &len));
   is_num(len, 8 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(message), L"ISO 9075", 9);
+  IS_WSTR(message, CW("ISO 9075"), 9);
 
   FAIL_IF(SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 1,
                                       SQL_DIAG_SQLSTATE, message,
                                       4 * sizeof(SQLWCHAR), &len) != SQL_SUCCESS_WITH_INFO, "SUCCESS_W_I expected");
   is_num(len, 5 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(message), L"42S", 4);
+  IS_WSTR(message, CW("42S"), 4);
 
   CHECK_STMT_RC(Stmt, SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 1,
                                   SQL_DIAG_SUBCLASS_ORIGIN, message,
                                   sizeof(message), &len));
   is_num(len, 8 * sizeof(SQLWCHAR));
-  IS_WSTR(sqlwchar_to_wchar_t(message), L"ODBC 3.0", 9);
+  IS_WSTR(message, CW("ODBC 3.0"), 9);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -731,8 +740,8 @@ ODBC_TEST(sqlcolumns)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -741,8 +750,8 @@ ODBC_TEST(sqlcolumns)
                                  W(L"CREATE TABLE t_columns (a\x00e3g INT)"),
                                  SQL_NTS));
 
-  CHECK_STMT_RC(hstmt1, SQLColumnsW(hstmt1, L"odbc_test", 9, NULL, 0,
-                              W(L"t_columns"), SQL_NTS,
+  CHECK_STMT_RC(hstmt1, SQLColumnsW(hstmt1, wschema, SQL_NTS, NULL, 0,
+                              CW("t_columns"), SQL_NTS,
                               W(L"a\x00e3g"), SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
@@ -770,8 +779,8 @@ ODBC_TEST(sqltables)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -788,7 +797,7 @@ ODBC_TEST(sqltables)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"t_a\x00e3g", 6);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), W(L"t_a\x00e3g"), 6);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -813,8 +822,8 @@ ODBC_TEST(sqlspecialcolumns)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -830,7 +839,7 @@ ODBC_TEST(sqlspecialcolumns)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 2, MAX_ROW_DATA_LEN+1), L"a\x00e3g", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 2, MAX_ROW_DATA_LEN+1), W(L"a\x00e3g"), 4);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -856,8 +865,8 @@ ODBC_TEST(sqlforeignkeys)
 
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -882,10 +891,10 @@ ODBC_TEST(sqlforeignkeys)
                                   NULL, 0, W(L"t_fk_\x00e5"), SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"t_fk_\x00e3", 7);
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), L"a", 2);
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 7, MAX_ROW_DATA_LEN+1), L"t_fk_\x00e5", 7);
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 8, MAX_ROW_DATA_LEN+1), L"parent_id", 10);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), W(L"t_fk_\x00e3"), 7);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), W(L"a"), 2);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 7, MAX_ROW_DATA_LEN+1), W(L"t_fk_\x00e5"), 7);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 8, MAX_ROW_DATA_LEN+1), W(L"parent_id"), 10);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -913,8 +922,8 @@ ODBC_TEST(sqlprimarykeys)
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -930,7 +939,7 @@ ODBC_TEST(sqlprimarykeys)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"t_a\x00e3g", 6);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), W(L"t_a\x00e3g"), 6);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -952,11 +961,11 @@ ODBC_TEST(sqlstatistics)
   HDBC hdbc1;
   HSTMT hstmt1;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
-  SQLWCHAR table[]={'t', 'a', '\x00e3', 'g', '\0'};
+  SQLWCHAR table[]= {'t', 'a', '\x00e3', 'g', '\0'};
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -1005,8 +1014,8 @@ ODBC_TEST(t_bug32161)
   SQLSMALLINT ctype;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, WC(my_dsn), SQL_NTS, WC(my_uid), SQL_NTS,
-                            WC(my_pwd), SQL_NTS));
+  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
+                            wpwd, SQL_NTS));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
@@ -1036,33 +1045,33 @@ ODBC_TEST(t_bug32161)
   OK_SIMPLE_STMT(hstmt1, "SELECT * FROM t_bug32161");
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 1", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), W(L"\x03A8\x0391\x03A1\x039F 1"), 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 1, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
   is_num(ctype, SQL_WVARCHAR);
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 2, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 2", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 2, MAX_ROW_DATA_LEN+1), W(L"\x03A8\x0391\x03A1\x039F 2"), 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 2, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
   is_num(ctype, SQL_WCHAR);
 
   /* All further calls of SQLDescribeColW should return SQL_WLONGVARCHAR */
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 3", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), W(L"\x03A8\x0391\x03A1\x039F 3"), 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 3, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
   is_num(ctype, SQL_WLONGVARCHAR);
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 4", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), W(L"\x03A8\x0391\x03A1\x039F 4"), 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 4, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
   is_num(ctype, SQL_WLONGVARCHAR);
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 5, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 5", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 5, MAX_ROW_DATA_LEN+1), W(L"\x03A8\x0391\x03A1\x039F 5"), 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 5, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
   is_num(ctype, SQL_WLONGVARCHAR);
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 6, MAX_ROW_DATA_LEN+1), L"\x03A8\x0391\x03A1\x039F 6", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 6, MAX_ROW_DATA_LEN+1), W(L"\x03A8\x0391\x03A1\x039F 6"), 4);
   CHECK_STMT_RC(hstmt1, SQLDescribeColW(hstmt1, 6, wbuff, MAX_ROW_DATA_LEN, &nlen,
                                   &ctype, NULL, NULL, NULL));
   is_num(ctype, SQL_WLONGVARCHAR);
@@ -1084,10 +1093,10 @@ ODBC_TEST(t_bug32161)
 */
 ODBC_TEST(t_bug34672)
 {
-  SQLWCHAR chars[3];
+  SQLWCHAR   chars[3];
   SQLINTEGER inchars, i;
-  SQLWCHAR result[3];
-  SQLLEN reslen;
+  SQLWCHAR   result[3];
+  SQLLEN     reslen;
 
   if (sizeof(SQLWCHAR) == 2)
   {
@@ -1107,17 +1116,16 @@ ODBC_TEST(t_bug34672)
                                   SQL_WCHAR, 0, 0, chars,
                                   inchars * sizeof(SQLWCHAR), NULL));
 
-  if (0) //(mysql_min_version(Connection, "6.0.4", 5))
-  {
-    CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, (SQLWCHAR *) L"select ? FROM DUAL", SQL_NTS));
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, result,
-                              sizeof(result), &reslen));
-    is_num(result[2], 0);
-    for (i= 0; i < inchars; ++i)
-      is_num(result[i], chars[i]);
-    is_num(reslen, inchars * sizeof(SQLWCHAR));
-  }
+  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("select ? FROM DUAL"), SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, result,
+                            sizeof(result), &reslen));
+  is_num(result[2], 0);
+  for (i= 0; i < inchars; ++i)
+    is_num(result[i], chars[i]);
+
+  is_num(reslen, inchars * sizeof(SQLWCHAR));
+
    return OK;
 }
 
@@ -1175,7 +1183,7 @@ ODBC_TEST(t_bug28168)
   */
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, grantQuery, SQL_NTS));
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, grantQuery2, SQL_NTS));
-  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, L"FLUSH PRIVILEGES", SQL_NTS));
+  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, CW("FLUSH PRIVILEGES"), SQL_NTS));
 
   *conn_in= L'\0';
   wcscat(conn_in, L"DRIVER=");
@@ -1288,8 +1296,8 @@ ODBC_TEST(t_bug14363601)
                  "dc DOUBLE, bc BLOB)CHARSET=UTF8");
 
   CHECK_STMT_RC(hstmt1, SQLPrepareW(hstmt1, 
-		    W(L"INSERT INTO bug14363601 (id, vc, dc, bc) "
-                      L"VALUES (?, ?, ?, ?)"), SQL_NTS));
+		    CW("INSERT INTO bug14363601 (id, vc, dc, bc) "
+           "VALUES (?, ?, ?, ?)"), SQL_NTS));
 
   /* Bind 1st INT param */
   CHECK_STMT_RC(hstmt1, SQLBindParameter(hstmt1, 1, SQL_PARAM_INPUT, SQL_C_LONG,
@@ -1312,7 +1320,7 @@ ODBC_TEST(t_bug14363601)
 
   CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
 
-  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, W(L"SELECT * FROM bug14363601"), 
+  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, CW("SELECT * FROM bug14363601"), 
                                  SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
@@ -1372,7 +1380,7 @@ ODBC_TEST(odbc19)
 
   OK_SIMPLE_STMT(Stmt, "insert into t_odbc19(a, c) values( 'MariaDB', 'Sky')");
 
-  OK_SIMPLE_STMTW(Stmt, L"select a, b, c from t_odbc19");
+  OK_SIMPLE_STMTW(Stmt, CW("select a, b, c from t_odbc19"));
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, a, sizeof(a), &lenPtr));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, b, sizeof(b), &lenPtr));
@@ -1405,17 +1413,17 @@ MA_ODBC_TESTS my_tests[]=
   {sqlgetcursorname,  "sqlgetcursorname",   NORMAL},
   {sqlcolattribute,   "sqlcolattribute",    NORMAL},
   {sqldescribecol,    "sqldescribecol",     NORMAL},
-  {sqlgetconnectattr, "sqlgetconnectattr",  KNOWN_FAILURE},
+  {sqlgetconnectattr, "sqlgetconnectattr",  NORMAL},
   {sqlgetdiagrec,     "sqlgetdiagrec",      NORMAL},
   {sqlgetdiagfield,   "sqlgetdiagfield",    NORMAL},
-  {sqlcolumns,        "sqlcolumns",         KNOWN_FAILURE},
+  {sqlcolumns,        "sqlcolumns",         NORMAL},
   {sqltables,         "sqltables",          NORMAL},
   {sqlspecialcolumns, "sqlspecialcolumns",  NORMAL},
   {sqlforeignkeys,    "sqlforeignkeys",     NORMAL},
   {sqlprimarykeys,    "sqlprimarykeys",     NORMAL},
   {sqlstatistics,     "sqlstatistics",      NORMAL},
   {t_bug32161,        "t_bug32161",         NORMAL},
-  {t_bug34672,        "t_bug34672",         NORMAL},
+  {t_bug34672,        "t_bug34672",         TO_FIX},
   {t_bug28168,        "t_bug28168",         NORMAL},
   {t_bug14363601,     "t_bug14363601",      NORMAL},
   {odbc19,            "test_issue_odbc19",  NORMAL},

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -153,7 +153,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
 #if (ODBCVER >= 0x0351)
   case SQL_ATTR_ANSI_APP:
-    Dbc->IsAnsi= (my_bool)ValuePtr;
+    Dbc->IsAnsi= (my_bool)(ValuePtr != NULL);
     break;
 #endif
   case SQL_ATTR_ASYNC_ENABLE:
@@ -167,8 +167,8 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_AUTOCOMMIT:
     {
-      SQLINTEGER ValidAttrs[]= {2, SQL_AUTOCOMMIT_ON, SQL_AUTOCOMMIT_OFF};
-      MADB_CHECK_ATTRIBUTE(Dbc, (SQLINTEGER)ValuePtr, ValidAttrs);
+      SQLULEN ValidAttrs[]= {2, SQL_AUTOCOMMIT_ON, SQL_AUTOCOMMIT_OFF};
+      MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
       /* if a connection is open, try to apply setting to the connection */
       if (Dbc->mariadb)
       {
@@ -176,13 +176,13 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
           MADB_SetError(&Dbc->Error, MADB_ERR_25000, NULL, 0);
           return SQL_ERROR;
         }
-        if (mysql_autocommit(Dbc->mariadb, (my_bool)ValuePtr))
+        if (mysql_autocommit(Dbc->mariadb, (my_bool)(size_t)ValuePtr))
         {
           MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
           return SQL_ERROR;
         }
       }
-      Dbc->AutoCommit= (SQLUINTEGER)ValuePtr;
+      Dbc->AutoCommit= (SQLUINTEGER)(SQLULEN)ValuePtr;
     }
     break;
   case SQL_ATTR_CONNECTION_DEAD:
@@ -192,10 +192,9 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_CURRENT_CATALOG:
     {
-      SQLINTEGER Length;
       MADB_FREE(Dbc->CatalogName);
       if (isWChar)
-        Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, &Length, Dbc->CodePage, NULL);
+        Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, NULL, Dbc->CodePage, NULL);
       else
         Dbc->CatalogName= my_strdup((char *)ValuePtr, MYF(0));
 
@@ -208,15 +207,15 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     }
     break;
   case SQL_ATTR_LOGIN_TIMEOUT:
-    Dbc->LoginTimeout= (SQLUINTEGER)ValuePtr;
+    Dbc->LoginTimeout= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_METADATA_ID:
-    Dbc->MetadataId= (SQLUINTEGER)ValuePtr;
+    Dbc->MetadataId= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_ODBC_CURSORS:
     {
-      SQLINTEGER ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
-      MADB_CHECK_ATTRIBUTE(Dbc, (SQLULEN)ValuePtr, ValidAttrs);
+      SQLULEN ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
+      MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
       if ((SQLULEN)ValuePtr != SQL_CUR_USE_ODBC)
         MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
       Dbc->OdbcCursors= SQL_CUR_USE_ODBC;
@@ -234,7 +233,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
       return Dbc->Error.ReturnValue;
     }
-    Dbc->PacketSize= (SQLUINTEGER)ValuePtr;
+    Dbc->PacketSize= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_QUIET_MODE:
     Dbc->QuietMode= (HWND)ValuePtr;
@@ -418,10 +417,9 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
 
 
 /* {{{ MADB_DbcInit() */
-MADB_Dbc *MADB_DbcInit(SQLHANDLE OutputHandle)
+MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
 {
   MADB_Dbc *Connection= NULL;
-  MADB_Env *Env= (MADB_Env *)OutputHandle;
 
   MADB_CLEAR_ERROR(&Env->Error);
 
@@ -440,6 +438,14 @@ MADB_Dbc *MADB_DbcInit(SQLHANDLE OutputHandle)
   Connection->CodePage= GetACP();
   LeaveCriticalSection(&Connection->cs);
 
+  MADB_PutErrorPrefix(NULL, &Connection->Error);
+
+  if (!(Connection->mariadb= mysql_init(NULL)))
+  {
+    MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
+    goto cleanup;
+  }
+
   return Connection;      
 cleanup:
   if (Connection)
@@ -454,15 +460,21 @@ cleanup:
 /* {{{ MADB_DbcFree() */
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
 {
+  MADB_Env *Env= NULL;
+
   if (!Connection)
     return SQL_ERROR;
+
+  Env= Connection->Environment;
 
   if (Connection->mariadb)
     mysql_close(Connection->mariadb);
 
   /* todo: delete all descriptors */
 
+  EnterCriticalSection(&Env->cs);
   Connection->Environment->Dbcs= list_delete(Connection->Environment->Dbcs, &Connection->ListItem);
+  LeaveCriticalSection(&Env->cs);
 
   MADB_FREE(Connection->CatalogName);
   MADB_FREE(Connection->CharacterSet);
@@ -479,23 +491,23 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
 SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar) 
 {
-  SQLHANDLE Stmt;
+  MADB_Stmt *Stmt;
   SQLRETURN ret;
   SQLLEN Size;
   char Buffer[65 * sizeof(WCHAR)];
 
   MADB_CLEAR_ERROR(&Connection->Error);
-  ret= SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, &Stmt);
+  ret= SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, &(SQLHANDLE)Stmt);
   if (!SQL_SUCCEEDED(ret))
     return ret;
-  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-      !SQL_SUCCEEDED(SQLFetch(Stmt)))
+  if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
+      !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt, FALSE)))
   {
     MADB_CopyError(&Connection->Error, &((MADB_Stmt *)Stmt)->Error);
     goto end;
   }
   
-  ret= SQLGetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
+  ret= Stmt->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
  /* Size= (SQLINTEGER)MADB_SetString(isWChar ? Connection->CodePage : 0, CurrentDB, 
                       (isWChar) ? (int)(MIN(Size + sizeof(SQLWCHAR), CurrentDBLength) / sizeof(SQLWCHAR)) : 
                       (int)(MIN(Size + 1, CurrentDBLength)),
@@ -555,16 +567,20 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   MADB_CLEAR_ERROR(&Connection->Error);
 
-  if (!(Connection->mariadb= mysql_init(NULL)))
+  if (Connection->mariadb == NULL)
   {
-    MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
-    goto end;
+    if (!(Connection->mariadb= mysql_init(NULL)))
+    {
+      MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
+      goto end;
+    }
   }
 
   if( !MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
   {
     mysql_options(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
+
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
      for unicode connections we use utf8
@@ -844,9 +860,11 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_CONVERT_CHAR:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
     break;
+#ifdef SQL_CONVERT_GUID
   case SQL_CONVERT_GUID:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
+#endif
   case SQL_CONVERT_DATE:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
     break;

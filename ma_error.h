@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -144,6 +144,7 @@ enum enum_madb_error {
   MADB_ERR_S1107,
   MADB_ERR_S1C00,
 };
+char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error);
 
 void MADB_SetError(MADB_Error *Error, unsigned int SqlErrorCode, char *SqlErrorMsg, unsigned int NativeError);
 void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr);
@@ -160,9 +161,27 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 
 #define MADB_CLEAR_ERROR(a) \
   strcpy_s((a)->SqlState, SQL_SQLSTATE_SIZE+1, MADB_ErrorList[MADB_ERR_00000].SqlState); \
-  strcpy_s((a)->SqlErrorMsg, 1, ""); \
+  (a)->SqlErrorMsg[(a)->PrefixLen]= 0; \
   (a)->NativeError= 0;\
-  (a)->ReturnValue= SQL_SUCCESS;
+  (a)->ReturnValue= SQL_SUCCESS;\
+  (a)->ErrorNum= 0;
+
+#define MADB_CLEAR_HANDLE_ERROR(handle_type, handle) \
+  switch (handle_type) { \
+  case SQL_HANDLE_ENV: \
+      MADB_CLEAR_ERROR(&((MADB_Env *)Handle)->Error); \
+      break; \
+  case SQL_HANDLE_DBC: \
+      MADB_CLEAR_ERROR(&((MADB_Dbc *)Handle)->Error); \
+      break; \
+  case SQL_HANDLE_STMT:\
+      MADB_CLEAR_ERROR(&((MADB_Stmt *)Handle)->Error); \
+    }
+
+#define MADB_CHECK_HANDLE_CLEAR_ERROR(handle_type, handle) \
+  if (handle == 0) return SQL_INVALID_HANDLE;\
+  MADB_CLEAR_HANDLE_ERROR(handle_type, handle) \
+  
 
 #define MADB_NOT_IMPLEMENTED(HANDLE)\
   MADB_SetError(&(HANDLE)->Error, MADB_ERR_IM001, NULL, 0);\
@@ -170,9 +189,9 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 
 #define MADB_CHECK_ATTRIBUTE(Handle, Attr, ValidAttrs)\
 {\
-  int x=1, ok=0;\
-  while (x <= ValidAttrs[0] != -1 && !ok)\
-    if ((ok = ValidAttrs[x++] == Attr))\
+  SQLULEN x=1, ok=0, my_attr=(SQLULEN)(Attr);\
+  while (x <= ValidAttrs[0] && !ok)\
+    if ((ok= ValidAttrs[x++] == my_attr))\
   if (!ok)\
   {\
     MADB_SetError(&(Handle)->Error,MADB_ERR_HY024, NULL, 0);\

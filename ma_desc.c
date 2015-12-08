@@ -1,6 +1,6 @@
 /************************************************************************************
    Copyright (C) 2013, 2015 MariaDB Corporation AB
-   
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
@@ -77,6 +77,7 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
     return NULL;
 
   Desc->DescType= DescType;
+  MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
   if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
   {

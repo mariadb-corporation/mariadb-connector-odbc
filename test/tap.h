@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2015 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -68,12 +68,39 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 #include <getopt.h>
 #include <time.h>
 #include <assert.h>
-
+/* We need mysql for CHARSET_INFO type and conversion routine */
+#include <mysql.h>
 typedef unsigned int uint;
 
-#include <mysql.h>
+SQLCHAR *my_dsn=        (SQLCHAR *)"test";
+SQLCHAR *my_uid=        (SQLCHAR *)"root";
+SQLCHAR *my_pwd=        (SQLCHAR *)"";
+SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
+SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 1.0";
+SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 
-int tests_planned= 0;
+SQLWCHAR *wdsn;
+SQLWCHAR *wuid;
+SQLWCHAR *wpwd;
+SQLWCHAR *wschema;
+SQLWCHAR *wdrivername;
+SQLWCHAR *wservername;
+SQLWCHAR *wstrport;
+
+unsigned long my_options= 67108866;
+
+SQLHANDLE Env, Connection, Stmt;
+
+unsigned int my_port=        3306;
+char         ma_strport[12]= ";PORT=3306";
+
+/* To use in tests for conversion of strings to (sql)wchar strings */
+SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
+SQLWCHAR *buff_pos= sqlwchar_buff;
+
+CHARSET_INFO  *utf8, *utf16, *utf32;
+
+int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
 
 #define FAIL          0
@@ -132,21 +159,6 @@ void mark_all_tests_normal(MA_ODBC_TESTS *tests)
     return FAIL;\
   }
 
-SQLCHAR *my_dsn= (SQLCHAR *)"test";
-SQLCHAR *my_uid= (SQLCHAR *)"root";
-SQLCHAR *my_pwd= (SQLCHAR *)"";
-SQLCHAR *my_schema= (SQLCHAR *)"odbc_test";
-SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 2.0";
-SQLCHAR *my_servername= (SQLCHAR *)"localhost";
-unsigned long my_options= 67108866;
-
-SQLHANDLE Env, Connection, Stmt;
-
-unsigned int my_port= 3306;
-char ma_strport[12]= ";PORT=3306";
-
-/* To use in tests for conversion of strings to (sql)wchar strings */
-SQLWCHAR sqlwchar_buff[1024], sqlwchar_empty[]= {0};
 
 void usage()
 {
@@ -237,8 +249,10 @@ void get_options(int argc, char **argv)
       exit(0);
     }
   }
+
   _snprintf(ma_strport, sizeof(ma_strport), ";PORT=%u", my_port);
 }
+
 
 int myrowcount(SQLHSTMT Stmt)
 {
@@ -248,11 +262,13 @@ int myrowcount(SQLHSTMT Stmt)
   return Rows;
 }
 
+
 #define mystmt(hstmt,r)  \
   do { \
     if (r != SQL_SUCCESS && r != SQL_SUCCESS_WITH_INFO) \
       return FAIL; \
   } while (0)
+
 
 void diag(const char *fstr, ...)
 {
@@ -263,6 +279,7 @@ void diag(const char *fstr, ...)
   va_end(ap);
   fprintf(stdout,"\n");
 }
+
 
 void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
@@ -275,6 +292,36 @@ void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE Handle)
   fprintf(stdout, "[%s] (%d) %s\n", SQLState, NativeError, SQLMessage);
 }
 
+
+char little_endian()
+{
+  int   x= 1;
+  char *c= (char*)&x;
+
+  return *c;
+}
+
+
+/* More or less copy of the function from MariaDB C/C */
+size_t madbtest_convert_string(CHARSET_INFO *from_cs, const char *from, size_t *from_len,
+                               CHARSET_INFO *to_cs, char *to, size_t *to_len, int *errorcode)
+{
+  size_t rc= -1;
+  size_t save_len= *to_len;
+
+  *errorcode= 0;
+
+  if ((rc= mariadb_convert_string(from, from_len, from_cs, to, to_len, to_cs, errorcode)) == -1)
+  {
+    goto error;
+  }
+
+  rc= save_len - *to_len;
+error:
+  return rc;
+}
+
+
 #define MAX_COLUMNS 1000
 
 #define mystmt_rows(hstmt,r, row)  \
@@ -282,6 +329,7 @@ void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE Handle)
 	if (!SQL_SUCCEEDED(r)) \
 	  return row; \
 	} while (0)
+
 
 int my_print_non_format_result(SQLHSTMT Stmt)
 {
@@ -333,6 +381,7 @@ int my_print_non_format_result(SQLHSTMT Stmt)
     return nRowCount;
 }
 
+
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
 if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), strlen(stmtstr)) != SQL_SUCCESS)\
 {\
@@ -379,12 +428,15 @@ do {\
 #define CHECK_ENV_RC(env,rc) CHECK_HANDLE_RC(SQL_HANDLE_ENV,env,rc)
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
+#define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
+#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF(strncmp((A), (B), (C)) != 0, "String comparison failed")
+
 #define is_num(A,B) \
 do {\
   long long local_a= (long long)(A), local_b= (long long)(B);\
   if (local_a != local_b)\
   {\
-    diag("%s %d: expected value %lld instead of %lld", __FILE__, __LINE__, local_a, local_b);\
+    diag("%s %d: %s(%lld)!=%s(%lld)", __FILE__, __LINE__, #A, local_a, #B, local_b);\
     return FAIL;\
   }\
 } while(0)
@@ -425,32 +477,6 @@ int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
   check_sqlstate_ex((stmt), SQL_HANDLE_STMT, (sqlstate))
 
 
-#define is_wstr(a, b, c) \
-  if (sqlwcharcmp(a,b,c) != 0)\
-  {\
-    diag("Comparison failed in %s line %d", __FILE__, __LINE__);\
-    return FAIL;\
-  }
-
-wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
-{
-  static wchar_t buff[2048];
-  wchar_t *to= buff;
-
-  if (sizeof(wchar_t) == sizeof(SQLWCHAR))
-    return (wchar_t *)in;
-/*
-  for ( ; *in && to < buff + sizeof(buff) - 2; in++)
-    to+= utf16toutf32((UTF16 *)in, (UTF32 *)to);
-
-  *to= L'\0';
-  */
-  return buff;
-}
-
-#define W(A) A
-#define WL(A,B) A
-
 SQLWCHAR *my_fetch_wstr(SQLHSTMT Stmt, SQLWCHAR *buffer, SQLUSMALLINT icol, SQLLEN Length)
 {
   SQLRETURN rc;
@@ -477,7 +503,6 @@ const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData,SQLUSMALLINT icol)
     return((const char *)szData);
 }
 
-#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF(strncmp((A), (B), (C)) != 0, "String comparison failed")
 
 int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 {
@@ -506,7 +531,6 @@ int using_dm(HDBC hdbc)
   return 1;
 }
 
-#define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
 
 int mydrvconnect(SQLHENV *henv, SQLHDBC *hdbc, SQLHSTMT *hstmt, SQLCHAR *connIn)
 {
@@ -560,11 +584,14 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
            "********", my_port, my_schema, my_options, my_servername);
   
-  rc= SQLDriverConnect(*Connection,NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
+  rc= SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
   FAIL_IF(rc != SQL_SUCCESS, "Connection failed");
 
-  rc= SQLAllocHandle(SQL_HANDLE_STMT, *Connection, Stmt);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate statement handle");
+  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, *Connection, Stmt)))
+  {
+    diag("Could not create Stmt handle. Connection: %x(%d)", Connection, rc);
+    return FAIL;
+  }
 
   rc= SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &Stmt1);
   FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate statement handle");
@@ -597,42 +624,6 @@ void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
     SQLFreeHandle(SQL_HANDLE_ENV, Env);
   }
 }
-
-#define IS_WSTR(a, b, c) \
-do { \
-  SQLWCHAR *val_a= (a), *val_b= (b); \
-  int val_len= (int)(c); \
-  if (memcmp(val_a, val_b, val_len * sizeof(SQLWCHAR)) != 0) { \
-    printf("# %s ('%*ls') != '%*ls' in %s on line %d", \
-           #a, val_len, val_a, val_len, val_b, __FILE__, __LINE__); \
-    printf("\n"); \
-    return FAIL; \
-  } \
-} while (0);
-
-
-/**
- Helper for converting a (char *) to a (SQLWCHAR *)
- It has to be used with caution - it's easy to leak memory with it
-*/
-#define WC(string) dup_char_as_sqlwchar((string))
-
-
-/**
-  Convert a char * to a SQLWCHAR *. New space is allocated and never freed.
-  Because this is used in short-lived test programs, this is okay, if not
-  ideal.
-*/
-SQLWCHAR *dup_char_as_sqlwchar(SQLCHAR *from)
-{
-  SQLWCHAR *to= malloc((strlen((char *)from) + 1) * sizeof(SQLWCHAR));
-  SQLWCHAR *out= to;
-  while (from && *from)
-    *(to++)= (SQLWCHAR)*(from++);
-  *to= 0;
-  return out;
-}
-
 
 struct st_ma_server_variable
 {
@@ -683,11 +674,30 @@ int reset_changed_server_variables(void)
   return error;
 }
 
+SQLWCHAR * str2sqlwchar_on_gbuff(char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
 
 int run_tests(MA_ODBC_TESTS *tests)
 {
   int         rc, i=1, failed=0;
   const char *comment;
+  SQLWCHAR   *buff_before_test;
+
+  utf8= mysql_get_charset_by_name("utf8");
+  utf16= mysql_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
+  utf32= mysql_get_charset_by_name(little_endian() ? "utf32" : "utf32");
+  if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
+  {
+    fprintf(stdout, "HALT! Could not load charset info %0x %0x %0x\n", utf8, utf16, utf32);
+    return 1;
+  }
+
+  wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, utf16);
+  wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, utf16);
+  wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, utf16);
+  wschema=     str2sqlwchar_on_gbuff(my_schema,     strlen(my_schema) + 1,     utf8, utf16);
+  wservername= str2sqlwchar_on_gbuff(my_servername, strlen(my_servername) + 1, utf8, utf16);
+  wdrivername= str2sqlwchar_on_gbuff(my_drivername, strlen(my_drivername) + 1, utf8, utf16);
+  wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, utf16);
 
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
@@ -699,6 +709,8 @@ int run_tests(MA_ODBC_TESTS *tests)
   fprintf(stdout, "1..%d\n", tests_planned);
   while (tests->title)
   {
+    buff_before_test= buff_pos;
+
     rc= tests->my_test();
     comment= "";
     if (rc!= SKIP && tests->test_type != NORMAL)
@@ -719,11 +731,14 @@ int run_tests(MA_ODBC_TESTS *tests)
       fprintf(stdout, "HALT! An error occurred while tried to reset server variables changed by the test!\n");
     }
 
+    buff_pos= buff_before_test;
+    *buff_pos= 0;
     SQLFreeStmt(Stmt, SQL_DROP);
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
     fflush(stdout);
   }
+
   ODBC_Disconnect(Env,Connection,Stmt);
   if (failed)
     return 1;
@@ -802,7 +817,44 @@ int set_variable(int global, const char * var_name, int value)
   return OK;
 }
 
+void printHex(char *str, int len)
+{
+  int i;
+  for (i= 0; i<len; ++i)
+  {
+    printf("%02hhx", str[i]);
+  }
+}
 
+#define IS_WSTR(a, b, c) \
+do { \
+  SQLWCHAR *val_a= (SQLWCHAR*)(a), *val_b= (SQLWCHAR*)(b); \
+  int val_len= (int)(c); \
+  if (memcmp(val_a, val_b, val_len * sizeof(SQLWCHAR)) != 0) { \
+    printf("#%s('", #a); \
+    printHex((char*)val_a, val_len*sizeof(SQLWCHAR)); \
+    printf("') != %s('", #b); \
+    printHex((char*)val_b, val_len*sizeof(SQLWCHAR)); \
+    printf("') in %s on line %d", __FILE__, __LINE__); \
+    printf("\n"); \
+    return FAIL;\
+  } \
+} while (0);
+
+
+
+SQLWCHAR *dup_char_as_sqlwchar(SQLCHAR *from)
+{
+  SQLWCHAR *to= malloc((strlen((char *)from) + 1) * sizeof(SQLWCHAR));
+  SQLWCHAR *out= to;
+  while (from && *from)
+    *(to++)= (SQLWCHAR)*(from++);
+  *to= 0;
+  return out;
+}
+
+
+/* It can be utf8 or something, but the function does not recode to utf16 - simply copies each byte to SQLWCHAR */
 SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 {
   SQLWCHAR *res= buffer;
@@ -822,7 +874,86 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
   return res;
 }
 
+/**
+  @len[in] - length of the source string in bytes, including teminating NULL
+ */
+SQLWCHAR * str2sqlwchar_on_gbuff(char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  SQLWCHAR *res= buff_pos;
+  size_t rc, buff_size= sqlwchar_buff + sizeof(sqlwchar_buff) - buff_pos;
+  int    error;
+  char   *src= str;
+
+  if (len > buff_size/sizeof(SQLWCHAR))
+  {
+    /* That should not normally happen, but happened. Size of buffer has to be adjusted. */
+    diag("NOTE: Global buffer for strings conversion is exhausted. The string will be truncated and the test will probably fail because of that");
+    diag("Adjust buffer size and re-compile test. Otherwise using of shorter uid/pwd/dsn etc may help");
+
+    return sqlwchar_empty;
+  }
+
+  rc= madbtest_convert_string(from_cs, src, &len, to_cs, (char*)buff_pos, &buff_size, &error);
+
+  if (rc != (size_t)(-1))
+  {
+    buff_pos+= rc/sizeof(SQLWCHAR);
+  }
+  else
+  {
+    return sqlwchar_empty;
+  }
+  return res;
+}
+
+
+SQLINTEGER SqlwcsLen(SQLWCHAR *str)
+{
+  SQLINTEGER result= 0;
+
+  if (str)
+  {
+    while (*str)
+    {
+      ++result;
+      ++str;
+    }
+  }
+  return result;
+}
+
+
+wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
+{
+  static wchar_t buff[2048];
+  char *to= (char *)buff;
+
+  if (sizeof(wchar_t) == sizeof(SQLWCHAR))
+    return (wchar_t *)in;
+  else
+  {
+    size_t len= (SqlwcsLen(in) + 1)*sizeof(SQLWCHAR);
+    int    error;
+    size_t buff_size=  sizeof(buff);
+
+    madbtest_convert_string(utf16, (char*)in, &len, utf32, to, &buff_size, &error);
+  }
+  
+  return buff;
+}
+
 #define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
+#define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
+/* Wchar_t(utf32) to sqlWchar */
+#define WW(A) WL(L##A,wcslen(L##A))
+/* Pretty much the same as WW, but expects that L string */
+#define W(A) WL(A,wcslen(A))
+/**
+ Helper for converting a (char *) to a (SQLWCHAR *)
+*/
+/*#define WC(string) dup_char_as_sqlwchar((string))*/
+/* Char(utf8) to slqWchar */
+#define CW(str) str2sqlwchar_on_gbuff(str, strlen(str)+1, utf8, utf16)
 
 /* @n[in] - number of characters to compare. Negative means treating of strings as null-terminated */
 int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)

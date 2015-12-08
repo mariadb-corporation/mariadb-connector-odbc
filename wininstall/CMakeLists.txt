@@ -3,7 +3,6 @@ SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/wininstall)
 MESSAGE(STATUS "BINARY_DIR ${ODBC_BINARY_DIR}")
 
 
-
 # Get revision number
 IF(WITH_REVNO)
   EXECUTE_PROCESS(COMMAND git log HEAD^^..HEAD
@@ -12,6 +11,7 @@ IF(WITH_REVNO)
   STRING(REPLACE "commit " "" revno ${revno})
   STRING(REPLACE "\n" "" revno ${revno})
 ENDIF()
+
 IF(NOT WIX_DIR)
   SET(WIX_DIR "$ENV{WIX}/bin/")
   MESSAGE(STATUS "WiX directory: ${WIX_DIR}")

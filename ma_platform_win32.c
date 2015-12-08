@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014 SkySQL AB
+   Copyright (C) 2014,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -69,7 +69,7 @@ int DSNPrompt_Free(MADB_Prompt *prompt)
 {
   if (prompt->LibraryHandle != NULL)
   {
-    FreeLibrary(prompt->LibraryHandle);
+    FreeLibrary((HMODULE)prompt->LibraryHandle);
   }
   prompt->LibraryHandle= NULL;
   prompt->Call= NULL;

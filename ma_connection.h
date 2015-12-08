@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2015 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -49,7 +49,7 @@ struct st_ma_connection_methods
 my_bool CheckConnection(MADB_Dbc *Dbc);
 
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
-MADB_Dbc * MADB_DbcInit(SQLHANDLE Env);
+MADB_Dbc * MADB_DbcInit(MADB_Env *Env);
 SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 
