@@ -434,26 +434,33 @@ ODBC_TEST(t_bug16235)
 */
 ODBC_TEST(t_bug27862_1)
 {
-  SQLLEN len;
+  SQLHDBC  hdbc1;
+  SQLHSTMT hstmt1;
+  SQLLEN   len;
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug27862");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug27862 (a VARCHAR(2), b VARCHAR(2)) charset latin1");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug27862 VALUES ('a','b')");
+  AllocEnvConn(&Env, &hdbc1);
+  hstmt1= ConnectWithCharset(&hdbc1, "latin1", NULL); /* We need to make sure that the charset used for connection is not multibyte */
 
-  OK_SIMPLE_STMT(Stmt, "SELECT CONCAT(a,b) FROM t_bug27862");
+  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_bug27862");
+  OK_SIMPLE_STMT(hstmt1, "CREATE TABLE t_bug27862 (a VARCHAR(2), b VARCHAR(2)) charset latin1");
+  OK_SIMPLE_STMT(hstmt1, "INSERT INTO t_bug27862 VALUES ('a','b')");
 
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
+  OK_SIMPLE_STMT(hstmt1, "SELECT CONCAT(a,b) FROM t_bug27862");
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
                                  NULL, &len));
   is_num(len, 4);
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0,
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_LENGTH, NULL, 0,
                                  NULL, &len));
   is_num(len, 4);
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
   /* Octet length should *not* include terminanting null character according to ODBC specs. This check may fail if multibyte charset is used for connection */
   is_num(len, 4);
 
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug27862");
 
@@ -672,9 +679,9 @@ ODBC_TEST(t_bug32171)
 ODBC_TEST(sqlwchar)
 {
   /* Note: this is an SQLCHAR, so it is 'ANSI' data. */
-  SQLCHAR data[]= "S\xe3o Paolo", buff[30];
+  SQLCHAR data[]= "S\xe3o Paulo", buff[30];
   SQLWCHAR wbuff[30]= {0};
-  SQLWCHAR wcdata[]= {'S','\x00e3', 'o', 'P', 'a', 'o', 'l', 'o'};
+  SQLWCHAR wcdata[]= {'S','\x00e3', 'o', 'P', 'a', 'u', 'l', 'o'};
 
   diag(data);
 
@@ -701,11 +708,10 @@ ODBC_TEST(sqlwchar)
   OK_SIMPLE_STMT(Stmt, "SELECT HEX(a) FROM t_sqlwchar");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
-  diag(" my_fetch_str: %s", "53C3A36F2050616F6C6F");
-  IS_STR(my_fetch_str(Stmt, buff, 1), "53C3A36F2050616F6C6F", 20);
+  IS_STR(my_fetch_str(Stmt, buff, 1), "53C3A36F205061756C6F", 20);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
-  IS_STR(my_fetch_str(Stmt, buff, 1), "53C3A36F2050616F6C6F", 20);
+  IS_STR(my_fetch_str(Stmt, buff, 1), "53C3A36F205061756C6F", 20);
   
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected EOF");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1080,8 +1086,6 @@ ODBC_TEST(t_bug29402)
 {
   SQLSMALLINT name_length, data_type, decimal_digits, nullable;
   SQLCHAR     column_name[SQL_MAX_COLUMN_NAME_LEN];
-  SQLCHAR     conn[512], conn_out[512];
-  SQLSMALLINT conn_out_len;
   SQLULEN     column_size;
   //SQLCHAR     buf[80]= {0};
   SQLTCHAR    wbuf[80];
@@ -1090,18 +1094,12 @@ ODBC_TEST(t_bug29402)
   SQLHSTMT    hstmt1;
   const SQLCHAR *expected= "\x80""100";
 
-  CHECK_HANDLE_RC(SQL_HANDLE_ENV, Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
+  IS(AllocEnvConn(&Env, &hdbc1));
 
-  /* First check how the option NO_BINARY_RESULT works */
-  sprintf((char *)conn, 
-          "DSN=%s;UID=%s;PWD=%s;NO_BINARY_RESULT=1;CHARSET=cp1250",
-          my_dsn, my_uid, my_pwd);
+  /* We don't have NO_BINARY_RESULT option, and not clear atm if we need it */
+  hstmt1= ConnectWithCharset(&hdbc1, "cp1250", NULL);
 
-  CHECK_HANDLE_RC(SQL_HANDLE_DBC, hdbc1, SQLDriverConnect(hdbc1, NULL, conn, SQL_NTS, conn_out,
-                                 sizeof(conn_out), &conn_out_len,
-                                 SQL_DRIVER_NOPROMPT));
-
-  CHECK_HANDLE_RC(SQL_HANDLE_DBC, hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
+  FAIL_IF(hstmt1 == NULL, "");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, CW("SELECT CONCAT(_cp1250 0x80, 100) concated"), SQL_NTS));
 
@@ -1131,6 +1129,7 @@ ODBC_TEST(t_bug29402)
   CHECK_HANDLE_RC(SQL_HANDLE_DBC, hdbc1, SQLDisconnect(hdbc1));
   CHECK_HANDLE_RC(SQL_HANDLE_DBC, hdbc1, SQLFreeConnect(hdbc1));
 
+#ifdef FLAG_NO_BINARY_RESULT
   /* Check without FLAG_NO_BINARY_RESULT */
   OK_SIMPLE_STMT(Stmt, "SELECT CONCAT('\x80', 100) concated");
 
@@ -1138,21 +1137,13 @@ ODBC_TEST(t_bug29402)
                                 &name_length, &data_type, &column_size,
                                 &decimal_digits, &nullable));
 
-  /* Fixed in 5.5(tested in 5.5.9), result's type is SQL_VARCHAR */
-  if (1)
+  /* Depending on server default charset it can be either SQL_VARCHAR or
+      SQL_WVARCHAR. Wee are fine to know if the data_type is one of those */
+  if(data_type != SQL_VARCHAR && data_type != SQL_WVARCHAR)
   {
-    /* Depending on server default charset it can be either SQL_VARCHAR or
-       SQL_WVARCHAR. Wee are fine to know if the data_type is one of those */
-    if(data_type != SQL_VARCHAR && data_type != SQL_WVARCHAR)
-    {
-      return FAIL;
-    }
+    return FAIL;
   }
-  else
-  {
-    diag("Server version is <=5.1");
-    is_num(data_type, SQL_VARBINARY);
-  }
+#endif
 
   return OK;
 }

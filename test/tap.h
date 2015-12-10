@@ -556,40 +556,68 @@ int mydrvconnect(SQLHENV *henv, SQLHDBC *hdbc, SQLHSTMT *hstmt, SQLCHAR *connIn)
 }
 
 
+int AllocEnvConn(SQLHANDLE *Env, SQLHANDLE *Connection)
+{
+  if (*Env == NULL)
+  {
+    FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, NULL, Env)), "Couldn't allocate environment handle");
+
+    FAIL_IF(!SQL_SUCCEEDED(SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0)), "Couldn't set ODBC version");
+  }
+  FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection)), "Couldn't allocate connection handle");
+
+  return OK;
+}
+
+
+/* Returns STMT handle for newly created connection, or NULL if connection is unsuccessful */
+SQLHANDLE DoConnect(SQLHANDLE *Connection,
+                    const char *dsn, const char *uid, const char *pwd, unsigned int port, const char *schema, unsigned long *options, const char *server,
+                    const char *add_parameters)
+{
+  SQLHANDLE   stmt= NULL;
+  char        DSNString[1024];
+  char        DSNOut[1024];
+  SQLSMALLINT Length;
+
+  /* my_options |= 4; */ /* To enable debug */
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
+           pwd ? pwd : my_pwd, port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+           add_parameters ? add_parameters : "");
+  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
+           "********", port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+           add_parameters ? add_parameters : "");
+  
+  if(!SQL_SUCCEEDED(SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
+  {
+    diag("Connection failed");
+    return NULL;
+  }
+
+  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &stmt)))
+  {
+    diag("Could not create Stmt handle. Connection: %x", Connection);
+    return NULL;
+  }
+
+  return stmt;
+}
+
 int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 {
-  SQLRETURN rc;
-  char buffer[100];
-  char DSNString[1024];
-  char DSNOut[1024];
-  SQLSMALLINT Length;
-  SQLHANDLE Stmt1;
+  SQLRETURN   rc;
+  char        buffer[100];
+  SQLHANDLE   Stmt1;
 
   *Env=         NULL;
   *Connection=  NULL;
-  *Stmt=        NULL;
 
-  rc= SQLAllocHandle(SQL_HANDLE_ENV, NULL, Env);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate environment handle");
-  rc= SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION,
-                              (SQLPOINTER)SQL_OV_ODBC3, 0);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't set ODBC version");
+  IS(AllocEnvConn(Env, Connection));
 
-  rc= SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate connection handle");
+  *Stmt= DoConnect(Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
-  /* my_options |= 4; */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
-           my_pwd, my_port, my_schema, my_options, my_servername);
-  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
-           "********", my_port, my_schema, my_options, my_servername);
-  
-  rc= SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
-  FAIL_IF(rc != SQL_SUCCESS, "Connection failed");
-
-  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, *Connection, Stmt)))
+  if (Stmt == NULL)
   {
-    diag("Could not create Stmt handle. Connection: %x(%d)", Connection, rc);
     return FAIL;
   }
 
@@ -624,6 +652,17 @@ void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
     SQLFreeHandle(SQL_HANDLE_ENV, Env);
   }
 }
+
+
+SQLHANDLE ConnectWithCharset(SQLHANDLE *conn, const char *charset_name, const char *add_parameters)
+{
+  char charset_clause[64];
+
+  _snprintf(charset_clause, sizeof(charset_clause), "CHARSET=%s;%s", charset_name, add_parameters ? add_parameters : "");
+
+  return DoConnect(conn, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
+}
+
 
 struct st_ma_server_variable
 {
