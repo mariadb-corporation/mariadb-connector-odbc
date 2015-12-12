@@ -664,8 +664,8 @@ ODBC_TEST(t_bug30840)
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, (HWND)HWND_DESKTOP, conn, strlen(conn),
-                                 conn_out, sizeof(conn_out), &conn_out_len,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, (HWND)HWND_DESKTOP, conn, (SQLSMALLINT)strlen(conn),
+                                 conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_PROMPT));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -942,28 +942,34 @@ ODBC_TEST(t_bug32014)
 
     /*Checking that correct cursor type is set*/
 
-    CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE
-            , SQL_CURSOR_FORWARD_ONLY ));
-    CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &attr));
+    CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE
+            , (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 0));
+    CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER) &attr, 0, NULL));
     is_num(attr, expectedCurType[i][SQL_CURSOR_FORWARD_ONLY]);
 
-    CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            SQL_CURSOR_KEYSET_DRIVEN ));
-    CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &attr));
+    CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER)SQL_CURSOR_KEYSET_DRIVEN, 0));
+    CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER) &attr, 0, NULL));
     is_num(attr, expectedCurType[i][SQL_CURSOR_KEYSET_DRIVEN]);
 
-    CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            SQL_CURSOR_DYNAMIC ));
-    CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &attr));
+    CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
+    CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER) &attr, 0, NULL));
     is_num(attr, expectedCurType[i][SQL_CURSOR_DYNAMIC]);
 
+    /* SQLSet/GetOption are deprecated in favour of SQLSet/GetAttr
+       Leaving one just to make sure we don't have problem with old apps,
+       but disabling possible warning */
+#pragma warning(disable: 4996)
+#pragma warning(push)
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_STATIC ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             (SQLPOINTER) &attr));
+#pragma warning(pop)
     is_num(attr, expectedCurType[i][SQL_CURSOR_STATIC]);
 
     ODBC_Disconnect(henv1, hdbc1, hstmt1);

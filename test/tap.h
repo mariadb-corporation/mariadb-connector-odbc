@@ -726,7 +726,7 @@ int run_tests(MA_ODBC_TESTS *tests)
   utf32= mysql_get_charset_by_name(little_endian() ? "utf32" : "utf32");
   if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
   {
-    fprintf(stdout, "HALT! Could not load charset info %0x %0x %0x\n", utf8, utf16, utf32);
+    fprintf(stdout, "HALT! Could not load charset info %p %p %p\n", utf8, utf16, utf32);
     return 1;
   }
 

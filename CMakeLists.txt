@@ -87,6 +87,13 @@ IF(WIN32)
 
   SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
   SET(PLATFORM_DEPENDENCIES ws2_32)
+  IF (MSVC)
+    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
+    IF (MSVC_VERSION EQUAL 1900)
+      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions") 
+      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} legacy_stdio_definitions)
+    ENDIF()
+  ENDIF()
 ELSE()
   SEARCH_LIBRARY(LIB_MATH floor m)
   SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
@@ -222,6 +229,22 @@ CPackConfig.cmake
 Makefile$
 /autom4te.cache/
 )
+
+# Build source packages
+IF(GIT_BUILD_SRCPKG)
+  # get branch name
+  EXECUTE_PROCESS(COMMAND git show-branch OUTPUT_VARIABLE git_branch)
+  STRING(REGEX MATCH "\\[([^]]+)\\]" git_branch ${git_branch})
+  STRING(REGEX REPLACE "\\[|\\]" "" GIT_BRANCH ${git_branch})
+  MESSAGE(STATUS "${GIT_BRANCH}")
+  IF(WIN32)
+    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip)
+  ELSE()
+    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip)
+    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
+    EXECUTE_PROCESS(COMMAND gzip -9 -f ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
+  ENDIF()
+ENDIF()
 
 IF(WIN32)
   SET(DEFAULT_GENERATOR "ZIP")
