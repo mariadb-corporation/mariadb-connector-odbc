@@ -751,7 +751,6 @@ SQLRETURN MADB_DbcGetFunctions(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALL
 }
 /* }}} */
 
-
 /* {{{ MADB_DbcGetInfo */
 SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                           SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, my_bool isWChar)

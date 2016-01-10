@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -431,7 +431,7 @@ ODBC_TEST(t_putdata3)
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_putdata3 (id INT, id1 INT, id2 INT, id3 INT, b BLOB)");
 
-  CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt, (SQLCHAR *)
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)
                             "INSERT INTO t_putdata3 VALUES (?, ?, ?, ?, ?)",
                             SQL_NTS));
 
@@ -480,6 +480,7 @@ ODBC_TEST(t_putdata3)
 
       if (SQLParamData(Stmt, &parameter) == SQL_ERROR)
       {
+        return FAIL;
       }
     }
   } /* end if (rc == SQL_NEED_DATA) */
@@ -842,6 +843,64 @@ ODBC_TEST(t_bug_11746572)
 }
 
 
+ODBC_TEST(t_odbc_26)
+{
+  SQLLEN     valueLen;
+  SQLWCHAR   buffer[]= {'b', 'b', 0};
+  SQLCHAR    value[3];
+  SQLPOINTER parameter;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug_odbc26");
+  OK_SIMPLE_STMT(Stmt,
+         "CREATE TABLE bug_odbc26 (id INT unsigned not null primary key auto_increment, value VARCHAR(300))");
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)
+                            "INSERT INTO bug_odbc26(value) VALUES (?)",
+                            SQL_NTS));
+
+  valueLen= SQL_LEN_DATA_AT_EXEC(4);
+
+  CHECK_STMT_RC(Stmt,  SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR,
+                                  SQL_VARCHAR, 0, 0, (SQLPOINTER)1, 0, &valueLen));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_NEED_DATA);
+  EXPECT_STMT(Stmt, SQLParamData(Stmt, &parameter), SQL_NEED_DATA);
+  is_num(parameter, 1);
+
+  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 4));
+  CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &parameter));
+
+  /* We return "N" for SQL_NEED_LONG_DATA_LEN, and this not gonna change. Thus SQL_LEN_DATA_AT_EXEC(0) and with any other parameter should work */
+  valueLen= SQL_LEN_DATA_AT_EXEC(0);
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_NEED_DATA);
+
+  EXPECT_STMT(Stmt, SQLParamData(Stmt, &parameter), SQL_NEED_DATA);
+  is_num(parameter, 1);
+
+  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 4));
+  CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &parameter));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT value FROM bug_odbc26");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, value, sizeof(value), &valueLen));
+  is_num(valueLen, 2);
+  IS_STR(value, "bb", 3);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, value, sizeof(value), &valueLen));
+  is_num(valueLen, 2);
+  IS_STR(value, "bb", 3);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug_odbc26");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_blob, "t_blob"},
@@ -855,6 +914,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug9781, "t_bug9781"},
   {t_bug10562, "t_bug10562"},
   {t_bug_11746572, "t_bug_11746572"},
+  {t_odbc_26, "t_odbc_26"},
   {NULL, NULL}
 };
 

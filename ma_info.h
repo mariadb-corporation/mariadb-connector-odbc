@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013, 2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -43,17 +43,8 @@ typedef struct
   SQLSMALLINT SqlDataType;
 } MADB_TypeInfo;
 
-SQLRETURN MADB_Info_Get(SQLHDBC ConnectionHandle,
-                        SQLUSMALLINT InfoType,
-                        SQLPOINTER InfoValuePtr,
-                        SQLSMALLINT BufferLength,
-                        SQLSMALLINT *StringLengthPtr);
 
 SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
                            SQLSMALLINT DataType);
-
-
-
-
 
 #endif /* _ma_info_h_ */
