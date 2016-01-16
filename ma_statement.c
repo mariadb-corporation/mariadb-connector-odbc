@@ -128,13 +128,12 @@ SQLRETURN MADB_StmtBulkOperations(MADB_Stmt *Stmt, SQLSMALLINT Operation)
 SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength)
 {
   SQLRETURN ret;
-  
-  if (TextLength == SQL_NTS)
-    TextLength= strlen(StatementText);
+
   ret= Stmt->Methods->Prepare(Stmt, StatementText, TextLength);
   /* In case statement is not supported, we use mysql_query instead */
-  if (!SQL_SUCCEEDED(ret) )
+  if (!SQL_SUCCEEDED(ret))
   {
+    /* This is not quite good - 1064 may simply mean that syntax is wrong. we are screwed then */
     if (Stmt->Error.NativeError == 1295 || Stmt->Error.NativeError == 1064)
     {
       Stmt->EmulatedStmt= TRUE;
@@ -209,6 +208,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   Stmt->EmulatedStmt= FALSE;
   RESET_DAE_STATUS(Stmt);
 
+  /* After this point we can't have SQL_NTS*/
   ADJUST_LENGTH(StatementText, TextLength);
 
   Stmt->PositionedCursor= NULL;
@@ -252,8 +252,9 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "SQL command SET NAMES is not allowed", 0);
     return Stmt->Error.ReturnValue;
   }
-  p= my_strndup(StatementText, TextLength != SQL_NTS ? TextLength : strlen(StatementText), MYF(0));
+  p= my_strndup(StatementText, TextLength, MYF(0));
   Stmt->StmtString= _strdup(trim(p));
+  TextLength= strlen(Stmt->StmtString);
   MADB_FREE(p);
   if (Stmt->Tokens)
     MADB_FreeTokens(Stmt->Tokens);
@@ -313,8 +314,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   }
 
   LOCK_MARIADB(Stmt->Connection);
-  if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, 
-                         TextLength == SQL_NTS ? strlen(Stmt->StmtString) : TextLength))
+  if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, TextLength))
   {
     /* Need to save error first */
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
