@@ -1564,8 +1564,8 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   if (Dsn->DSNName)
     MADB_ReadDSN(Dsn, NULL, FALSE);
     
-  /* if DSN prompt is off, adjust DriverCompletion */
-  if (Dsn->ConnectPrompt)
+  /* if DSN prompt is off, adjust DriverCompletion. TODO: Probably ConnectPrompt should be set automatically, if corresponding bit is set in OPTIONS */
+  if (Dsn->ConnectPrompt || DSN_OPTION(Dsn,MADB_OPT_FLAG_NO_PROMPT))
     DriverCompletion= SQL_DRIVER_NOPROMPT;
 
   switch (DriverCompletion) {

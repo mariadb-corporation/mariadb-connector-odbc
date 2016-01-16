@@ -20,44 +20,44 @@
 
 MADB_DsnKey DsnKeys[]=
 {
-  {"DSN", offsetof(MADB_Dsn, DSNName), DSN_TYPE_STRING,0,0},
-  {"DESCRIPTION", offsetof(MADB_Dsn, Description), DSN_TYPE_STRING, 0,0},
-  {"DRIVER", offsetof(MADB_Dsn, Driver), DSN_TYPE_STRING, 0,0},
-  {"NamedPipe", offsetof(MADB_Dsn, IsNamedPipe), DSN_TYPE_OPTION,MADB_OPT_FLAG_NAMED_PIPE,1},
-  {"TCPIP", offsetof(MADB_Dsn, IsTcpIp), DSN_TYPE_BOOL,0,0},
-  {"SERVER", offsetof(MADB_Dsn, ServerName), DSN_TYPE_STRING,0,0},
-  {"UID", offsetof(MADB_Dsn, UserName), DSN_TYPE_STRING,0,0},
-  {"PWD", offsetof(MADB_Dsn, Password), DSN_TYPE_STRING,0,0},
-  {"DATABASE", offsetof(MADB_Dsn, Catalog), DSN_TYPE_COMBO,0,0},
-  {"PORT", offsetof(MADB_Dsn, Port), DSN_TYPE_INT,0,0},
-  {"INITSTMT", offsetof(MADB_Dsn, InitCommand), DSN_TYPE_STRING,0,0},
-  {"CONN_TIMEOUT", offsetof(MADB_Dsn, ConnectionTimeout), DSN_TYPE_INT,0,0},
-  {"AUTO_RECONNECT", offsetof(MADB_Dsn, Reconnect), DSN_TYPE_OPTION,MADB_OPT_FLAG_AUTO_RECONNECT,0},
-  {"NO_PROMPT", offsetof(MADB_Dsn, ConnectPrompt), DSN_TYPE_OPTION,MADB_OPT_FLAG_NO_PROMPT,0},
-  {"CHARSET", offsetof(MADB_Dsn, CharacterSet), DSN_TYPE_COMBO,0,0},
-  {"OPTIONS", offsetof(MADB_Dsn, Options), DSN_TYPE_INT, 0,0},
-  {"TRACE", offsetof(MADB_Dsn, TraceFile), DSN_TYPE_STRING, 0, 0},
-  {"PLUGIN_DIR", offsetof(MADB_Dsn, ConnCPluginsDir), DSN_TYPE_STRING,0,1},
+  {"DSN",            offsetof(MADB_Dsn, DSNName),           DSN_TYPE_STRING, 0,0},
+  {"DESCRIPTION",    offsetof(MADB_Dsn, Description),       DSN_TYPE_STRING, 0,0},
+  {"DRIVER",         offsetof(MADB_Dsn, Driver),            DSN_TYPE_STRING, 0,0},
+  {"NamedPipe",      offsetof(MADB_Dsn, IsNamedPipe),       DSN_TYPE_OPTION, MADB_OPT_FLAG_NAMED_PIPE,1},
+  {"TCPIP",          offsetof(MADB_Dsn, IsTcpIp),           DSN_TYPE_BOOL,   0,0},
+  {"SERVER",         offsetof(MADB_Dsn, ServerName),        DSN_TYPE_STRING, 0,0},
+  {"UID",            offsetof(MADB_Dsn, UserName),          DSN_TYPE_STRING, 0,0},
+  {"PWD",            offsetof(MADB_Dsn, Password),          DSN_TYPE_STRING, 0,0},
+  {"DATABASE",       offsetof(MADB_Dsn, Catalog),           DSN_TYPE_COMBO,  0,0},
+  {"PORT",           offsetof(MADB_Dsn, Port),              DSN_TYPE_INT,    0,0},
+  {"INITSTMT",       offsetof(MADB_Dsn, InitCommand),       DSN_TYPE_STRING, 0,0},
+  {"CONN_TIMEOUT",   offsetof(MADB_Dsn, ConnectionTimeout), DSN_TYPE_INT,    0,0},
+  {"AUTO_RECONNECT", offsetof(MADB_Dsn, Reconnect),         DSN_TYPE_OPTION, MADB_OPT_FLAG_AUTO_RECONNECT,0},
+  {"NO_PROMPT",      offsetof(MADB_Dsn, ConnectPrompt),     DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_PROMPT,0},
+  {"CHARSET",        offsetof(MADB_Dsn, CharacterSet),      DSN_TYPE_COMBO,  0,0},
+  {"OPTIONS",        offsetof(MADB_Dsn, Options),           DSN_TYPE_INT,    0,0},
+  {"TRACE",          offsetof(MADB_Dsn, TraceFile),         DSN_TYPE_STRING, 0, 0},
+  {"PLUGIN_DIR",     offsetof(MADB_Dsn, ConnCPluginsDir),   DSN_TYPE_STRING, 0,1},
   /* SSL */
-  {"SSLKEY", offsetof(MADB_Dsn, SslKey), DSN_TYPE_STRING,0,0},
-  {"SSLCERT", offsetof(MADB_Dsn, SslCert), DSN_TYPE_STRING,0,0},
-  {"SSLCA", offsetof(MADB_Dsn, SslCa), DSN_TYPE_STRING,0,0},
-  {"SSLCAPATH", offsetof(MADB_Dsn, SslCaPath), DSN_TYPE_STRING,0,0},
-  {"SSLCIPHER", offsetof(MADB_Dsn, SslCipher), DSN_TYPE_STRING,0,0},
-  {"SSLVERIFY", offsetof(MADB_Dsn, SslVerify), DSN_TYPE_BOOL,0,0},
-  {"SSLFP", offsetof(MADB_Dsn, SslFp), DSN_TYPE_STRING, 0, 0},
-  {"SSLFPLIST", offsetof(MADB_Dsn, SslFpList), DSN_TYPE_STRING, 0, 0},
-  {"SSLCRL", offsetof(MADB_Dsn, SslCrl), DSN_TYPE_STRING,0,0},
-  {"SSLCRLPATH", offsetof(MADB_Dsn, SslCrlPath), DSN_TYPE_STRING,0,0},
+  {"SSLKEY",         offsetof(MADB_Dsn, SslKey),            DSN_TYPE_STRING, 0,0},
+  {"SSLCERT",        offsetof(MADB_Dsn, SslCert),           DSN_TYPE_STRING, 0,0},
+  {"SSLCA",          offsetof(MADB_Dsn, SslCa),             DSN_TYPE_STRING, 0,0},
+  {"SSLCAPATH",      offsetof(MADB_Dsn, SslCaPath),         DSN_TYPE_STRING, 0,0},
+  {"SSLCIPHER",      offsetof(MADB_Dsn, SslCipher),         DSN_TYPE_STRING, 0,0},
+  {"SSLVERIFY",      offsetof(MADB_Dsn, SslVerify),         DSN_TYPE_BOOL,   0,0},
+  {"SSLFP",          offsetof(MADB_Dsn, SslFp),             DSN_TYPE_STRING, 0, 0},
+  {"SSLFPLIST",      offsetof(MADB_Dsn, SslFpList),         DSN_TYPE_STRING, 0, 0},
+  {"SSLCRL",         offsetof(MADB_Dsn, SslCrl),            DSN_TYPE_STRING, 0,0},
+  {"SSLCRLPATH",     offsetof(MADB_Dsn, SslCrlPath),        DSN_TYPE_STRING, 0,0},
   /* Aliases */
-  {"SERVERNAME", offsetof(MADB_Dsn, ServerName), DSN_TYPE_STRING,0,1},
-  {"USER", offsetof(MADB_Dsn, UserName), DSN_TYPE_STRING,0,1},
-  {"PASSWORD", offsetof(MADB_Dsn, Password), DSN_TYPE_STRING,0,1},
-  {"DB", offsetof(MADB_Dsn, Catalog), DSN_TYPE_COMBO,0,1},
-  {"OPTION", offsetof(MADB_Dsn, Options), DSN_TYPE_INT, 0,1},
+  {"SERVERNAME",     offsetof(MADB_Dsn, ServerName),        DSN_TYPE_STRING, 0,1},
+  {"USER",           offsetof(MADB_Dsn, UserName),          DSN_TYPE_STRING, 0,1},
+  {"PASSWORD",       offsetof(MADB_Dsn, Password),          DSN_TYPE_STRING, 0,1},
+  {"DB",             offsetof(MADB_Dsn, Catalog),           DSN_TYPE_COMBO,  0,1},
+  {"OPTION",         offsetof(MADB_Dsn, Options),           DSN_TYPE_INT,    0,1},
 
-
-  {NULL, 0, DSN_TYPE_BOOL}
+  /* Terminating Null */
+  {NULL, 0, DSN_TYPE_BOOL,0,0}
 };
 
 /* {{{ MADB_Dsn_Init() */
@@ -136,7 +136,13 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, size_t Offset, char *Value, int Type, 
     if (*(int *)((char *)Dsn +Offset) && OverWrite == FALSE)
       break;
      *(int *)((char *)Dsn + Offset)= atoi(Value);
-     break; 
+     break;
+  case DSN_TYPE_OPTION:
+    /* Should we also set corresponding bit in options? Not quite clear, and if yes, then not that simple to do - have to look for options value first before parsing connection string */
+    if (*(my_bool *)((char *)Dsn +Offset) && OverWrite == FALSE)
+      break;
+    *(my_bool *)((char *)Dsn +Offset)= atoi(Value) != 0 ? 1 : 0;
+    break;
   }
   return TRUE;
 }
@@ -150,21 +156,24 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite)
   /* if no key/value pair was specified, we will try to read Dsn->DSNName */
   if (!KeyValue)
   {
-    if (!Dsn->DSNName)
-      return FALSE;
     Value= Dsn->DSNName;
   }
   else 
   {
     if (Value= strchr(KeyValue, '='))
+    {
       ++Value;
+      if (Dsn->DSNName)
+        MADB_FREE(Dsn->DSNName);
+      Dsn->DSNName= _strdup(Value);
+    }
   }
   
   if (Value)
   {
     int i= 1;
     char KeyVal[1024];
-    Dsn->DSNName= _strdup(Value);
+
     while (DsnKeys[i].DsnKey)
     {
       if (SQLGetPrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, "", KeyVal, 1024, "ODBC.INI") > 0)
@@ -195,10 +204,10 @@ my_bool MADB_DSN_Exists(char *DsnName)
 /* {{{ MADB_SaveDSN */
 my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
 {
-  int i= 1;
-  char Value[32];
+  int     i= 1;
+  char    Value[32];
   my_bool ret;
-  DWORD ErrNum;
+  DWORD   ErrNum;
 
   if (!SQLValidDSN(Dsn->DSNName))
   {
@@ -261,8 +270,9 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
 /* {{{ MADB_ParseString */
 my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Delimiter)
 {
-  char *Buffer, *Key, *Value;
+  char    *Buffer, *Key, *Value;
   my_bool ret;
+
   if (!String)
     return FALSE;
 
@@ -270,7 +280,7 @@ my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Del
     Length= strlen(String);
 
   Buffer= _strdup(String);
-  Key= Buffer;
+  Key=    Buffer;
 
   while (Key && Key < ((char *)Buffer + Length))
   {
@@ -303,7 +313,8 @@ my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Del
           *p= 0;
         Value= trim(Value);
 
-        if (!MADB_DsnStoreValue(Dsn, DsnKeys[i].DsnOffset, Value, DsnKeys[i].Type, FALSE))
+        /* Overwriting here - if an option repeated more than once in the string, its last entrance will determine the value */
+        if (!MADB_DsnStoreValue(Dsn, DsnKeys[i].DsnOffset, Value, DsnKeys[i].Type, TRUE))
           return FALSE;
         if (p)
           *p= (special) ? ' ' : ';';
@@ -322,14 +333,14 @@ my_bool MADB_ParseDSNString(MADB_Dsn *Dsn, char *String, size_t Length, char Del
 /* {{{ MADB_DsnToString */
 SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength)
 {
-  int i= 0;
-  SQLSMALLINT TotalLength= 0;
-  char *p= OutString;
-  unsigned long Options= 0;
-  char *Value= NULL;
-  char TmpStr[1024];
-  char IntVal[12];
-  int CpyLength;
+  int           i=           0;
+  SQLSMALLINT   TotalLength= 0;
+  char          *p=          OutString;
+  unsigned long Options=     0;
+  char          *Value=      NULL;
+  char          TmpStr[1024];
+  char          IntVal[12];
+  int           CpyLength;
 
   if (OutLength && OutString)
     OutString[0]= '\0';
@@ -353,7 +364,7 @@ SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLeng
       case DSN_TYPE_OPTION:
         if(*(my_bool *)((char *)Dsn + DsnKeys[i].DsnOffset))
           Options+= DsnKeys[i].FlagValue;
-        /* we save all boolean values in options */
+        /* we save all boolean values in options - where ?!!! */
         Value= NULL; 
         break;
       }
