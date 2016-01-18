@@ -359,7 +359,6 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, BufferLength, d);
   MDBUG_C_DUMP(Stmt->Connection, StringLengthPtr, 0x);
   MDBUG_C_DUMP(Stmt->Connection, NumericAttributePtr, 0x);
-
   
   ret= Stmt->Methods->ColAttribute(Stmt, ColumnNumber, FieldIdentifier, CharacterAttributePtr,
                                      BufferLength, StringLengthPtr, NumericAttributePtr, TRUE);
@@ -367,26 +366,6 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
-
-SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
-{
-  /* we need to map the old field identifiers, see bug ODBC-8 */
-  switch (FieldIdentifier)
-  {
-  case SQL_COLUMN_SCALE:
-    return SQL_DESC_SCALE;
-  case SQL_COLUMN_PRECISION:
-    return SQL_DESC_PRECISION;
-  case SQL_COLUMN_NULLABLE:
-    return SQL_DESC_NULLABLE;
-  case SQL_COLUMN_LENGTH:
-    return SQL_DESC_OCTET_LENGTH;
-  case SQL_COLUMN_NAME:
-    return SQL_DESC_NAME;
-  default:
-    return FieldIdentifier;
-  }
-}
 
 SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt, 
 	SQLUSMALLINT icol,
@@ -396,7 +375,7 @@ SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt,
 	SQLSMALLINT * pcbDesc,
 	SQLLEN * pfDesc)
 {
-  return SQLColAttribute(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
+  return SQLColAttribute(hstmt, icol, fDescType, rgbDesc, cbDescMax, pcbDesc, pfDesc);
 }
 
 SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt, 
@@ -407,9 +386,8 @@ SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt,
 	SQLSMALLINT * pcbDesc,
 	SQLLEN * pfDesc)
 {
-  return SQLColAttributeW(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
+  return SQLColAttributeW(hstmt, icol, fDescType, rgbDesc, cbDescMax, pcbDesc, pfDesc);
 }
-
 
 /* {{{ SQLColumnPrivileges */
 SQLRETURN SQL_API SQLColumnPrivileges(SQLHSTMT StatementHandle,

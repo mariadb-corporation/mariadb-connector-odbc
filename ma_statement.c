@@ -2415,6 +2415,26 @@ SQLRETURN MADB_StmtRowCount(MADB_Stmt *Stmt, SQLLEN *RowCountPtr)
 }
 /* }}} */
 
+SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
+{
+  /* we need to map the old field identifiers, see bug ODBC-8 */
+  switch (FieldIdentifier)
+  {
+  case SQL_COLUMN_SCALE:
+    return SQL_DESC_SCALE;
+  case SQL_COLUMN_PRECISION:
+    return SQL_DESC_PRECISION;
+  case SQL_COLUMN_NULLABLE:
+    return SQL_DESC_NULLABLE;
+  case SQL_COLUMN_LENGTH:
+    return SQL_DESC_OCTET_LENGTH;
+  case SQL_COLUMN_NAME:
+    return SQL_DESC_NAME;
+  default:
+    return FieldIdentifier;
+  }
+}
+
 /* {{{ MADB_StmtRowCount */
 SQLRETURN MADB_StmtParamCount(MADB_Stmt *Stmt, SQLSMALLINT *ParamCountPtr)
 {
@@ -2460,13 +2480,21 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
   }
 
   /* We start at offset zero */
-  ColumnNumber--;
+  --ColumnNumber;
 
   if (!(Record= MADB_DescGetInternalRecord(Stmt->Ird, ColumnNumber, MADB_DESC_READ)))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
+
+  /* Mapping ODBC2 attributes to ODBC3
+     TODO: it looks like it takes more than that 
+     "In ODBC 3.x driver must support SQL_COLUMN_PRECISION and SQL_DESC_PRECISION, SQL_COLUMN_SCALE and SQL_DESC_SCALE,
+     and SQL_COLUMN_LENGTH and SQL_DESC_LENGTH. These values are different because precision, scale, and length are defined
+     differently in ODBC 3.x than they were in ODBC 2.x."
+     */
+  FieldIdentifier= MapColAttributeDescType(FieldIdentifier);
 
   switch(FieldIdentifier) {
   case SQL_DESC_AUTO_UNIQUE_VALUE:
