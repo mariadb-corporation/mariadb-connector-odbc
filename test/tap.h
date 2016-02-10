@@ -429,7 +429,7 @@ do {\
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
-#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF(strncmp((A), (B), (C)) != 0, "String comparison failed")
+#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF((A) == NULL || (B) == NULL || strncmp((A), (B), (C)) != 0, "String comparison failed")
 
 #define is_num(A,B) \
 do {\

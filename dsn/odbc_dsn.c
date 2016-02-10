@@ -62,25 +62,25 @@ const int*  DisabledControls[]=       {
 MADB_DsnMap DsnMap[] = {
   {&DsnKeys[0],  0, txtDsnName,          64, 1},
   {&DsnKeys[1],  0, txtDSNDescription,   64, 0},
-  {&DsnKeys[3],  1, rbPipe,               0, 0},
-  {&DsnKeys[4],  1, rbTCP,                0, 0},
-  {&DsnKeys[5],  1, txtServerName,      128, 0},
-  {&DsnKeys[6],  1, txtUserName,         64, 0},
-  {&DsnKeys[7],  1, txtPassword,         64, 0},
-  {&DsnKeys[8],  1, cbDatabase,           0, 0},
-  {&DsnKeys[9],  1, txtPort,              5, 0},
-  {&DsnKeys[10], 2, txtInitCmd,        2048, 0},
-  {&DsnKeys[11], 2, txtConnectionTimeOut, 5, 0},
-  {&DsnKeys[12], 2, ckReconnect,          0, 0},
-  {&DsnKeys[13], 2, ckConnectPrompt,      0, 0},
-  {&DsnKeys[14], 2, cbCharset,            0, 0},
-  {&DsnKeys[17], 3, txtPluginDir,       260, 0},
-  {&DsnKeys[18], 4, txtSslKey,          260, 0},
-  {&DsnKeys[19], 4, txtSslCert,         260, 0},
-  {&DsnKeys[20], 4, txtSslCertAuth,     260, 0},
-  {&DsnKeys[21], 4, txtSslCaPath,       260, 0},
-  {&DsnKeys[22], 4, txtSslCipher,        32, 0},
-  {&DsnKeys[23], 4, cbSslVerify,          0, 0},
+  {&DsnKeys[5],  1, rbPipe,               0, 0},
+  {&DsnKeys[6],  1, rbTCP,                0, 0},
+  {&DsnKeys[7],  1, txtServerName,      128, 0},
+  {&DsnKeys[8],  1, txtUserName,         64, 0},
+  {&DsnKeys[9],  1, txtPassword,         64, 0},
+  {&DsnKeys[10],  1, cbDatabase,           0, 0},
+  {&DsnKeys[11],  1, txtPort,              5, 0},
+  {&DsnKeys[12], 2, txtInitCmd,        2048, 0},
+  {&DsnKeys[13], 2, txtConnectionTimeOut, 5, 0},
+  {&DsnKeys[14], 2, ckReconnect,          0, 0},
+  {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
+  {&DsnKeys[16], 2, cbCharset,            0, 0},
+  {&DsnKeys[18], 3, txtPluginDir,       260, 0},
+  {&DsnKeys[19], 4, txtSslKey,          260, 0},
+  {&DsnKeys[20], 4, txtSslCert,         260, 0},
+  {&DsnKeys[21], 4, txtSslCertAuth,     260, 0},
+  {&DsnKeys[22], 4, txtSslCaPath,       260, 0},
+  {&DsnKeys[23], 4, txtSslCipher,        32, 0},
+  {&DsnKeys[24], 4, cbSslVerify,          0, 0},
 
   {NULL, 0, 0, 0, 0}
 };
@@ -642,15 +642,15 @@ void CenterWindow(HWND hwndWindow)
   
 }
 
-my_bool DSNDialog(HWND hwndParent,
-                  WORD fRequest,
-                  LPCSTR lpszDriver,
-                  LPCSTR lpszAttributes,
+my_bool DSNDialog(HWND     hwndParent,
+                  WORD     fRequest,
+                  LPCSTR   lpszDriver,
+                  LPCSTR   lpszAttributes,
                   MADB_Dsn *Dsn)
 {
-  MSG msg;
-  BOOL ret;
-  char *DsnName= NULL;
+  MSG     msg;
+  BOOL    ret;
+  char    *DsnName=  NULL;
   my_bool DsnExists= FALSE;
 
   if (Dsn->isPrompt < 0 || Dsn->isPrompt > MAODBC_PROMPT_REQUIRED)
@@ -685,8 +685,7 @@ my_bool DSNDialog(HWND hwndParent,
   }
   else if (DsnName && Dsn)
   {
-    /* Need to free current value in Dsn->DSNName */
-    MADB_SUBSTITUTE(Dsn->DSNName, _strdup(DsnName));
+    MADB_RESET(Dsn->DSNName, DsnName);
   }
 
   /* Even if DsnName invalid(in case of prompt) - we should not have problem */

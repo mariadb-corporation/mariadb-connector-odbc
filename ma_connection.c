@@ -616,7 +616,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
     mysql_options(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
 
-  if(DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE))
+  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
     mysql_options(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
@@ -644,8 +644,8 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
   if (Dsn->SslVerify)
   {
-    const SQLPOINTER verify= (SQLPOINTER)1;
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)verify);
+    const uint verify= 0x01010101;
+    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
   }
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
@@ -1554,18 +1554,14 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
 
   Dsn= MADB_DSN_Init();
 
-  if (!MADB_ParseDSNString(Dsn, (char *)InConnectionString, StringLength1, ';'))
+  if (!MADB_ReadConnString(Dsn, (char *)InConnectionString, StringLength1, ';'))
   {
     MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Error while parsing DSN", 0);
     goto error;
   }
 
-  /* Read DSN, but don't overwrite values! */
-  if (Dsn->DSNName)
-    MADB_ReadDSN(Dsn, NULL, FALSE);
-    
-  /* if DSN prompt is off, adjust DriverCompletion. TODO: Probably ConnectPrompt should be set automatically, if corresponding bit is set in OPTIONS */
-  if (Dsn->ConnectPrompt || DSN_OPTION(Dsn,MADB_OPT_FLAG_NO_PROMPT))
+  /* if DSN prompt is off, adjusting DriverCompletion */
+  if (Dsn->ConnectPrompt)
     DriverCompletion= SQL_DRIVER_NOPROMPT;
 
   switch (DriverCompletion) {
@@ -1637,6 +1633,8 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
     goto error;
 end:
   Dbc->Dsn= Dsn;
+  /* Dialog returns bitmap - syncing corresponding properties */
+  MADB_DsnUpdateOptionsFields(Dsn);
   Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);
   if (StringLength2Ptr)
     *StringLength2Ptr= (SQLSMALLINT)Length;

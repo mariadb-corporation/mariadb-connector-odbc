@@ -359,74 +359,8 @@ typedef struct st_ma_odbc_environment {
 } MADB_Env;
 
 
-enum enum_dsn_item_type {
-  DSN_TYPE_STRING,
-  DSN_TYPE_INT,
-  DSN_TYPE_BOOL,
-  DSN_TYPE_COMBO,
-  DSN_TYPE_OPTION
-};
+#include <ma_dsn.h>
 
-typedef struct 
-{
-  char *DsnKey;
-  size_t DsnOffset;
-  enum enum_dsn_item_type Type;
-  unsigned long FlagValue;
-  bool IsAlias;
-} MADB_DsnKey;
-
-/* Definitions to tell setup library via isPrompt field what should it do */
-#define MAODBC_CONFIG           0
-#define MAODBC_PROMPT           1
-#define MAODBC_PROMPT_REQUIRED  2
-
-typedef struct st_madb_dsn
-{
-  /*** General ***/
-  char *DSNName;
-  char *Driver;
-  char  *Description;
-  /*** Connection parameters ***/
-  char *ServerName;
-  my_bool IsNamedPipe;
-  my_bool IsTcpIp;
-  char *UserName;
-  char *Password;
-  char *Catalog;
-  unsigned int Port;
-  /* Options */
-  unsigned long Options;
-  char *CharacterSet;
-  char *InitCommand;
-  char *TraceFile;
-  unsigned int ConnectionTimeout;
-  my_bool Reconnect;
-  my_bool MultiStatements;
-  /* TRUE means "no prompt" */
-  my_bool ConnectPrompt;
-  char * ConnCPluginsDir;
-  /* SSL Settings */
-  char * SslKey;
-  char * SslCert;
-  char * SslCa;
-  char * SslCaPath;
-  char * SslCipher;
-  char *SslCrl;
-  char *SslCrlPath;
-  char *SslFp;
-  char *SslFpList;
-  my_bool SslVerify;
-  /* --- Internal --- */
-  int isPrompt;
-  MADB_DsnKey *Keys;
-  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
-  my_bool FreeMe;
-  /* Callbacke required for prompt to keep all memory de/allocation operations
-     on same side of libraries */
-  char * (*allocator)(size_t);
-  void (*free)(void*);
-} MADB_Dsn;
 
 struct st_ma_odbc_connection
 {
@@ -488,7 +422,6 @@ int       DSNPrompt_Free  (MADB_Prompt *prompt);
 
 #include <ma_error.h>
 #include <ma_parse.h>
-#include <ma_dsn.h>
 #include <ma_info.h>
 #include <ma_environment.h>
 #include <ma_connection.h>

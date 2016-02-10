@@ -77,9 +77,16 @@ extern my_bool DummyError;
 #define MADB_REALLOC(a,b) my_realloc((a),(b),MYF(MY_ZEROFILL))
 
 /* If required to free old memory pointed by current ptr, and set new value */
-#define MADB_SUBSTITUTE(ptr, newptr) \
-  my_free((gptr)(ptr));\
-  (ptr)= (newptr);
+#define MADB_RESET(ptr, newptr) {\
+  char *local_new_ptr= (newptr);\
+  if (local_new_ptr != ptr) {\
+    my_free((gptr)(ptr));\
+    if (local_new_ptr != NULL)\
+      (ptr)= _strdup(local_new_ptr);\
+    else\
+      (ptr)= NULL;\
+  }\
+} while(0)
 
 #define MADB_UTF8_LEN(a) WideCharToMultiByte(CP_UTF8, 0, (a), -1, NULL, 0, NULL, NULL)
 
