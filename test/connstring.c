@@ -359,6 +359,50 @@ ODBC_TEST(dependent_fields)
 }
 
 
+/* I render following text from https://msdn.microsoft.com/en-us/library/ms715433%28v=vs.85%29.aspx
+   "The driver checks whether the connection string passed to it by the Driver Manager contains the DSN or DRIVER keyword.
+   If the connection string contains the DRIVER keyword, the driver cannot retrieve information about the data source from
+   the system information. If the connection string contains the DSN keyword or does not contain either the DSN or the DRIVER
+   keyword, the driver can retrieve information about the data source from the system information as follows:
+    - If the connection string contains the DSN keyword, the driver retrieves the information for the specified data source.
+    - If the connection string does not contain the DSN keyword, the specified data source is not found, or the DSN keyword is
+    set to "DEFAULT", the driver retrieves the information for the Default data source."
+  
+    as DRIVER keyword should prevent driver from expanding DSN data. The testcase verifies that. */
+ODBC_TEST(driver_vs_dsn)
+{
+  char connstr4dsn[512];
+
+  FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
+
+  RESET_DSN(Dsn);
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DB=%s;OPTIONS=%u", DsnName,
+    my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, MADB_OPT_FLAG_NAMED_PIPE);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  IS(MADB_SaveDSN(Dsn));
+
+  RESET_DSN(Dsn);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;SERVER=%s;", DsnName, my_drivername, "some.other.host");
+
+  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
+
+  /* Natural in any case*/
+  IS_STR(Dsn->ServerName, "some.other.host", sizeof("some.other.host"));
+  /* CHeck that we have nothing from the DSN */
+  is_num(Dsn->IsTcpIp,     0); /* It should not be set either */
+  is_num(Dsn->IsNamedPipe, 0);
+  is_num(Dsn->Options,     0);
+  FAIL_IF(Dsn->Port != 0 && Dsn->Port == my_port, "Port value from DSN!");
+  FAIL_IF(Dsn->UserName!= NULL && strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid value from DSN!");
+  FAIL_IF(Dsn->Password!= NULL && strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd value from DSN!");
+  FAIL_IF(Dsn->Catalog!= NULL && strncmp(Dsn->Catalog, my_schema, strlen(my_schema) + 1), "DB value from DSN!");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {connstring_test,       "connstring_parsing_test", NORMAL},
@@ -366,6 +410,7 @@ MA_ODBC_TESTS my_tests[]=
   {all_other_fields_test, "all_other_fields_test",   NORMAL},
   {aliases_tests,         "aliases_tests",           NORMAL},
   {dependent_fields,      "dependent_fields_tests",  NORMAL},
+  {driver_vs_dsn,         "driver_vs_dsn",           NORMAL},
   
   {NULL, NULL, 0}
 };

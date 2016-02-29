@@ -54,14 +54,14 @@ SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_
 {
   if (!(prompt->LibraryHandle=(void*) LoadLibrary(SetupLibName)))
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load setup library", 0);
+    return MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load setup library", 0);
   }
   if (!(prompt->Call= (PromptDSN)GetProcAddress((HMODULE)prompt->LibraryHandle, "DSNPrompt")))
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't find DSNPrompt function in setup library", 0);
+    return MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't find DSNPrompt function in setup library", 0);
   }
 
-  return Dbc->Error.ReturnValue;
+  return SQL_SUCCESS;
 }
 
 

@@ -146,7 +146,7 @@ enum enum_madb_error {
 };
 char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error);
 
-void MADB_SetError(MADB_Error *Error, unsigned int SqlErrorCode, char *SqlErrorMsg, unsigned int NativeError);
+SQLRETURN MADB_SetError(MADB_Error *Error, unsigned int SqlErrorCode, char *SqlErrorMsg, unsigned int NativeError);
 void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr);
 void MADB_CopyError(MADB_Error *ErrorTo, MADB_Error *ErrorFrom);
 SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,

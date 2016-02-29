@@ -27,11 +27,6 @@
 
 HWND hWnd;
 
-#ifdef _WIN32
-#  define WE_HAVE_SETUPLIB
-#endif
-
-#ifdef WE_HAVE_SETUPLIB
 /* Test of NO_PROMPT option. Normally it is not interactive. Dialog appearance means test failure */
 ODBC_TEST(ti_bug30840)
 {
@@ -40,88 +35,101 @@ ODBC_TEST(ti_bug30840)
   SQLSMALLINT conn_out_len;
 
   sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;NO_PROMPT=1",
-          my_dsn, my_uid, my_pwd);
+          my_dsn, "wronguid", "wrongpwd"/*my_uid, my_pwd*/);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conn, (SQLSMALLINT)strlen(conn),
+  /* NO_PROMPT is supposed to supress dialog invocation, and connect should fail */
+  EXPECT_DBC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn),
                                  conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
-                                 SQL_DRIVER_PROMPT));
-
-  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+                                 SQL_DRIVER_COMPLETE_REQUIRED), SQL_ERROR);
+  CHECK_SQLSTATE_EX(hdbc1, SQL_HANDLE_DBC, "28000");
 
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
 
   return OK;
 }
-#endif
 
 
-/*
-   Test the output string after calling SQLDriverConnect
-   Note: Windows 
-   TODO fix this test create a comparable output string
-*/
-ODBC_TEST(ti_driverconnect_outstring)
+ODBC_TEST(ti_dialogs)
 {
   HDBC        hdbc1;
-  SQLRETURN   rc;
   SQLWCHAR    *connw, connw_out[1024];
   SQLSMALLINT conn_out_len;
-  /* This has to be changed to use actual DSN(and not the default one) */
   SQLCHAR     conna[512], conna_out[1024];
 
   /* Testing how driver's doing if no out string given. ODBC-17 */
-  sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8", my_dsn, my_uid, my_pwd);
+  sprintf((char*)conna, "DRIVER=%s;TCPIP=1;SERVER=%s%s", my_drivername, my_servername, ma_strport);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
-                                 0, &conn_out_len, SQL_DRIVER_NOPROMPT));
-  diag("OutString Length: %d", conn_out_len);
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conna, SQL_NTS, NULL,
+                                       0, &conn_out_len, SQL_DRIVER_COMPLETE));
+
+  FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
+
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, "DRIVER=maodbc", 0, conna_out,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conna, SQL_NTS, conna_out,
+                                 sizeof(conna_out), &conn_out_len, SQL_DRIVER_PROMPT));
+
+  diag("In %d OutString %s(%d)", strlen(conna), hide_pwd(conna_out), conn_out_len);
+  /* We can't say much about the out string length, but it supposed to be bigger, than of the in string */
+  FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conna, SQL_NTS, conna_out,
                                  sizeof(conna_out), &conn_out_len, SQL_DRIVER_COMPLETE));
-  diag("In %d OutString %s(%d)", strlen(conna), conna_out, conn_out_len);
-  is_num(conn_out_len, strlen(conna));
-  IS_STR(conna_out, conna, strlen(conna) + 1);
+
+  diag("In %d OutString %s(%d)", strlen(conna), hide_pwd(conna_out), conn_out_len);
+  FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
+
+  /* Doing the the same - SQL_DRIVER_COMPLETE(_REQUIRED) and SQL_DRIVER_PROMPT, but with W function */
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
+
+  sprintf((char*)conna, "DSN=%s;UID=wronguser;PWD=wrongpwd;", my_dsn);
+  connw= CW(conna);
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, hWnd, connw, SQL_NTS, connw_out,
+                                        sizeof(connw_out), &conn_out_len,
+                                        SQL_DRIVER_COMPLETE_REQUIRED));
+  /* If DSN has all required info - we should be fine */
+  FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, hWnd, connw, SQL_NTS, connw_out,
+                                        sizeof(connw_out), &conn_out_len,
+                                        SQL_DRIVER_COMPLETE));
+  /* If DSN has all required info - we should be fine */
+  FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, hWnd, connw, SQL_NTS, connw_out,
+                                        sizeof(connw_out), &conn_out_len,
+                                        SQL_DRIVER_PROMPT));
+  /* If DSN has all required info - we should be fine */
+  FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
 
-  /* This part of test has to be changed to compare in and out strings */
-  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
-
-  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
-
-  /* This part of test has to be changed to compare in and out strings */
-  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
-
-  connw= CW(conna);
-  rc= SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
-                                 sizeof(connw_out), &conn_out_len,
-                                 SQL_DRIVER_COMPLETE);
-  if (SQL_SUCCEEDED(rc))
-  {
-    is_num(conn_out_len, strlen(conna));
-    IS_WSTR(connw_out, connw, strlen(conna) + 1);
-    CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
-  }
-
-  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
-  
   return OK;
 }
 
-
+#ifdef _WIN32
+#  define WE_HAVE_SETUPLIB
+#endif
 
 MA_ODBC_TESTS my_tests[]=
 {
 #ifdef WE_HAVE_SETUPLIB
-  {ti_bug30840,                "bug30840_interactive",     NORMAL},
+  {ti_bug30840, "bug30840_interactive", NORMAL},
+  {ti_dialogs,  "ti_dialogs",           NORMAL},
 #endif
-  {ti_driverconnect_outstring, "drvconnect_outstr_interactive", TO_FIX},
   {NULL, NULL, 0}
 };
 

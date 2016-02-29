@@ -173,13 +173,11 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       if (Dbc->mariadb)
       {
         if (Dbc->EnlistInDtc) {
-          MADB_SetError(&Dbc->Error, MADB_ERR_25000, NULL, 0);
-          return SQL_ERROR;
+          return MADB_SetError(&Dbc->Error, MADB_ERR_25000, NULL, 0);
         }
         if (mysql_autocommit(Dbc->mariadb, (my_bool)(size_t)ValuePtr))
         {
-          MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
-          return SQL_ERROR;
+          return MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
         }
       }
       Dbc->AutoCommit= (SQLUINTEGER)(SQLULEN)ValuePtr;
@@ -187,9 +185,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_CONNECTION_DEAD:
     /* read only! */
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY092, NULL, 0);
-    return Dbc->Error.ReturnValue;
-    break;
+    return MADB_SetError(&Dbc->Error, MADB_ERR_HY092, NULL, 0);
   case SQL_ATTR_CURRENT_CATALOG:
     {
       MADB_FREE(Dbc->CatalogName);
@@ -201,8 +197,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       if (Dbc->mariadb &&
           mysql_select_db(Dbc->mariadb, Dbc->CatalogName))
       {
-        MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
-        return Dbc->Error.ReturnValue;
+        return MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
       }
     }
     break;
@@ -223,15 +218,12 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
-    MADB_SetError(&Dbc->Error, MADB_ERR_HYC00, NULL, 0);
-    return Dbc->Error.ReturnValue;
-    break;
+    return MADB_SetError(&Dbc->Error, MADB_ERR_HYC00, NULL, 0);
   case SQL_ATTR_PACKET_SIZE:
     /* if connection was made, return HY001 */
     if (Dbc->mariadb)
     {
-      MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
-      return Dbc->Error.ReturnValue;
+      return MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
     }
     Dbc->PacketSize= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
@@ -262,8 +254,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
           if (mysql_query(Dbc->mariadb, StmtStr))
           {
             UNLOCK_MARIADB(Dbc);
-            MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
-            return Dbc->Error.ReturnValue;
+            return MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
           }
           UNLOCK_MARIADB(Dbc);
           ValidTx= TRUE;
@@ -272,8 +263,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       }
       if (!ValidTx)
       {
-        MADB_SetError(&Dbc->Error, MADB_ERR_HY024, NULL, 0);
-        return Dbc->Error.ReturnValue;
+        return MADB_SetError(&Dbc->Error, MADB_ERR_HY024, NULL, 0);
       }
     }
     Dbc->TxnIsolation= (SQLLEN)ValuePtr;
@@ -298,8 +288,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
   if (Attribute == SQL_ATTR_CURRENT_CATALOG && !StringLengthPtr && 
       (!ValuePtr || !BufferLength))
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_01004, NULL, 0);
-    return Dbc->Error.ReturnValue;
+    return MADB_SetError(&Dbc->Error, MADB_ERR_01004, NULL, 0);
   }
 
   switch(Attribute) {
@@ -1565,19 +1554,26 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
     DriverCompletion= SQL_DRIVER_NOPROMPT;
 
   switch (DriverCompletion) {
-  case SQL_DRIVER_COMPLETE:
   case SQL_DRIVER_COMPLETE_REQUIRED:
+  case SQL_DRIVER_COMPLETE:
   case SQL_DRIVER_NOPROMPT:
     {
       SQLRETURN ret= MADB_DbcConnectDB(Dbc, Dsn);
       if (SQL_SUCCEEDED(ret))
+      {
         goto end;
-      else
+      }
+      else if (DriverCompletion == SQL_DRIVER_NOPROMPT)
+      {
+        /* For SQL_DRIVER_COMPLETE(_REQUIRED) this is not the end - will show prompt for user */
         goto error;
+      }
     }
+    /* If we got here, it means that we had unsuccessful connect attempt with SQL_DRIVER_COMPLETE(_REQUIRED) completion
+       Have to clean that error */
+    MADB_CLEAR_ERROR(&Dbc->Error);
     break;
   case SQL_DRIVER_PROMPT:
-    Dsn->isPrompt= MAODBC_PROMPT/*_REQUIRED*/;
     break;
   default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY110, NULL, 0);
@@ -1586,12 +1582,17 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   }
 
   /* Without window handle we can't show a dialog */
-  if (DriverCompletion == SQL_DRIVER_NOPROMPT && !WindowHandle)
+  if (DriverCompletion != SQL_DRIVER_NOPROMPT && !WindowHandle)
   {
     MADB_SetError(&Dbc->Error, MADB_ERR_IM008, NULL, 0);
     goto error;
   }
   
+  if (DriverCompletion == SQL_DRIVER_COMPLETE_REQUIRED)
+    Dsn->isPrompt= MAODBC_PROMPT_REQUIRED;
+  else
+    Dsn->isPrompt= MAODBC_PROMPT;
+
   /* We need to obtain the driver name to load maodbcs.dll, if it's not stored inside DSN, 
      error IM007 (dialog prohibited) will be returned */
   if (!Dsn->Driver)
@@ -1635,16 +1636,28 @@ end:
   Dbc->Dsn= Dsn;
   /* Dialog returns bitmap - syncing corresponding properties */
   MADB_DsnUpdateOptionsFields(Dsn);
-  Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);
+  if (Dsn->isPrompt)
+  {
+    /* If prompt/complete(_required), and dialog was succusefully showed - we generate string from the result DSN */
+    Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);
+  }
+  else
+  {
+    if (OutConnectionString && BufferLength)
+    {
+      /* Otherwise we are supposed to simply copy incoming connection string */
+      strncpy_s((char *)OutConnectionString, BufferLength, InConnectionString, StringLength1);
+    }
+    Length= StringLength1;
+  }
   if (StringLength2Ptr)
     *StringLength2Ptr= (SQLSMALLINT)Length;
+
   if (OutConnectionString && BufferLength && Length > BufferLength)
   {
     MADB_SetError(&Dbc->Error, MADB_ERR_01004, NULL, 0);
     return Dbc->Error.ReturnValue;
   }
-  if (StringLength2Ptr)
-    *StringLength2Ptr= Length;
   return ret;
 error:
   DSNPrompt_Free(&DSNPrompt);

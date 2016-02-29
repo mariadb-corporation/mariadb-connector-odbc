@@ -493,8 +493,9 @@ BOOL MADB_ReadConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char 
     return FALSE;
   }
 
-  /* Read DSN, but don't overwrite values! */
-  if (Dsn->DSNName)
+  /* "If the connection string contains the DRIVER keyword, the driver cannot retrieve information about the data source
+     from the system information." https://msdn.microsoft.com/en-us/library/ms715433%28v=vs.85%29.aspx */
+  if (Dsn->DSNName && MADB_IS_EMPTY(Dsn->Driver))
   {
     MADB_ReadDSN(Dsn, NULL, FALSE);
     /* This redundancy is needed to be able to reset options set in the DSN, e.g. if DSN has Reconnect option selected, and

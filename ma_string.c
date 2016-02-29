@@ -429,7 +429,7 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, int PtrLength, unsigned int CodePage)
 }
 
 /* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLINTEGER *Length, CODEPAGE CodePage, BOOL *Error)
+char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLINTEGER *Length/*Bytes*/, CODEPAGE CodePage, BOOL *Error)
 {
   char *AscStr;
   int AscLen, AllocLen;
@@ -525,7 +525,7 @@ end:
 }
 
 size_t MADB_SetString(unsigned int CodePage, void *Dest, unsigned int DestLength,
-                      char *Src, int SrcLength, MADB_Error *Error)
+                      char *Src, int SrcLength/*bytes*/, MADB_Error *Error)
 {
   char *p= (char *)Dest;
   int Length= 0;

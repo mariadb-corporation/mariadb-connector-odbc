@@ -835,19 +835,19 @@ SQLRETURN SQL_API SQLDriverConnect(SQLHDBC ConnectionHandle,
 /* }}} */
 
 /* {{{ SQLDriverConnectW */
-SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC ConnectionHandle,
-    SQLHWND WindowHandle,
-    SQLWCHAR *InConnectionString,
-    SQLSMALLINT StringLength1,
-    SQLWCHAR *OutConnectionString,
-    SQLSMALLINT BufferLength,
-    SQLSMALLINT *StringLength2Ptr,
-    SQLUSMALLINT DriverCompletion)
+SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
+                                    SQLHWND      WindowHandle,
+                                    SQLWCHAR    *InConnectionString,
+                                    SQLSMALLINT  StringLength1,
+                                    SQLWCHAR    *OutConnectionString,
+                                    SQLSMALLINT  BufferLength,
+                                    SQLSMALLINT *StringLength2Ptr,
+                                    SQLUSMALLINT DriverCompletion)
 {
   SQLRETURN   ret=          SQL_ERROR;
   SQLSMALLINT Length=       0;
   char        *InConnStrA=  NULL;
-  SQLINTEGER  StrLength=    0;
+  SQLINTEGER  InStrAOctLen= 0;
   char        *OutConnStrA= NULL;
   MADB_Dbc    *Dbc=         (MADB_Dbc *)ConnectionHandle;
    
@@ -858,7 +858,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC ConnectionHandle,
 
   MADB_CLEAR_ERROR(&Dbc->Error);
 
-  InConnStrA= MADB_ConvertFromWChar(InConnectionString, StringLength1, &StrLength, CP_UTF8, NULL);
+  InConnStrA= MADB_ConvertFromWChar(InConnectionString, StringLength1, &InStrAOctLen, CP_UTF8, NULL);
   MDBUG_C_DUMP(Dbc, Dbc, 0x);
   MDBUG_C_DUMP(Dbc, InConnStrA, s);
   MDBUG_C_DUMP(Dbc, StringLength1, d);
@@ -870,32 +870,29 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC ConnectionHandle,
   /* Allocate buffer for Asc OutConnectionString */
   if (OutConnectionString && BufferLength)
   {
-    Length= BufferLength;
+    Length= BufferLength*4 /*Max bytes per utf8 character */;
     OutConnStrA= (char *)MADB_CALLOC(Length);
+
+    if (OutConnStrA == NULL)
+    {
+      ret= MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
+      goto end;
+    }
   }
 
-  ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, (SQLSMALLINT)StrLength, (SQLCHAR *)OutConnStrA,
+  ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, (SQLSMALLINT)InStrAOctLen, (SQLCHAR *)OutConnStrA,
                                      Length, StringLength2Ptr, DriverCompletion); 
   MDBUG_C_DUMP(Dbc, ret, d);
   if (!SQL_SUCCEEDED(ret))
     goto end;
 
-  if (DriverCompletion == SQL_DRIVER_NOPROMPT &&
-      OutConnectionString && BufferLength)
+  if (OutConnectionString)
   {
     Length= (SQLSMALLINT)MADB_SetString(CP_UTF8, OutConnectionString, BufferLength,
-                                      InConnStrA, StrLength, &((MADB_Dbc *)ConnectionHandle)->Error);
-    if (BufferLength < Length)
-      MADB_SetError(&Dbc->Error, MADB_ERR_01004, NULL, 0);
+                                        OutConnStrA, SQL_NTS, &((MADB_Dbc *)ConnectionHandle)->Error);
+    if (StringLength2Ptr)
+      *StringLength2Ptr= Length;
   }
-  if (DriverCompletion == SQL_DRIVER_COMPLETE ||
-      DriverCompletion == SQL_DRIVER_COMPLETE_REQUIRED)
-  {
-    Length= (SQLSMALLINT)MADB_SetString(CP_UTF8, OutConnectionString, BufferLength,
-                                      OutConnStrA, SQL_NTS, &((MADB_Dbc *)ConnectionHandle)->Error);
-  }
-  if (StringLength2Ptr)
-    *StringLength2Ptr= Length;
   
 end:
   MADB_FREE(OutConnStrA);
