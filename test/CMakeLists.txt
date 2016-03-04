@@ -14,12 +14,17 @@ SET (ODBC_TESTS
      "curext" "relative" "unicode" "cursor" "dyn_cursor"
      "error" "param" "result1" "result2" "multistatement")
 
-IF (BUILD_INTERACTIVE_TESTS OR USE_INTERACTIVE_TESTS)
+# Interactive makes sense on WIN32 only atm
+IF (WIN32 AND (BUILD_INTERACTIVE_TESTS OR USE_INTERACTIVE_TESTS))
   SET (ODBC_TESTS ${ODBC_TESTS} "interactive")
 ENDIF()
 
 FOREACH (ODBC_TEST ${ODBC_TESTS})
-  ADD_EXECUTABLE(${ODBC_TEST} ${ODBC_TEST}.c tap.h)
+  IF (${ODBC_TEST} STREQUAL "interactive")
+    ADD_EXECUTABLE(${ODBC_TEST} ${ODBC_TEST}.c tap.h)
+  ELSE()
+    ADD_EXECUTABLE(${ODBC_TEST} ${ODBC_TEST}.c tap.h)
+  ENDIF()
   IF (DIRECT_LINK_TESTS)
     TARGET_LINK_LIBRARIES(${ODBC_TEST} maodbc ${MARIADB_LIB} ${PLATFORM_DEPENDENCIES})
   ELSE()

@@ -467,9 +467,9 @@ int MADB_ConvertAnsi2Unicode(int CodePage, char *AnsiString, int AnsiLength,
                              int *LengthIndicator, MADB_Error *Error)
 {
   SQLINTEGER RequiredLength;
-  SQLWCHAR *Tmp= UnicodeString;
-  char IsNull= 0;
-  int rc= 0;
+  SQLWCHAR  *Tmp=    UnicodeString;
+  char       IsNull= 0;
+  int        rc=     0;
 
   if (LengthIndicator)
     *LengthIndicator= 0;

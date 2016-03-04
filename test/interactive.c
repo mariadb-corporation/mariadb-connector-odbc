@@ -138,14 +138,18 @@ int main(int argc, char **argv)
   int   tests=    sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   DWORD dwProcID= GetCurrentProcessId();
 
-  hWnd = GetTopWindow(GetDesktopWindow());
-  while(hWnd)
+  hWnd= GetConsoleWindow();
+  if (hWnd == NULL)
   {
-    DWORD dwWndProcID = 0;
-    GetWindowThreadProcessId(hWnd, &dwWndProcID);
-    if(dwWndProcID == dwProcID)
-      break;            
-    hWnd = GetNextWindow(hWnd, GW_HWNDNEXT);
+    hWnd= GetTopWindow(GetDesktopWindow());
+    while(hWnd)
+    {
+      DWORD dwWndProcID = 0;
+      GetWindowThreadProcessId(hWnd, &dwWndProcID);
+      if(dwWndProcID == dwProcID)
+        break;            
+      hWnd = GetNextWindow(hWnd, GW_HWNDNEXT);
+    }
   }
 
   get_options(argc, argv);

@@ -590,7 +590,7 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
   
   if(!SQL_SUCCEEDED(SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
   {
-    diag("Connection failed");
+    odbc_print_error(SQL_HANDLE_DBC, *Connection);
     return NULL;
   }
 

@@ -195,12 +195,15 @@ BEGIN
 
     LTEXT           "Key",IDC_STATIC,15,25,56,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtSslKey,84,25,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbKeyBrowse,195,23,30,14
 
     LTEXT           "Certificate",IDC_STATIC,15,39,56,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtSslCert,84,39,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCertBrowse,195,37,30,14
 
     LTEXT           "Certificate Authority",IDC_STATIC,15,53,68,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtSslCertAuth,84,53,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCaCertBrowse,195,51,30,14
 
     LTEXT           "CA Path",IDC_STATIC,15,67,56,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtSslCaPath,84,67,110,10,ES_AUTOHSCROLL
