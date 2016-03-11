@@ -636,6 +636,12 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     const uint verify= 0x01010101;
     mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
   }
+  else
+  {
+    const uint verify= 0;
+    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+  }
+
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
     mysql_options(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
