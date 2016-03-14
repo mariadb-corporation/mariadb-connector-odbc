@@ -156,7 +156,31 @@ IF(WIN32)
       ENDFOREACH()
     ENDFOREACH()
   ENDIF()
+
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+ENDIF()
+
+# Check for OpenSSL. For platforms others than Windows, we build with OpenSSL by default. Optional otherwise
+IF(NOT WIN32 OR WITH_OPENSSL)
+  FIND_PACKAGE(OpenSSL)
+
+  IF(OPENSSL_FOUND)
+    MESSAGE(STATUS "Configuring to build with OpenSSL")
+
+    ADD_DEFINITIONS(-DHAVE_OPENSSL)
+    INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+    SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
+
+    IF(OPENSSL_CRYPTO_LIBRARIES)
+      SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+    ENDIF()
+
+    SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
+  ELSE()
+    MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
+  ENDIF()
+ELSE()
+    MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
 SET(UNICODE "W")
@@ -164,6 +188,8 @@ SET(UNICODE "W")
 SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
+
+####### MAODBC #######             
 ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
 TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
