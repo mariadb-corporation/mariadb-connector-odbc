@@ -200,15 +200,17 @@ void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
 }
 
 /* {{{ MADB_SetError */
-void MADB_SetError(MADB_Error *Error,
-    unsigned int SqlErrorCode,
-    char *NativeErrorMsg,
-    unsigned int NativeError)
+SQLRETURN MADB_SetError(MADB_Error  *Error,
+                        unsigned int SqlErrorCode,
+                        char        *NativeErrorMsg,
+                        unsigned int NativeError)
 {
   unsigned int ErrorCode= SqlErrorCode;
+
   Error->ErrorNum= 0;
   if ((NativeError == 2013 || NativeError == 2006) && SqlErrorCode == MADB_ERR_HY000)
     ErrorCode= MADB_ERR_08S01;
+
   Error->ErrRecord= &MADB_ErrorList[ErrorCode];
 
   Error->ReturnValue= SQL_ERROR;
@@ -229,6 +231,7 @@ void MADB_SetError(MADB_Error *Error,
     Error->ReturnValue= (Error->SqlState[1] == '0') ? SQL_SUCCESS :
                         (Error->SqlState[1] == '1') ? SQL_SUCCESS_WITH_INFO : SQL_ERROR;
 
+  return Error->ReturnValue;
 }
 /* }}} */
 

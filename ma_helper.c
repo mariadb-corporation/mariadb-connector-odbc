@@ -1083,6 +1083,7 @@ end:
 char *trim(char *Str)
 {
   char *end;
+  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
   while (Str && iswspace(Str[0]))
     Str++;
   end= Str + strlen(Str) - 1;

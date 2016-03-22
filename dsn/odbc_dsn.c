@@ -24,7 +24,7 @@
 #include <tchar.h>
 #include <windowsx.h>
 #include <winuser.h>
-#include <shlobj.h>
+#include <shobjidl.h>
 #include "resource.h"
 #include <ma_odbc.h>
 #include <ma_odbc_setup.h>
@@ -45,6 +45,7 @@ char          DSNStr[2048];
 HWND          hwndTab[7], hwndMain;
 const int    *EffectiveDisabledPages=    NULL,
              *EffectiveDisabledControls= NULL;
+BOOL          OpenCurSelection=          TRUE;
 
 const int DisabledPages[MAODBC_PROMPT_REQUIRED + 1][LASTPAGE + 1]= {
                                                                     { 0, 0, 0, 0, 0, 0},
@@ -62,25 +63,25 @@ const int*  DisabledControls[]=       {
 MADB_DsnMap DsnMap[] = {
   {&DsnKeys[0],  0, txtDsnName,          64, 1},
   {&DsnKeys[1],  0, txtDSNDescription,   64, 0},
-  {&DsnKeys[3],  1, rbPipe,               0, 0},
-  {&DsnKeys[4],  1, rbTCP,                0, 0},
-  {&DsnKeys[5],  1, txtServerName,      128, 0},
-  {&DsnKeys[6],  1, txtUserName,         64, 0},
-  {&DsnKeys[7],  1, txtPassword,         64, 0},
-  {&DsnKeys[8],  1, cbDatabase,           0, 0},
-  {&DsnKeys[9],  1, txtPort,              5, 0},
-  {&DsnKeys[10], 2, txtInitCmd,        2048, 0},
-  {&DsnKeys[11], 2, txtConnectionTimeOut, 5, 0},
-  {&DsnKeys[12], 2, ckReconnect,          0, 0},
-  {&DsnKeys[13], 2, ckConnectPrompt,      0, 0},
-  {&DsnKeys[14], 2, cbCharset,            0, 0},
-  {&DsnKeys[17], 3, txtPluginDir,       260, 0},
-  {&DsnKeys[18], 4, txtSslKey,          260, 0},
-  {&DsnKeys[19], 4, txtSslCert,         260, 0},
-  {&DsnKeys[20], 4, txtSslCertAuth,     260, 0},
-  {&DsnKeys[21], 4, txtSslCaPath,       260, 0},
-  {&DsnKeys[22], 4, txtSslCipher,        32, 0},
-  {&DsnKeys[23], 4, cbSslVerify,          0, 0},
+  {&DsnKeys[5],  1, rbPipe,               0, 0},
+  {&DsnKeys[6],  1, rbTCP,                0, 0},
+  {&DsnKeys[7],  1, txtServerName,      128, 0},
+  {&DsnKeys[8],  1, txtUserName,         64, 0},
+  {&DsnKeys[9],  1, txtPassword,         64, 0},
+  {&DsnKeys[10],  1, cbDatabase,           0, 0},
+  {&DsnKeys[11],  1, txtPort,              5, 0},
+  {&DsnKeys[12], 2, txtInitCmd,        2048, 0},
+  {&DsnKeys[13], 2, txtConnectionTimeOut, 5, 0},
+  {&DsnKeys[14], 2, ckReconnect,          0, 0},
+  {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
+  {&DsnKeys[16], 2, cbCharset,            0, 0},
+  {&DsnKeys[18], 3, txtPluginDir,       260, 0},
+  {&DsnKeys[19], 4, txtSslKey,          260, 0},
+  {&DsnKeys[20], 4, txtSslCert,         260, 0},
+  {&DsnKeys[21], 4, txtSslCertAuth,     260, 0},
+  {&DsnKeys[22], 4, txtSslCaPath,       260, 0},
+  {&DsnKeys[23], 4, txtSslCipher,        32, 0},
+  {&DsnKeys[24], 4, cbSslVerify,          0, 0},
 
   {NULL, 0, 0, 0, 0}
 };
@@ -451,51 +452,75 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
 }
 
 
-static int CALLBACK SelectFolderCallbackProc(HWND hWnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+INT_PTR SelectPath(HWND ParentWnd, int BoundEditId, const wchar_t *Caption, BOOL FolderPath, BOOL OpenCurrentSelection)
 {
-
-  if(uMsg == BFFM_INITIALIZED)
+  if (SUCCEEDED(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
   {
-    SendMessage(hWnd, BFFM_SETSELECTION, TRUE, lpData);
-    //SendMessage(hWnd, BFFM_SETEXPANDED, TRUE, lpData) ;
-  }
+    IFileDialog *PathDialog;
 
-  return 0;
-}
-
-
-INT_PTR SelectFolder(HWND ParentWnd, int BoundEditId, const TCHAR *Caption)
-{
-  TCHAR        Path[MAX_PATH];
-  HWND         BoundEditWnd= GetDlgItem(ParentWnd, BoundEditId);
-  BROWSEINFO   bi;
-  LPITEMIDLIST pidl;
-
-  Edit_GetText(BoundEditWnd, Path, sizeof(Path));
-
-  bi.hwndOwner=  ParentWnd;
-  bi.lpszTitle=  Caption;
-  bi.ulFlags=    BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-  bi.lpfn=       SelectFolderCallbackProc;
-  bi.lParam=     (LPARAM)Path;
-
-  pidl= SHBrowseForFolder(&bi);
-
-  if (pidl != 0)
-  {
-    IMalloc *imalloc= NULL;
-
-    SHGetPathFromIDList(pidl, Path);
-
-    Edit_SetText(BoundEditWnd, Path);
-
-    if (SUCCEEDED(SHGetMalloc(&imalloc)))
+    if (SUCCEEDED(CoCreateInstance(&CLSID_FileOpenDialog, NULL, CLSCTX_ALL, 
+                                   &IID_IFileOpenDialog, (void**)&PathDialog)))
     {
-      imalloc->lpVtbl->Free(imalloc, pidl);
-      imalloc->lpVtbl->Release(imalloc);
-    }
+      HWND        BoundEditWnd= GetDlgItem(ParentWnd, BoundEditId);
+      DWORD       DialogOptions;
+      TCHAR       Path[MAX_PATH];
+      IShellItem *SelectedItem;
+      int         Length;
+      LPWSTR      wPath;
 
-    return TRUE;
+      if (FolderPath && SUCCEEDED(PathDialog->lpVtbl->GetOptions(PathDialog, &DialogOptions)))
+      {
+        PathDialog->lpVtbl->SetOptions(PathDialog, DialogOptions | FOS_PICKFOLDERS);
+      }
+
+      Edit_GetText(BoundEditWnd, Path, sizeof(Path));
+      Length= MultiByteToWideChar(GetACP(), 0, Path, -1, NULL, 0);
+
+      wPath= (SQLWCHAR *)malloc(Length * sizeof(SQLWCHAR));
+      if (wPath == NULL)
+      {
+        return FALSE;
+      }
+
+      MultiByteToWideChar(GetACP(), 0, Path, -1, wPath, Length);
+
+      SHCreateItemFromParsingName(wPath, NULL, &IID_IShellItem, (void**)&SelectedItem);
+      if (OpenCurrentSelection)
+      {
+        PathDialog->lpVtbl->SetFolder(PathDialog, SelectedItem);
+      }
+      else
+      {
+        PathDialog->lpVtbl->SetDefaultFolder(PathDialog, SelectedItem);
+      }
+      SelectedItem->lpVtbl->Release(SelectedItem);
+
+      free(wPath);
+
+      PathDialog->lpVtbl->SetTitle(PathDialog, Caption);
+
+      if (SUCCEEDED(PathDialog->lpVtbl->Show(PathDialog, ParentWnd)))
+      {
+        if (SUCCEEDED(PathDialog->lpVtbl->GetResult(PathDialog, &SelectedItem)))
+        {
+          LPWSTR SelectedValue;
+          if (SUCCEEDED(SelectedItem->lpVtbl->GetDisplayName(SelectedItem, SIGDN_FILESYSPATH, &SelectedValue)))
+          {
+            BOOL Error;
+
+            /* TODO: I guess conversions from/to utf8 has to be done when syncing edits with DSN */
+            WideCharToMultiByte(GetACP(), 0, SelectedValue, -1, Path, sizeof(Path), NULL, &Error);
+            Edit_SetText(BoundEditWnd, Path);
+            CoTaskMemFree(SelectedValue);
+
+            return TRUE;
+          }
+          SelectedItem->lpVtbl->Release(SelectedItem);
+        }
+      }
+      PathDialog->lpVtbl->Release(PathDialog);
+    }
+    CoUninitialize();
   }
 
   return FALSE;
@@ -504,7 +529,9 @@ INT_PTR SelectFolder(HWND ParentWnd, int BoundEditId, const TCHAR *Caption)
 
 INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	  switch(uMsg)
+  BOOL res;
+
+	switch(uMsg)
   {
   case WM_CTLCOLORDLG:
     if (!hbrBg)
@@ -545,23 +572,37 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       }
 	    return TRUE;
     case pbPlugindirBrowse:
-      return SelectFolder(hDlg, txtPluginDir, _T("Select Plugins Directory"));
+      return SelectPath(hDlg, txtPluginDir,   L"Select Plugins Directory",          /* Folder*/ TRUE, TRUE);
     case pbCaPathBrowse:
-      return SelectFolder(hDlg, txtSslCaPath, _T("Select CA Path"));
-  case rbTCP:
-	case rbPipe:
-		if (HIWORD(wParam) == BN_CLICKED)
-		{
-	    SendMessage(GetDlgItem(hwndTab[CurrentPage], lblServerName), WM_SETTEXT, 0,
-			 (LOWORD(wParam) == rbTCP) ? (LPARAM)"Server name:" : (LPARAM)"Named pipe:");
-		  ShowWindow(GetDlgItem(hwndTab[CurrentPage], lblPort),
-			  (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
-		  ShowWindow(GetDlgItem(hwndTab[CurrentPage], txtPort),
-			  (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
-		}
-		return TRUE;
+      res=   SelectPath(hDlg, txtSslCaPath,   L"Select CA Path",                                TRUE, OpenCurSelection);
+      OpenCurSelection= OpenCurSelection && !res;
+      return res;
+    case pbKeyBrowse:
+      res=   SelectPath(hDlg, txtSslKey,      L"Select Client Private Key File",    /* File */  FALSE,OpenCurSelection);
+      OpenCurSelection= OpenCurSelection && !res;
+      return res;
+    case pbCertBrowse:
+      res=   SelectPath(hDlg, txtSslCert,     L"Select Public Key Certificate File",            FALSE,OpenCurSelection);
+      OpenCurSelection= OpenCurSelection && !res;
+      return res;
+    case pbCaCertBrowse:
+      res=   SelectPath(hDlg, txtSslCertAuth, L"Select Certificate Authority Certificate File", FALSE,OpenCurSelection);
+      OpenCurSelection= OpenCurSelection && !res;
+      return res;
+    case rbTCP:
+	  case rbPipe:
+		  if (HIWORD(wParam) == BN_CLICKED)
+		  {
+	      SendMessage(GetDlgItem(hwndTab[CurrentPage], lblServerName), WM_SETTEXT, 0,
+			   (LOWORD(wParam) == rbTCP) ? (LPARAM)"Server name:" : (LPARAM)"Named pipe:");
+		    ShowWindow(GetDlgItem(hwndTab[CurrentPage], lblPort),
+			    (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
+		    ShowWindow(GetDlgItem(hwndTab[CurrentPage], txtPort),
+			    (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
+		  }
+		  return TRUE;
 
-    }
+      }
     break;
 	}
 	return FALSE;
@@ -642,15 +683,15 @@ void CenterWindow(HWND hwndWindow)
   
 }
 
-my_bool DSNDialog(HWND hwndParent,
-                  WORD fRequest,
-                  LPCSTR lpszDriver,
-                  LPCSTR lpszAttributes,
+my_bool DSNDialog(HWND     hwndParent,
+                  WORD     fRequest,
+                  LPCSTR   lpszDriver,
+                  LPCSTR   lpszAttributes,
                   MADB_Dsn *Dsn)
 {
-  MSG msg;
-  BOOL ret;
-  char *DsnName= NULL;
+  MSG     msg;
+  BOOL    ret;
+  char    *DsnName=  NULL;
   my_bool DsnExists= FALSE;
 
   if (Dsn->isPrompt < 0 || Dsn->isPrompt > MAODBC_PROMPT_REQUIRED)
@@ -685,8 +726,7 @@ my_bool DSNDialog(HWND hwndParent,
   }
   else if (DsnName && Dsn)
   {
-    /* Need to free current value in Dsn->DSNName */
-    MADB_SUBSTITUTE(Dsn->DSNName, _strdup(DsnName));
+    MADB_RESET(Dsn->DSNName, DsnName);
   }
 
   /* Even if DsnName invalid(in case of prompt) - we should not have problem */

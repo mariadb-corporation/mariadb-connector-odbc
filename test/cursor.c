@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -2601,7 +2601,7 @@ ODBC_TEST(t_update_offsets)
   } rows[8];
   size_t row_size= sizeof(rows[0]);
   SQLLEN bind_offset= -100000;
-  SQLINTEGER i;
+  SQLUINTEGER i;
   SQLCHAR buf[50];
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_offsets");
@@ -3356,7 +3356,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_cursor_pos_static, "t_cursor_pos_static",     NORMAL},
   {t_cursor_pos_dynamic, "t_cursor_pos_dynamic",     NORMAL},
   {t_bug11846, "t_bug11846",     NORMAL},
-  {t_dae_setpos_insert, "t_dae_setpos_insert", KNOWN_FAILURE},
+  {t_dae_setpos_insert, "t_dae_setpos_insert", NORMAL},
   {t_dae_setpos_update, "t_dae_setpos_update", KNOWN_FAILURE},
   {t_bug39961, "t_bug39961",     NORMAL},
   {t_bug41946, "t_bug41946",     NORMAL},

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2015 MariaDB Corporation AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -269,6 +269,12 @@ typedef struct
 
 enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DAE_DELETE=3};
 
+#define RESET_DAE_STATUS(Stmt_Hndl) (Stmt_Hndl)->Status=0; (Stmt_Hndl)->PutParam= -1
+#define MARK_DAE_DONE(Stmt_Hndl)    (Stmt_Hndl)->Status=0; (Stmt_Hndl)->PutParam= (Stmt_Hndl)->ParamCount
+
+#define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
+#define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
+
 typedef struct {
   DYNAMIC_ARRAY tokens;
 } MADB_QUERY;
@@ -353,75 +359,8 @@ typedef struct st_ma_odbc_environment {
 } MADB_Env;
 
 
-enum enum_dsn_item_type {
-  DSN_TYPE_STRING,
-  DSN_TYPE_INT,
-  DSN_TYPE_BOOL,
-  DSN_TYPE_COMBO,
-  DSN_TYPE_OPTION
-};
+#include <ma_dsn.h>
 
-typedef struct 
-{
-  char *DsnKey;
-  size_t DsnOffset;
-  enum enum_dsn_item_type Type;
-  unsigned long FlagValue;
-  bool IsAlias;
-} MADB_DsnKey;
-
-/* Definitions to tell setup library via isPrompt field what should it do */
-#define MAODBC_CONFIG           0
-#define MAODBC_PROMPT           1
-#define MAODBC_PROMPT_REQUIRED  2
-
-typedef struct st_madb_dsn
-{
-  /*** General ***/
-  char *DSNName;
-  char *Driver;
-  char  *Description;
-  /*** Connection parameters ***/
-  char *ServerName;
-  my_bool IsNamedPipe;
-  my_bool IsTcpIp;
-  char *UserName;
-  char *Password;
-  char *Catalog;
-  unsigned int Port;
-  /* Options */
-  unsigned long Options;
-  char *CharacterSet;
-  char *InitCommand;
-  char *TraceFile;
-  unsigned int ConnectionTimeout;
-  my_bool Reconnect;
-  my_bool MultiStatements;
-  /* TRUE means "no prompt" */
-  my_bool ConnectPrompt;
-  char *Socket;
-  char * ConnCPluginsDir;
-  /* SSL Settings */
-  char * SslKey;
-  char * SslCert;
-  char * SslCa;
-  char * SslCaPath;
-  char * SslCipher;
-  char *SslCrl;
-  char *SslCrlPath;
-  char *SslFp;
-  char *SslFpList;
-  my_bool SslVerify;
-  /* --- Internal --- */
-  int isPrompt;
-  MADB_DsnKey *Keys;
-  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
-  my_bool FreeMe;
-  /* Callbacke required for prompt to keep all memory de/allocation operations
-     on same side of libraries */
-  char * (*allocator)(size_t);
-  void (*free)(void*);
-} MADB_Dsn;
 
 typedef struct st_client_charset
 {
@@ -466,7 +405,7 @@ struct st_ma_odbc_connection
   SQLINTEGER CursorCount;
 };
 
-typedef BOOL (*PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
+typedef BOOL (__stdcall*PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
 
 typedef struct
 {
@@ -495,7 +434,6 @@ void            CloseClientCharset (Client_Charset *cc);
 
 #include <ma_error.h>
 #include <ma_parse.h>
-#include <ma_dsn.h>
 #include <ma_info.h>
 #include <ma_environment.h>
 #include <ma_connection.h>

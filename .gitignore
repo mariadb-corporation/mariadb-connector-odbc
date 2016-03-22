@@ -19,9 +19,13 @@ Debug
 Win32
 ipch
 
+*.msi
+*.wixobj
+*.wixpdb
+
 *.*~
 *.diff
-
+*.bak
 *.so
 Makefile
 CPackConfig.cmake

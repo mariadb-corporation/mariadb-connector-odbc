@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -947,6 +947,30 @@ ODBC_TEST(t_bug11766437)
 }
 
 
+/*
+  Bug ODBC-29 - simple query fails if to add leading spaces
+*/
+ODBC_TEST(t_odbc29)
+{
+  SQLSMALLINT cols_count;
+
+  OK_SIMPLE_STMT(Stmt, "drop table if exists bug_odbc29");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug_odbc29 (id INT PRIMARY KEY auto_increment, value VARCHAR(100) NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO bug_odbc29(value) VALUES ('value')");
+
+  /* The problem was that connector trimmed extra spaces, but used initial statement length. Adding garbage at the end to verify that trimmed string length is calculated correctly */
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "  select * from bug_odbc29somegarbageafterendofstatement", sizeof("  select * from bug_odbc29") - 1));
+  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols_count));
+
+  is_num(cols_count, 2);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "drop table if exists bug_odbc29");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -965,6 +989,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_prefetch, "t_prefetch"},
   {t_outparams, "t_outparams"},
   {t_bug11766437, "t_bug11766437"},
+  {t_odbc29, "t_bug_odbc-29"},
   {NULL, NULL}
 };
 

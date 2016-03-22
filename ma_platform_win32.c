@@ -55,14 +55,14 @@ SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_
 {
   if (!(prompt->LibraryHandle=(void*) LoadLibrary(SetupLibName)))
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load setup library", 0);
+    return MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load setup library", 0);
   }
   if (!(prompt->Call= (PromptDSN)GetProcAddress((HMODULE)prompt->LibraryHandle, "DSNPrompt")))
   {
-    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't find DSNPrompt function in setup library", 0);
+    return MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't find DSNPrompt function in setup library", 0);
   }
 
-  return Dbc->Error.ReturnValue;
+  return SQL_SUCCESS;
 }
 
 
@@ -109,7 +109,7 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 }
 
 /* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc, BOOL *Error)
+char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
 {
   char *AscStr;
   int AscLen, AllocLen;
@@ -122,17 +122,17 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
     cc= &utf8;
   }
 
-  if (PtrLength == SQL_NTS)
-    PtrLength= -1;
+  if (WstrCharLen == SQL_NTS)
+    WstrCharLen= -1;
 
-  AllocLen= AscLen= WideCharToMultiByte(cc->CodePage, 0, Ptr, PtrLength, NULL, 0, NULL, NULL);
-  if (PtrLength != -1)
+  AllocLen= AscLen= WideCharToMultiByte(cc->CodePage, 0, Wstr, WstrCharLen, NULL, 0, NULL, NULL);
+  if (WstrCharLen != -1)
     ++AllocLen;
   
   if (!(AscStr = (char *)MADB_CALLOC(AllocLen)))
     return NULL;
 
-  AscLen= WideCharToMultiByte(cc->CodePage,  0, Ptr, PtrLength, AscStr, AscLen, NULL, (cc->CodePage != CP_UTF8) ? Error : NULL);
+  AscLen= WideCharToMultiByte(cc->CodePage,  0, Wstr, WstrCharLen, AscStr, AscLen, NULL, (cc->CodePage != CP_UTF8) ? Error : NULL);
   if (AscLen && PtrLength == -1)
     --AscLen;
 
@@ -204,7 +204,7 @@ end:
 }
 
 size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
-                      char *Src, int SrcLength, MADB_Error *Error)
+                      char *Src, int SrcLength/*bytes*/, MADB_Error *Error)
 {
   char *p= (char *)Dest;
   SQLLEN Length= 0;

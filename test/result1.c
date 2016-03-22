@@ -2321,8 +2321,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug31246, "t_bug31246",     NORMAL},
   {t_bug13776, "t_bug13776",     NORMAL},
   {t_bug13776_auto, "t_bug13776_auto",     NORMAL},
-  {t_bug28617, "t_bug28617",     KNOWN_FAILURE},
-  {t_bug34429, "t_bug34429",     KNOWN_FAILURE},
+  {t_bug28617, "t_bug28617",     NORMAL},
+  {t_bug34429, "t_bug34429",     NORMAL},
   {NULL, NULL}
 };
 

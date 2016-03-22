@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -464,6 +464,22 @@ ODBC_TEST(bug_odbc15)
 }
 
 
+/* SQL_NEED_LONG_DATA_LEN has to be "N". Driver is sensitive to its change(DAE functionality)
+   Test's purpose is to signalize about its change. */
+ODBC_TEST(test_need_long_data_len)
+{
+  SQLCHAR     NeedLongDataLen[2];
+  SQLSMALLINT Len;
+
+   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_NEED_LONG_DATA_LEN, NeedLongDataLen,
+                          sizeof(NeedLongDataLen), &Len));
+   is_num(Len, 1);
+   IS_STR(NeedLongDataLen, "N", 2);
+
+   return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_gettypeinfo, "t_gettypeinfo"},
@@ -479,6 +495,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug46910, "t_bug46910"}, 
   {t_bug11749093, "t_bug11749093"},
   {bug_odbc15, "bug_odbc15"},
+  {test_need_long_data_len, "test_need_long_data_len"},
   {NULL, NULL}
 };
 

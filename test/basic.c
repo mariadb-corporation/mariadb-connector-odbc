@@ -643,7 +643,7 @@ ODBC_TEST(t_bug30774)
 ODBC_TEST(t_bug30840)
 {
   HDBC hdbc1;
-  SQLCHAR   conn[512], conn_out[512];
+  SQLCHAR   conn[512], conn_out[1024];
   SQLSMALLINT conn_out_len;
 
   if (using_dm(Connection))
@@ -652,20 +652,13 @@ ODBC_TEST(t_bug30840)
     return SKIP;
   }
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;NO_PROMPT=1",
           my_dsn, my_uid, my_pwd);
-  
- /* if (my_port)
-  {
-    char pbuff[20];
-    sprintf(pbuff, ";PORT=%d", my_port);
-    strcat((char *)conn, pbuff);
-  } */
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, (HWND)HWND_DESKTOP, conn, strlen(conn),
-                                 conn_out, sizeof(conn_out), &conn_out_len,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, (HWND)HWND_DESKTOP, conn, (SQLSMALLINT)strlen(conn),
+                                 conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_PROMPT));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -706,39 +699,80 @@ ODBC_TEST(t_bug30983)
 
 /*
    Test the output string after calling SQLDriverConnect
-   Note: Windows 
-   TODO fix this test create a comparable output string
 */
 ODBC_TEST(t_driverconnect_outstring)
 {
-  HDBC hdbc1;
-  SQLRETURN rc;
-  SQLWCHAR conn_out[1024];
+  HDBC        hdbc1;
+  SQLWCHAR    *connw, connw_out[1024];
   SQLSMALLINT conn_out_len;
-  /* This has to be changed to use actual DSN(and not the default one) */
-  SQLCHAR conna[512];
+  SQLCHAR     conna[512], conna_out[1024];
 
-  /* Testing how driver's doing if no out string given. ODBC-17 */
-  sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8", my_dsn, my_uid, my_pwd);
+  /* Testing how driver's doing if no out string given. ODBC-17
+     ';' at the end is important - otherwise DM adds it while converting connstring for W function */
+  sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8;", my_dsn, my_uid, my_pwd);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
                                  0, &conn_out_len, SQL_DRIVER_NOPROMPT));
+  diag("OutString Length: %d", conn_out_len);
+  is_num(conn_out_len, strlen(conna));
+
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, conna_out,
+                                 sizeof(conna_out), &conn_out_len, SQL_DRIVER_NOPROMPT));
+
+  is_num(conn_out_len, strlen(conna));
+  FAIL_IF(strncmp(conna_out, conna, strlen(conna)), "In and Out connstrings do not match");
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  
+  /* Checking that COMPLETE and COMPLETE_REQUIRED do not fire dialog, if they have enough
+     info to establish connection. Also checking that the out connstring in this case is just
+     a copy of incoming connstring */
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
+                                 0, &conn_out_len, SQL_DRIVER_COMPLETE));
+
+  is_num(conn_out_len, strlen(conna));
+  IS_STR(conna_out, conna, strlen(conna));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
+                                 0, &conn_out_len, SQL_DRIVER_COMPLETE_REQUIRED));
+ 
+  is_num(conn_out_len, strlen(conna));
+  IS_STR(conna_out, conna, strlen(conna));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
 
-  /* This part of test has to be changed to compare in and out strings */
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  rc= SQLDriverConnectW(hdbc1, NULL, CW(conna), SQL_NTS, conn_out,
-                                 sizeof(conn_out), &conn_out_len,
-                                 SQL_DRIVER_NOPROMPT);
-  if (SQL_SUCCEEDED(rc))
-  {
-    CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
-  }
+  connw= CW(conna);
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
+                                        sizeof(connw_out), &conn_out_len,
+                                        SQL_DRIVER_NOPROMPT));
+  is_num(conn_out_len, strlen(conna));
+  IS_WSTR(connw_out, connw, strlen(conna));
 
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
+                                        sizeof(connw_out), &conn_out_len,
+                                        SQL_DRIVER_COMPLETE));
+  is_num(conn_out_len, strlen(conna));
+  IS_WSTR(connw_out, connw, strlen(conna));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
+                                        sizeof(connw_out), &conn_out_len,
+                                        SQL_DRIVER_COMPLETE_REQUIRED));
+  is_num(conn_out_len, strlen(conna));
+  IS_WSTR(connw_out, connw, strlen(conna));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
   
   return OK;
@@ -941,29 +975,34 @@ ODBC_TEST(t_bug32014)
     is_num(info, expectedInfo[i]);
 
     /*Checking that correct cursor type is set*/
-
-    CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE
-            , SQL_CURSOR_FORWARD_ONLY ));
-    CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &attr));
+    CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE
+            , (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 0));
+    CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER) &attr, 0, NULL));
     is_num(attr, expectedCurType[i][SQL_CURSOR_FORWARD_ONLY]);
 
-    CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            SQL_CURSOR_KEYSET_DRIVEN ));
-    CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &attr));
+    CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER)SQL_CURSOR_KEYSET_DRIVEN, 0));
+    CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER) &attr, 0, NULL));
     is_num(attr, expectedCurType[i][SQL_CURSOR_KEYSET_DRIVEN]);
 
-    CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            SQL_CURSOR_DYNAMIC ));
-    CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
-            (SQLPOINTER) &attr));
+    CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
+    CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
+            (SQLPOINTER) &attr, 0, NULL));
     is_num(attr, expectedCurType[i][SQL_CURSOR_DYNAMIC]);
 
+    /* SQLSet/GetOption are deprecated in favour of SQLSet/GetAttr
+       Leaving one just to make sure we don't have problem with old apps,
+       but disabling possible warning */
+#pragma warning(disable: 4996)
+#pragma warning(push)
     CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             SQL_CURSOR_STATIC ));
     CHECK_STMT_RC(hstmt1, SQLGetStmtOption(hstmt1, SQL_CURSOR_TYPE,
             (SQLPOINTER) &attr));
+#pragma warning(pop)
     is_num(attr, expectedCurType[i][SQL_CURSOR_STATIC]);
 
     ODBC_Disconnect(henv1, hdbc1, hstmt1);

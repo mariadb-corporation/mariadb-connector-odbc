@@ -70,7 +70,8 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 #include <getopt.h>
 #include <time.h>
 #include <assert.h>
-
+/* We need mysql for CHARSET_INFO type and conversion routine */
+#include <mysql.h>
 typedef unsigned int uint;
 
 SQLCHAR *my_dsn=        (SQLCHAR *)"test";
@@ -101,6 +102,8 @@ SQLWCHAR *buff_pos= sqlwchar_buff;
 
 iconv_t   ch2sqlwchar=    0;
 iconv_t   wchar2sqlwchar= 0;
+
+CHARSET_INFO  *utf8, *utf16, *utf32;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -305,21 +308,19 @@ char little_endian()
 
 
 /* More or less copy of the function from MariaDB C/C */
-size_t madbtest_convert_string(iconv_t converter, const char *from, size_t *from_len,
-                                      char *to, size_t *to_len, int *errorcode)
+size_t madbtest_convert_string(CHARSET_INFO *from_cs, const char *from, size_t *from_len,
+                               CHARSET_INFO *to_cs, char *to, size_t *to_len, int *errorcode)
 {
   size_t rc= -1;
   size_t save_len= *to_len;
 
   *errorcode= 0;
 
-  if ((rc= iconv(converter, (char **)&from, from_len, &to, to_len)) == -1)
+  if ((rc= mariadb_convert_string(from, from_len, from_cs, to, to_len, to_cs, errorcode)) == -1)
   {
-    *errorcode= errno;
     goto error;
   }
 
-  iconv(converter, NULL, NULL, &to, to_len);
   rc= save_len - *to_len;
 error:
   return rc;
@@ -433,7 +434,7 @@ do {\
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
-#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF(strncmp((A), (B), (C)) != 0, "String comparison failed")
+#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF((A) == NULL || (B) == NULL || strncmp((A), (B), (C)) != 0, "String comparison failed")
 
 #define is_num(A,B) \
 do {\
@@ -560,40 +561,68 @@ int mydrvconnect(SQLHENV *henv, SQLHDBC *hdbc, SQLHSTMT *hstmt, SQLCHAR *connIn)
 }
 
 
+int AllocEnvConn(SQLHANDLE *Env, SQLHANDLE *Connection)
+{
+  if (*Env == NULL)
+  {
+    FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, NULL, Env)), "Couldn't allocate environment handle");
+
+    FAIL_IF(!SQL_SUCCEEDED(SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0)), "Couldn't set ODBC version");
+  }
+  FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection)), "Couldn't allocate connection handle");
+
+  return OK;
+}
+
+
+/* Returns STMT handle for newly created connection, or NULL if connection is unsuccessful */
+SQLHANDLE DoConnect(SQLHANDLE *Connection,
+                    const char *dsn, const char *uid, const char *pwd, unsigned int port, const char *schema, unsigned long *options, const char *server,
+                    const char *add_parameters)
+{
+  SQLHANDLE   stmt= NULL;
+  char        DSNString[1024];
+  char        DSNOut[1024];
+  SQLSMALLINT Length;
+
+  /* my_options |= 4; */ /* To enable debug */
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
+           pwd ? pwd : my_pwd, port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+           add_parameters ? add_parameters : "");
+  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
+           "********", port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+           add_parameters ? add_parameters : "");
+  
+  if(!SQL_SUCCEEDED(SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
+  {
+    odbc_print_error(SQL_HANDLE_DBC, *Connection);
+    return NULL;
+  }
+
+  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &stmt)))
+  {
+    diag("Could not create Stmt handle. Connection: %x", Connection);
+    return NULL;
+  }
+
+  return stmt;
+}
+
 int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 {
-  SQLRETURN rc;
-  char buffer[100];
-  char DSNString[1024];
-  char DSNOut[1024];
-  SQLSMALLINT Length;
-  SQLHANDLE Stmt1;
+  SQLRETURN   rc;
+  char        buffer[100];
+  SQLHANDLE   Stmt1;
 
   *Env=         NULL;
   *Connection=  NULL;
-  *Stmt=        NULL;
 
-  rc= SQLAllocHandle(SQL_HANDLE_ENV, NULL, Env);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate environment handle");
-  rc= SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION,
-                              (SQLPOINTER)SQL_OV_ODBC3, 0);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't set ODBC version");
+  IS(AllocEnvConn(Env, Connection));
 
-  rc= SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate connection handle");
+  *Stmt= DoConnect(Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
-  /* my_options |= 4; */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
-           my_pwd, my_port, my_schema, my_options, my_servername);
-  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", my_dsn, my_uid,
-           "********", my_port, my_schema, my_options, my_servername);
-  
-  rc= SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT);
-  FAIL_IF(rc != SQL_SUCCESS, "Connection failed");
-
-  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, *Connection, Stmt)))
+  if (Stmt == NULL)
   {
-    diag("Could not create Stmt handle. Connection: %x(%d)", Connection, rc);
     return FAIL;
   }
 
@@ -628,6 +657,17 @@ void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
     SQLFreeHandle(SQL_HANDLE_ENV, Env);
   }
 }
+
+
+SQLHANDLE ConnectWithCharset(SQLHANDLE *conn, const char *charset_name, const char *add_parameters)
+{
+  char charset_clause[64];
+
+  _snprintf(charset_clause, sizeof(charset_clause), "CHARSET=%s;%s", charset_name, add_parameters ? add_parameters : "");
+
+  return DoConnect(conn, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
+}
+
 
 struct st_ma_server_variable
 {
@@ -678,7 +718,7 @@ int reset_changed_server_variables(void)
   return error;
 }
 
-SQLWCHAR * str2sqlwchar_on_gbuff(iconv_t converter, char *str, size_t len);
+SQLWCHAR * str2sqlwchar_on_gbuff(char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
 
 int run_tests(MA_ODBC_TESTS *tests)
 {
@@ -686,25 +726,22 @@ int run_tests(MA_ODBC_TESTS *tests)
   const char *comment;
   SQLWCHAR   *buff_before_test;
 
-  if ((ch2sqlwchar= iconv_open(little_endian() ? "UTF-16LE" : "UTF-16BE", "UTF-8")) == (iconv_t)-1)
+  utf8= mysql_get_charset_by_name("utf8");
+  utf16= mysql_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
+  utf32= mysql_get_charset_by_name(little_endian() ? "utf32" : "utf32");
+  if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
   {
-    fprintf(stdout, "HALT! Could not connect to the server\n");
+    fprintf(stdout, "HALT! Could not load charset info %p %p %p\n", utf8, utf16, utf32);
     return 1;
   }
 
-  wdsn=        str2sqlwchar_on_gbuff(ch2sqlwchar, my_dsn,        strlen(my_dsn)+1);
-  wuid=        str2sqlwchar_on_gbuff(ch2sqlwchar, my_uid,        strlen(my_uid)+1);
-  wpwd=        str2sqlwchar_on_gbuff(ch2sqlwchar, my_pwd,        strlen(my_pwd)+1);
-  wschema=     str2sqlwchar_on_gbuff(ch2sqlwchar, my_schema,     strlen(my_schema)+1);
-  wservername= str2sqlwchar_on_gbuff(ch2sqlwchar, my_servername, strlen(my_servername)+1);
-  wdrivername= str2sqlwchar_on_gbuff(ch2sqlwchar, my_drivername, strlen(my_drivername)+1);
-  wstrport=    str2sqlwchar_on_gbuff(ch2sqlwchar, ma_strport,    strlen(ma_strport)+1);
-
-  if ((wchar2sqlwchar= iconv_open(little_endian() ? "UTF-16LE" : "UTF-16BE", little_endian() ? "UTF-32LE" : "UTF-32BE")) == (iconv_t)-1)
-  {
-    fprintf(stdout, "HALT! Could not connect to the server\n");
-    return 1;
-  }
+  wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, utf16);
+  wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, utf16);
+  wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, utf16);
+  wschema=     str2sqlwchar_on_gbuff(my_schema,     strlen(my_schema) + 1,     utf8, utf16);
+  wservername= str2sqlwchar_on_gbuff(my_servername, strlen(my_servername) + 1, utf8, utf16);
+  wdrivername= str2sqlwchar_on_gbuff(my_drivername, strlen(my_drivername) + 1, utf8, utf16);
+  wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, utf16);
 
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
@@ -887,7 +924,7 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 /**
   @len[in] - length of the source string in bytes, including teminating NULL
  */
-SQLWCHAR * str2sqlwchar_on_gbuff(iconv_t converter, char *str, size_t len)
+SQLWCHAR * str2sqlwchar_on_gbuff(char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
   SQLWCHAR *res= buff_pos;
   size_t rc, buff_size= sqlwchar_buff + sizeof(sqlwchar_buff) - buff_pos;
@@ -903,7 +940,7 @@ SQLWCHAR * str2sqlwchar_on_gbuff(iconv_t converter, char *str, size_t len)
     return sqlwchar_empty;
   }
 
-  rc= madbtest_convert_string(converter, src, &len, (char*)buff_pos, &buff_size, &error);
+  rc= madbtest_convert_string(from_cs, src, &len, to_cs, (char*)buff_pos, &buff_size, &error);
 
   if (rc != (size_t)(-1))
   {
@@ -942,33 +979,28 @@ wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
     return (wchar_t *)in;
   else
   {
-    iconv_t converter= iconv_open(little_endian() ? "UTF-32LE" : "UTF-32BE", little_endian() ? "UTF-16LE" : "UTF-16BE");
-    size_t  len= (SqlwcsLen(in) + 1)*sizeof(SQLWCHAR);
+    size_t len= (SqlwcsLen(in) + 1)*sizeof(SQLWCHAR);
+    int    error;
+    size_t buff_size=  sizeof(buff);
 
-    if (converter != (iconv_t)-1)
-    {
-      int    error;
-      size_t buff_size=  sizeof(buff);
-
-      madbtest_convert_string(converter, (char*)in, &len, to, &buff_size, &error);
-      iconv_close(converter);
-    }
+    madbtest_convert_string(utf16, (char*)in, &len, utf32, to, &buff_size, &error);
   }
   
   return buff;
 }
 
-#define WL(A,B) str2sqlwchar_on_gbuff(wchar2sqlwchar, (char*)(A), (B+1)*sizeof(wchar_t))
+#define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
+#define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
 /* Wchar_t(utf32) to sqlWchar */
 #define WW(A) WL(L##A,wcslen(L##A))
-/* Pretty much the same as WW, but expects that L string*/
+/* Pretty much the same as WW, but expects that L string */
 #define W(A) WL(A,wcslen(A))
 /**
  Helper for converting a (char *) to a (SQLWCHAR *)
 */
 /*#define WC(string) dup_char_as_sqlwchar((string))*/
 /* Char(utf8) to slqWchar */
-#define CW(str) str2sqlwchar_on_gbuff(ch2sqlwchar, str, strlen(str)+1)
+#define CW(str) str2sqlwchar_on_gbuff(str, strlen(str)+1, utf8, utf16)
 
 /* @n[in] - number of characters to compare. Negative means treating of strings as null-terminated */
 int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
@@ -984,6 +1016,55 @@ int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
   }
 
   return n != 0 && *s1!=*s2;
+}
+
+
+char* ltrim(char *str)
+{
+  while (*str && iswspace(*str))
+    ++str;
+
+  return str;
+}
+
+
+/* connstr has to be null-terminated */
+char* hide_pwd(char *connstr)
+{
+  char *ptr= connstr;
+
+  while (*ptr)
+  {
+    BOOL is_pwd=          FALSE;
+    char *key_val_border= strchr(ptr, '=');
+    char stop_chr=        ';';
+
+    ptr= ltrim(ptr);
+
+    if (_strnicmp(ptr, "PWD", 3) == 0 || _strnicmp(ptr, "PASSWORD", 8) == 0)
+    {
+      is_pwd= TRUE;
+    }
+    if (key_val_border != NULL)
+    {
+      ptr= ltrim(key_val_border + 1);
+    }
+    if (*ptr == '{')
+    {
+      stop_chr= '}';
+    }
+    while (*ptr && *ptr != stop_chr)
+    {
+      if (is_pwd)
+      {
+        *ptr= '*';
+      }
+      ++ptr;
+    }
+    ++ptr;
+  }
+
+  return connstr;
 }
 
 #endif      /* #ifndef _tap_h_ */

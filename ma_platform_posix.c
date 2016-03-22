@@ -31,6 +31,7 @@ extern Client_Charset utf8;
 
 char LogFile[256];
 
+
 void InitializeCriticalSection(CRITICAL_SECTION *cs)
 {
   pthread_mutexattr_t attr;
@@ -38,6 +39,28 @@ void InitializeCriticalSection(CRITICAL_SECTION *cs)
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   pthread_mutex_init(cs, &attr);
+}
+
+SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
+{
+  MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
+  return Dbc->Error.ReturnValue;
+}
+
+
+int DSNPrompt_Free  (MADB_Prompt *prompt)
+{
+  prompt->LibraryHandle= NULL;
+
+  return 0;
+}
+
+
+int DSNPrompt_Free  (MADB_Prompt *prompt)
+{
+  prompt->LibraryHandle= NULL;
+
+  return 0;
 }
 
 /* Mimicking of VS' _snprintf */
@@ -102,19 +125,21 @@ const char* GetDefaultLogDir()
   return LogFile;
 }
 
-
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
+/* Length in SQLWCHAR units*/
+SQLINTEGER SqlwcsLen(SQLWCHAR *str)
 {
-  MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
-  return Dbc->Error.ReturnValue;
-}
+  SQLINTEGER result= 0;
 
-
-int DSNPrompt_Free  (MADB_Prompt *prompt)
-{
-  prompt->LibraryHandle= NULL;
-
-  return 0;
+  if (str)
+  {
+    while (*str)
+    {
+      ++result;
+      /* str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR)); */
+      ++str;
+    }
+  }
+  return result;
 }
 
 

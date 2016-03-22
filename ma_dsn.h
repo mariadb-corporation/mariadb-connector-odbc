@@ -19,6 +19,8 @@
 #ifndef _na_dsn_h_
 #define _ma_dsn_h_
 
+#include <odbcinst.h>
+
 /* MySQL ODBC compatibility options */
 #define MADB_OPT_FLAG_FIELD_LENGTH                      1
 #define MADB_OPT_FLAG_FOUND_ROWS                        2
@@ -30,7 +32,7 @@
 #define MADB_OPT_FLAG_NO_DEFAULT_CURSOR               128
 #define MADB_OPT_FLAG_NO_LOCALE                       256
 #define MADB_OPT_FLAG_PAD_SPACE                       512
-#define MADB_OPT_FLAG_FULL_COLUMN_NAMES              1024
+#define MADB_OPT_FLAG_FULL_COLUMN_NAMES              1024 /*10*/
 #define MADB_OPT_FLAG_COMPRESSED_PROTO               2048
 #define MADB_OPT_FLAG_IGNORE_SPACE                   4096
 #define MADB_OPT_FLAG_NAMED_PIPE                     8192
@@ -40,7 +42,7 @@
 #define MADB_OPT_FLAG_SAFE                         131072
 #define MADB_OPT_FLAG_NO_TRANSACTIONS              262144
 #define MADB_OPT_FLAG_LOG_QUERY                    524288
-#define MADB_OPT_FLAG_NO_CACHE                    1048576
+#define MADB_OPT_FLAG_NO_CACHE                    1048576 /*20*/
 #define MADB_OPT_FLAG_FORWARD_CURSOR              2097152
 #define MADB_OPT_FLAG_AUTO_RECONNECT              4194304
 #define MADB_OPT_FLAG_AUTO_IS_NULL                8388608
@@ -50,7 +52,7 @@
 #define MADB_OPT_FLAG_COLUMN_SIZE_S32           134217728
 #define MADN_OPT_FLAG_NO_BINARY_RESULT          268435456
 #define MADN_OPT_FLAG_BIGINT_BIND_STR           536870912
-#define MADN_OPT_FLAG_NO_INFORMATION_SCHEMA    1073741824
+#define MADN_OPT_FLAG_NO_INFORMATION_SCHEMA    1073741824 /*30*/
 
 typedef struct
 {
@@ -59,20 +61,89 @@ typedef struct
   unsigned long value;
 } MADB_OptionsMap;
 
+typedef struct 
+{
+  char *DsnKey;
+  size_t DsnOffset;
+  enum enum_dsn_item_type Type;
+  unsigned long FlagValue;
+  my_bool IsAlias;
+} MADB_DsnKey;
+
+/* Definitions to tell setup library via isPrompt field what should it do */
+#define MAODBC_CONFIG           0
+#define MAODBC_PROMPT           1
+#define MAODBC_PROMPT_REQUIRED  2
+
+typedef struct st_madb_dsn
+{
+  /*** General ***/
+  char    *DSNName;
+  char    *Driver;
+  char    *Description;
+  /*** Connection parameters ***/
+  char    *ServerName;
+  my_bool IsNamedPipe;
+  my_bool IsTcpIp;
+  char    *UserName;
+  char    *Password;
+  char    *Catalog;
+  unsigned int Port;
+  /* Options */
+  unsigned int Options;
+  char *CharacterSet;
+  char *InitCommand;
+  char *TraceFile;
+  unsigned int ConnectionTimeout;
+  my_bool Reconnect;
+  my_bool MultiStatements;
+  /* TRUE means "no prompt" */
+  my_bool ConnectPrompt;
+  char * ConnCPluginsDir;
+  /* SSL Settings */
+  char * SslKey;
+  char * SslCert;
+  char * SslCa;
+  char * SslCaPath;
+  char * SslCipher;
+  char *SslCrl;
+  char *SslCrlPath;
+  char *SslFp;
+  char *SslFpList;
+  my_bool SslVerify;
+  /* --- Internal --- */
+  int isPrompt;
+  MADB_DsnKey *Keys;
+  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
+  my_bool FreeMe;
+  /* Callbacke required for prompt to keep all memory de/allocation operations
+     on same side of libraries */
+  char * (*allocator)(size_t);
+  void (*free)(void*);
+} MADB_Dsn;
+
+enum enum_dsn_item_type {
+  DSN_TYPE_STRING,
+  DSN_TYPE_INT,
+  DSN_TYPE_BOOL,
+  DSN_TYPE_COMBO,
+  DSN_TYPE_OPTION
+};
+
 /* this structure is used to store and retrieve DSN Information */
-
-
 extern MADB_DsnKey DsnKeys[];
 
 
 /*** Function prototypes ***/
-MADB_Dsn *  MADB_DSN_Init           (void);
-void        MADB_DSN_Free           (MADB_Dsn *Dsn);
-my_bool     MADB_ReadDSN            (MADB_Dsn *Dsn, char *KeyValue, my_bool OverWrite);
-my_bool     MADB_SaveDSN            (MADB_Dsn *Dsn);
-my_bool     MADB_DSN_Exists         (char *DsnName);
-my_bool     MADB_ParseDSNString     (MADB_Dsn *Dsn, char *String, size_t Length, char Delimiter);
-SQLSMALLINT MADB_DsnToString        (MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength);
+MADB_Dsn *  MADB_DSN_Init       (void);
+void        MADB_DSN_Free       (MADB_Dsn *Dsn);
+my_bool     MADB_ReadDSN        (MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite);
+my_bool     MADB_SaveDSN        (MADB_Dsn *Dsn);
+my_bool     MADB_DSN_Exists     (const char *DsnName);
+my_bool     MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
+BOOL        MADB_ReadConnString (MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
+SQLSMALLINT MADB_DsnToString    (MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength);
+void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
 
 /*** Helper macros ***/
 #define DSN_OPTION(a,b)\
