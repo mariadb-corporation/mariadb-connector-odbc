@@ -940,8 +940,8 @@ ODBC_TEST(t_bug32014)
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
   SQLUINTEGER info;
-  SQLULEN     attr;
-  long        i=0;
+  SQLULEN     attr= 0;
+  long        i=    0;
   SQLSMALLINT value_len;
 
   long flags[]= { 0,

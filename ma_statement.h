@@ -102,7 +102,9 @@ struct st_ma_stmt_methods
   SQLRETURN (*GetOutParams)(MADB_Stmt *Stmt, int CurrentOffset);
 };
 
-SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt);
+SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt);
+SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier);
+
 #define MADB_MAX_CURSOR_NAME 64 * 3 + 1
 #define MADB_CHECK_STMT_HANDLE(a,b)\
   if (!(a) || !(a)->b)\

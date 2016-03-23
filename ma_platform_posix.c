@@ -55,14 +55,6 @@ int DSNPrompt_Free  (MADB_Prompt *prompt)
   return 0;
 }
 
-
-int DSNPrompt_Free  (MADB_Prompt *prompt)
-{
-  prompt->LibraryHandle= NULL;
-
-  return 0;
-}
-
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
 {

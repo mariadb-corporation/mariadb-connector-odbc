@@ -136,7 +136,10 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
       MADB_FREE(Record->ColumnName);
       MADB_FREE(Record->TableName);
       MADB_FREE(Record->TypeName);
-
+    }
+    else if(Desc->DescType == MADB_DESC_IPD)
+    {
+      MADB_FREE(Record->TypeName);
     }
   }
   delete_dynamic(&Desc->Records);
@@ -173,11 +176,11 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     return 1;
   }
 
-  Record->CatalogName= Field->catalog ? my_strdup(Field->catalog, MYF(0)) : NULL;
-  Record->TableName= Field->table ? my_strdup(Field->table, MYF(0)) : NULL;
-  Record->ColumnName= Field->name ? my_strdup(Field->name, MYF(0)) : NULL;
-  Record->BaseTableName= Field->org_table ? my_strdup(Field->org_table, MYF(0)) : NULL;
-  Record->BaseColumnName= Field->org_name ? my_strdup(Field->org_name, MYF(0)) : NULL;
+  MADB_RESET(Record->CatalogName, Field->catalog);
+  MADB_RESET(Record->TableName, Field->table);
+  MADB_RESET(Record->ColumnName, Field->name);
+  MADB_RESET(Record->BaseTableName, Field->org_table);
+  MADB_RESET(Record->BaseColumnName, Field->org_name);
   Record->AutoUniqueValue= (Field->flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->CaseSensitive= (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->Nullable= ( (Field->flags & NOT_NULL_FLAG) &&
@@ -259,7 +262,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   Record->OctetLength= MADB_GetOctetLength(*Field, Stmt->Connection->mariadb->charset->char_maxlen);
   Record->Length= MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
     
-  Record->TypeName= my_strdup(MADB_GetTypeName(*Field), MYF(0));
+  MADB_RESET(Record->TypeName, MADB_GetTypeName(*Field));
   switch(Field->type) {
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
@@ -621,7 +624,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->LocalTypeName= "";
     Record->Nullable= SQL_NULLABLE;
     Record->ParameterType= SQL_PARAM_INPUT;
-    Record->TypeName= my_strdup("VARCHAR", MYF(0));
+    MADB_RESET(Record->TypeName, "VARCHAR");
     Record->Unsigned= SQL_FALSE;
     Record->ColumnName= "";
     break;
@@ -632,7 +635,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->ConciseType= SQL_VARCHAR;
     Record->AutoUniqueValue= SQL_FALSE;
     Record->Type= SQL_VARCHAR;
-    Record->TypeName= my_strdup("VARCHAR", MYF(0));
+    MADB_RESET(Record->TypeName, "VARCHAR");
     Record->Unsigned= SQL_FALSE;
     break;
   }

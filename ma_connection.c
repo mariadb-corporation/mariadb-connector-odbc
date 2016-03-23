@@ -516,7 +516,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
     *StringLengthPtr= isWChar ? (SQLSMALLINT)Size * sizeof(SQLWCHAR) : (SQLSMALLINT)Size;
   
 end:
-  MA_SQLFreeStmt(Stmt, SQL_CLOSE);
+  MA_SQLFreeStmt(Stmt, SQL_DROP);
   return Connection->Error.ReturnValue;
 }
 /* }}} */
@@ -1727,6 +1727,10 @@ end:
   }
   else
   {
+    if (StringLength1 == SQL_NTS)
+    {
+      StringLength1= strlen(InConnectionString);
+    }
     if (OutConnectionString && BufferLength)
     {
       /* Otherwise we are supposed to simply copy incoming connection string */

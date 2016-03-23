@@ -82,7 +82,7 @@ extern my_bool DummyError;
   if (local_new_ptr != ptr) {\
     my_free((gptr)(ptr));\
     if (local_new_ptr != NULL)\
-      (ptr)= _strdup(local_new_ptr);\
+      (ptr)= my_strdup(local_new_ptr, MYF(0));\
     else\
       (ptr)= NULL;\
   }\

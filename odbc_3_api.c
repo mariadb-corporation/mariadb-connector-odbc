@@ -459,28 +459,6 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-/* {{{ MapColAttributesDescType */
-SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
-{
-  /* we need to map the old field identifiers, see bug ODBC-8 */
-  switch (FieldIdentifier)
-  {
-  case SQL_COLUMN_SCALE:
-    return SQL_DESC_SCALE;
-  case SQL_COLUMN_PRECISION:
-    return SQL_DESC_PRECISION;
-  case SQL_COLUMN_NULLABLE:
-    return SQL_DESC_NULLABLE;
-  case SQL_COLUMN_LENGTH:
-    return SQL_DESC_OCTET_LENGTH;
-  case SQL_COLUMN_NAME:
-    return SQL_DESC_NAME;
-  default:
-    return FieldIdentifier;
-  }
-}
-/* }}} */
-
 /* {{{ SQLColAttributes */
 SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt, 
 	SQLUSMALLINT icol,
@@ -690,7 +668,7 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Connection, Connection, 0x);
   MDBUG_C_DUMP(Connection, ServerName, s);
   MDBUG_C_DUMP(Connection, NameLength1, d);
-  MDBUG_C_DUMP(Connection,  UserName, s);
+  MDBUG_C_DUMP(Connection, UserName, s);
   MDBUG_C_DUMP(Connection, NameLength2, d);
   MDBUG_C_DUMP(Connection, Authentication, s);
   MDBUG_C_DUMP(Connection, NameLength3, d);
@@ -724,7 +702,12 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
 
   if (SQL_SUCCEEDED(ret))
   {
+    MADB_DSN_Free(Connection->Dsn);
     Connection->Dsn= Dsn;
+  }
+  else
+  {
+    MADB_DSN_Free(Dsn);
   }
 
   MDBUG_C_RETURN(Connection, ret, &Connection->Error);
@@ -1005,7 +988,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
   SQLRETURN   ret=          SQL_ERROR;
   SQLSMALLINT Length=       0;
   char        *InConnStrA=  NULL;
-  SQLINTEGER  InStrAOctLen= 0;
+  SQLULEN     InStrAOctLen= 0;
   char        *OutConnStrA= NULL;
   MADB_Dbc    *Dbc=         (MADB_Dbc *)ConnectionHandle;
    
@@ -1046,7 +1029,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
 
   if (OutConnectionString)
   {
-    Length= (SQLSMALLINT)MADB_SetString(CP_UTF8, OutConnectionString, BufferLength,
+    Length= (SQLSMALLINT)MADB_SetString(&utf8, OutConnectionString, BufferLength,
                                         OutConnStrA, SQL_NTS, &((MADB_Dbc *)ConnectionHandle)->Error);
     if (StringLength2Ptr)
       *StringLength2Ptr= Length;
@@ -1512,7 +1495,8 @@ SQLRETURN SQL_API SQLFreeHandle(SQLSMALLINT HandleType,
       MDBUG_C_DUMP(Dbc, Handle, 0x);
 
       ret= MADB_DbcFree(Dbc);
-      MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
+      return ret;
+      /*MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);*/
     }
   case SQL_HANDLE_DESC:
     {

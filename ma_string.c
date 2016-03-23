@@ -227,14 +227,16 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
      columns from table in TableName */
   if (!PrimaryCount && !UniqueCount)
   {
-    char StmtStr[256];
+    char      StmtStr[256];
     SQLHANDLE CountStmt;
-    int FieldCount= 0;
+    int       FieldCount= 0;
+
     MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, &CountStmt);
     my_snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
     MA_SQLExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
-    MA_SQLFreeStmt(CountStmt, SQL_CLOSE);
+    MA_SQLFreeStmt(CountStmt, SQL_DROP);
+
     if (FieldCount != mysql_stmt_field_count(Stmt->stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
@@ -529,24 +531,6 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
         break;
       }
       ++result;
-    }
-  }
-  return result;
-}
-
-
-/* Length in SQLWCHAR units*/
-SQLINTEGER SqlwcsLen(SQLWCHAR *str)
-{
-  SQLINTEGER result= 0;
-
-  if (str)
-  {
-    while (*str)
-    {
-      ++result;
-      /* str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR)); */
-      ++str;
     }
   }
   return result;

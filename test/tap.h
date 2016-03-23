@@ -34,9 +34,12 @@
 #ifdef _WIN32
 # define _WINSOCKAPI_
 # include <windows.h>
+
 #else
+
 # include <string.h>
 # include <errno.h>
+
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
 {
@@ -54,14 +57,50 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
     return result;
 }
 
+
+int strcpy_s(char *dest, size_t buffer_size, const char *src)
+{
+  size_t src_len;
+
+  if (dest == NULL)
+  {
+    return EINVAL;
+  }
+
+  if (src == NULL)
+  {
+    *dest= '\0';
+    return EINVAL;
+  }
+
+  src_len= strlen(src);
+
+  if (buffer_size < src_len + 1)
+  {
+    *dest= 0;
+    return ERANGE;
+  }
+
+  memcpy((void*)dest, (void*)src, src_len + 1);
+
+  return 0;
+}
+
+
 #define Sleep(ms) sleep(ms/1000)
 
-#ifndef TRUE
-# define TRUE 1
-#endif
-#ifndef FALSE
-# define FALSE 0
-#endif
+# ifndef TRUE
+#  define TRUE 1
+# endif
+# ifndef FALSE
+#  define FALSE 0
+# endif
+
+#define _strdup        strdup
+#define _stricmp       strcasecmp
+#define _strnicmp      strncasecmp
+#define _atoi64(str)   strtoll((str), NULL, 10)
+#define _i64toa(a,b,c) longlong2str((a),(b),(c))
 
 #endif
 
@@ -586,11 +625,13 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
-           pwd ? pwd : my_pwd, port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+           uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
+           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
-  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
-           "********", port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+  diag("DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+           uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
+           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
   
   if(!SQL_SUCCEEDED(SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
@@ -735,6 +776,7 @@ int run_tests(MA_ODBC_TESTS *tests)
     return 1;
   }
 
+  diag("Converting testing credentials");
   wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, utf16);
   wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, utf16);
   wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, utf16);
@@ -948,6 +990,7 @@ SQLWCHAR * str2sqlwchar_on_gbuff(char *str, size_t len, CHARSET_INFO *from_cs, C
   }
   else
   {
+    diag("Conversion error?!");
     return sqlwchar_empty;
   }
   return res;

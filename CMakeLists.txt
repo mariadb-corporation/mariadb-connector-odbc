@@ -222,7 +222,7 @@ ELSE()
 ENDIF()
 
 # Tests. Checking if we have them. May be not the case if we are building from source package
-IF(EXISTS("${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt"))
+IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
   ADD_SUBDIRECTORY(test)
 ENDIF()
 

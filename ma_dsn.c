@@ -125,6 +125,7 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->CharacterSet);
   MADB_FREE(Dsn->InitCommand);
   MADB_FREE(Dsn->TraceFile);
+  MADB_FREE(Dsn->Socket);
   MADB_FREE(Dsn->ConnCPluginsDir);
   MADB_FREE(Dsn->SslKey);
   MADB_FREE(Dsn->SslCert);
@@ -228,13 +229,11 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
   case DSN_TYPE_COMBO:
     {
       char **p= GET_FIELD_PTR(Dsn, DsnKey, char*);
-      char *current= *p;
 
-      if (current && OverWrite == FALSE)
+      if (*p && OverWrite == FALSE)
         break;
       /* For the case of making copy of currently stored values */
-       *p= _strdup(Value);
-       MADB_FREE(current);
+       MADB_RESET(*p, Value);
     }
     break;
   case DSN_TYPE_BOOL:

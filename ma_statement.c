@@ -1310,12 +1310,15 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->Cursor.Name);
     MADB_FREE(Stmt->StmtString);
     MADB_FREE(Stmt->NativeSql);
+    MADB_FREE(Stmt->CatalogName);
+    MADB_FREE(Stmt->TableName);
     ResetMetadata(Stmt);
 
     /* For explicit descriptors we only remove reference to the stmt*/
     if (Stmt->Apd->AppType)
     {
       remove_stmt_ref_from_desc(Stmt->Apd, Stmt, TRUE);
+      MADB_DescFree(Stmt->IApd, FALSE);
     }
     else
     {
@@ -1324,6 +1327,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     if (Stmt->Ard->AppType)
     {
       remove_stmt_ref_from_desc(Stmt->Ard, Stmt, TRUE);
+      MADB_DescFree(Stmt->IArd, FALSE);
     }
     else
     {
@@ -1341,6 +1345,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       Stmt->DefaultsResult= NULL;
     }
 
+    if (Stmt->DaeStmt != NULL)
+    {
+      Stmt->DaeStmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
+      Stmt->DaeStmt= NULL;
+    }
     ResetMetadata(Stmt);
     EnterCriticalSection(&Stmt->Connection->cs);
     if (Stmt->MultiStmtCount)
@@ -2320,13 +2329,17 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         return Stmt->Error.ReturnValue;
       }
+      /* Dirty temporary hack before we know what is going on */
+      if ((SQLLEN)*Bind.length < 0)
+        *Bind.length= 0;
+      /* end of dirty hack */
       if (*Bind.length > Bind.buffer_length) 
         if (!Stmt->CharOffset[Offset])
           Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
       if (ZeroTerminated)
       {
         char *p= (char *)Bind.buffer;
-        if (BufferLength > (SQLINTEGER)*Bind.length)
+        if (BufferLength > (SQLLEN)*Bind.length)
           p[*Bind.length]= 0;
         else
           p[BufferLength-1]= 0;
@@ -2409,6 +2422,7 @@ SQLRETURN MADB_StmtRowCount(MADB_Stmt *Stmt, SQLLEN *RowCountPtr)
 }
 /* }}} */
 
+/* {{{ MapColAttributesDescType */
 SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
 {
   /* we need to map the old field identifiers, see bug ODBC-8 */
@@ -2428,6 +2442,7 @@ SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
     return FieldIdentifier;
   }
 }
+/* }}} */
 
 /* {{{ MADB_StmtRowCount */
 SQLRETURN MADB_StmtParamCount(MADB_Stmt *Stmt, SQLSMALLINT *ParamCountPtr)
@@ -3326,6 +3341,7 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
       return SQL_ERROR;
     }
   }
+  MADB_FREE(Stmt->Cursor.Name);
   Stmt->Cursor.Name= MADB_CALLOC(BufferLength + 1);
   MADB_SetString(0, Stmt->Cursor.Name, BufferLength + 1, Buffer, BufferLength, NULL);
   return SQL_SUCCESS;
@@ -3477,7 +3493,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       SQLRETURN ret;
       int i;
       int Offset;
-      char *TableName= MADB_GetTableName(Stmt);
+      char *TableName=   MADB_GetTableName(Stmt);
       char *CatalogName= MADB_GetCatalogName(Stmt);
 
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
@@ -3657,7 +3673,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         Stmt->DaeRowNumber++;
         Start++;
       }
-      Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_CLOSE);
+      Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
       Stmt->DaeStmt= NULL;
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
     }

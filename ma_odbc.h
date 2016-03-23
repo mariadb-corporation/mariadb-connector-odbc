@@ -405,7 +405,7 @@ struct st_ma_odbc_connection
   SQLINTEGER CursorCount;
 };
 
-typedef BOOL (__stdcall*PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
+typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
 
 typedef struct
 {
