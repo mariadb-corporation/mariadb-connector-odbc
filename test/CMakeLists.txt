@@ -25,13 +25,11 @@ SET (ODBC_TESTS
 
 # Interactive makes sense on WIN32 only atm
 IF (WIN32 AND (BUILD_INTERACTIVE_TESTS OR USE_INTERACTIVE_TESTS))
-  MESSAGE(STATUS "Configuring to buils interactive test")
+  MESSAGE(STATUS "Configuring to build interactive test")
   SET (ODBC_TESTS ${ODBC_TESTS} "interactive")
 ENDIF()
 
 FOREACH (ODBC_TEST ${ODBC_TESTS})
-  MESSAGE(STATUS "Configuring ${ODBC_TEST}")
-  
   IF (${ODBC_TEST} STREQUAL "interactive")
     ADD_EXECUTABLE(${ODBC_TEST} ${ODBC_TEST}.c tap.h)
   ELSE()

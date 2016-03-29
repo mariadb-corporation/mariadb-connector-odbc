@@ -432,13 +432,16 @@ ODBC_TEST(t_bug11749093)
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, colName, sizeof(colName), &colNameLen,
                     NULL, NULL, NULL, NULL));
 
+  /* Checking that name is trimmed to SQL_MAX_COLUMN_NAME_LEN including teminating NULL */
+  is_num(colNameLen, maxColLen);
+  is_num(colNameLen, strlen(colName));
   IS_STR(colName, "1234567890+2234567890+3234567890"
               "+4234567890+5234567890+6234567890+7234567890+"
               "+8234567890+9234567890+1034567890+1234567890+"
               "+1334567890+1434567890+1534567890+1634567890+"
               "+1734567890+1834567890+1934567890+2034567890+"
               "+2134567890+2234567890+2334567890+2434567890+"
-              "+2534567890+2634567890+2734567890+2834567890", maxColLen);
+              "+2534567890+2634567890+2734567890+2834567890", colNameLen);
   
   return OK;
 }

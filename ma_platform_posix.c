@@ -336,9 +336,8 @@ end:
 /* {{{ MADB_ConvertAnsi2Unicode
        @returns number of characters available at Src */
 size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
-                      char *Src, int SrcLength, MADB_Error *Error)
+                      char *Src, int SrcLength/*bytes*/, MADB_Error *Error)
 {
-  char  *p=     (char *)Dest;
   SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)
@@ -370,7 +369,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
 
   if (!SrcLength || !Src || !strlen(Src))
   {
-    memset(p, 0, cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
+    memset((char *)Dest, 0, cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;
   }
 
@@ -378,7 +377,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
   {
     strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
     /* strncpy does not write null at the end */
-    *(p + DestLength - 1)= '\0';
+    *((char *)Dest + MIN(SrcLength, DestLength - 1))= '\0';
 
     if (Error && SrcLength >= DestLength)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);

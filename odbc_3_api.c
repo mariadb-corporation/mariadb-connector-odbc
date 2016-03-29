@@ -420,7 +420,7 @@ SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
-
+/* }}} */
 
 /* {{{ SQLColAttributeW */
 SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
@@ -673,7 +673,6 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Connection, Authentication, s);
   MDBUG_C_DUMP(Connection, NameLength3, d);
 
-  
   if (CheckConnection(Connection))
   {
     MADB_SetError(&Connection->Error, MADB_ERR_08002, NULL, 0);
@@ -723,13 +722,6 @@ SQLRETURN SQL_API SQLConnect(SQLHDBC ConnectionHandle,
     SQLCHAR *Authentication,
     SQLSMALLINT NameLength3)
 {
-  MADB_Dbc *Dbc= (MADB_Dbc*)ConnectionHandle;
-  
-  if (!Dbc)
-    return SQL_INVALID_HANDLE;
-
-  MADB_CLEAR_ERROR(&Dbc->Error);
-
   return SQLConnectCommon(ConnectionHandle, ServerName, NameLength1,
                           UserName, NameLength2, Authentication, NameLength3);
 }
@@ -1470,7 +1462,7 @@ SQLRETURN SQL_API SQLFetchScroll(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-
+/* {{{ SQLFreeHandle */
 SQLRETURN SQL_API SQLFreeHandle(SQLSMALLINT HandleType,
                                 SQLHANDLE Handle)
 {
