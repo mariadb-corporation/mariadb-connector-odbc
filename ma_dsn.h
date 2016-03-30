@@ -54,6 +54,14 @@
 #define MADN_OPT_FLAG_BIGINT_BIND_STR           536870912
 #define MADN_OPT_FLAG_NO_INFORMATION_SCHEMA    1073741824 /*30*/
 
+enum enum_dsn_item_type {
+  DSN_TYPE_STRING,
+  DSN_TYPE_INT,
+  DSN_TYPE_BOOL,
+  DSN_TYPE_COMBO,
+  DSN_TYPE_OPTION
+};
+
 typedef struct
 {
   unsigned int Page;
@@ -122,14 +130,6 @@ typedef struct st_madb_dsn
   void (*free)(void*);
 } MADB_Dsn;
 
-enum enum_dsn_item_type {
-  DSN_TYPE_STRING,
-  DSN_TYPE_INT,
-  DSN_TYPE_BOOL,
-  DSN_TYPE_COMBO,
-  DSN_TYPE_OPTION
-};
-
 /* this structure is used to store and retrieve DSN Information */
 extern MADB_DsnKey DsnKeys[];
 
@@ -160,6 +160,7 @@ void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
   {\
     if ((len) == SQL_NTS)\
       (len)=strlen((value));\
+    MADB_FREE((dsn)->item);\
     (dsn)->item= (char *)my_malloc(len + 1, MYF(MY_ZEROFILL));\
     memcpy((dsn)->item, (value),(len));\
   }

@@ -16,6 +16,7 @@ SET (ODBC_TESTS
 
 # Interactive makes sense on WIN32 only atm
 IF (WIN32 AND (BUILD_INTERACTIVE_TESTS OR USE_INTERACTIVE_TESTS))
+  MESSAGE(STATUS "Configuring to build interactive test")
   SET (ODBC_TESTS ${ODBC_TESTS} "interactive")
 ENDIF()
 

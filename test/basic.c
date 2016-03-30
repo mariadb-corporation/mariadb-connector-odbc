@@ -940,8 +940,8 @@ ODBC_TEST(t_bug32014)
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
   SQLUINTEGER info;
-  SQLULEN     attr;
-  long        i=0;
+  SQLULEN     attr= 0;
+  long        i=    0;
   SQLSMALLINT value_len;
 
   long flags[]= { 0,
@@ -975,7 +975,6 @@ ODBC_TEST(t_bug32014)
     is_num(info, expectedInfo[i]);
 
     /*Checking that correct cursor type is set*/
-
     CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE
             , (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 0));
     CHECK_STMT_RC(hstmt1, SQLGetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,

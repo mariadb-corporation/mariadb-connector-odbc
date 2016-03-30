@@ -227,13 +227,11 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
   case DSN_TYPE_COMBO:
     {
       char **p= GET_FIELD_PTR(Dsn, DsnKey, char*);
-      char *current= *p;
 
-      if (current && OverWrite == FALSE)
+      if (*p && OverWrite == FALSE)
         break;
       /* For the case of making copy of currently stored values */
-       *p= _strdup(Value);
-       MADB_FREE(current);
+       MADB_RESET(*p, Value);
     }
     break;
   case DSN_TYPE_BOOL:

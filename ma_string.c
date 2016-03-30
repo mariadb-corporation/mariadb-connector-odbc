@@ -224,14 +224,16 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
      columns from table in TableName */
   if (!PrimaryCount && !UniqueCount)
   {
-    char StmtStr[256];
-    SQLHANDLE CountStmt;
-    int FieldCount= 0;
+    char      StmtStr[256];
+    MADB_Stmt *CountStmt;
+    int       FieldCount= 0;
+
     SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, &CountStmt);
     my_snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
-    SQLExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
+    CountStmt->Methods->ExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
-    SQLFreeStmt(CountStmt, SQL_CLOSE);
+    CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
+
     if (FieldCount != mysql_stmt_field_count(Stmt->stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
@@ -527,13 +529,14 @@ end:
 size_t MADB_SetString(unsigned int CodePage, void *Dest, unsigned int DestLength,
                       char *Src, int SrcLength/*bytes*/, MADB_Error *Error)
 {
-  char *p= (char *)Dest;
-  int Length= 0;
+  char  *p=     (char *)Dest;
+  SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)
   {
     if (Src != NULL)
     {
+      /* Thinking about utf8 - Should be probably len in characters */
       SrcLength= strlen(Src);
     }
     else

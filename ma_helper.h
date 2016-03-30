@@ -70,7 +70,7 @@ extern my_bool DummyError;
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) \
-  my_free((gptr)(a));\
+  my_free((a));\
   (a)= NULL;
 #define MADB_ALLOC(a) my_malloc((a), MYF(0))
 #define MADB_CALLOC(a) my_malloc((a), MYF(MY_ZEROFILL))
@@ -82,7 +82,7 @@ extern my_bool DummyError;
   if (local_new_ptr != ptr) {\
     my_free((gptr)(ptr));\
     if (local_new_ptr != NULL)\
-      (ptr)= _strdup(local_new_ptr);\
+      (ptr)= my_strdup(local_new_ptr, MYF(0));\
     else\
       (ptr)= NULL;\
   }\

@@ -432,13 +432,17 @@ ODBC_TEST(t_bug11749093)
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, colName, sizeof(colName), &colNameLen,
                     NULL, NULL, NULL, NULL));
 
+  /* Checking that name is trimmed to SQL_MAX_COLUMN_NAME_LEN */
+  diag("Some C/C versions has bug with that, thus failure here may be perfectly ok");
+  is_num(colNameLen, maxColLen);
+  is_num(colNameLen, strlen(colName));
   IS_STR(colName, "1234567890+2234567890+3234567890"
               "+4234567890+5234567890+6234567890+7234567890+"
               "+8234567890+9234567890+1034567890+1234567890+"
               "+1334567890+1434567890+1534567890+1634567890+"
               "+1734567890+1834567890+1934567890+2034567890+"
               "+2134567890+2234567890+2334567890+2434567890+"
-              "+2534567890+2634567890+2734567890+2834567890", maxColLen);
+              "+2534567890+2634567890+2734567890+2834567890", colNameLen);
   
   return OK;
 }
@@ -482,20 +486,20 @@ ODBC_TEST(test_need_long_data_len)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {t_gettypeinfo, "t_gettypeinfo"},
-  {sqlgetinfo, "sqlgetinfo"},
-  {t_stmt_attr_status, "t_stmt_attr_status"},
-  {t_msdev_bug, "t_msdev_bug"},
-  {t_bug14639, "t_bug14639"},
-  {t_bug31055, "t_bug31055"},
-  {t_bug3780, "t_bug3780"},
-  {t_bug16653, "t_bug16653"},
-  {t_bug30626, "t_bug30626"},
-  {t_bug43855, "t_bug43855"},
-  {t_bug46910, "t_bug46910"}, 
-  {t_bug11749093, "t_bug11749093"},
-  {bug_odbc15, "bug_odbc15"},
-  {test_need_long_data_len, "test_need_long_data_len"},
+  {t_gettypeinfo, "t_gettypeinfo",          NORMAL},
+  {sqlgetinfo, "sqlgetinfo",                NORMAL},
+  {t_stmt_attr_status, "t_stmt_attr_status",NORMAL},
+  {t_msdev_bug, "t_msdev_bug",              NORMAL},
+  {t_bug14639, "t_bug14639",                NORMAL},
+  {t_bug31055, "t_bug31055",                NORMAL},
+  {t_bug3780, "t_bug3780",                  NORMAL},
+  {t_bug16653, "t_bug16653",                NORMAL},
+  {t_bug30626, "t_bug30626",                NORMAL},
+  {t_bug43855, "t_bug43855",                NORMAL},
+  {t_bug46910, "t_bug46910",                NORMAL}, 
+  {t_bug11749093, "t_bug11749093",          TO_FIX},
+  {bug_odbc15, "bug_odbc15",                NORMAL},
+  {test_need_long_data_len, "test_need_long_data_len", NORMAL},
   {NULL, NULL}
 };
 
@@ -504,6 +508,5 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
-  mark_all_tests_normal(my_tests);
   return run_tests(my_tests);
 }

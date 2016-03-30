@@ -419,6 +419,8 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
   Connection->Environment= Env;
   Connection->Methods= &MADB_Dbc_Methods;
   InitializeCriticalSection(&Connection->cs);
+  /* Not sure that critical section is really needed here - this init routine is called when
+     no one has the handle yet */
   EnterCriticalSection(&Connection->cs);
 
   /* Save connection in Environment list */
@@ -508,7 +510,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
     *StringLengthPtr= isWChar ? (SQLSMALLINT)Size * sizeof(SQLWCHAR) : (SQLSMALLINT)Size;
   
 end:
-  SQLFreeStmt(Stmt, SQL_CLOSE);
+  Stmt->Methods->StmtFree(Stmt, SQL_DROP);
   return Connection->Error.ReturnValue;
 }
 /* }}} */
@@ -1649,6 +1651,10 @@ end:
   }
   else
   {
+    if (StringLength1 == SQL_NTS)
+    {
+      StringLength1= strlen(InConnectionString);
+    }
     if (OutConnectionString && BufferLength)
     {
       /* Otherwise we are supposed to simply copy incoming connection string */

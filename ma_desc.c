@@ -134,7 +134,10 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
       MADB_FREE(Record->ColumnName);
       MADB_FREE(Record->TableName);
       MADB_FREE(Record->TypeName);
-
+    }
+    else if(Desc->DescType == MADB_DESC_IPD)
+    {
+      MADB_FREE(Record->TypeName);
     }
   }
   delete_dynamic(&Desc->Records);
@@ -171,11 +174,11 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     return 1;
   }
 
-  Record->CatalogName= Field->catalog ? my_strdup(Field->catalog, MYF(0)) : NULL;
-  Record->TableName= Field->table ? my_strdup(Field->table, MYF(0)) : NULL;
-  Record->ColumnName= Field->name ? my_strdup(Field->name, MYF(0)) : NULL;
-  Record->BaseTableName= Field->org_table ? my_strdup(Field->org_table, MYF(0)) : NULL;
-  Record->BaseColumnName= Field->org_name ? my_strdup(Field->org_name, MYF(0)) : NULL;
+  MADB_RESET(Record->CatalogName, Field->catalog);
+  MADB_RESET(Record->TableName, Field->table);
+  MADB_RESET(Record->ColumnName, Field->name);
+  MADB_RESET(Record->BaseTableName, Field->org_table);
+  MADB_RESET(Record->BaseColumnName, Field->org_name);
   Record->AutoUniqueValue= (Field->flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->CaseSensitive= (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->Nullable= ( (Field->flags & NOT_NULL_FLAG) &&
@@ -257,7 +260,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   Record->OctetLength= MADB_GetOctetLength(*Field, Stmt->Connection->mariadb->charset->char_maxlen);
   Record->Length= MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
     
-  Record->TypeName= my_strdup(MADB_GetTypeName(*Field), MYF(0));
+  MADB_RESET(Record->TypeName, MADB_GetTypeName(*Field));
   switch(Field->type) {
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
@@ -619,7 +622,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->LocalTypeName= "";
     Record->Nullable= SQL_NULLABLE;
     Record->ParameterType= SQL_PARAM_INPUT;
-    Record->TypeName= my_strdup("VARCHAR", MYF(0));
+    MADB_RESET(Record->TypeName, "VARCHAR");
     Record->Unsigned= SQL_FALSE;
     Record->ColumnName= "";
     break;
@@ -630,7 +633,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->ConciseType= SQL_VARCHAR;
     Record->AutoUniqueValue= SQL_FALSE;
     Record->Type= SQL_VARCHAR;
-    Record->TypeName= my_strdup("VARCHAR", MYF(0));
+    MADB_RESET(Record->TypeName, "VARCHAR");
     Record->Unsigned= SQL_FALSE;
     break;
   }
@@ -819,7 +822,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     break;
 #if (ODBCVER >= 0x0350)
   case SQL_DESC_ROWVER:
-    *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->RowVer;
+    *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)(SQLULEN)DescRecord->RowVer;
     break;
 #endif
   case SQL_DESC_SCALE:
@@ -869,7 +872,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   ret= MADB_DeskCheckFldId(Desc, FieldIdentifier, MADB_DESC_WRITE);
 
   /* Application may set IPD's field SQL_DESC_UNNAMED to SQL_UNNAMED only */
-  if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)ValuePtr == SQL_NAMED)
+  if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)(SQLULEN)ValuePtr == SQL_NAMED)
   {
     MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
     ret= Desc->Error.ReturnValue;
@@ -881,19 +884,19 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   MADB_CLEAR_ERROR(&Desc->Error);
   switch (FieldIdentifier) {
   case SQL_DESC_ARRAY_SIZE:
-    Desc->Header.ArraySize= (SQLUINTEGER)ValuePtr;
+    Desc->Header.ArraySize= (SQLULEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ARRAY_STATUS_PTR:
     Desc->Header.ArrayStatusPtr= (SQLUSMALLINT *)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_BIND_OFFSET_PTR:
-    Desc->Header.BindOffsetPtr= (SQLUINTEGER *)ValuePtr;
+    Desc->Header.BindOffsetPtr= (SQLULEN *)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_BIND_TYPE:
-    Desc->Header.BindType= (SQLUINTEGER)ValuePtr;
+    Desc->Header.BindType= (SQLINTEGER)(SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_COUNT:
-    Desc->Header.Count= (SQLINTEGER)ValuePtr;
+    Desc->Header.Count= (SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ROWS_PROCESSED_PTR:
     Desc->Header.RowsProcessedPtr= (SQLULEN *)ValuePtr;
@@ -907,47 +910,47 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
 
     switch (FieldIdentifier) {
     case SQL_DESC_CONCISE_TYPE:
-      DescRecord->ConciseType= (SQLSMALLINT)ValuePtr;
+      DescRecord->ConciseType= (SQLSMALLINT)(SQLLEN)ValuePtr;
       DescRecord->Type= MADB_GetTypeFromConciseType(DescRecord->ConciseType);
       break;
     case SQL_DESC_DATA_PTR:
       DescRecord->DataPtr= ValuePtr;
       break;
     case SQL_DESC_DATETIME_INTERVAL_CODE:
-      DescRecord->DateTimeIntervalCode= (SQLSMALLINT)ValuePtr;
+      DescRecord->DateTimeIntervalCode= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_DATETIME_INTERVAL_PRECISION:
-      DescRecord->DateTimeIntervalPrecision= (SQLINTEGER)ValuePtr;
+      DescRecord->DateTimeIntervalPrecision= (SQLINTEGER)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_FIXED_PREC_SCALE:
-      DescRecord->FixedPrecScale= (SQLSMALLINT)ValuePtr;
+      DescRecord->FixedPrecScale= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_INDICATOR_PTR:
-      DescRecord->IndicatorPtr= (SQLINTEGER *)ValuePtr;
+      DescRecord->IndicatorPtr= (SQLLEN *)ValuePtr;
       break;
     case SQL_DESC_LENGTH:
-      DescRecord->DescLength= (SQLINTEGER)ValuePtr;
+      DescRecord->DescLength= (SQLINTEGER)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_NUM_PREC_RADIX:
-      DescRecord->NumPrecRadix= (SQLINTEGER)ValuePtr;
+      DescRecord->NumPrecRadix= (SQLINTEGER)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_OCTET_LENGTH:
-      DescRecord->OctetLength= (SQLINTEGER)ValuePtr;
+      DescRecord->OctetLength= (SQLLEN)ValuePtr;
       break;
     case SQL_DESC_OCTET_LENGTH_PTR:
-      DescRecord->OctetLengthPtr= (SQLINTEGER *)ValuePtr;
+      DescRecord->OctetLengthPtr= (SQLLEN *)ValuePtr;
       break;
     case SQL_DESC_PARAMETER_TYPE:
-      DescRecord->ParameterType= (SQLSMALLINT)ValuePtr;
+      DescRecord->ParameterType= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_PRECISION:
-      DescRecord->Precision= (SQLSMALLINT)ValuePtr;
+      DescRecord->Precision= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_SCALE:
-      DescRecord->Scale= (SQLSMALLINT)ValuePtr;
+      DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_TYPE:
-      DescRecord->Type= (SQLSMALLINT)ValuePtr;
+      DescRecord->Type= (SQLSMALLINT)(SQLLEN)ValuePtr;
       DescRecord->ConciseType= DescRecord->Type;
       break;
     }

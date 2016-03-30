@@ -31,6 +31,8 @@
 /* Need size_t */
 #include <stdio.h>
 
+#define __stdcall
+
 //#define HAVE_UNICODE
 
 #define CP_UTF8          65001
