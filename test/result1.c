@@ -269,10 +269,15 @@ static SQLINTEGER desc_col_check(SQLHSTMT Stmt,
 ODBC_TEST(t_desc_col)
 {
   SQLSMALLINT ColumnCount;
+  SQLHDBC     hdbc1;
+  SQLHSTMT    Stmt1;
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desc_col");
+  AllocEnvConn(&Env, &hdbc1);
+  Stmt1= ConnectWithCharset(&hdbc1, "latin1", NULL); /* We need to make sure that the charset used for connection is not multibyte */
 
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_desc_col("
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_desc_col");
+
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t_desc_col("
          "c1 integer,"
          "c2 binary(2) NOT NULL,"
          "c3 char(1),"
@@ -297,42 +302,45 @@ ODBC_TEST(t_desc_col)
          "c22 longblob,"
          "c23 tinyblob) CHARSET latin1");
 
-  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_desc_col");
+  OK_SIMPLE_STMT(Stmt1, "SELECT * FROM t_desc_col");
 
-  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+  CHECK_STMT_RC(Stmt1, SQLNumResultCols(Stmt1, &ColumnCount));
 
   is_num(ColumnCount, 23);
 
-  IS(desc_col_check(Stmt, 1,  "c1",  SQL_INTEGER,   10, 10, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 2,  "c2",  SQL_BINARY,    4,  2,  0,  SQL_NO_NULLS) == OK);
-  IS(desc_col_check(Stmt, 3,  "c3",  SQL_CHAR,      1,  1,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 4,  "c4",  SQL_VARCHAR,   5,  5,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 5,  "c5",  SQL_DECIMAL,   10, 10, 3,  SQL_NO_NULLS) == OK);
-  IS(desc_col_check(Stmt, 6,  "c6",  SQL_TINYINT,   3,  4,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 7,  "c7",  SQL_SMALLINT,  5,  6,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 8,  "c8",  SQL_DECIMAL,   4,  4,  2,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 9,  "c9",  SQL_DOUBLE,    15, 15, 0, SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 10, "c10", SQL_REAL,      7,  7,  0, SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 11, "c11", SQL_BIGINT, 19, 20, 0,  SQL_NO_NULLS) == OK);
+  IS(desc_col_check(Stmt1, 1,  "c1",  SQL_INTEGER,   10, 10, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 2,  "c2",  SQL_BINARY,    4,  2,  0,  SQL_NO_NULLS) == OK);
+  IS(desc_col_check(Stmt1, 3,  "c3",  SQL_CHAR,      1,  1,  0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 4,  "c4",  SQL_VARCHAR,   5,  5,  0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 5,  "c5",  SQL_DECIMAL,   10, 10, 3,  SQL_NO_NULLS) == OK);
+  IS(desc_col_check(Stmt1, 6,  "c6",  SQL_TINYINT,   3,  4,  0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 7,  "c7",  SQL_SMALLINT,  5,  6,  0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 8,  "c8",  SQL_DECIMAL,   4,  4,  2,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 9,  "c9",  SQL_DOUBLE,    15, 15, 0, SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 10, "c10", SQL_REAL,      7,  7,  0, SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 11, "c11", SQL_BIGINT, 19, 20, 0,  SQL_NO_NULLS) == OK);
 
-  IS(desc_col_check(Stmt, 12, "c12", SQL_VARBINARY, 12, 12, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 12, "c12", SQL_VARBINARY, 12, 12, 0,  SQL_NULLABLE) == OK);
 
-  IS(desc_col_check(Stmt, 13, "c13", SQL_CHAR,      20, 20, 0,  SQL_NO_NULLS) == OK);
-  IS(desc_col_check(Stmt, 14, "c14", SQL_REAL,      7,  7,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 15, "c15", SQL_LONGVARCHAR, 255, 255, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 16, "c16", SQL_LONGVARCHAR, 65535, 65535, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 17, "c17", SQL_LONGVARCHAR, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 13, "c13", SQL_CHAR,      20, 20, 0,  SQL_NO_NULLS) == OK);
+  IS(desc_col_check(Stmt1, 14, "c14", SQL_REAL,      7,  7,  0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 15, "c15", SQL_LONGVARCHAR, 255, 255, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 16, "c16", SQL_LONGVARCHAR, 65535, 65535, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 17, "c17", SQL_LONGVARCHAR, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
   /* Test may fail here if connection charset mbmaxlen > 1 */
-  IS(desc_col_check(Stmt, 18, "c18", SQL_LONGVARCHAR, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 19, "c19", SQL_LONGVARBINARY, 255, 255, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 20, "c20", SQL_LONGVARBINARY, 65535, 65535, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 21, "c21", SQL_LONGVARBINARY, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 22, "c22", SQL_LONGVARBINARY, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt, 23, "c23", SQL_LONGVARBINARY, 255, 5, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 18, "c18", SQL_LONGVARCHAR, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 19, "c19", SQL_LONGVARBINARY, 255, 255, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 20, "c20", SQL_LONGVARBINARY, 65535, 65535, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 21, "c21", SQL_LONGVARBINARY, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 22, "c22", SQL_LONGVARBINARY, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 23, "c23", SQL_LONGVARBINARY, 255, 5, 0,  SQL_NULLABLE) == OK);
 
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desc_col");
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_desc_col");
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
   return OK;
 }
@@ -2240,7 +2248,7 @@ ODBC_TEST(t_bug28617)
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, 100, &outlen));
 
   is_num(outlen, 10 * sizeof(SQLWCHAR));
-  IS(!memcmp(outbuf, W(L"qwertyuiop"), 11 * sizeof(SQLWCHAR)));
+  IS_WSTR(outbuf, W(L"qwertyuiop"), 11);
 
   return OK;
 }
@@ -2257,7 +2265,7 @@ ODBC_TEST(t_bug34429)
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug34429");
   OK_SIMPLE_STMT(Stmt, "create table t_bug34429 (x varchar(200))");
   OK_SIMPLE_STMT(Stmt, "insert into t_bug34429 values "
-                "(concat(repeat('x',32),repeat('y',32),repeat('z',16)))");
+                "(concat(repeat('x', 32), repeat('y', 32), repeat('z',16)))");
   OK_SIMPLE_STMT(Stmt, "select x from t_bug34429");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -2265,24 +2273,19 @@ ODBC_TEST(t_bug34429)
   /* first chunk */
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, buf, sizeof(buf),
                                 &reslen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
-  diag("Chunk 1, len=%d, data=%ls", reslen, buf);
   is_num(reslen, 80 * sizeof(SQLWCHAR));
-  IS(!memcmp(buf, W(L"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
-             32 * sizeof(SQLWCHAR)));
+  IS_WSTR(buf, W(L"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"), 32);
 
   /* second chunk */
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, buf, sizeof(buf),
                                 &reslen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
-  diag("Chunk 2, len=%d, data=%ls", reslen, buf);
   is_num(reslen, 49 * sizeof(SQLWCHAR));
-  IS(!memcmp(buf, W(L"xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"),
-             32 * sizeof(SQLWCHAR)));
+  IS_WSTR(buf, W(L"xyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"), 32);
 
   /* third chunk */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, buf, sizeof(buf), &reslen));
-  diag("Chunk 3, len=%d, data=%ls", reslen, buf);
   is_num(reslen, 18 * sizeof(SQLWCHAR));
-  IS(!memcmp(buf, W(L"yyzzzzzzzzzzzzzzzz"), 18 * sizeof(SQLWCHAR)));
+  IS_WSTR(buf, W(L"yyzzzzzzzzzzzzzzzz"), 18);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

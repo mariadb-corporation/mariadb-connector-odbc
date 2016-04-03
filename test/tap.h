@@ -29,7 +29,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <iconv.h>
 
 #ifdef _WIN32
 # define _WINSOCKAPI_
@@ -39,6 +38,7 @@
 
 # include <string.h>
 # include <errno.h>
+# include <wchar.h>
 
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
@@ -139,10 +139,7 @@ char         ma_strport[12]= ";PORT=3306";
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
 
-iconv_t   ch2sqlwchar=    0;
-iconv_t   wchar2sqlwchar= 0;
-
-CHARSET_INFO  *utf8, *utf16, *utf32;
+CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -352,16 +349,18 @@ size_t madbtest_convert_string(CHARSET_INFO *from_cs, const char *from, size_t *
 {
   size_t rc= -1;
   size_t save_len= *to_len;
+  int    dummy;
+
+  if (errorcode == NULL)
+    errorcode= &dummy;
 
   *errorcode= 0;
 
   if ((rc= mariadb_convert_string(from, from_len, from_cs, to, to_len, to_cs, errorcode)) == -1)
   {
-    goto error;
+    diag("An error occurred while converting from %s to  %s. Error code %d", from_cs->csname, to_cs->name, *errorcode);
   }
 
-  rc= save_len - *to_len;
-error:
   return rc;
 }
 
@@ -766,17 +765,22 @@ int run_tests(MA_ODBC_TESTS *tests)
   int         rc, i=1, failed=0;
   const char *comment;
   SQLWCHAR   *buff_before_test;
+  /*Dirty hack*/
+  CHARSET_INFO fakeUtf32le;
 
-  utf8= mysql_get_charset_by_name("utf8");
+  fakeUtf32le.encoding= "UTF32LE";
+  fakeUtf32le.csname=   "utf32le";
+
+  utf8=  mysql_get_charset_by_name("utf8");
   utf16= mysql_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
-  utf32= mysql_get_charset_by_name(little_endian() ? "utf32" : "utf32");
+  utf32= little_endian() ? &fakeUtf32le : mysql_get_charset_by_name("utf32");
+
   if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
   {
     fprintf(stdout, "HALT! Could not load charset info %p %p %p\n", utf8, utf16, utf32);
     return 1;
   }
 
-  diag("Converting testing credentials");
   wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, utf16);
   wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, utf16);
   wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, utf16);
@@ -826,8 +830,6 @@ int run_tests(MA_ODBC_TESTS *tests)
   }
 
   ODBC_Disconnect(Env,Connection,Stmt);
-  iconv_close(ch2sqlwchar);
-  iconv_close(wchar2sqlwchar);
 
   if (failed)
     return 1;
@@ -990,7 +992,6 @@ SQLWCHAR * str2sqlwchar_on_gbuff(char *str, size_t len, CHARSET_INFO *from_cs, C
   }
   else
   {
-    diag("Conversion error?!");
     return sqlwchar_empty;
   }
   return res;
@@ -1033,7 +1034,7 @@ wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
 }
 
 #define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
-#define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
+#define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? (SQLWCHAR*)A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
 /* Wchar_t(utf32) to sqlWchar */
 #define WW(A) WL(L##A,wcslen(L##A))
 /* Pretty much the same as WW, but expects that L string */

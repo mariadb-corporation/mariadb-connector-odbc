@@ -756,7 +756,7 @@ ODBC_TEST(sqlcolumns)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), L"a\x00e3g", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), W(L"a\x00e3g"), 4);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -983,7 +983,7 @@ ODBC_TEST(sqlstatistics)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"t_a\x00e3g", 6);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), W(L"t_a\x00e3g"), 6);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 

@@ -2253,11 +2253,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       if (Length > BufferLength / sizeof(SQLWCHAR))
       {
-        /* calculate new offset and substract 1 byte for null termination. Do we really need to substract 1 here? We get here only in
-           buffer is not big enough to fit available string. Thus terminationg null was not copied for sure. Removing it so far. 
-           TODO check this ! */
+        /* Calculate new offset and substract 1 byte for null termination. Since we fill the buffer with all characters we can -1 char for NULL */
         Length= BufferLength / sizeof(SQLWCHAR);
-        Stmt->CharOffset[Offset]+= MbstrOctetLen(ClientValue, &Length, Stmt->Connection->charset.cs_info);
+        Stmt->CharOffset[Offset]+= MbstrOctetLen(ClientValue, &Length, Stmt->Connection->charset.cs_info) - 1;
         
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
         MADB_FREE(ClientValue);

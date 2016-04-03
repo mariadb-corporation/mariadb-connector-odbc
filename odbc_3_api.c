@@ -2884,8 +2884,12 @@ SQLRETURN  SQL_API SQLBindParam(SQLHSTMT StatementHandle,
                                 SQLSMALLINT ParameterScale, SQLPOINTER ParameterValue,
                                 SQLLEN *StrLen_or_Ind)
 {
-  return SQLSetParam(StatementHandle, ParameterNumber, ValueType, ParameterType, LengthPrecision, ParameterScale,
-                      ParameterValue, StrLen_or_Ind);
+  if (!StatementHandle)
+    return SQL_INVALID_HANDLE;
+  MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
+
+  return MA_SQLBindParameter(StatementHandle, ParameterNumber, SQL_PARAM_INPUT_OUTPUT, ValueType, ParameterType, LengthPrecision, ParameterScale,
+                      ParameterValue, SQL_SETPARAM_VALUE_MAX, StrLen_or_Ind);
 
 }
 /* }}} */
