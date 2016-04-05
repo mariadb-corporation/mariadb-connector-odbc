@@ -3501,7 +3501,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       if (Stmt->DataExecutionType != MADB_DAE_ADD)
       {
         Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-        MA_SQLAllocStmt(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt);
+        MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt);
 
         if (init_dynamic_string(&DynStmt, "INSERT INTO ", 8192, 1024) ||
             MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||

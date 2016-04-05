@@ -133,7 +133,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Len
     return NULL;
 
   AscLen= WideCharToMultiByte(cc->CodePage,  0, Wstr, WstrCharLen, AscStr, AscLen, NULL, (cc->CodePage != CP_UTF8) ? Error : NULL);
-  if (AscLen && PtrLength == -1)
+  if (AscLen && WstrCharLen == -1)
     --AscLen;
 
   if (Length)

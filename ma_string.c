@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -18,8 +18,7 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
-CHARSET_INFO*  utf16= NULL;
-Client_Charset utf8=  {CP_UTF8, NULL};
+extern CHARSET_INFO*  utf16;
 
 char *MADB_GetTableName(MADB_Stmt *Stmt)
 {
@@ -228,14 +227,14 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
   if (!PrimaryCount && !UniqueCount)
   {
     char      StmtStr[256];
-    SQLHANDLE CountStmt;
+    MADB_Stmt *CountStmt;
     int       FieldCount= 0;
 
-    MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, &CountStmt);
+    MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE*)&CountStmt);
     my_snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
-    MA_SQLExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
+    CountStmt->Methods->ExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
-    MA_SQLFreeStmt(CountStmt, SQL_DROP);
+    CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
 
     if (FieldCount != mysql_stmt_field_count(Stmt->stmt))
     {
@@ -531,6 +530,24 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
         break;
       }
       ++result;
+    }
+  }
+  return result;
+}
+
+
+/* Length in SQLWCHAR units*/
+SQLINTEGER SqlwcsLen(SQLWCHAR *str)
+{
+  SQLINTEGER result= 0;
+
+  if (str)
+  {
+    while (*str)
+    {
+      ++result;
+      /* str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR)); */
+      ++str;
     }
   }
   return result;

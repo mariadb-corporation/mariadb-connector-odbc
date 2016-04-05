@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2015 MariaDB Corporation AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1325,6 +1325,56 @@ ODBC_TEST(t_mysqld_stmt_reset)
 }
 
 
+ODBC_TEST(t_odbc_32)
+{
+  HDBC        hdbc1;
+  SQLCHAR     conn[512];
+  SQLUINTEGER packet_size= 0;
+
+  sprintf((char *)conn, "DSN=%s;", my_dsn);
+  
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLSetConnectAttr(hdbc1, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)(4096*1024), 0));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc1, SQLGetConnectAttr(hdbc1, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)&packet_size, 0, NULL));
+
+  diag("Packet size is %u", packet_size);
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
+
+  return OK;
+}
+
+
+ODBC_TEST(t_gh_issue3)
+{
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\nSELECT 1", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\tSELECT 2", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 2);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\t SELECT 3", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\n\t\n  \t\n  \n \t\t\t\t SELECT 4", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 4);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1360,6 +1410,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug48603,     "t_bug48603",     NORMAL},
   {t_bug45378,     "t_bug45378",     NORMAL},
   {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
+  {t_odbc_32,      "SQL_ATTR_PACKET_SIZE_option", NORMAL},
+  {t_gh_issue3,    "leading_space_gh_issue3",     NORMAL},
   {NULL, NULL, 0}
 };
 

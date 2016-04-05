@@ -119,7 +119,6 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   if (!Desc)
     return SQL_ERROR;
 
-  MDBUG_C_PRINT(Desc->Dbc, "%sMADB_DescFree", "\t->");
   /* We need to free internal pointers first */
   for (i=0; i < Desc->Records.elements; i++)
   {

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2015 MariaDB Corporation AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -47,9 +47,15 @@ const int    *EffectiveDisabledPages=    NULL,
              *EffectiveDisabledControls= NULL;
 BOOL          OpenCurSelection=          TRUE;
 
+#ifdef HAVE_OPENSSL
+# define  SSL_DISABLED 0
+#else
+# define  SSL_DISABLED 1
+#endif
+
 const int DisabledPages[MAODBC_PROMPT_REQUIRED + 1][LASTPAGE + 1]= {
-                                                                    { 0, 0, 0, 0, 0, 0},
-                                                                    { 0, 0, 0, 0, 0, 0},
+                                                                    { 0, 0, 0, 0, SSL_DISABLED, 0},
+                                                                    { 0, 0, 0, 0, SSL_DISABLED, 0},
                                                                     { 1, 0, 1, 1, 1, 1}
                                                                    };
 const int   PromptDisabledControls[]= { txtDsnName, 0 },
@@ -68,8 +74,8 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[7],  1, txtServerName,      128, 0},
   {&DsnKeys[8],  1, txtUserName,         64, 0},
   {&DsnKeys[9],  1, txtPassword,         64, 0},
-  {&DsnKeys[10],  1, cbDatabase,           0, 0},
-  {&DsnKeys[11],  1, txtPort,              5, 0},
+  {&DsnKeys[10], 1, cbDatabase,           0, 0},
+  {&DsnKeys[11], 1, txtPort,              5, 0},
   {&DsnKeys[12], 2, txtInitCmd,        2048, 0},
   {&DsnKeys[13], 2, txtConnectionTimeOut, 5, 0},
   {&DsnKeys[14], 2, ckReconnect,          0, 0},

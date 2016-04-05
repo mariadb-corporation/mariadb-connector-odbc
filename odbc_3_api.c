@@ -110,12 +110,6 @@ SQLRETURN SQL_API SQLAllocConnect(SQLHANDLE InputHandle,
 /* }}} */
 
 /* {{{ SQLAllocStmt */
-SQLRETURN MA_SQLAllocStmt(SQLHANDLE InputHandle,
-                          SQLHANDLE *OutputHandlePtr)
-{
-  return MA_SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
-}
-
 SQLRETURN SQL_API SQLAllocStmt(SQLHANDLE InputHandle,
                                SQLHANDLE *OutputHandlePtr)
 {
@@ -123,7 +117,7 @@ SQLRETURN SQL_API SQLAllocStmt(SQLHANDLE InputHandle,
   MDBUG_C_DUMP(InputHandle, InputHandle, 0x);
   MDBUG_C_DUMP(InputHandle, OutputHandlePtr, 0x);
 
-  return MA_SQLAllocStmt(InputHandle, OutputHandlePtr);
+  return MA_SQLAllocHandle(SQL_HANDLE_STMT, InputHandle, OutputHandlePtr);
 }
 /* }}} */
 

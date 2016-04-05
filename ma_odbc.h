@@ -525,8 +525,6 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
 SQLRETURN MA_SQLAllocConnect(SQLHANDLE InputHandle,
                              SQLHANDLE *OutputHandlePtr);
 
-SQLRETURN MA_SQLAllocStmt(SQLHANDLE InputHandle,
-                          SQLHANDLE *OutputHandlePtr);
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);
 
