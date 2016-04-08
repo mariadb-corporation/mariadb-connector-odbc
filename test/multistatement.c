@@ -75,6 +75,7 @@ ODBC_TEST(test_multi_on_off)
   return OK;
 }
 
+
 ODBC_TEST(test_params)
 {
   SQLRETURN rc;

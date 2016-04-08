@@ -2256,10 +2256,13 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         Length= MADB_SetString(Stmt->Connection->CodePage, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
                                    ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
-      if (Length > BufferLength / sizeof(SQLWCHAR)) {
-        if (StrLen_or_IndPtr)
-          *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
-        /* calculate new offset and substract 1 byte for null termination */
+      if (StrLen_or_IndPtr)
+      {
+        *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
+      }
+      if (Length > BufferLength / sizeof(SQLWCHAR))
+      {
+        /* Calculate new offset and substract 1 byte for null termination. Since we fill the buffer with all characters we can -1 char for NULL */
         Stmt->CharOffset[Offset]+= WideCharToMultiByte(Stmt->Connection->CodePage, 0, (SQLWCHAR *)TargetValuePtr, 
                                                        BufferLength / sizeof(SQLWCHAR),
                                                        NULL, 0, NULL, NULL) - 1;

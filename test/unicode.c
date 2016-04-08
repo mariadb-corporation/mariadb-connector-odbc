@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2015 MariaDB Corporation AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -756,7 +756,7 @@ ODBC_TEST(sqlcolumns)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), L"a\x00e3g", 4);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), W(L"a\x00e3g"), 4);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -983,7 +983,7 @@ ODBC_TEST(sqlstatistics)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), L"t_a\x00e3g", 6);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 3, MAX_ROW_DATA_LEN+1), W(L"t_a\x00e3g"), 6);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
@@ -1097,6 +1097,11 @@ ODBC_TEST(t_bug34672)
   SQLINTEGER inchars, i;
   SQLWCHAR   result[3];
   SQLLEN     reslen;
+  SQLHDBC    hdbc1;
+  SQLHSTMT   Stmt1;
+
+  AllocEnvConn(&Env, &hdbc1);
+  Stmt1= ConnectWithCharset(&hdbc1, "utf8", NULL); /* For connection charset we need something, that has representation for those characters */
 
   if (sizeof(SQLWCHAR) == 2)
   {
@@ -1112,13 +1117,13 @@ ODBC_TEST(t_bug34672)
     inchars= 1;
   }
 
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR,
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 1, SQL_PARAM_INPUT, SQL_C_WCHAR,
                                   SQL_WCHAR, 0, 0, chars,
                                   inchars * sizeof(SQLWCHAR), NULL));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("select ? FROM DUAL"), SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, result,
+  CHECK_STMT_RC(Stmt1, SQLExecDirectW(Stmt1, CW("select ? FROM DUAL"), SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 1, SQL_C_WCHAR, result,
                             sizeof(result), &reslen));
   is_num(result[2], 0);
   for (i= 0; i < inchars; ++i)
@@ -1126,7 +1131,11 @@ ODBC_TEST(t_bug34672)
 
   is_num(reslen, inchars * sizeof(SQLWCHAR));
 
-   return OK;
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
+
+  return OK;
 }
 
 /*
@@ -1423,7 +1432,7 @@ MA_ODBC_TESTS my_tests[]=
   {sqlprimarykeys,    "sqlprimarykeys",     NORMAL},
   {sqlstatistics,     "sqlstatistics",      NORMAL},
   {t_bug32161,        "t_bug32161",         NORMAL},
-  {t_bug34672,        "t_bug34672",         TO_FIX},
+  {t_bug34672,        "t_bug34672",         NORMAL},
   {t_bug28168,        "t_bug28168",         NORMAL},
   {t_bug14363601,     "t_bug14363601",      NORMAL},
   {odbc19,            "test_issue_odbc19",  NORMAL},

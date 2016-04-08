@@ -19,6 +19,7 @@
 #include <ma_odbc.h>
 #include <stdint.h>
 
+
 void CloseMultiStatements(MADB_Stmt *Stmt)
 {
   unsigned int i;
@@ -169,23 +170,23 @@ int  MADB_GetWCharType(int Type)
 
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
 {
-  int Count= 0;
+  int          Count= 0;
   unsigned int i;
-  char StmtStr[1024];
-  char *p= StmtStr;
-  char Database[65];
-  SQLHSTMT Stmt= NULL;
-  MADB_Stmt *KeyStmt;
+  char         StmtStr[1024];
+  char         *p= StmtStr;
+  char         Database[65];
+  MADB_Stmt    *Stmt= NULL;
+  MADB_Stmt    *KeyStmt;
   
-  SQLGetConnectAttr((SQLHDBC)Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL);
+  Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
   p+= my_snprintf(p, 1024, "SELECT * FROM ");
   if (Database)
     p+= my_snprintf(p, 1024 - strlen(p), "`%s`.", Database);
   p+= my_snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
   if (SQLAllocStmt((SQLHDBC)Connection, &Stmt) == SQL_ERROR ||
-      SQLPrepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
-      SQLExecute(Stmt) == SQL_ERROR ||
-      SQLFetch(Stmt) == SQL_ERROR)
+      Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
+      Stmt->Methods->Execute(Stmt) == SQL_ERROR ||
+      Stmt->Methods->Fetch(Stmt, FALSE) == SQL_ERROR)
       goto end;
   KeyStmt= (MADB_Stmt *)Stmt;
   for (i=0; i < mysql_stmt_field_count(KeyStmt->stmt); i++)
@@ -193,7 +194,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
       Count++;
 end:
   if (Stmt)
-    SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+    Stmt->Methods->StmtFree(Stmt, SQL_DROP);
   return Count;
 }
 
@@ -1075,20 +1076,6 @@ end:
 }
 /* }}} */
 
-/* {{{ trim */
-char *trim(char *Str)
-{
-  char *end;
-  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
-  while (Str && iswspace(Str[0]))
-    Str++;
-  end= Str + strlen(Str) - 1;
-  while (iswspace(*end))
-    *end--= 0;
-  return Str;
-}
-/* }}} */
-
 /* {{{ MADB_GetHexString */
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength)
@@ -1127,8 +1114,8 @@ unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt)
 
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
 {
-  char *TableName= MADB_GetTableName(Stmt);
-  char *CatalogName= MADB_GetCatalogName(Stmt);
+  char          *TableName=   MADB_GetTableName(Stmt);
+  char          *CatalogName= MADB_GetCatalogName(Stmt);
   DYNAMIC_STRING DynStmt;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -1185,7 +1172,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(SQLPrepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);

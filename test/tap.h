@@ -33,8 +33,13 @@
 #ifdef _WIN32
 # define _WINSOCKAPI_
 # include <windows.h>
+
 #else
+
 # include <string.h>
+# include <errno.h>
+# include <wchar.h>
+
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
 {
@@ -52,14 +57,50 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
     return result;
 }
 
+
+int strcpy_s(char *dest, size_t buffer_size, const char *src)
+{
+  size_t src_len;
+
+  if (dest == NULL)
+  {
+    return EINVAL;
+  }
+
+  if (src == NULL)
+  {
+    *dest= '\0';
+    return EINVAL;
+  }
+
+  src_len= strlen(src);
+
+  if (buffer_size < src_len + 1)
+  {
+    *dest= 0;
+    return ERANGE;
+  }
+
+  memcpy((void*)dest, (void*)src, src_len + 1);
+
+  return 0;
+}
+
+
 #define Sleep(ms) sleep(ms/1000)
 
-#ifndef TRUE
-# define TRUE 1
-#endif
-#ifndef FALSE
-# define FALSE 0
-#endif
+# ifndef TRUE
+#  define TRUE 1
+# endif
+# ifndef FALSE
+#  define FALSE 0
+# endif
+
+#define _strdup        strdup
+#define _stricmp       strcasecmp
+#define _strnicmp      strncasecmp
+#define _atoi64(str)   strtoll((str), NULL, 10)
+#define _i64toa(a,b,c) longlong2str((a),(b),(c))
 
 #endif
 
@@ -98,7 +139,7 @@ char         ma_strport[12]= ";PORT=3306";
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
 
-CHARSET_INFO  *utf8, *utf16, *utf32;
+CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -308,16 +349,18 @@ size_t madbtest_convert_string(CHARSET_INFO *from_cs, const char *from, size_t *
 {
   size_t rc= -1;
   size_t save_len= *to_len;
+  int    dummy;
+
+  if (errorcode == NULL)
+    errorcode= &dummy;
 
   *errorcode= 0;
 
   if ((rc= mariadb_convert_string(from, from_len, from_cs, to, to_len, to_cs, errorcode)) == -1)
   {
-    goto error;
+    diag("An error occurred while converting from %s to  %s. Error code %d", from_cs->csname, to_cs->name, *errorcode);
   }
 
-  rc= save_len - *to_len;
-error:
   return rc;
 }
 
@@ -581,11 +624,13 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
-           pwd ? pwd : my_pwd, port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+           uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
+           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
-  diag("DSN: DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s", dsn ? dsn : my_dsn, uid ? uid : my_uid,
-           "********", port ? port : my_port, schema ? schema : my_schema, options ? *options : my_options, server ? server : my_servername,
+  diag("DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+           uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
+           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
   
   if(!SQL_SUCCEEDED(SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
@@ -779,6 +824,7 @@ int run_tests(MA_ODBC_TESTS *tests)
   }
 
   ODBC_Disconnect(Env,Connection,Stmt);
+
   if (failed)
     return 1;
   return 0;
@@ -982,7 +1028,7 @@ wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
 }
 
 #define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
-#define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
+#define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? (SQLWCHAR*)A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
 /* Wchar_t(utf32) to sqlWchar */
 #define WW(A) WL(L##A,wcslen(L##A))
 /* Pretty much the same as WW, but expects that L string */

@@ -345,7 +345,10 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     MADB_SetError(&Dbc->Error, MADB_ERR_HYC00, NULL, 0);
     break;
   case SQL_ATTR_PACKET_SIZE:
-    *(SQLINTEGER *)ValuePtr= Dbc->PacketSize;
+    {
+      MYSQL_PARAMETERS *mp= mysql_get_parameters();
+      *(SQLINTEGER *)ValuePtr= *mp->p_net_buffer_length/*Dbc->PacketSize*/;
+    }
     break;
   case SQL_ATTR_QUIET_MODE:
     Dbc->QuietMode= (HWND)ValuePtr;
@@ -430,12 +433,6 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
   LeaveCriticalSection(&Connection->cs);
 
   MADB_PutErrorPrefix(NULL, &Connection->Error);
-
-  if (!(Connection->mariadb= mysql_init(NULL)))
-  {
-    MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
-    goto cleanup;
-  }
 
   return Connection;      
 cleanup:
@@ -656,11 +653,12 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     goto err;
   }
   
+  /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
   if (Connection->PacketSize)
   {
-    my_snprintf(StmtStr, 128, "SET max_allowed_packet_size=%ld", Connection->PacketSize);
+    /*my_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
     if (mysql_query(Connection->mariadb, StmtStr))
-      goto err;
+      goto err;*/
   }
 
   if (!Connection->CatalogName && Dsn->Catalog)

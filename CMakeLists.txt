@@ -42,18 +42,16 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_statement.c
                           ma_desc.c
                           ma_string.c
-                          ma_result.c)
+                          ma_result.c
+                          ma_common.c)
 
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
                      ${CMAKE_SOURCE_DIR}/dsn/resource.h
                      ma_dsn.c
                      ma_driver.c
-                     ma_string.c
-                     ma_desc.c
                      ma_error.c
-                     ma_helper.c
-                     )
+                     ma_common.c)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
 
@@ -209,8 +207,10 @@ IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
 ENDIF()
 
-# Tests
-ADD_SUBDIRECTORY(test)
+# Tests. Checking if we have them. May be not the case if we are building from source package
+IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
+  ADD_SUBDIRECTORY(test)
+ENDIF()
 
 # Packaging
 SET(CPACK_PACKAGE_VERSION_MAJOR "${MARIADB_ODBC_VERSION_MAJOR}")

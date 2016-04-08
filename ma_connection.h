@@ -73,4 +73,5 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
 #define MADB_Dbc_TRANSACTION(a) \
   ((a)->mariadb && ((a)->mariadb->server_capabilities && CLIENT_TRANSACTIONS)) 
 
+#define MADB_CONNECTED(DbConnHandler) (DbConnHandler->mariadb && mysql_get_socket(DbConnHandler->mariadb) != MARIADB_INVALID_SOCKET)
 #endif /* _ma_connection_h */
