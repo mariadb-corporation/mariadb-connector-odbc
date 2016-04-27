@@ -125,7 +125,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
     MADB_FREE(Record->InternalBuffer);
     MADB_FREE(Record->DefaultValue);
  
-   if (Desc->DescType == MADB_DESC_IRD)
+    if (Desc->DescType == MADB_DESC_IRD)
     {
       MADB_FREE(Record->CatalogName);
       MADB_FREE(Record->BaseCatalogName);
@@ -174,13 +174,13 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     return 1;
   }
 
-  MADB_RESET(Record->CatalogName, Field->catalog);
-  MADB_RESET(Record->TableName, Field->table);
-  MADB_RESET(Record->ColumnName, Field->name);
-  MADB_RESET(Record->BaseTableName, Field->org_table);
+  MADB_RESET(Record->CatalogName,    Field->catalog);
+  MADB_RESET(Record->TableName,      Field->table);
+  MADB_RESET(Record->ColumnName,     Field->name);
+  MADB_RESET(Record->BaseTableName,  Field->org_table);
   MADB_RESET(Record->BaseColumnName, Field->org_name);
   Record->AutoUniqueValue= (Field->flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
-  Record->CaseSensitive= (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
+  Record->CaseSensitive=   (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->Nullable= ( (Field->flags & NOT_NULL_FLAG) &&
                       !Record->AutoUniqueValue &&
                       Field->type != MYSQL_TYPE_TIMESTAMP) ? SQL_NO_NULLS : SQL_NULLABLE;
@@ -210,10 +210,6 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     Record->Precision= (SQLSMALLINT)Field->length - 2;
     //Record->Scale= Field->decimals;
     break;
-  case MYSQL_TYPE_BIT:
-    if (Field->length > 1)
-      Record->Type= SQL_BINARY;
-    break;
   case MYSQL_TYPE_DOUBLE:
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
@@ -227,14 +223,15 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     Record->NumPrecRadix= 0;
     break;
   }
+
   Record->ConciseType= MADB_GetODBCType(Field);
   /* 
       TYPE:
       For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.
   */
   Record->Type= (Record->ConciseType ==  SQL_TYPE_DATE || Record->ConciseType ==  SQL_DATE ||
-                  Record->ConciseType ==  SQL_TYPE_TIME || Record->ConciseType ==  SQL_TIME ||
-                  Record->ConciseType ==  SQL_TYPE_TIMESTAMP || Record->ConciseType == SQL_TIMESTAMP) ?
+                 Record->ConciseType ==  SQL_TYPE_TIME || Record->ConciseType ==  SQL_TIME ||
+                 Record->ConciseType ==  SQL_TYPE_TIMESTAMP || Record->ConciseType == SQL_TIMESTAMP) ?
                     SQL_DATETIME : Record->ConciseType;
 
   switch(Record->ConciseType) {
@@ -253,12 +250,12 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
       Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
   */
   Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
-                        Record->ConciseType == SQL_WLONGVARCHAR ||
-                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
+                       Record->ConciseType == SQL_WLONGVARCHAR ||
+                       Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
   Record->DisplaySize= MADB_GetDisplaySize(*Field, mysql_get_charset_by_nr(Field->charsetnr));
   Record->OctetLength= MADB_GetOctetLength(*Field, Stmt->Connection->mariadb->charset->char_maxlen);
-  Record->Length= MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
+  Record->Length=      MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
     
   MADB_RESET(Record->TypeName, MADB_GetTypeName(*Field));
   switch(Field->type) {
@@ -299,6 +296,9 @@ my_bool
 MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFields)
 {
   SQLUINTEGER i;
+
+  /* Perhaps we should call routine that does SQL_CLOSE here */
+  Stmt->Ird->Header.Count= 0;
 
   for (i=0; i < NumFields; i++)
   {

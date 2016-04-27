@@ -278,16 +278,9 @@ ODBC_TEST(t_bug32821)
   const SQLUINTEGER   expected_b[]= {0L, 1L, 255L, 258L};
   const SQLUSMALLINT  expected_c[]= {0, 1, 65535, 0};
 
-  diag("parameters in create table not supported");
-  return SKIP;
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug32821");
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "CREATE TABLE t_bug32821 (a BIT(1), b BIT(16)\
-                                   , c BIT(?))", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_ULONG
-    , SQL_INTEGER, 0, 0, &par, 0, &sPar ));
-  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug32821 (a BIT(1), b BIT(16), c BIT(17))");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -314,8 +307,15 @@ ODBC_TEST(t_bug32821)
     is_num(b, expected_b[i]);
     is_num(c, expected_c[i]);
 
-    /* Test of binding to numeric - added later so a bit messy */
-    for (k= 1; k < 3; ++k)
+    /*SQLGetData(Stmt, 1, SQL_C_BIT, &a, 0, &a_ind);
+    is_num(a, expected_a[i]);
+    SQLGetData(Stmt, 1, SQL_C_ULONG, &b, 0, &b_ind);
+    is_num(b, expected_b[i]);
+    SQLGetData(Stmt, 1, SQL_C_USHORT, &c, 0, &c_ind);
+    is_num(c, expected_c[i]);*/
+    
+    /* Test of binding to numeric - currently is disabled. I think I it's better not to support this conversion at all */
+    for (k= 1; k < 0; ++k)
     {
       b_ind= sizeof(SQL_NUMERIC_STRUCT);
       SQLGetData(Stmt, (SQLUSMALLINT)k, SQL_C_NUMERIC, &b_numeric, 0, &b_ind);
