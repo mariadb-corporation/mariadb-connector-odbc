@@ -300,7 +300,6 @@ struct st_ma_odbc_stmt
   MYSQL_RES                 *metadata;
   LIST                      ListItem;
   MADB_QUERY                *Tokens;
-  SQLINTEGER                ColumnCount;
   SQLINTEGER                ParamCount;
   my_bool                   isMultiQuery;
   unsigned int              FetchType;
@@ -431,6 +430,11 @@ void            CloseClientCharset (Client_Charset *cc);
 
 /* Enabling tracing */
 #define MAODBC_DEBUG 1
+/* Macro checks return of the suplied SQLRETURN function call, checks if it is succeeded, and in case of error pushes error up */
+#define RETURN_ERROR_OR_CONTINUE(sqlreturn_func_call) {\
+  SQLRETURN rc= (sqlreturn_func_call);\
+  if (!SQL_SUCCEEDED(rc)) return rc;\
+}
 
 #include <ma_error.h>
 #include <ma_parse.h>

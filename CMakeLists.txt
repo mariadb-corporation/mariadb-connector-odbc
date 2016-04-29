@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2015 MariaDB Corporation AB
+#   Copyright (C) 2013,2016 MariaDB Corporation AB
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -178,11 +178,36 @@ ELSE()
   IF (DIRECT_LINK_TESTS)
     ADD_DEFINITIONS(-DHAVE_UNICODE)
   ENDIF()
+
+ENDIF()
+
+IF(WITH_OPENSSL)
+  FIND_PACKAGE(OpenSSL)
+
+  IF(OPENSSL_FOUND)
+    MESSAGE(STATUS "Configuring to build with OpenSSL")
+
+    ADD_DEFINITIONS(-DHAVE_OPENSSL)
+    INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+    SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
+
+    IF(OPENSSL_CRYPTO_LIBRARIES)
+      SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+    ENDIF()
+
+    SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
+  ELSE()
+    MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
+  ENDIF()
+ELSE()
+    MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
 SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
+
+####### MAODBC #######             
 ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
 TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
@@ -236,7 +261,7 @@ SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${MARIADB_ODBC_VERSION_QUALITY}-src")
 SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
-SET(CPACK_PACKAGE_VENDOR "Monty Program AB")
+SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation AB")
 SET(CPACK_SOURCE_IGNORE_FILES
 test/
 .git/

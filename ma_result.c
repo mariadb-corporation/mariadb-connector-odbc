@@ -92,6 +92,8 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     return SQL_NO_DATA;
   }
 
+  MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
+
   if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
   {
     ret= Stmt->Methods->GetOutParams(Stmt, 0);
