@@ -774,9 +774,9 @@ int run_tests(MA_ODBC_TESTS *tests)
   fakeUtf32le.encoding= "UTF32LE";
   fakeUtf32le.csname=   "utf32le";
 
-  utf8=  mysql_get_charset_by_name("utf8");
-  utf16= mysql_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
-  utf32= little_endian() ? &fakeUtf32le : mysql_get_charset_by_name("utf32");
+  utf8= mariadb_get_charset_by_name("utf8");
+  utf16= mariadb_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
+  utf32= little_endian() ? &fakeUtf32le : mariadb_get_charset_by_name("utf32");
 
   if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
   {

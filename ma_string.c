@@ -425,7 +425,7 @@ my_bool MADB_ValidateStmt(char *StmtStr)
 
 int InitClientCharset(Client_Charset *cc, const char * name)
 {
-  cc->cs_info= mysql_get_charset_by_name(name);
+  cc->cs_info= mariadb_get_charset_by_name(name);
 
   if (cc->cs_info == NULL)
   {

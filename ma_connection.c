@@ -346,8 +346,9 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_PACKET_SIZE:
     {
-      MYSQL_PARAMETERS *mp= mysql_get_parameters();
-      *(SQLINTEGER *)ValuePtr= *mp->p_net_buffer_length/*Dbc->PacketSize*/;
+      unsigned long packet_size= 0;
+      mysql_get_option(Dbc->mariadb, MYSQL_OPT_NET_BUFFER_LENGTH, &packet_size);
+      *(SQLINTEGER *)ValuePtr= (SQLINTEGER)packet_size;
     }
     break;
   case SQL_ATTR_QUIET_MODE:

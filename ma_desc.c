@@ -255,9 +255,9 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
                        Record->ConciseType == SQL_WLONGVARCHAR ||
                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
-  Record->DisplaySize= MADB_GetDisplaySize(*Field, mysql_get_charset_by_nr(Field->charsetnr));
+  Record->DisplaySize= MADB_GetDisplaySize(*Field, mariadb_get_charset_by_nr(Field->charsetnr));
   Record->OctetLength= MADB_GetOctetLength(*Field, Stmt->Connection->mariadb->charset->char_maxlen);
-  Record->Length=      MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
+  Record->Length= MADB_GetDataSize(Record, *Field, mariadb_get_charset_by_nr(Field->charsetnr));
     
   MADB_RESET(Record->TypeName, MADB_GetTypeName(*Field));
   switch(Field->type) {
