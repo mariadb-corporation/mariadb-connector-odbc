@@ -2632,8 +2632,9 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar)
 {
   MADB_DescRecord *Record;
-  SQLSMALLINT StringLength= 0;
-  SQLLEN NumericAttribute;
+  SQLSMALLINT     StringLength=     0;
+  SQLLEN          NumericAttribute;
+  BOOL            IsNumericAttr=    TRUE;
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
@@ -2680,11 +2681,13 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->BaseColumnName, strlen(Record->BaseColumnName), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_BASE_TABLE_NAME:
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->BaseTableName, strlen(Record->BaseTableName), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_CASE_SENSITIVE:
     NumericAttribute= (SQLLEN)Record->CaseSensitive;
@@ -2693,6 +2696,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->CatalogName, strlen(Record->CatalogName), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_CONCISE_TYPE:
     NumericAttribute= (SQLLEN)Record->ConciseType;
@@ -2716,27 +2720,32 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->LiteralPrefix, strlen(Record->LiteralPrefix), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_LITERAL_SUFFIX:
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->LiteralSuffix, strlen(Record->LiteralSuffix), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_LOCAL_TYPE_NAME:
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      "", 0, &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_LABEL:
   case SQL_DESC_NAME:
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->ColumnName, strlen(Record->ColumnName), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_TYPE_NAME:
     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
                                      CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Record->TypeName, strlen(Record->TypeName), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_NULLABLE:
     NumericAttribute= Record->Nullable;
@@ -2757,11 +2766,10 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= Record->Scale;
     break;
   case SQL_DESC_TABLE_NAME:
-    {
-     StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->TableName, strlen(Record->TableName), &Stmt->Error);
-    }
+    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                 CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                 Record->TableName, strlen(Record->TableName), &Stmt->Error);
+    IsNumericAttr= FALSE;
     break;
   case SQL_DESC_TYPE:
     NumericAttribute= Record->Type;
@@ -2781,7 +2789,9 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     if (!BufferLength && CharacterAttributePtr)
       MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
   }
-  if (NumericAttributePtr)
+  /* We shouldn't touch application memory without purpose, writing garbage there. Thus IsNumericAttr.
+     Besides .Net was quite disappointed about that */
+  if (NumericAttributePtr && IsNumericAttr == TRUE)
     *NumericAttributePtr= NumericAttribute;
   if (StringLengthPtr && IsWchar)
     *StringLengthPtr*= sizeof(SQLWCHAR);
