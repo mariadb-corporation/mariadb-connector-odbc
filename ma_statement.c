@@ -2192,7 +2192,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   MYSQL_BIND      Bind;
   my_bool         IsNull= FALSE;
   my_bool         ZeroTerminated= 0;
-  size_t          Length;
+  unsigned long   Length= 0;
   my_bool         Error;
   unsigned int    i;
   unsigned char   *SavePtr=Stmt->stmt->bind[Offset].row_ptr;
@@ -2282,8 +2282,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   MadbType= MADB_GetTypeAndLength(OdbcType, &Bind.is_unsigned, &Bind.buffer_length);
 
   /* set global values for Bind */
-  Bind.error= &Error;
-  Bind.length= &Length;
+  Bind.error=   &Error;
+  Bind.length=  &Length;
   Bind.is_null= &IsNull;
 
   switch(OdbcType) {
@@ -2373,7 +2373,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_WLONGVARCHAR:
     {
       char *ClientValue;
-      size_t Length= 0, SrcLength;
+      size_t CharLength= 0, SrcLength;
       if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
@@ -2396,7 +2396,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
       if (Stmt->stmt->fields[Offset].max_length)
       {
-        Length= MbstrCharLen(ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
+        CharLength= MbstrCharLen(ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
                              Stmt->Connection->charset.cs_info);
       }
 
@@ -2404,7 +2404,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       {
         MADB_FREE(ClientValue);
         if (StrLen_or_IndPtr)
-          *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
+          *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
         return Stmt->Error.ReturnValue;
       }
@@ -2412,18 +2412,18 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
      // memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
       if (Stmt->stmt->fields[Offset].max_length)
-        Length= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
+        CharLength= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
                                    ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
       if (StrLen_or_IndPtr)
       {
-        *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
+        *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
       }
-      if (Length > BufferLength / sizeof(SQLWCHAR))
+      if (CharLength > BufferLength / sizeof(SQLWCHAR))
       {
         /* Calculate new offset and substract 1 byte for null termination. Since we fill the buffer with all characters we can -1 char for NULL */
-        Length= BufferLength / sizeof(SQLWCHAR);
-        Stmt->CharOffset[Offset]+= MbstrOctetLen(ClientValue, &Length, Stmt->Connection->charset.cs_info) - 1;
+        CharLength= BufferLength / sizeof(SQLWCHAR);
+        Stmt->CharOffset[Offset]+= MbstrOctetLen(ClientValue, &CharLength, Stmt->Connection->charset.cs_info) - 1;
         
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
         MADB_FREE(ClientValue);
@@ -2433,7 +2433,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       {
         Stmt->CharOffset[Offset]= Stmt->stmt->fields[Offset].max_length;
         if (StrLen_or_IndPtr)
-          *StrLen_or_IndPtr= Length * sizeof(SQLWCHAR);
+          *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
       }
       MADB_FREE(ClientValue);
       Stmt->stmt->bind[Offset].row_ptr= SavePtr;

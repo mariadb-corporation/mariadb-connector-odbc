@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2015 MariaDB Corporation AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -27,7 +27,7 @@
 
 ODBC_TEST(test_multi_statements)
 {
-  long num_inserted;
+  SQLLEN    num_inserted;
   SQLRETURN rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1");
@@ -36,7 +36,7 @@ ODBC_TEST(test_multi_statements)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2)");
 
   SQLRowCount(Stmt, &num_inserted);
-  diag("inserted: %d", num_inserted);
+  diag("inserted: %ld", (long)num_inserted);
   FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
   
   rc= SQLMoreResults(Stmt);
@@ -45,7 +45,7 @@ ODBC_TEST(test_multi_statements)
   FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
 
   rc= SQLMoreResults(Stmt);
- FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
+  FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
 
   return OK;
 }
@@ -79,7 +79,7 @@ ODBC_TEST(test_multi_on_off)
 ODBC_TEST(test_params)
 {
   SQLRETURN rc;
-  int i, j;
+  int       i, j;
 
   rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
   FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
@@ -110,9 +110,9 @@ ODBC_TEST(test_params)
 #define TEST_MAX_PS_COUNT 25
 ODBC_TEST(test_odbc16)
 {
-  long num_inserted, i;
+  SQLLEN    num_inserted;
   SQLRETURN rc;
-  int prev_ps_count, curr_ps_count, increment= 0, no_increment_iterations= 0;
+  int       i, prev_ps_count, curr_ps_count, increment= 0, no_increment_iterations= 0;
 
   /* This would be valuable for the test, as driver could even crash when PS number is exhausted.
      But changing such sensible variable in production environment can lead to a problem (if
