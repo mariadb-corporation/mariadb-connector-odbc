@@ -426,7 +426,7 @@ int my_print_non_format_result(SQLHSTMT Stmt)
 
 
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), strlen(stmtstr)) != SQL_SUCCESS)\
+if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr)) != SQL_SUCCESS)\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\

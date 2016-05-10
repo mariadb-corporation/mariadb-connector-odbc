@@ -32,8 +32,8 @@ ODBC_TEST(t_blob)
     SQLINTEGER l;
     SQLLEN cbValue;
     SQLCHAR *blobbuf;
-    SQLUINTEGER blobbuf_size = 1024 * 1 * 6L;
-    SQLUINTEGER blob_read;
+    SQLULEN blobbuf_size = 1024 * 1 * 6L;
+    SQLULEN blob_read;
     SQLPOINTER token;
     clock_t start, finish;
     double duration;

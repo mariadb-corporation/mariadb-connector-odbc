@@ -256,10 +256,12 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "SQL command SET NAMES is not allowed", 0);
     return Stmt->Error.ReturnValue;
   }
+
   p= my_strndup(StatementText, TextLength, MYF(0));
   Stmt->StmtString= _strdup(trim(p));
-  TextLength= strlen(Stmt->StmtString);
+  TextLength= (SQLINTEGER)strlen(Stmt->StmtString);
   MADB_FREE(p);
+
   if (Stmt->Tokens)
     MADB_FreeTokens(Stmt->Tokens);
   Stmt->Tokens= MADB_Tokenize(Stmt->StmtString);
@@ -298,7 +300,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     
     MADB_FREE(Stmt->StmtString);
     Stmt->StmtString= _strdup(StmtStr.str);
-    TextLength= strlen(Stmt->StmtString);
+    TextLength= (SQLINTEGER)strlen(Stmt->StmtString);
     dynstr_free(&StmtStr);
   }
   if (Stmt->Options.MaxRows)
@@ -307,7 +309,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     Stmt->StmtString= my_realloc((gptr)Stmt->StmtString, strlen(Stmt->StmtString) + 40, MYF(0));
     p= Stmt->StmtString + strlen(Stmt->StmtString);
     my_snprintf(p, 40, " LIMIT %d", Stmt->Options.MaxRows);
-    TextLength= strlen(Stmt->StmtString);
+    TextLength= (SQLINTEGER)strlen(Stmt->StmtString);
   }
 
   if (QUERY_DOESNT_RETURN_RESULT(QueryType) && MADB_FindParamPlaceholder(Stmt) == 0
@@ -482,7 +484,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
  */
   if (Record->ConciseType == SQL_C_WCHAR)
   {
-    ConvertedDataPtr= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, StrLen_or_Ind/sizeof(SQLWCHAR), &Length, &Stmt->Connection->charset, NULL);
+    ConvertedDataPtr= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, (SQLINTEGER)(StrLen_or_Ind/sizeof(SQLWCHAR)), &Length, &Stmt->Connection->charset, NULL);
 
     if ((ConvertedDataPtr == NULL || Length == 0) && StrLen_or_Ind > 0)
     {
@@ -505,13 +507,13 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   /* To make sure that we will not consume the doble amount of memory, we need to send
      data via mysql_send_long_data directly to the server instead of allocating a separate
      buffer. This means we need to process Update and Insert statements row by row. */
-  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (ConvertedDataPtr ? (char *)ConvertedDataPtr : DataPtr), (size_t)Length))
+  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (ConvertedDataPtr ? (char *)ConvertedDataPtr : DataPtr), (unsigned long)Length))
   {
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
   }
   else
   {
-    Record->InternalLength+= Length;
+    Record->InternalLength+= (unsigned long)Length;
   }
 
   MADB_FREE(ConvertedDataPtr);
@@ -519,7 +521,8 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
 }
 /* }}} */
 
-SQLUINTEGER GetOffset(MADB_Stmt *Stmt, SQLUINTEGER Count, MADB_DescRecord *Record, SQLUINTEGER Size)
+/* TODO: This function doesn't seem to be used anywhere */
+SQLULEN GetOffset(MADB_Stmt *Stmt, SQLUINTEGER Count, MADB_DescRecord *Record, SQLUINTEGER Size)
 {
   if (Stmt->Ard->Header.BindType)
     return Stmt->Ard->Header.BindType * Count;
@@ -630,7 +633,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
         Bind[ParameterNr].buffer= GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, CurrentOffset, ApdRecord->OctetLength);
         if (ApdRecord->OctetLengthPtr)
           Bind[ParameterNr].length= (ulong *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, CurrentOffset, ApdRecord->OctetLength);
-        Bind[ParameterNr].buffer_length= ApdRecord->OctetLength;
+        Bind[ParameterNr].buffer_length= (unsigned long)ApdRecord->OctetLength;
         Bind[ParameterNr].buffer_type= Stmt->stmt->params[i].buffer_type;
         ParameterNr++;
       }
@@ -648,13 +651,14 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 {
-  int i,j, Start= 0;
-  MYSQL_RES *DefaultResult= NULL;
-  SQLRETURN ret= SQL_SUCCESS;
-  unsigned int ErrorCount= 0;
+  int          i;
+  MYSQL_RES   *DefaultResult= NULL;
+  SQLRETURN    ret=           SQL_SUCCESS;
+  unsigned int ErrorCount=    0;
   unsigned int StatementNr;
-  unsigned int ParamOffset= 0; /* for multi statements */
-  unsigned int Iterations= 1;
+  unsigned int ParamOffset=   0; /* for multi statements */
+  unsigned int Iterations=    1;
+  SQLLEN       j, Start=      0;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
@@ -662,7 +666,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
   if (Stmt->EmulatedStmt)
   {
-    return MADB_ExecuteQuery(Stmt, Stmt->StmtString, strlen(Stmt->StmtString));
+    return MADB_ExecuteQuery(Stmt, Stmt->StmtString, (SQLINTEGER)strlen(Stmt->StmtString));
   }
 
   if (Stmt->PositionedCommand && Stmt->PositionedCursor)
@@ -711,7 +715,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       Stmt->RebindParams= TRUE;
     }
     /* Convert and bind parameters */
-    for (j= Start; j < Start + (int)MAX(Stmt->Apd->Header.ArraySize * test(Stmt->ParamCount), 1); j++)
+    for (j= Start; j < Start + (int)MAX(Stmt->Apd->Header.ArraySize * test(Stmt->ParamCount), 1); ++j)
     {
       if (Stmt->Apd->Header.ArrayStatusPtr &&
           Stmt->Apd->Header.ArrayStatusPtr[j-Start] == SQL_PARAM_IGNORE)
@@ -733,7 +737,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
           SQLLEN *IndicatorPtr= NULL;
           SQLLEN *OctetLengthPtr= NULL;
           void   *DataPtr= NULL;
-          long    Length= 0;
+          SQLLEN  Length= 0;
 
           /* check if parameter was bound */
           if (!ApdRecord->inUse)
@@ -748,7 +752,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
           
           if (ApdRecord->OctetLengthPtr)
           {
-            OctetLengthPtr= (SQLLEN *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr,j - Start, sizeof(SQLLEN));
+            OctetLengthPtr= (SQLLEN *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, j - Start, sizeof(SQLLEN));
             Length= *OctetLengthPtr;
           }
         
@@ -775,7 +779,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             else 
             {
               Stmt->params[i-ParamOffset].buffer=       ApdRecord->DefaultValue;
-              Stmt->params[i-ParamOffset].length_value= strlen(ApdRecord->DefaultValue);
+              Stmt->params[i-ParamOffset].length_value= (unsigned long)strlen(ApdRecord->DefaultValue);
               Stmt->params[i-ParamOffset].buffer_type=  MYSQL_TYPE_STRING;
             }
           }
@@ -809,10 +813,9 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 SQLULEN mbLength=0;
                 MADB_FREE(ApdRecord->InternalBuffer);
 
-                ApdRecord->InternalBuffer= MADB_ConvertFromWChar(
-                              (SQLWCHAR *)DataPtr, Length / sizeof(SQLWCHAR), 
-                              &mbLength, &Stmt->Connection->charset, NULL);
-                ApdRecord->InternalLength= mbLength;
+                ApdRecord->InternalBuffer= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, (SQLINTEGER)(Length / sizeof(SQLWCHAR)), 
+                                                                 &mbLength, &Stmt->Connection->charset, NULL);
+                ApdRecord->InternalLength=              (unsigned long)mbLength;
                 Stmt->params[i-ParamOffset].length=     &ApdRecord->InternalLength;
                 Stmt->params[i-ParamOffset].buffer=      ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_STRING;
@@ -821,7 +824,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_C_CHAR:
               if (!Stmt->stmt->params[i-ParamOffset].long_data_used)
               {
-                ApdRecord->InternalLength= Length;
+                ApdRecord->InternalLength= (unsigned long)Length;
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
                 Stmt->params[i-ParamOffset].buffer= DataPtr;
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_STRING;
@@ -839,7 +842,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 p= (SQL_NUMERIC_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
                 p->scale= (SQLSCHAR)IpdRecord->Scale;
                 p->precision= (SQLSCHAR)IpdRecord->Precision;
-                ApdRecord->InternalLength= MADB_SqlNumericToChar((SQL_NUMERIC_STRUCT *)p, ApdRecord->InternalBuffer, &ErrorCode);
+                ApdRecord->InternalLength= (unsigned long)MADB_SqlNumericToChar((SQL_NUMERIC_STRUCT *)p, ApdRecord->InternalBuffer, &ErrorCode);
                 if (ErrorCode)
                   MADB_SetError(&Stmt->Error, ErrorCode, NULL, 0);
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
@@ -927,14 +930,18 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_BINARY:
             case SQL_LONGVARBINARY:
               {
-                long *length= (long *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, j - Start, sizeof(SQLLEN));
+                SQLLEN *length= (SQLLEN *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, j - Start, sizeof(SQLLEN));
+
                 Stmt->params[i-ParamOffset].buffer= (char *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+
                 if (length && *length == SQL_NTS)
                   *length= strlen((char *)Stmt->params[i-ParamOffset].buffer);
+
                 if (length)
-                    Stmt->params[i-ParamOffset].length_value= *length;
+                  Stmt->params[i-ParamOffset].length_value= (unsigned long)*length;
                 else
-                  Stmt->params[i-ParamOffset].length_value= ApdRecord->OctetLength;
+                  Stmt->params[i-ParamOffset].length_value= (unsigned long)ApdRecord->OctetLength;
+
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_BLOB;
               }
               break;
@@ -1078,9 +1085,9 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
   {
     if (TargetType == SQL_C_BOOKMARK || TargetType == SQL_C_VARBOOKMARK)
     {
-      Stmt->Options.BookmarkPtr= TargetValuePtr;
+      Stmt->Options.BookmarkPtr=     TargetValuePtr;
       Stmt->Options.BookmarkLength = BufferLength;
-      Stmt->Options.BookmarkType= TargetType;
+      Stmt->Options.BookmarkType=    TargetType;
       return SQL_SUCCESS;
     }
     MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
@@ -1384,9 +1391,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 }
 /* }}} */
 
-void MADB_InitStatusPtr(SQLUSMALLINT *Ptr, int Size, SQLSMALLINT InitialValue)
+void MADB_InitStatusPtr(SQLUSMALLINT *Ptr, SQLULEN Size, SQLSMALLINT InitialValue)
 {
-  int i;
+  SQLULEN i;
 
   for (i=0; i < Size; i++)
     Ptr[i]= InitialValue;
@@ -1426,9 +1433,8 @@ BOOL MADB_BinaryFieldType(SQLSMALLINT FieldType)
 SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
 {
   MADB_DescRecord *IrdRec, *ArdRec;
-  int     i;
-  SQLLEN *IndicatorPtr= NULL;
-  void   *DataPtr=      NULL;
+  int             i;
+  void            *DataPtr= NULL;
 
   for (i=0; i < Stmt->Ird->Header.Count; ++i)
   {
@@ -1439,9 +1445,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       continue;
     }
 
-    /* set indicator and dataptr */
-    IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->OctetLengthPtr, RowNumber, ArdRec->OctetLength);
-    DataPtr=      (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr,        RowNumber, ArdRec->OctetLength);
+    DataPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr,        RowNumber, ArdRec->OctetLength);
 
     MADB_FREE(ArdRec->InternalBuffer);
     if (!DataPtr)
@@ -1457,30 +1461,30 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
     IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
     /* assert(IrdRec != NULL) */
 
+    /* We can't use application's buffer directly, as it has/can have different size, than C/C needs */
+    Stmt->result[i].length= &Stmt->result[i].length_value;
+
     switch(ArdRec->Type) {
     case SQL_C_WCHAR:
       /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
           For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
           in other cases we need same 2 of 4 bytes. */
-      ArdRec->InternalBuffer=     (char *)MADB_CALLOC((size_t)((ArdRec->OctetLength)*1.5));
+      ArdRec->InternalBuffer=        (char *)MADB_CALLOC((size_t)((ArdRec->OctetLength)*1.5));
       Stmt->result[i].buffer=        ArdRec->InternalBuffer;
       Stmt->result[i].buffer_length= (unsigned long)(ArdRec->OctetLength*1.5);
       Stmt->result[i].buffer_type=   MYSQL_TYPE_STRING;
-      Stmt->result[i].length=        &Stmt->result[i].length_value;
       break;
     case SQL_C_CHAR:
       Stmt->result[i].buffer=        DataPtr;
-      Stmt->result[i].buffer_length= ArdRec->OctetLength;
+      Stmt->result[i].buffer_length= (unsigned long)ArdRec->OctetLength;
       Stmt->result[i].buffer_type=   MYSQL_TYPE_STRING;
-      Stmt->result[i].length=        IndicatorPtr;
       break;
     case SQL_C_NUMERIC:
       MADB_FREE(ArdRec->InternalBuffer);
-      ArdRec->InternalBuffer=     (char *)MADB_CALLOC(MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/);
+      ArdRec->InternalBuffer=       (char *)MADB_CALLOC(MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/);
       Stmt->result[i].buffer=        ArdRec->InternalBuffer;
       Stmt->result[i].buffer_length= MADB_DEFAULT_PRECISION + 2;
       Stmt->result[i].buffer_type=   MYSQL_TYPE_STRING;
-      Stmt->result[i].length=        &Stmt->result[i].length_value;
       break;
     case SQL_TYPE_TIMESTAMP:
     case SQL_TYPE_DATE:
@@ -1489,11 +1493,10 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
     case SQL_C_TIME:
     case SQL_C_DATE:
       MADB_FREE(ArdRec->InternalBuffer);
-      ArdRec->InternalBuffer=     (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
+      ArdRec->InternalBuffer=       (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
       Stmt->result[i].buffer=        ArdRec->InternalBuffer;
       Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
       Stmt->result[i].buffer_type=   MYSQL_TYPE_TIMESTAMP;
-      Stmt->result[i].length=        IndicatorPtr;
       break;
     case SQL_C_TINYINT:
     case SQL_C_UTINYINT:
@@ -1513,9 +1516,8 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
         MADB_FREE(ArdRec->InternalBuffer);
         ArdRec->InternalBuffer=        (char *)MADB_CALLOC(IrdRec->OctetLength);
         Stmt->result[i].buffer=        ArdRec->InternalBuffer;
-        Stmt->result[i].buffer_length= IrdRec->OctetLength;
+        Stmt->result[i].buffer_length= (unsigned long)IrdRec->OctetLength;
         Stmt->result[i].buffer_type=   MYSQL_TYPE_BLOB;
-        Stmt->result[i].length=        IndicatorPtr;
         break;
       }
       /* else {we are falling through below} */
@@ -1524,12 +1526,11 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       {
         return MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
       }
-      Stmt->result[i].buffer_length= ArdRec->OctetLength;
+      Stmt->result[i].buffer_length= (unsigned long)ArdRec->OctetLength;
       Stmt->result[i].buffer=        DataPtr;
       Stmt->result[i].buffer_type=   MADB_GetTypeAndLength(ArdRec->ConciseType,
                                                             &Stmt->result[i].is_unsigned,
                                                             &Stmt->result[i].buffer_length);
-      Stmt->result[i].length=        IndicatorPtr;
       break;
     }
   }
@@ -1716,7 +1717,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 {
   unsigned int j, rc;
-  size_t       ArraySize=  Stmt->Ard->Header.ArraySize;
+  SQLULEN      ArraySize=  Stmt->Ard->Header.ArraySize;
   MADB_Desc   *ArdDesc=    Stmt->Ard;
   MYSQL_ROWS  *SaveCursor= NULL;
     
@@ -1770,9 +1771,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
       if (Stmt->Options.UseBookmarks)
       {
+        /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
         long *p= (long *)Stmt->Options.BookmarkPtr;
         p+= j * Stmt->Options.BookmarkLength;
-        *p= Stmt->Cursor.Position;
+        *p= (long)Stmt->Cursor.Position;
       }
       /************************ Fetch! ********************************/
       rc= mysql_stmt_fetch(Stmt->stmt);
@@ -1899,7 +1901,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     break;
   case SQL_ATTR_ROW_ARRAY_SIZE:
   case SQL_ROWSET_SIZE:
-    *(SQLUINTEGER *)ValuePtr= Stmt->Ard->Header.ArraySize;
+    *(SQLULEN *)ValuePtr= Stmt->Ard->Header.ArraySize;
     break;
   case SQL_ATTR_ROW_BIND_OFFSET_PTR:
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ard->Header.BindOffsetPtr;
@@ -1919,22 +1921,22 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
   case SQL_ATTR_USE_BOOKMARKS:
     *(SQLUINTEGER *)ValuePtr= Stmt->Options.UseBookmarks;
   case SQL_ATTR_SIMULATE_CURSOR:
-    *(SQLUINTEGER *)ValuePtr= Stmt->Options.SimulateCursor;
+    *(SQLULEN *)ValuePtr= Stmt->Options.SimulateCursor;
     break;
   case SQL_ATTR_CURSOR_SCROLLABLE:
-    *(SQLUINTEGER *)ValuePtr= Stmt->Options.CursorType;
+    *(SQLULEN *)ValuePtr= Stmt->Options.CursorType;
     break;
   case SQL_ATTR_CURSOR_SENSITIVITY:
-    *(SQLUINTEGER *)ValuePtr= SQL_UNSPECIFIED;
+    *(SQLULEN *)ValuePtr= SQL_UNSPECIFIED;
     break;
   case SQL_ATTR_CURSOR_TYPE:
-    *(SQLUINTEGER *)ValuePtr= Stmt->Options.CursorType;
+    *(SQLULEN *)ValuePtr= Stmt->Options.CursorType;
     break;
   case SQL_ATTR_CONCURRENCY:
-    *(SQLUINTEGER *)ValuePtr= SQL_CONCUR_READ_ONLY;
+    *(SQLULEN *)ValuePtr= SQL_CONCUR_READ_ONLY;
     break;
   case SQL_ATTR_ENABLE_AUTO_IPD:
-    *(SQLUINTEGER *)ValuePtr= SQL_FALSE;
+    *(SQLULEN *)ValuePtr= SQL_FALSE;
     break;
   case SQL_ATTR_MAX_LENGTH:
     *(SQLULEN *)ValuePtr= Stmt->Options.MaxLength;
@@ -1943,10 +1945,10 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLULEN *)ValuePtr= Stmt->Options.MaxRows;
     break;
   case SQL_ATTR_METADATA_ID:
-    *(SQLUINTEGER *)ValuePtr= Stmt->Options.MetadataId;
+    *(SQLULEN *)ValuePtr= Stmt->Options.MetadataId;
     break;
   case SQL_ATTR_NOSCAN:
-    *(SQLUINTEGER *)ValuePtr= SQL_NOSCAN_ON;
+    *(SQLULEN *)ValuePtr= SQL_NOSCAN_ON;
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
     *(SQLULEN *)ValuePtr= 0;
@@ -2342,8 +2344,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         *StrLen_or_IndPtr= sizeof(SQL_TIMESTAMP_STRUCT);
     }
     break;
-    case SQL_TIME:
-    case SQL_C_TYPE_TIME:
+  case SQL_TIME:
+  case SQL_C_TYPE_TIME:
     {
       MYSQL_TIME tm;
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)TargetValuePtr;
@@ -2372,16 +2374,18 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_WVARCHAR:
   case SQL_WLONGVARCHAR:
     {
-      char *ClientValue;
+      char  *ClientValue;
       size_t CharLength= 0, SrcLength;
+
       if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         return Stmt->Error.ReturnValue;
       }
-      Bind.buffer= ClientValue;
-      Bind.buffer_type= MYSQL_TYPE_STRING;
+      Bind.buffer=        ClientValue;
+      Bind.buffer_type=   MYSQL_TYPE_STRING;
       Bind.buffer_length= Stmt->stmt->fields[Offset].max_length + 1;
+
       if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
@@ -2412,7 +2416,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
      // memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
       if (Stmt->stmt->fields[Offset].max_length)
-        CharLength= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, BufferLength / sizeof(SQLWCHAR),
+        CharLength= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
                                    ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
       if (StrLen_or_IndPtr)
@@ -2423,7 +2427,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       {
         /* Calculate new offset and substract 1 byte for null termination. Since we fill the buffer with all characters we can -1 char for NULL */
         CharLength= BufferLength / sizeof(SQLWCHAR);
-        Stmt->CharOffset[Offset]+= MbstrOctetLen(ClientValue, &CharLength, Stmt->Connection->charset.cs_info) - 1;
+        Stmt->CharOffset[Offset]+= (unsigned long)MbstrOctetLen(ClientValue, &CharLength, Stmt->Connection->charset.cs_info) - 1;
         
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
         MADB_FREE(ClientValue);
@@ -2468,9 +2472,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_VARBINARY:
   case SQL_LONGVARBINARY:
     {
-      Bind.buffer= TargetValuePtr;
-      Bind.buffer_length= BufferLength;
-      Bind.buffer_type= MadbType;
+      Bind.buffer=        TargetValuePtr;
+      Bind.buffer_length= (unsigned long)BufferLength;
+      Bind.buffer_type=   MadbType;
 
       if (Stmt->Lengths[Offset] && Stmt->CharOffset[Offset] >= Stmt->Lengths[Offset])
       {
@@ -2480,13 +2484,19 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (!(BufferLength) && StrLen_or_IndPtr)
       {
-        Bind.length= StrLen_or_IndPtr;
+        /* Paranoid - before StrLen_or_IndPtr was used as length directly. so leaving same value in Bind.length. Unlikely needed */
+        Bind.length_value= (unsigned long)*StrLen_or_IndPtr;
+        Bind.length=       &Bind.length_value;
+
         mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]);
         
         if (!Stmt->CharOffset[Offset])
+        {
           Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+        }
         *StrLen_or_IndPtr= Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+
         return SQL_SUCCESS_WITH_INFO;
       }
       
@@ -2496,7 +2506,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         return Stmt->Error.ReturnValue;
       }
       /* Dirty temporary hack before we know what is going on */
-      if ((SQLLEN)*Bind.length < 0)
+      if ((long)*Bind.length == -1)
         *Bind.length= 0;
       /* end of dirty hack */
       if (*Bind.length > Bind.buffer_length) 
@@ -2532,12 +2542,12 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
        /* Set the conversion function */
       Bind.buffer_type= MadbType;
       Bind.buffer= TargetValuePtr;
-      if (BufferLength)
-        Bind.buffer_length= BufferLength;
+      if (Bind.buffer_length == 0 && BufferLength > 0)
+        Bind.buffer_length= (unsigned long)BufferLength;
       mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
       if (StrLen_or_IndPtr != NULL)
       {
-        if (Length > 0)
+        if (Length != 0 && (long)Length != -1)
         {
           *StrLen_or_IndPtr= Length;
         }
@@ -2678,24 +2688,24 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= (SQLLEN)Record->AutoUniqueValue;
     break;
   case SQL_DESC_BASE_COLUMN_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->BaseColumnName, strlen(Record->BaseColumnName), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->BaseColumnName, strlen(Record->BaseColumnName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_BASE_TABLE_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->BaseTableName, strlen(Record->BaseTableName), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : NULL,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->BaseTableName, strlen(Record->BaseTableName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_CASE_SENSITIVE:
     NumericAttribute= (SQLLEN)Record->CaseSensitive;
     break;
   case SQL_DESC_CATALOG_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->CatalogName, strlen(Record->CatalogName), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->CatalogName, strlen(Record->CatalogName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_CONCISE_TYPE:
@@ -2717,34 +2727,34 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= (SQLLEN)Record->Length;
     break;
   case SQL_DESC_LITERAL_PREFIX:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->LiteralPrefix, strlen(Record->LiteralPrefix), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->LiteralPrefix, strlen(Record->LiteralPrefix), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_LITERAL_SUFFIX:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->LiteralSuffix, strlen(Record->LiteralSuffix), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->LiteralSuffix, strlen(Record->LiteralSuffix), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_LOCAL_TYPE_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     "", 0, &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              "", 0, &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_LABEL:
   case SQL_DESC_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->ColumnName, strlen(Record->ColumnName), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->ColumnName, strlen(Record->ColumnName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_TYPE_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                     CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                     Record->TypeName, strlen(Record->TypeName), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->TypeName, strlen(Record->TypeName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_NULLABLE:
@@ -2766,9 +2776,9 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= Record->Scale;
     break;
   case SQL_DESC_TABLE_NAME:
-    StringLength= MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
-                                 CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
-                                 Record->TableName, strlen(Record->TableName), &Stmt->Error);
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              Record->TableName, strlen(Record->TableName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_TYPE:
@@ -2832,7 +2842,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
    p+= my_snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
   
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, strlen(StmtStr));
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   
@@ -2864,7 +2874,7 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   
   p+= my_snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
   
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, strlen(StmtStr));
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   return ret;
@@ -3473,7 +3483,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
 
   if ((ColumnName || BufferLength) && Record->ColumnName)
   {
-    int Length= MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, ColumnName, ColumnName ? BufferLength : 0, Record->ColumnName, SQL_NTS, &Stmt->Error); 
+    size_t Length= MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, ColumnName, ColumnName ? BufferLength : 0, Record->ColumnName, SQL_NTS, &Stmt->Error); 
     if (NameLengthPtr)
       *NameLengthPtr= (SQLSMALLINT)Length;
     if (!BufferLength)
@@ -3493,7 +3503,7 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
     return SQL_ERROR;
   }
   if (BufferLength== SQL_NTS)
-    BufferLength= strlen(Buffer);
+    BufferLength= (SQLINTEGER)strlen(Buffer);
   if (BufferLength < 0)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
@@ -3543,8 +3553,8 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
     my_snprintf(Stmt->Cursor.Name, MADB_MAX_CURSOR_NAME, "SQL_CUR%d", 
                 Stmt->Connection->CursorCount++);
   }
-  Length= MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, CursorName,
-                                 BufferLength, Stmt->Cursor.Name, SQL_NTS, &Stmt->Error);
+  Length= (SQLSMALLINT)MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, CursorName,
+                                      BufferLength, Stmt->Cursor.Name, SQL_NTS, &Stmt->Error);
   if (NameLengthPtr)
     *NameLengthPtr= (SQLSMALLINT)Length;
   if (!BufferLength)
@@ -3601,14 +3611,14 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
 /* {{{ MADB_RefreshDynamicCursor */
 SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
 {
-  SQLRETURN    ret;
-  long         CurrentRow=     Stmt->Cursor.Position, 
-               AffectedRows=   (long)Stmt->AffectedRows;
-  unsigned int LastRowFetched= Stmt->LastRowFetched;
+  SQLRETURN ret;
+  SQLLEN    CurrentRow=     Stmt->Cursor.Position; 
+  SQLBIGINT AffectedRows=   Stmt->AffectedRows;
+  SQLLEN    LastRowFetched= Stmt->LastRowFetched;
 
   ret= Stmt->Methods->Execute(Stmt);
   Stmt->Cursor.Position= CurrentRow;
-  if (Stmt->Cursor.Position > 0 && Stmt->Cursor.Position >= mysql_stmt_num_rows(Stmt->stmt))
+  if (Stmt->Cursor.Position > 0 && (my_ulonglong)Stmt->Cursor.Position >= mysql_stmt_num_rows(Stmt->stmt))
     Stmt->Cursor.Position= (long)mysql_stmt_num_rows(Stmt->stmt) - 1;
   Stmt->LastRowFetched= LastRowFetched;
   Stmt->AffectedRows= AffectedRows;
@@ -3739,9 +3749,9 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     break;
   case SQL_UPDATE:
     {
-      char *TableName= MADB_GetTableName(Stmt);
-      my_ulonglong Start= 0, End= mysql_stmt_num_rows(Stmt->stmt);
-      int Offset= RowNumber;
+      char        *TableName= MADB_GetTableName(Stmt);
+      my_ulonglong Start=     0, 
+                   End=       mysql_stmt_num_rows(Stmt->stmt);
 
       if (!TableName)
       {
@@ -3751,7 +3761,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       
       Stmt->AffectedRows= 0;
 
-      if (RowNumber > Stmt->LastRowFetched)
+      if ((SQLLEN)RowNumber > Stmt->LastRowFetched)
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_S1107, NULL, 0);
         return Stmt->Error.ReturnValue;
@@ -3785,7 +3795,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       Start+= Stmt->ArrayOffset;
       while (Start <= End)
       {
-        unsigned long j;
+        SQLSMALLINT j;
         MADB_StmtDataSeek(Stmt,Start);
         Stmt->Methods->RefreshRowPtrs(Stmt);
         
@@ -3796,13 +3806,14 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           if (!SQL_SUCCEEDED(MADB_DaeStmt(Stmt, SQL_UPDATE)))
             return Stmt->Error.ReturnValue;
 
-          for(j=0; j < mysql_stmt_param_count(Stmt->DaeStmt->stmt); j++)
+          for(j= 0; j < (SQLSMALLINT)mysql_stmt_param_count(Stmt->DaeStmt->stmt); j++)
           {
-            long *LengthPtr= NULL;
-            my_bool GetDefault= FALSE;
-            MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->Ard, j, MADB_DESC_READ);
+            SQLLEN          *LengthPtr= NULL;
+            my_bool         GetDefault= FALSE;
+            MADB_DescRecord *Rec=       MADB_DescGetInternalRecord(Stmt->Ard, j, MADB_DESC_READ);
+
             if (Rec->OctetLengthPtr)
-              LengthPtr= (long *)GetBindOffset(Stmt->Ard, Rec, Rec->OctetLengthPtr, Stmt->DaeRowNumber - 1, Rec->OctetLength);
+              LengthPtr= GetBindOffset(Stmt->Ard, Rec, Rec->OctetLengthPtr, Stmt->DaeRowNumber - 1, Rec->OctetLength);
             if (!Rec->inUse ||
                 (LengthPtr && *LengthPtr == SQL_COLUMN_IGNORE))
               GetDefault= TRUE;
@@ -3811,15 +3822,15 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             {
               SQLLEN Length= 0;
               /* set a default value */
-              if (Stmt->Methods->GetData(Stmt, (SQLSMALLINT)j+1, SQL_C_CHAR, NULL, 0, &Length) != SQL_ERROR && Length)
+              if (Stmt->Methods->GetData(Stmt, j + 1, SQL_C_CHAR, NULL, 0, &Length) != SQL_ERROR && Length)
               {
                 MADB_FREE(Rec->DefaultValue);
                 if (Length > 0) 
                 {
                   Rec->DefaultValue= (char *)MADB_CALLOC(Length + 1);
-                  Stmt->Methods->GetData(Stmt, (SQLSMALLINT)j+1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0);
+                  Stmt->Methods->GetData(Stmt, j + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0);
                 }
-                Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, (SQLSMALLINT)j+1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
+                Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, j + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
                               Rec->DefaultValue, Length, NULL);
                 continue;
               }
@@ -3827,8 +3838,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
             if (!GetDefault)
             {
-              Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, (SQLUSMALLINT)j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale,
-                               GetBindOffset(Stmt->Ard, Rec, Rec->DataPtr, Stmt->DaeRowNumber -1, Rec->OctetLength), Rec->OctetLength, LengthPtr);
+              Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, j + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale,
+                               GetBindOffset(Stmt->Ard, Rec, Rec->DataPtr, Stmt->DaeRowNumber - 1, Rec->OctetLength), Rec->OctetLength, LengthPtr);
             }
             if (PARAM_IS_DAE(LengthPtr) && !DAE_DONE(Stmt->DaeStmt))
             {
@@ -3858,9 +3869,10 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   case SQL_DELETE:
     {
       DYNAMIC_STRING DynamicStmt;
-      SQLINTEGER SaveArraySize= Stmt->Ard->Header.ArraySize;
-      my_ulonglong Start=0, End=mysql_stmt_num_rows(Stmt->stmt);
-      char *TableName= MADB_GetTableName(Stmt);
+      SQLULEN        SaveArraySize= Stmt->Ard->Header.ArraySize;
+      my_ulonglong   Start=         0,
+                     End=           mysql_stmt_num_rows(Stmt->stmt);
+      char           *TableName=    MADB_GetTableName(Stmt);
 
       if (!TableName)
       {
@@ -3899,7 +3911,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         }
 
         LOCK_MARIADB(Stmt->Connection);
-        if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, DynamicStmt.length))
+        if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, (unsigned long)DynamicStmt.length))
         {
           dynstr_free(&DynamicStmt);
           MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
@@ -3938,8 +3950,8 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
                                SQLLEN FetchOffset)
 {
   SQLRETURN ret;
-  long Position;
-  long RowsProcessed;
+  SQLLEN    Position;
+  SQLLEN    RowsProcessed;
 
   
   RowsProcessed= Stmt->LastRowFetched;
@@ -3984,11 +3996,11 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   case SQL_FETCH_ABSOLUTE:
     if (FetchOffset < 0)
     {
-      if ((long)mysql_stmt_num_rows(Stmt->stmt) - 1 + FetchOffset < 0 &&
-          (-FetchOffset <= (SQLINTEGER)Stmt->Ard->Header.ArraySize))
+      if ((longlong)mysql_stmt_num_rows(Stmt->stmt) - 1 + FetchOffset < 0 &&
+          ((SQLULEN)-FetchOffset <= Stmt->Ard->Header.ArraySize))
         Position= 0;
       else
-        Position= (long)mysql_stmt_num_rows(Stmt->stmt) + FetchOffset;
+        Position= (SQLLEN)mysql_stmt_num_rows(Stmt->stmt) + FetchOffset;
     }
     else
       Position= FetchOffset - 1;
@@ -3997,7 +4009,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
     Position= 0;
     break;
   case SQL_FETCH_LAST:
-    Position= (unsigned long)mysql_stmt_num_rows(Stmt->stmt) - MAX(1, Stmt->Ard->Header.ArraySize);
+    Position= (SQLLEN)mysql_stmt_num_rows(Stmt->stmt) - MAX(1, Stmt->Ard->Header.ArraySize);
  /*   if (Stmt->Ard->Header.ArraySize > 1)
       Position= MAX(0, Position - Stmt->Ard->Header.ArraySize + 1); */
     break;
@@ -4022,12 +4034,16 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
     return Stmt->Error.ReturnValue;
     break;
   }
+
   if (Position < 0)
+  {
     Stmt->Cursor.Position= -1;
+  }
   else
-    Stmt->Cursor.Position= (long)MIN(Position, mysql_stmt_num_rows(Stmt->stmt));
-  if (Position < 0 ||
-      Position > mysql_stmt_num_rows(Stmt->stmt) - 1)
+  {
+    Stmt->Cursor.Position= (SQLLEN)MIN((my_ulonglong)Position, mysql_stmt_num_rows(Stmt->stmt));
+  }
+  if (Position < 0 || (my_ulonglong)Position > mysql_stmt_num_rows(Stmt->stmt) - 1)
   {
     return SQL_NO_DATA;
   }

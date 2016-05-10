@@ -50,7 +50,7 @@ MADB_QUERY *MADB_Tokenize(const char *Stmt)
 
   while ((Pos = MADB_GetToken(&Stmt, End)) != End)
   {
-    unsigned int Offset= Stmt - Start;
+    unsigned int Offset= (unsigned int)(Stmt - Start);
     insert_dynamic(&Query->tokens, (gptr)&Offset);
     Stmt= Pos;
   } 
@@ -81,7 +81,7 @@ char *MADB_Token(MADB_Stmt *Stmt, unsigned int Idx)
   return Stmt->StmtString + Offset;  
 }
 
-my_bool MADB_CompareToken(MADB_Stmt *Stmt, unsigned int Idx, char *Compare, unsigned int Length, unsigned int *Offset)
+my_bool MADB_CompareToken(MADB_Stmt *Stmt, unsigned int Idx, char *Compare, size_t Length, unsigned int *Offset)
 {
   char *TokenString;
   
@@ -90,7 +90,7 @@ my_bool MADB_CompareToken(MADB_Stmt *Stmt, unsigned int Idx, char *Compare, unsi
   if (_strnicmp(TokenString, Compare, Length) == 0)
   {
     if (Offset)
-      *Offset= TokenString - Stmt->StmtString;
+      *Offset= (unsigned int)(TokenString - Stmt->StmtString);
     return TRUE;
   }
  
@@ -104,7 +104,7 @@ unsigned int MADB_FindToken(MADB_Stmt *Stmt, char *Compare)
 
   for (i=0; i < TokenCount; i++)
   {
-    if (MADB_CompareToken(Stmt, i, Compare,strlen(Compare), &Offset))
+    if (MADB_CompareToken(Stmt, i, Compare, strlen(Compare), &Offset))
       return Offset;
   }
   return 0;

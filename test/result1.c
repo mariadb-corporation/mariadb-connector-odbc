@@ -684,172 +684,172 @@ ODBC_TEST(t_zerolength)
   SQLLEN     pcbValue,pcbValue1,pcbValue2;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_zerolength");
-    rc = SQLExecDirect(Stmt,"create table t_zerolength(str varchar(20), bin varbinary(20), blb blob)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"create table t_zerolength(str varchar(20), bin varbinary(20), blb blob)", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_zerolength values('','','')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_zerolength values('','','')", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_zerolength values('venu','mysql','monty')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"insert into t_zerolength values('venu','mysql','monty')", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
-    SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_KEYSET_DRIVEN, 0);
+  SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
+  SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_KEYSET_DRIVEN, 0);
 
-    rc = SQLExecDirect(Stmt,"select * from t_zerolength", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"select * from t_zerolength", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    pcbValue= pcbValue1= 99;
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 0, &pcbValue));
-    diag("length: %d", pcbValue);
-    IS(pcbValue == 0);
+  pcbValue= pcbValue1= 99;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, szData, 0, &pcbValue));
+  diag("length: %d", pcbValue);
+  IS(pcbValue == 0);
 
-    bData[0]=bData[1]='z';
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_BINARY, bData, 0, &pcbValue1));
-    diag("length: %d", pcbValue1);
-    IS(pcbValue1 == 0);
-    IS(bData[0] == 'z');
-    IS(bData[1] == 'z');
+  bData[0]=bData[1]='z';
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_BINARY, bData, 0, &pcbValue1));
+  diag("length: %d", pcbValue1);
+  IS(pcbValue1 == 0);
+  IS(bData[0] == 'z');
+  IS(bData[1] == 'z');
 
-    bData1[0]=bData1[1]='z';
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_BINARY, bData1, 0, &pcbValue2));
-    diag("length: %d", pcbValue2);
-    IS(pcbValue2 == 0);
-    IS(bData1[0] == 'z');
-    IS(bData1[1] == 'z');
+  bData1[0]=bData1[1]='z';
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_BINARY, bData1, 0, &pcbValue2));
+  diag("length: %d", pcbValue2);
+  IS(pcbValue2 == 0);
+  IS(bData1[0] == 'z');
+  IS(bData1[1] == 'z');
 
-    pcbValue= pcbValue1= 99;
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt,1,SQL_C_CHAR,szData,1,&pcbValue));
-    diag("data: %s, length: %d", szData, pcbValue);
-    IS(pcbValue == 0);
-    IS(szData[0] == '\0');
+  pcbValue= pcbValue1= 99;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR,szData, 1, &pcbValue));
+  diag("data: %s, length: %d", szData, pcbValue);
+  IS(pcbValue == 0);
+  IS(szData[0] == '\0');
 
-    bData[0]=bData[1]='z';
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt,2,SQL_C_BINARY,bData,1,&pcbValue1));
+  bData[0]=bData[1]='z';
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_BINARY, bData, 1, &pcbValue1));
 
-    diag("data: %s, length: %d", bData, pcbValue1);
-    IS(pcbValue1 == 0);
+  diag("data: %s, length: %d", bData, pcbValue1);
+  IS(pcbValue1 == 0);
 
-    bData1[0]=bData1[1]='z';
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt,3,SQL_C_CHAR,bData1,1,&pcbValue2));
-    diag("data: %s, length: %d", bData1, pcbValue2);
-    IS(pcbValue2 == 0);
-    IS(bData1[0] == '\0');
-    IS(bData1[1] == 'z');
+  bData1[0]=bData1[1]= 'z';
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_CHAR, bData1, 1, &pcbValue2));
+  diag("data: %s, length: %d", bData1, pcbValue2);
+  IS(pcbValue2 == 0);
+  IS(bData1[0] == '\0');
+  IS(bData1[1] == 'z');
 
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    pcbValue= pcbValue1= 99;
-    szData[0]= bData[0]= 'z';
-    rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,0,&pcbValue);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("length: %d", pcbValue);
-    IS(pcbValue == 4);
-    IS(szData[0] == 'z');
+  pcbValue= pcbValue1= 99;
+  szData[0]= bData[0]= 'z';
+  rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,0,&pcbValue);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("length: %d", pcbValue);
+  IS(pcbValue == 4);
+  IS(szData[0] == 'z');
 
-    rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,0,&pcbValue1);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("length: %d", pcbValue1);
-    IS(pcbValue1 == 5);
-    IS(bData[0] == 'z');
+  rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,0,&pcbValue1);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("length: %d", pcbValue1);
+  IS(pcbValue1 == 5);
+  IS(bData[0] == 'z');
 
-    bData[0]=bData1[1]='z';
-    rc = SQLGetData(Stmt,3,SQL_C_BINARY,bData1,0,&pcbValue2);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("length: %d", pcbValue2);
-    IS(pcbValue2 == 5);
+  bData[0]=bData1[1]='z';
+  rc = SQLGetData(Stmt,3,SQL_C_BINARY,bData1,0,&pcbValue2);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("length: %d", pcbValue2);
+  IS(pcbValue2 == 5);
 
-    pcbValue= pcbValue1= 99;
-    szData[0]= szData[1]= bData[0]= bData[1]= 'z';
-    rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,1,&pcbValue);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data: %s, length: %d", szData,pcbValue);
-    IS(pcbValue == 4);
-    IS(szData[0] == '\0');
+  pcbValue= pcbValue1= 99;
+  szData[0]= szData[1]= bData[0]= bData[1]= 'z';
+  rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,1,&pcbValue);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data: %s, length: %d", szData,pcbValue);
+  IS(pcbValue == 4);
+  IS(szData[0] == '\0');
 
-    rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,1,&pcbValue1);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data; %s, length: %d", bData, pcbValue1);
-    IS(pcbValue1 == 5);
-    IS(bData[0] == 'm');
+  rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,1,&pcbValue1);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data; %s, length: %d", bData, pcbValue1);
+  IS(pcbValue1 == 5);
+  IS(bData[0] == 'm');
 
-    bData[0]=bData1[1]='z';
-    rc = SQLGetData(Stmt,3,SQL_C_BINARY,bData1,1,&pcbValue2);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("length: %d", pcbValue2);
-    IS(pcbValue2 == 5);
-    IS(bData1[0] == 'm');
-    IS(bData1[1] == 'z');
+  bData[0]=bData1[1]='z';
+  rc = SQLGetData(Stmt,3,SQL_C_BINARY,bData1,1,&pcbValue2);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("length: %d", pcbValue2);
+  IS(pcbValue2 == 5);
+  IS(bData1[0] == 'm');
+  IS(bData1[1] == 'z');
 
-    pcbValue= pcbValue1= 99;
-    rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,4,&pcbValue);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data: %s, length: %d", szData, pcbValue);
-    is_num(pcbValue, 4);
-    IS_STR(szData,"ven", 3);
+  pcbValue= pcbValue1= 99;
+  rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,4,&pcbValue);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data: %s, length: %d", szData, pcbValue);
+  is_num(pcbValue, 4);
+  IS_STR(szData,"ven", 3);
 
-    rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,4,&pcbValue1);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data: %s, length: %d", bData, pcbValue1);
-    is_num(pcbValue1, 5);
-    IS_STR(bData, "mysq", 4);
+  rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,4,&pcbValue1);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data: %s, length: %d", bData, pcbValue1);
+  is_num(pcbValue1, 5);
+  IS_STR(bData, "mysq", 4);
 
-    pcbValue= pcbValue1= 99;
-    rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,5,&pcbValue);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("data: %s, length: %d", szData, pcbValue);
-    is_num(pcbValue, 4);
-    IS_STR(szData, "venu", 4);
+  pcbValue= pcbValue1= 99;
+  rc = SQLGetData(Stmt,1,SQL_C_CHAR,szData,5,&pcbValue);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("data: %s, length: %d", szData, pcbValue);
+  is_num(pcbValue, 4);
+  IS_STR(szData, "venu", 4);
 
-    rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,5,&pcbValue1);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("data: %s, length: %d", bData, pcbValue1);
-    is_num(pcbValue1, 5);
-    IS_STR(bData, "mysql", 5);
+  rc = SQLGetData(Stmt,2,SQL_C_BINARY,bData,5,&pcbValue1);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("data: %s, length: %d", bData, pcbValue1);
+  is_num(pcbValue1, 5);
+  IS_STR(bData, "mysql", 5);
 
-    szData[0]= 'z';
-    rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,0,&pcbValue);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data: %s, length: %d", szData, pcbValue);
-    IS(pcbValue == 5 || pcbValue == 10);
-    IS(szData[0] == 'z');
+  szData[0]= 'z';
+  rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,0,&pcbValue);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data: %s, length: %d", szData, pcbValue);
+  IS(pcbValue == 5 || pcbValue == 10);
+  IS(szData[0] == 'z');
 
 #if TO_BE_FIXED_IN_DRIVER
-    szData[0]=szData[1]='z';
-    rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,1,&pcbValue);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data: %s, length: %d", szData, pcbValue);
-    IS(pcbValue == 10);
-    IS(szData[0] == 'm');
-    IS(szData[1] == 'z');
+  szData[0]=szData[1]='z';
+  rc = SQLGetData(Stmt, 3, SQL_C_CHAR, szData, 1, &pcbValue);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data: %s, length: %d", szData, pcbValue);
+  IS(pcbValue == 10);
+  IS(szData[0] == 'm');
+  IS(szData[1] == 'z');
 
-    rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,4,&pcbValue);
-    FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
-    diag("data: %s, length: %d", szData, pcbValue);
-    IS(pcbValue == 10);
-    IS(strncmp(szData,"mont",4) == 0);
+  rc = SQLGetData(Stmt, 3,SQL_C_CHAR, szData, 4, &pcbValue);
+  FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
+  diag("data: %s, length: %d", szData, pcbValue);
+  IS(pcbValue == 10);
+  IS(strncmp(szData,"mont",4) == 0);
 
-    rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,5,&pcbValue);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("data: %s, length: %d", szData, pcbValue);
-    IS(pcbValue == 10);
-    IS(strncmp(szData,"monty",5) == 0);
+  rc = SQLGetData(Stmt, 3, SQL_C_CHAR, szData, 5, &pcbValue);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("data: %s, length: %d", szData, pcbValue);
+  IS(pcbValue == 10);
+  IS(strncmp(szData,"monty",5) == 0);
 #endif
 
-    rc = SQLFetch(Stmt);
-    IS(rc == SQL_NO_DATA_FOUND);
+  rc = SQLFetch(Stmt);
+  IS(rc == SQL_NO_DATA_FOUND);
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_UNBIND);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_zerolength");
 

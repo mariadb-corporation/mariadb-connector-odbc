@@ -2566,7 +2566,7 @@ ODBC_TEST(t_sqlcolumns_after_select)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0,
                           (SQLCHAR *)"b14338051",
-                          strlen("b14338051"), NULL, 0));
+                          (SQLSMALLINT)strlen("b14338051"), NULL, 0));
 
   is_num(myrowcount(Stmt), 2);
 

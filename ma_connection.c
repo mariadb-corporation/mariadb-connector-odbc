@@ -266,7 +266,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         return MADB_SetError(&Dbc->Error, MADB_ERR_HY024, NULL, 0);
       }
     }
-    Dbc->TxnIsolation= (SQLLEN)ValuePtr;
+    Dbc->TxnIsolation= (SQLINTEGER)(SQLLEN)ValuePtr;
     break;
   default:
     break;
@@ -1727,7 +1727,7 @@ end:
   {
     if (StringLength1 == SQL_NTS)
     {
-      StringLength1= strlen(InConnectionString);
+      StringLength1= (SQLSMALLINT)strlen(InConnectionString);
     }
     if (OutConnectionString && BufferLength)
     {

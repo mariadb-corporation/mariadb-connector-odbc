@@ -445,9 +445,9 @@ void CloseClientCharset(Client_Charset *cc)
 
 
 /* Hmmm... Length in characters is SQLLEN, octet length SQLINTEGER */
-SQLINTEGER MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
+SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
 {
-  SQLINTEGER result= 0, inChars= *CharLen;
+  SQLLEN result= 0, inChars= *CharLen;
 
   if (str)
   {
@@ -456,7 +456,7 @@ SQLINTEGER MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
       /* Charset uses no more than a byte per char. Result is strlen or umber of chars */
       if (*CharLen < 0)
       {
-        result= strlen(str);
+        result= (SQLLEN)strlen(str);
         *CharLen= result;
       }
       else

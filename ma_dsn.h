@@ -71,11 +71,11 @@ typedef struct
 
 typedef struct 
 {
-  char *DsnKey;
-  size_t DsnOffset;
+  char                    *DsnKey;
+  unsigned int            DsnOffset;
   enum enum_dsn_item_type Type;
-  unsigned long FlagValue;
-  my_bool IsAlias;
+  unsigned long           FlagValue;
+  my_bool                 IsAlias;
 } MADB_DsnKey;
 
 /* Definitions to tell setup library via isPrompt field what should it do */
@@ -160,7 +160,7 @@ void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
   if((value) && (len) != 0)\
   {\
     if ((len) == SQL_NTS)\
-      (len)=strlen((value));\
+      (len)=(SQLSMALLINT)strlen((value));\
     MADB_FREE((dsn)->item);\
     (dsn)->item= (char *)my_malloc(len + 1, MYF(MY_ZEROFILL));\
     memcpy((dsn)->item, (value),(len));\

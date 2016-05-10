@@ -170,7 +170,7 @@ my_bool SetDialogFields()
 char *GetFieldStrVal(int Dialog, int Field, char* (*allocator)(size_t))
 {
   int rc;
-  size_t len= Edit_GetTextLength(GetDlgItem(hwndTab[Dialog], Field));
+  int len= Edit_GetTextLength(GetDlgItem(hwndTab[Dialog], Field));
   char *p;
 
   if (allocator)
@@ -183,7 +183,7 @@ char *GetFieldStrVal(int Dialog, int Field, char* (*allocator)(size_t))
   }
 
   if (p)
-    rc= Edit_GetText(GetDlgItem(hwndTab[Dialog], Field), p, len+1);
+    rc= Edit_GetText(GetDlgItem(hwndTab[Dialog], Field), p, len + 1);
   return p;      
 }
 
@@ -535,7 +535,7 @@ INT_PTR SelectPath(HWND ParentWnd, int BoundEditId, const wchar_t *Caption, BOOL
 
 INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  BOOL res;
+  INT_PTR res;
 
 	switch(uMsg)
   {
@@ -584,11 +584,11 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       OpenCurSelection= OpenCurSelection && !res;
       return res;
     case pbKeyBrowse:
-      res=   SelectPath(hDlg, txtSslKey,      L"Select Client Private Key File",    /* File */  FALSE,OpenCurSelection);
+      res=   SelectPath(hDlg, txtSslKey,      L"Select Client Private Key File",    /* File */  FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
     case pbCertBrowse:
-      res=   SelectPath(hDlg, txtSslCert,     L"Select Public Key Certificate File",            FALSE,OpenCurSelection);
+      res=   SelectPath(hDlg, txtSslCert,     L"Select Public Key Certificate File",            FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
     case pbCaCertBrowse:

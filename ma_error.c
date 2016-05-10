@@ -284,10 +284,10 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
     MADB_SetString(isWChar ?  &utf8 : 0, (void *)SQLState, SQL_SQLSTATE_SIZE + 1,
                    SqlStateVersion, SQL_SQLSTATE_SIZE, &InternalError);
    if (MessageText)
-     Length=  MADB_SetString(isWChar ?  &utf8 : 0, (void*)MessageText, BufferLength,
+     Length=  (SQLSMALLINT)MADB_SetString(isWChar ?  &utf8 : 0, (void*)MessageText, BufferLength,
                    Err->SqlErrorMsg, strlen(Err->SqlErrorMsg), &InternalError);
    if (TextLengthPtr)
-     *TextLengthPtr= strlen(Err->SqlErrorMsg);
+     *TextLengthPtr= (SQLSMALLINT)strlen(Err->SqlErrorMsg);
    
    if (!MessageText || !BufferLength)
      return SQL_SUCCESS;
@@ -301,13 +301,13 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
                             DiagInfoPtr, SQLSMALLINT BufferLength,
                             SQLSMALLINT *StringLengthPtr, my_bool isWChar)
 {
-  MADB_Error *Err= NULL;
-  MADB_Stmt *Stmt= NULL;
-  MADB_Desc *Desc= NULL;
-  MADB_Dbc *Dbc= NULL;
-  MADB_Env *Env= NULL;
-  MADB_Error Error;
-  size_t Length;
+  MADB_Error *Err=  NULL;
+  MADB_Stmt  *Stmt= NULL;
+  MADB_Desc  *Desc= NULL;
+  MADB_Dbc   *Dbc=  NULL;
+  MADB_Env   *Env=  NULL;
+  MADB_Error  Error;
+  SQLLEN      Length;
 
   if (StringLengthPtr)
     *StringLengthPtr= 0;
@@ -371,7 +371,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      strncmp(Err->SqlState, "IM", 2)== 0 ? "ODBC 3.0" : "ISO 9075", SQL_NTS, &Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLSMALLINT)Length;
     break;
   case SQL_DIAG_COLUMN_NUMBER:
     *(SQLINTEGER *)DiagInfoPtr= SQL_COLUMN_NUMBER_UNKNOWN;
@@ -386,7 +386,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                      Err->SqlErrorMsg, strlen(Err->SqlErrorMsg), &Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLSMALLINT)Length;
     break;
   case SQL_DIAG_NATIVE:
     *(SQLINTEGER *)DiagInfoPtr= Err->NativeError;
@@ -408,21 +408,21 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
                                         isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, 
                                         ServerName ? ServerName : "", ServerName ? strlen(ServerName) : 0, &Error);
       if (StringLengthPtr)
-        *StringLengthPtr= Length;
+        *StringLengthPtr= (SQLSMALLINT)Length;
     }
     break;
   case SQL_DIAG_SQLSTATE:
     Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr, 
                            isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, Err->SqlState, strlen(Err->SqlState), &Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLSMALLINT)Length;
    
     break;
   case SQL_DIAG_SUBCLASS_ORIGIN:
     Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr, 
                            isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, "ODBC 3.0", 8, &Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLSMALLINT)Length;
     break;
   default:
     return SQL_ERROR;

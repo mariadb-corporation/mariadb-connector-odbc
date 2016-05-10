@@ -20,33 +20,33 @@
 #define _ma_string_h_
 
 char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed);
-int MADB_ConvertAnsi2Unicode(Client_Charset* cc, char *AnsiString, int AnsiLength, 
-                             SQLWCHAR *UnicodeString, int UnicodeLength, 
+int MADB_ConvertAnsi2Unicode(Client_Charset* cc, char *AnsiString, SQLLEN AnsiLength, 
+                             SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error);
-char *MADB_GetInsertStatement(MADB_Stmt *Stmt);
-char *MADB_GetTableName(MADB_Stmt *Stmt);
-char *MADB_GetCatalogName(MADB_Stmt *Stmt);
-my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *TableName, my_bool ParameterMarkers);
-my_bool MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String);
-my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
-size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
-                      char *Src, int SrcLength, MADB_Error *Error);
-my_bool MADB_ValidateStmt(char *StmtStr);
-my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);
+char*     MADB_GetInsertStatement(MADB_Stmt *Stmt);
+char*     MADB_GetTableName(MADB_Stmt *Stmt);
+char*     MADB_GetCatalogName(MADB_Stmt *Stmt);
+my_bool   MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
+my_bool   MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
+my_bool   MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *TableName, my_bool ParameterMarkers);
+my_bool   MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String);
+my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
+my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
+SQLWCHAR* MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
+SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
+                      char *Src, SQLLEN SrcLength, MADB_Error *Error);
+my_bool   MADB_ValidateStmt(char *StmtStr);
+my_bool   MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);
 
-SQLINTEGER MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
+SQLLEN     MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
 SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLINTEGER SqlwcsLen(SQLWCHAR *str);
 
 #define ADJUST_LENGTH(ptr, len)\
   if((ptr) && ((len) == SQL_NTS))\
-    len= strlen((ptr));\
+    len= sizeof(len) == 2 ? (SQLSMALLINT)strlen((ptr)) : (SQLINTEGER)strlen((ptr));\
   else if (!(ptr))\
-    len= 0;
+    len= 0
 
 #endif

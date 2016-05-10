@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -21,7 +21,7 @@
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
 BOOL QueryIsPossiblyMultistmt(char *queryStr);
-unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length);
+unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Length);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
@@ -29,7 +29,7 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
 int  MADB_GetWCharType(int Type);
 my_bool MADB_get_single_row(MADB_Dbc *Connection,
                             const char *StmtString,
-                            size_t Length,
+                            SQLINTEGER Length,
                             unsigned int NumCols,
                             char **Buffers,
                             size_t *Buffer_Lengths);
@@ -48,7 +48,7 @@ size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
 char *MADB_GetTypeName(MYSQL_FIELD Field);
 char *trim(char *Str);
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
-void *GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, unsigned long RowNumber, size_t PtrSize);
+void *GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
 
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
 MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);

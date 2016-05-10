@@ -160,9 +160,9 @@ ODBC_TEST(t_desc_set_error)
 */
 ODBC_TEST(t_sqlbindcol_count_reset)
 {
-  SQLHANDLE ard;
-  SQLINTEGER count;
-  SQLCHAR *buf[10];
+  SQLHANDLE   ard;
+  SQLSMALLINT count=0xffff;
+  SQLCHAR     *buf[10];
 
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                 &ard, SQL_IS_POINTER, NULL));

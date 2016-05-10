@@ -91,13 +91,13 @@ typedef struct
 typedef struct
 {
   /* Header */
-  SQLSMALLINT AllocType;
-  SQLULEN ArraySize;
+  SQLSMALLINT   AllocType;
+  SQLULEN       ArraySize;
   SQLUSMALLINT *ArrayStatusPtr;
-  SQLULEN *BindOffsetPtr;
-  SQLINTEGER BindType;
-  SQLLEN Count;
-  SQLULEN *RowsProcessedPtr;
+  SQLULEN      *BindOffsetPtr;
+  SQLINTEGER    BindType;
+  SQLSMALLINT   Count;
+  SQLULEN      *RowsProcessedPtr;
   /* Header end */
 } MADB_Header;
 
@@ -149,50 +149,50 @@ typedef struct
 } MADB_Ipd;
 
 typedef struct {
-  SQLINTEGER AutoUniqueValue;
-  char *BaseCatalogName;
-  char *BaseColumnName;
-  char *BaseTableName;
-  SQLINTEGER CaseSensitive;
-  char *CatalogName;
-  char *ColumnName;
+  SQLINTEGER  AutoUniqueValue;
+  char        *BaseCatalogName;
+  char        *BaseColumnName;
+  char        *BaseTableName;
+  SQLINTEGER  CaseSensitive;
+  char        *CatalogName;
+  char        *ColumnName;
   SQLSMALLINT ConciseType;
-  SQLPOINTER DataPtr;
+  SQLPOINTER  DataPtr;
   SQLSMALLINT DateTimeIntervalCode;
-  SQLINTEGER DateTimeIntervalPrecision;
-  SQLINTEGER DescLength;
-  SQLLEN DisplaySize;
+  SQLINTEGER  DateTimeIntervalPrecision;
+  SQLINTEGER  DescLength;
+  SQLLEN      DisplaySize;
   SQLSMALLINT FixedPrecScale;
-  SQLLEN *IndicatorPtr;
-  char *Label;
-  SQLULEN Length;
-  char *LiteralPrefix;
-  char *LiteralSuffix;
-  char *LocalTypeName;
+  SQLLEN      *IndicatorPtr;
+  char        *Label;
+  SQLULEN     Length;
+  char        *LiteralPrefix;
+  char        *LiteralSuffix;
+  char        *LocalTypeName;
   SQLSMALLINT Nullable;
-  SQLINTEGER NumPrecRadix;
-  SQLLEN OctetLength;
-  SQLLEN *OctetLengthPtr;
+  SQLINTEGER  NumPrecRadix;
+  SQLLEN      OctetLength;
+  SQLLEN      *OctetLengthPtr;
   SQLSMALLINT ParameterType;
   SQLSMALLINT Precision;
   SQLSMALLINT RowVer;
   SQLSMALLINT Scale;
-  char *SchemaName;
+  char        *SchemaName;
   SQLSMALLINT Searchable;
-  char *TableName;
+  char        *TableName;
   SQLSMALLINT Type;
-  char *TypeName;
+  char        *TypeName;
   SQLSMALLINT Unnamed;
   SQLSMALLINT Unsigned;
   SQLSMALLINT Updateable;
-  unsigned long InternalLength;
-  char *InternalBuffer; /* used for internal conversion */
-  char *DefaultValue;
-  char *DaeData;
-  unsigned long DaeDataLength;
-  my_bool PutData;
-  my_bool inUse;
-  my_bool TruncError;
+  unsigned long InternalLength; /* This to be used in the MYSQL_BIND. Thus is the type */
+  char        *InternalBuffer;  /* used for internal conversion */
+  char        *DefaultValue;
+  char        *DaeData;
+  SQLULEN     DaeDataLength;    /* Doesn't seem to be used anywhere */
+  my_bool     PutData;
+  my_bool     inUse;
+  my_bool     TruncError;
 } MADB_DescRecord;
 
 typedef struct
@@ -263,8 +263,8 @@ typedef struct
 
 typedef struct
 {
-  char *Name;
-  long Position;
+  char  *Name;
+  SQLLEN Position;
 } MADB_Cursor;
 
 enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DAE_DELETE=3};
@@ -319,7 +319,7 @@ struct st_ma_odbc_stmt
   MYSQL_STMT                **MultiStmts;
   unsigned int              MultiStmtNr;
   unsigned int              MultiStmtMaxParam;
-  unsigned long             LastRowFetched;
+  SQLLEN                    LastRowFetched;
   struct st_bind_column     *bind_columns; /* ARD */
   struct st_bind_param      *bind_params;
   MYSQL_BIND                *result;

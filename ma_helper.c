@@ -51,7 +51,7 @@ BOOL QueryIsPossiblyMultistmt(char *queryStr)
   return FALSE;
 }
 
-unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
+unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Length)
 {
   char *p, *last, *prev= NULL;
   unsigned int statements= 1;
@@ -75,7 +75,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
     end= StmtStr + Length - 1;
     while (end > StmtStr && (isspace(*end) || *end == ';'))
       end--;
-    Length= end - StmtStr;
+    Length= (SQLINTEGER)(end - StmtStr);
   }
   p= last= StmtCopy= my_strdup(StmtStr, MYF(0));
   
@@ -127,7 +127,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, size_t Length)
       ++Stmt->MultiStmtCount;
       Stmt->MultiStmts[i]= mysql_stmt_init(Stmt->Connection->mariadb);
       MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d)", Stmt->MultiStmts[i], i);
-      if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, strlen(p)))
+      if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
@@ -205,7 +205,7 @@ end:
 /* {{{ MADB_get_single_row */
 my_bool MADB_get_single_row(MADB_Dbc *Connection,
     const char *StmtString,
-    size_t Length,
+    SQLINTEGER Length,
     unsigned int NumCols,
     char **Buffers,
     size_t *Buffer_Lengths)
@@ -833,7 +833,7 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
   }
 }
 
-void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, unsigned long RowNumber, size_t PtrSize)
+void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN RowNumber, size_t PtrSize)
 {
   size_t BindOffset= 0;
 
@@ -904,7 +904,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
     {
       short digits_total= 0, 
             digits_significant= 0;
-      digits_count= dot - p;
+      digits_count= (short)(dot - p);
       memcpy(digits, p, digits_count);
       p= dot + 1;
       while (*p)
@@ -945,7 +945,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       {
         return MADB_ERR_22003;
       }
-      digits_count= p - start;
+      digits_count= (short)(p - start);
       memcpy(digits, start, digits_count);
       number->scale= ArdRecord->Scale ? ArdRecord->Scale : 0;
     }
@@ -964,7 +964,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       if (OldVal != Val)
         return MADB_ERR_22003;
       _snprintf(digits, sizeof(digits), "%lld", Val);
-      digits_count= strlen(digits);
+      digits_count= (short)strlen(digits);
       if (digits_count > number->precision)
         return MADB_ERR_22003;
     }

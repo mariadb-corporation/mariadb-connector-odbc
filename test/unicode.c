@@ -296,7 +296,7 @@ ODBC_TEST(sqldriverconnect)
   wcscat(conn_in, dummy);
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, W(conn_in),
-                                  wcslen(conn_in), conn_out, sizeof(conn_out),
+                                  (SQLSMALLINT)wcslen(conn_in), conn_out, sizeof(conn_out),
                                   &conn_out_len, SQL_DRIVER_NOPROMPT));
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
@@ -1180,8 +1180,8 @@ ODBC_TEST(t_bug28168)
 
   /* Connect using UTF8 as transport to avoid server bug with user names */
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, WL(work_conn_in, 
-                                  wcslen(work_conn_in)),
-                                  wcslen(work_conn_in), NULL, 0,
+                                  (SQLSMALLINT)wcslen(work_conn_in)),
+                                  (SQLSMALLINT)wcslen(work_conn_in), NULL, 0,
                                   0, SQL_DRIVER_NOPROMPT));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
@@ -1294,7 +1294,7 @@ ODBC_TEST(t_bug14363601)
   wcscat(conn_in, L";CHARSET=utf8");
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, WL(conn_in, wcslen(conn_in)),
-                                  wcslen(conn_in), conn_out, sizeof(conn_out),
+                                  (SQLSMALLINT)wcslen(conn_in), conn_out, sizeof(conn_out),
                                   &conn_out_len, SQL_DRIVER_NOPROMPT));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));

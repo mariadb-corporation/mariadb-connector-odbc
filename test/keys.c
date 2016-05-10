@@ -422,7 +422,7 @@ void t_strstr()
     type = strstr((const char *)string,(const char *)str);
     while (type++)
     {
-        int len = type - string;
+        int len = (int)(type - string);
         diag("\n Found '%s' at position '%d[%s]", str, len, type);
         type = strstr(type,str);
     }

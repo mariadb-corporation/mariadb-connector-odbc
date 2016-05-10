@@ -1296,10 +1296,10 @@ SQLRETURN SQL_API SQLExecDirectW(SQLHSTMT StatementHandle,
     SQLWCHAR *StatementText,
     SQLINTEGER TextLength)
 {
-  char *CpStmt;
-  SQLULEN StmtLength;
+  char      *CpStmt;
+  SQLULEN   StmtLength;
   SQLRETURN ret;
-  BOOL ConversionError;
+  BOOL      ConversionError;
 
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
 
@@ -1319,7 +1319,7 @@ SQLRETURN SQL_API SQLExecDirectW(SQLHSTMT StatementHandle,
     ret= Stmt->Error.ReturnValue;
   }
   else
-    ret= Stmt->Methods->ExecDirect(Stmt, CpStmt, StmtLength);
+    ret= Stmt->Methods->ExecDirect(Stmt, CpStmt, (SQLINTEGER)StmtLength);
   MADB_FREE(CpStmt);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
@@ -2231,7 +2231,7 @@ SQLRETURN SQL_API SQLNativeSql(SQLHDBC ConnectionHandle,
     MADB_SetError(&Dbc->Error, MADB_ERR_01004, NULL, 0);
     return Dbc->Error.ReturnValue;
   }
-  Length= MADB_SetString(0, OutStatementText, BufferLength, (char *)InStatementText, TextLength1, &Dbc->Error);
+  Length= (SQLINTEGER)MADB_SetString(0, OutStatementText, BufferLength, (char *)InStatementText, TextLength1, &Dbc->Error);
   if (TextLength2Ptr)
     *TextLength2Ptr= Length;
   return Dbc->Error.ReturnValue;
@@ -2375,7 +2375,7 @@ SQLRETURN SQL_API SQLPrepareW(SQLHSTMT StatementHandle,
     ret= Stmt->Error.ReturnValue;
   }
   else
-    ret= Stmt->Methods->Prepare(Stmt, StmtStr, StmtLength);
+    ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)StmtLength);
   MADB_FREE(StmtStr);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
@@ -2735,7 +2735,7 @@ SQLRETURN SQL_API SQLSetCursorNameW(SQLHSTMT StatementHandle,
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   CpName= MADB_ConvertFromWChar(CursorName, NameLength, &Length, &Stmt->Connection->charset, NULL);
-  return Stmt->Methods->SetCursorName(Stmt, (char *)CpName, Length);
+  return Stmt->Methods->SetCursorName(Stmt, (char *)CpName, (SQLINTEGER)Length);
 }
 /* }}} */
 

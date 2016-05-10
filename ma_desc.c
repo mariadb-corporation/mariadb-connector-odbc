@@ -296,12 +296,12 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
 my_bool 
 MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFields)
 {
-  SQLUINTEGER i;
+  SQLSMALLINT i;
 
   /* Perhaps we should call routine that does SQL_CLOSE here */
   Stmt->Ird->Header.Count= 0;
 
-  for (i=0; i < NumFields; i++)
+  for (i= 0; i < (SQLSMALLINT)NumFields; i++)
   {
     if (MADB_SetIrdRecord(Stmt, MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_WRITE), &Fields[i]))
     {
@@ -568,7 +568,7 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
 my_bool
 MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
 {
-  SQLLEN           i;
+  SQLSMALLINT     i;
   MADB_DescRecord *Record= NULL;
 
   if (ColTypesArr == NULL)
@@ -579,7 +579,7 @@ MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
   {
     if (ColTypesArr[i].SqlType != 0)
     {
-      Record= MADB_DescGetInternalRecord(Stmt->Ird, (SQLINTEGER)i, MADB_DESC_READ);
+      Record= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
 
       if (Record == NULL)
       {
@@ -642,10 +642,9 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
 /* }}} */
 
 /* {{{ MADB_DescGetInternalRecord */
-MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLINTEGER RecordNumber, SQLSMALLINT Type)
+MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type)
 {
   MADB_DescRecord *DescRecord;
-  SQLINTEGER Start= Desc->Records.elements;
 
   if (RecordNumber > (SQLINTEGER)Desc->Records.elements &&
       Type == MADB_DESC_READ)
@@ -666,7 +665,7 @@ MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLINTEGER RecordNu
   }
 
   if (RecordNumber + 1 > Desc->Header.Count)
-    Desc->Header.Count= RecordNumber + 1;
+    Desc->Header.Count= (SQLSMALLINT)(RecordNumber + 1);
   DescRecord= ((MADB_DescRecord *)Desc->Records.buffer) + RecordNumber;
   return DescRecord;
 }
@@ -739,7 +738,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= Desc->Header.BindType;
     break;
   case SQL_DESC_COUNT:
-    *(SQLINTEGER *)ValuePtr= Desc->Header.Count;
+    *(SQLSMALLINT *)ValuePtr= Desc->Header.Count;
     break;
   case SQL_DESC_ROWS_PROCESSED_PTR:
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)Desc->Header.RowsProcessedPtr;
@@ -750,12 +749,12 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
   case SQL_DESC_BASE_COLUMN_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseColumnName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     break;
   case SQL_DESC_BASE_TABLE_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseTableName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     break;
   case SQL_DESC_CASE_SENSITIVE:
     *((SQLINTEGER *)ValuePtr)= DescRecord->CaseSensitive;
@@ -763,7 +762,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
   case SQL_DESC_CATALOG_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseCatalogName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     break;
   case SQL_DESC_CONCISE_TYPE:
     *((SQLSMALLINT *)ValuePtr)= DescRecord->ConciseType;
@@ -795,12 +794,12 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
   case SQL_DESC_LOCAL_TYPE_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->LocalTypeName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     break;
   case SQL_DESC_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->BaseColumnName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     DescRecord->Unnamed= SQL_NAMED;
     break;
   case SQL_DESC_NULLABLE:
@@ -810,7 +809,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->NumPrecRadix;
     break;
   case SQL_DESC_OCTET_LENGTH:
-    *((SQLINTEGER *)ValuePtr)= DescRecord->OctetLength;
+    *((SQLLEN *)ValuePtr)= DescRecord->OctetLength;
     break;
   case SQL_DESC_OCTET_LENGTH_PTR:
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->OctetLengthPtr;
@@ -832,7 +831,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
   case SQL_DESC_SCHEMA_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->SchemaName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     break;
   case SQL_DESC_SEARCHABLE:
     *((SQLINTEGER *)ValuePtr)= DescRecord->Searchable;
@@ -840,13 +839,13 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
   case SQL_DESC_TABLE_NAME:
     Length= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->TableName, SQL_NTS, &Desc->Error);
     if (StringLengthPtr)
-      *StringLengthPtr= Length;
+      *StringLengthPtr= (SQLINTEGER)Length;
     break;
   case SQL_DESC_TYPE:
     *((SQLINTEGER *)ValuePtr)= DescRecord->Type;
     break;
   case SQL_DESC_TYPE_NAME:
-    *StringLengthPtr= MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->TypeName, SQL_NTS, &Desc->Error);
+    *StringLengthPtr= (SQLINTEGER)MADB_SetString(isWChar ? &utf8 : 0, ValuePtr, BufferLength, DescRecord->TypeName, SQL_NTS, &Desc->Error);
      break;
   case SQL_DESC_UNSIGNED:
     *((SQLINTEGER *)ValuePtr)= DescRecord->Unsigned;
@@ -897,7 +896,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
     Desc->Header.BindType= (SQLINTEGER)(SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_COUNT:
-    Desc->Header.Count= (SQLLEN)ValuePtr;
+    Desc->Header.Count= (SQLSMALLINT)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ROWS_PROCESSED_PTR:
     Desc->Header.RowsProcessedPtr= (SQLULEN *)ValuePtr;

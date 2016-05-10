@@ -102,9 +102,9 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
       is explicitly specified without a terminating null character. To null-terminate an output
       string for this function, the application should pass in -1 or explicitly count the
       terminating null character for the input string." */
-  if ((Length= MultiByteToWideChar(cc->CodePage, 0, Ptr, PtrLength, NULL, 0)))
+  if ((Length= MultiByteToWideChar(cc->CodePage, 0, Ptr, (int)PtrLength, NULL, 0)))
     if ((WStr= (SQLWCHAR *)MADB_CALLOC(sizeof(SQLWCHAR) * Length + 1)))
-      MultiByteToWideChar(cc->CodePage, 0, Ptr, PtrLength, WStr, Length);
+      MultiByteToWideChar(cc->CodePage, 0, Ptr, (int)PtrLength, WStr, Length);
   return WStr;
 }
 
@@ -143,13 +143,13 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Len
 /* }}} */
 
 
-int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLength, 
-                             SQLWCHAR *UnicodeString, int UnicodeLength, 
+int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLength, 
+                             SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
-  SQLLEN RequiredLength;
+  SQLLEN    RequiredLength;
   SQLWCHAR *Tmp= UnicodeString;
-  int rc= 0;
+  int       rc= 0;
 
   if (LengthIndicator)
     *LengthIndicator= 0;
@@ -168,7 +168,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
     IsNull= 1;
 
   /* calculate required length */
-  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -IsNull : AnsiLength, NULL, 0);
+  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -IsNull : (int)AnsiLength, NULL, 0);
 
   /* Set LengthIndicator */
   if (LengthIndicator)
@@ -179,7 +179,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, int AnsiLengt
   if (RequiredLength > UnicodeLength)
     Tmp= (SQLWCHAR *)malloc(RequiredLength * sizeof(SQLWCHAR));
   
-  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -IsNull : AnsiLength, Tmp, RequiredLength);
+  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -IsNull : (int)AnsiLength, Tmp, (int)RequiredLength);
   if (RequiredLength < 1)
   {
     if (Error)
@@ -203,10 +203,11 @@ end:
   return rc;
 }
 
-size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
-                      char *Src, int SrcLength/*bytes*/, MADB_Error *Error)
+
+SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
+                      char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
-  char *p= (char *)Dest;
+  char  *p= (char *)Dest;
   SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)
@@ -230,7 +231,7 @@ size_t MADB_SetString(Client_Charset* cc, void *Dest, unsigned int DestLength,
       return SrcLength;
     else
     {
-      Length= MultiByteToWideChar(cc->CodePage, 0, Src, SrcLength, NULL, 0);
+      Length= MultiByteToWideChar(cc->CodePage, 0, Src, (int)SrcLength, NULL, 0);
       return Length;
     }
   }

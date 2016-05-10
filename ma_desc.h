@@ -26,7 +26,7 @@
 
 enum enum_madb_desc_type {MADB_DESC_APD= 0, MADB_DESC_ARD, MADB_DESC_IPD, MADB_DESC_IRD, MADB_DESC_UNKNOWN=254};
 
-MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLINTEGER RecordNumber, SQLSMALLINT Type);
+MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type);
 
 MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc, enum enum_madb_desc_type DescType, my_bool isExternal);
 SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly);
