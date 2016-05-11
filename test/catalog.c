@@ -760,85 +760,78 @@ ODBC_TEST(tmysql_showkeys)
 
 ODBC_TEST(t_sqltables)
 {
-  SQLRETURN   r;
   SQLINTEGER  rows;
   SQLLEN      rowCount;
+  SQLHDBC     hdbc1;
+  SQLHSTMT    Stmt1;
 
-  char query[128];
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "DROP SCHEMA IF EXISTS mariadbodbc_sqltables", SQL_NTS))
+   || !SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE SCHEMA mariadbodbc_sqltables", SQL_NTS)))
+  {
+    skip("Test user has no rights to drop/create databases");
+  }
 
-  sprintf(query, "DROP SCHEMA %s", my_schema);
-  OK_SIMPLE_STMT(Stmt, query);
-  sprintf(query, "CREATE SCHEMA %s", my_schema);
-  OK_SIMPLE_STMT(Stmt, query);
+  AllocEnvConn(&Env, &hdbc1);
+  Stmt1= DoConnect(&hdbc1, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
+  FAIL_IF(Stmt1 == NULL, "");
 
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS));
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t1 (a int)");
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t2 LIKE t1");
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t3 LIKE t1");
 
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (a int)");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t2 LIKE t1");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t3 LIKE t1");
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, NULL, 0, NULL, 0, NULL, 0));
 
-  CHECK_STMT_RC(Stmt, SQLTables(Stmt,NULL,0,NULL,0,NULL,0,NULL,0));
+  myrowcount(Stmt1);
 
-  myrowcount(Stmt);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, NULL, 0, NULL, 0,
+                                (SQLCHAR *)"system table", SQL_NTS));
 
-  r  = SQLTables(Stmt, NULL, 0, NULL, 0, NULL, 0,
-                 (SQLCHAR *)"system table", SQL_NTS);
-  CHECK_STMT_RC(Stmt,r);
+  is_num(myrowcount(Stmt1), 0);
 
-  is_num(myrowcount(Stmt), 0);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, NULL, 0, NULL, 0,
+                               (SQLCHAR *)"TABLE", SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLRowCount(Stmt1, &rowCount));
 
-  r  = SQLTables(Stmt, NULL, 0, NULL, 0, NULL, 0,
-                 (SQLCHAR *)"TABLE", SQL_NTS);
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+  is_num(myrowcount(Stmt1), rowCount);
 
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  is_num(myrowcount(Stmt), rowCount);
-
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
-
-  r  = SQLTables(Stmt, (SQLCHAR *)"TEST", SQL_NTS,
+  CHECK_STMT_RC(Stmt1,SQLTables(Stmt1, (SQLCHAR *)"TEST", SQL_NTS,
                  (SQLCHAR *)"TEST", SQL_NTS, NULL, 0,
-                 (SQLCHAR *)"TABLE", SQL_NTS);
-  CHECK_STMT_RC(Stmt,r);
+                 (SQLCHAR *)"TABLE", SQL_NTS));
 
-  myrowcount(Stmt);
+  myrowcount(Stmt1);
 
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  r = SQLTables(Stmt, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0, NULL, 0);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
 
-  myrowcount(Stmt);
+  myrowcount(Stmt1);
 
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  r = SQLTables(Stmt, NULL, 0, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0));
 
-  myrowcount(Stmt);
+  myrowcount(Stmt1);
 
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  r = SQLTables(Stmt, "", 0, "", 0, "", 0, (SQLCHAR *)"%", SQL_NTS);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, "", 0, "", 0, "", 0, (SQLCHAR *)"%", SQL_NTS));
 
-  rows= myrowcount(Stmt);
+  rows= myrowcount(Stmt1);
   is_num(rows, 3);
 
-  r = SQLFreeStmt(Stmt, SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,r);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP SCHEMA mariadbodbc_sqltables");
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
   return OK;
 }
