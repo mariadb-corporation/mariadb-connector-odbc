@@ -212,9 +212,18 @@ ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-od
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
 TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
-
 # Currently on Windows only
 IF(WIN32)
+  cmake_policy(SET CMP0026 OLD)
+  GET_TARGET_PROPERTY(DRIVER_LIB_LOCATION maodbc LOCATION)
+  GET_FILENAME_COMPONENT(DRIVER_LIB_DIR ${DRIVER_LIB_LOCATION} DIRECTORY)
+  ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=${DRIVER_LIB_DIR}
+                                  -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
+                                  -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
+                                  -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                     )
+
   ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
   SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
   TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc ${ODBC_INSTLIBS})

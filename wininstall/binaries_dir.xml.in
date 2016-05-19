@@ -1,0 +1,3 @@
+<Include>
+  <?define binaries_dir="@DRIVER_LIB_DIR@" ?>
+</Include>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?include binaries_dir.xml ?>
   <Product Id="*" Name="@PRODUCT_NAME@" Language="1033" 
     Version="@PRODUCT_VERSION@" 
     Manufacturer="@PRODUCT_MANUFACTURER@" UpgradeCode="b43bad5d-118f-4368-8977-e60fd4dd4317">
@@ -41,18 +42,18 @@
           </RegistryKey>
       </Component>
       <Component Id="Setup" Guid="@GUID_SETUP@" DiskId="1" Directory="INSTALLFOLDER" Win64="@IS_WIN64@">
-        <File Id="mariadb_odbc_setup" Name="maodbcs.dll"  DiskId="1"  Source="@ODBC_BINARY_DIR@/maodbcs.dll" />
-        <File Id="mariadb_odbc_setup_lib" Name="maodbcs.lib" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbcs.lib" />
+        <File Id="mariadb_odbc_setup" Name="maodbcs.dll"  DiskId="1"  Source="$(var.binaries_dir)/maodbcs.dll" />
+        <File Id="mariadb_odbc_setup_lib" Name="maodbcs.lib" DiskId="1" Source="$(var.binaries_dir)/maodbcs.lib" />
       </Component>  
       <Component Id="Driver" Guid="@GUID_DRIVER@" SharedDllRefCount="yes" Directory="INSTALLFOLDER" Win64="@IS_WIN64@">
-        <File Id="mariadb_odbc_dll" Name="maodbc.dll" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbc.dll">
-          <ODBCDriver Id="madb_odbc_driver" Name="MariaDB ODBC 1.0 Driver" SetupFile="mariadb_odbc_setup" />
+        <File Id="mariadb_odbc_dll" Name="maodbc.dll" KeyPath="yes" DiskId="1" Source="$(var.binaries_dir)/maodbc.dll">
+          <ODBCDriver Id="madb_odbc_driver" Name="MariaDB ODBC @MARIADB_ODBC_VERSION_MAJOR@.@MARIADB_ODBC_VERSION_MINOR@ Driver" SetupFile="mariadb_odbc_setup" />
         </File>
-        <File Id="mariadb_odbc_lib" Name="maodbc.lib" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbc.lib" />
+        <File Id="mariadb_odbc_lib" Name="maodbc.lib" DiskId="1" Source="$(var.binaries_dir)/maodbc.lib" />
       </Component>
     <Component Id="Debug" Guid="2EA8B4DD-F470-4362-8D87-59090D255981" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
-      <File Id="mariadb_odbc_dll_pdb" Name="maodbc.pdb" KeyPath="yes" DiskId="1" Source="@ODBC_BINARY_DIR@/maodbc.pdb" />
-      <File Id="mariadb_odbc_setup_pdb" Name="maodbcs.pdb"  DiskId="1"  Source="@ODBC_BINARY_DIR@/maodbcs.pdb" />  
+      <File Id="mariadb_odbc_dll_pdb" Name="maodbc.pdb" KeyPath="yes" DiskId="1" Source="$(var.binaries_dir)/maodbc.pdb" />
+      <File Id="mariadb_odbc_setup_pdb" Name="maodbcs.pdb"  DiskId="1"  Source="$(var.binaries_dir)/maodbcs.pdb" />  
     </Component>
   <!--  </ComponentGroup> -->
   </Fragment>
