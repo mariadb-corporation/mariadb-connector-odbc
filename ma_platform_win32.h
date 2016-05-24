@@ -35,4 +35,6 @@
 
 #include <windows.h>
 
+#define MADB_DRIVER_NAME "maodbc.dll"
+
 #endif /*_ma_platform_x_h_ */

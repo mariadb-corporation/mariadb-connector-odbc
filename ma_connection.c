@@ -1094,7 +1094,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_DRIVER_NAME:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
-                                     isWChar ? "maodbcu.dll" : "maodbca.dll", SQL_NTS, &Dbc->Error);
+                                     MADB_DRIVER_NAME, SQL_NTS, &Dbc->Error);
     break;
   case SQL_DRIVER_ODBC_VER:
     {

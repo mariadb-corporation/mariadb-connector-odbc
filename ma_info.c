@@ -118,10 +118,10 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
-  my_bool isFirst= TRUE;
-  char StmtStr[5120];
-  char *p= StmtStr;
-  int i;
+  my_bool   isFirst= TRUE;
+  char      StmtStr[5120];
+  char      *p= StmtStr;
+  int       i;
   MADB_TypeInfo *TypeInfo= TypeInfoV3;
 
   if (Stmt->Connection->Environment->OdbcVersion == SQL_OV_ODBC2)

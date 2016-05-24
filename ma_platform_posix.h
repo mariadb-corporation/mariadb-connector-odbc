@@ -35,6 +35,7 @@
 
 //#define HAVE_UNICODE
 
+#define MADB_DRIVER_NAME "libmaodbc.so"
 #define CP_UTF8          65001
 
 #define _strdup strdup
