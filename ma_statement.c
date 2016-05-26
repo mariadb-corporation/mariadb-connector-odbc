@@ -3087,7 +3087,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   init_dynamic_string(&StmtStr, "", 8192, 1024);
  
   MADB_CLEAR_ERROR(&Stmt->Error);
-  if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNS))
+  if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNS(Stmt)))
     goto dynerror;
 
   ADJUST_LENGTH(CatalogName, NameLength1);
@@ -3152,7 +3152,7 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 {
   char *StmtStr,
        *p;
-  size_t Length= strlen(MADB_PROCEDURE_COLUMNS) + 1024;
+  size_t Length= strlen(MADB_PROCEDURE_COLUMNS(Stmt)) + 1024;
   SQLRETURN ret;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -3165,7 +3165,7 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   p= StmtStr;
 
-  p+= my_snprintf(p, Length, MADB_PROCEDURE_COLUMNS);
+  p+= my_snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt));
   
   if (CatalogName && CatalogName[0])
     p+= my_snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE '%s' ", CatalogName);
@@ -3245,8 +3245,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     return Stmt->Error.ReturnValue;
   }
 
-  p+= my_snprintf(p, 2048, "SELECT NULL AS SCOPE, COLUMN_NAME, "
-                           MADB_SQL_DATATYPE ", "
+  p+= my_snprintf(p, 2048, "SELECT NULL AS SCOPE, COLUMN_NAME, %s,"
                            "DATA_TYPE TYPE_NAME,"
                            "CASE" 
                            "  WHEN DATA_TYPE in ('bit', 'tinyint', 'smallint', 'year', 'mediumint', 'int',"
@@ -3258,7 +3257,8 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
                            "CHARACTER_OCTET_LENGTH AS BUFFER_LENGTH,"
                            "NUMERIC_SCALE DECIMAL_DIGITS, " 
                            XSTR(SQL_PC_UNKNOWN) " PSEUDO_COLUMN "
-                           "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ");
+                           "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
+
   if (CatalogName && CatalogName[0])
     p+= my_snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA LIKE '%s' ", CatalogName);
   else

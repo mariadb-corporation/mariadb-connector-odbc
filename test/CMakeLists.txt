@@ -18,7 +18,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 ENABLE_TESTING()
 
 SET (ODBC_TESTS
-     "basic" "types" "blob" "desc" "info" "tran" "catalog"
+     "basic" "types" "blob" "desc" "info" "tran" "catalog1" "catalog2"
      "use_result" "scroll" "bulk" "prepare" "datetime" "keys"
      "curext" "relative" "unicode" "cursor" "dyn_cursor"
      "error" "param" "result1" "result2" "multistatement")

@@ -43,6 +43,8 @@ BOOL QueryIsPossiblyMultistmt(char *queryStr)
         protocol */
     if (!MADB_IsStatementSupported(queryStr, "CREATE", "PROCEDURE"))
       return FALSE;
+    if (!MADB_IsStatementSupported(queryStr, "CREATE", "FUNCTION"))
+      return FALSE;
     if (!MADB_IsStatementSupported(queryStr, "CREATE", "DEFINER"))
       return FALSE;
     return TRUE;

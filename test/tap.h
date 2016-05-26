@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2015 MariaDB Corporation AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -130,10 +130,11 @@ SQLWCHAR *wstrport;
 
 unsigned long my_options= 67108866;
 
-SQLHANDLE Env, Connection, Stmt;
+SQLHANDLE     Env, Connection, Stmt;
+SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 
-unsigned int my_port=        3306;
-char         ma_strport[12]= ";PORT=3306";
+unsigned int  my_port=        3306;
+char          ma_strport[12]= ";PORT=3306";
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -169,6 +170,9 @@ const char comments[][2][60]= { {"\t#TODO: not ok - test is known to fail, unkno
                               };
 #define MAX_ROW_DATA_LEN 1000
 #define MAX_NAME_LEN     255
+
+/* We don't test corresponding EnvAttr, but assume that connections are made using heler functions, and they use OdbcVer */
+#define IS_ODBC3() (OdbcVer == SQL_OV_ODBC3)
 
 #define skip(A) diag((A)); return SKIP;
 
@@ -583,7 +587,7 @@ int mydrvconnect(SQLHENV *henv, SQLHDBC *hdbc, SQLHSTMT *hstmt, SQLCHAR *connIn)
   CHECK_ENV_RC(*henv, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, henv));
 
   CHECK_ENV_RC(*henv, SQLSetEnvAttr(*henv, SQL_ATTR_ODBC_VERSION,
-                              (SQLPOINTER)SQL_OV_ODBC3, 0));
+                              (SQLPOINTER)OdbcVer, 0));
 
   CHECK_ENV_RC(*henv, SQLAllocHandle(SQL_HANDLE_DBC, *henv,  hdbc));
 
@@ -605,7 +609,7 @@ int AllocEnvConn(SQLHANDLE *Env, SQLHANDLE *Connection)
   {
     FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, NULL, Env)), "Couldn't allocate environment handle");
 
-    FAIL_IF(!SQL_SUCCEEDED(SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0)), "Couldn't set ODBC version");
+    FAIL_IF(!SQL_SUCCEEDED(SQLSetEnvAttr(*Env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)OdbcVer, 0)), "Couldn't set ODBC version");
   }
   FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, *Env, Connection)), "Couldn't allocate connection handle");
 
