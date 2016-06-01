@@ -123,6 +123,174 @@ SQLRETURN MADB_StmtBulkOperations(MADB_Stmt *Stmt, SQLSMALLINT Operation)
 }
 /* }}} */
 
+/* {{{ RemoveStmtRefFromDesc
+       Helper function removing references to the stmt in the descriptor when explisitly allocated descriptor is substituted
+       by some other descriptor */
+void RemoveStmtRefFromDesc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
+{
+  if (desc->AppType)
+  {
+    uint i;
+    for (i=0; i < desc->Stmts.elements; ++i)
+    {
+      MADB_Stmt **refStmt= ((MADB_Stmt **)desc->Stmts.buffer) + i;
+      if (Stmt == *refStmt)
+      {
+        delete_dynamic_element(&desc->Stmts, i);
+
+        if (!all)
+        {
+          return;
+        }
+      }
+    }
+  }
+}
+/* }}} */
+
+/* {{{ ResetMetadata */
+void ResetMetadata(MYSQL_RES** metadata)
+{
+  if (*metadata != NULL)
+  {
+    mysql_free_result(*metadata);
+    *metadata= NULL;
+  }
+}
+/* }}} */
+
+/* {{{ MADB_StmtFree */
+SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
+{
+  if (!Stmt)
+    return SQL_INVALID_HANDLE;
+
+  switch (Option) {
+  case SQL_CLOSE:
+    if (Stmt->stmt)
+    {
+      if (Stmt->Ird)
+        MADB_DescFree(Stmt->Ird, TRUE);
+      if (!Stmt->EmulatedStmt && !Stmt->MultiStmtCount)
+      {
+        mysql_stmt_free_result(Stmt->stmt);
+        MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
+        LOCK_MARIADB(Stmt->Connection);
+        mysql_stmt_reset(Stmt->stmt);
+        UNLOCK_MARIADB(Stmt->Connection);
+      }
+      if (Stmt->MultiStmtCount)
+      {
+        unsigned int i;
+        LOCK_MARIADB(Stmt->Connection);
+        for (i=0; i < Stmt->MultiStmtCount; ++i)
+        {
+          MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i],i);
+          mysql_stmt_reset(Stmt->MultiStmts[i]);
+        }
+        UNLOCK_MARIADB(Stmt->Connection);
+      }
+
+      ResetMetadata(&Stmt->metadata);
+      ResetMetadata(&Stmt->DefaultsResult);
+     
+      MADB_FREE(Stmt->result);
+      MADB_FREE(Stmt->CharOffset);
+      MADB_FREE(Stmt->Lengths);
+      Stmt->EmulatedStmt= FALSE;
+      RESET_DAE_STATUS(Stmt);
+    }
+    break;
+  case SQL_UNBIND:
+    MADB_FREE(Stmt->result);
+    MADB_FREE(Stmt->CharOffset);
+    MADB_FREE(Stmt->Lengths);
+    ResetMetadata(&Stmt->metadata);
+    MADB_DescFree(Stmt->Ard, TRUE);
+    ResetMetadata(&Stmt->DefaultsResult);
+    break;
+  case SQL_RESET_PARAMS:
+    MADB_FREE(Stmt->params);
+    ResetMetadata(&Stmt->DefaultsResult);
+    MADB_DescFree(Stmt->Apd, TRUE);
+    RESET_DAE_STATUS(Stmt);
+    break;
+  case SQL_DROP:
+    MADB_FreeTokens(Stmt->Tokens);
+    MADB_FREE(Stmt->params);
+    MADB_FREE(Stmt->result);
+    MADB_FREE(Stmt->Cursor.Name);
+    MADB_FREE(Stmt->StmtString);
+    MADB_FREE(Stmt->NativeSql);
+    MADB_FREE(Stmt->CatalogName);
+    MADB_FREE(Stmt->TableName);
+    ResetMetadata(&Stmt->metadata);
+
+    /* For explicit descriptors we only remove reference to the stmt*/
+    if (Stmt->Apd->AppType)
+    {
+      RemoveStmtRefFromDesc(Stmt->Apd, Stmt, TRUE);
+      MADB_DescFree(Stmt->IApd, FALSE);
+    }
+    else
+    {
+      MADB_DescFree( Stmt->Apd, FALSE);
+    }
+    if (Stmt->Ard->AppType)
+    {
+      RemoveStmtRefFromDesc(Stmt->Ard, Stmt, TRUE);
+      MADB_DescFree(Stmt->IArd, FALSE);
+    }
+    else
+    {
+      MADB_DescFree(Stmt->Ard, FALSE);
+    }
+    MADB_DescFree(Stmt->Ipd, FALSE);
+    MADB_DescFree(Stmt->Ird, FALSE);
+
+
+    MADB_FREE(Stmt->CharOffset);
+    MADB_FREE(Stmt->Lengths);
+    ResetMetadata(&Stmt->DefaultsResult);
+
+    if (Stmt->DaeStmt != NULL)
+    {
+      Stmt->DaeStmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
+      Stmt->DaeStmt= NULL;
+    }
+    EnterCriticalSection(&Stmt->Connection->cs);
+    if (Stmt->MultiStmtCount)
+    {
+      unsigned int i;
+      for (i= 0; i < Stmt->MultiStmtCount; ++i)
+      {
+        /* This dirty hack allows to avoid crash in case stmt object was not allocated
+           TODO: The better place for this check would be where MultiStmts was not allocated
+           to avoid inconsistency(MultiStmtCount > 0 and MultiStmts is NULL */
+        if (Stmt->MultiStmts!= NULL && Stmt->MultiStmts[i] != NULL)
+        {
+          MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x(%u)", Stmt->MultiStmts[i], i);
+          mysql_stmt_close(Stmt->MultiStmts[i]);
+        }
+      }
+      MADB_FREE(Stmt->MultiStmts);
+      Stmt->MultiStmtCount= Stmt->MultiStmtNr= 0;
+    }
+    else if (Stmt->stmt != NULL)
+    {
+      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
+      mysql_stmt_close(Stmt->stmt);
+    }
+
+    MADB_FREE(Stmt->params);
+    Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
+    LeaveCriticalSection(&Stmt->Connection->cs);
+    MADB_FREE(Stmt);
+  }
+  return SQL_SUCCESS;
+}
+/* }}} */
+
 /* {{{ MADB_StmtExecDirect */
 SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength)
 {
@@ -171,24 +339,37 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 }
 /* }}} */
 
-/* {{{ ResetMetadata */
-void ResetMetadata(MADB_Stmt *Stmt)
-{
-  if (Stmt->metadata != NULL)
-  {
-    mysql_free_result(Stmt->metadata);
-    Stmt->metadata= NULL;
-  }
-}
-/* }}} */
-
 /* {{{ FetchMetadata */
 MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 {
-  ResetMetadata(Stmt);
+  ResetMetadata(&Stmt->metadata);
   Stmt->metadata= mysql_stmt_result_metadata(Stmt->stmt);
 
   return Stmt->metadata;
+}
+/* }}} */
+
+/* {{{ MADB_StmtReset - reseting Stmt handler for new use */
+void MADB_StmtReset(MADB_Stmt *Stmt)
+{
+  /* TODO: These all stuff has to be moved to a separate function, smth like MADB_StmtReset */
+  MADB_StmtFree(Stmt, SQL_CLOSE);
+  MADB_CLEAR_ERROR(&Stmt->Error);
+  MADB_FREE(Stmt->NativeSql);
+  MADB_FREE(Stmt->StmtString);
+  Stmt->EmulatedStmt= FALSE;
+  RESET_DAE_STATUS(Stmt);
+
+  Stmt->PositionedCursor= NULL;
+  
+  /* If we preparing something - we need to close that war prepared before */
+  if (Stmt->MultiStmtCount > 0)
+  {
+    CloseMultiStatements(Stmt);
+    Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+    MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
+    Stmt->MultiStmtCount= 0;
+  }
 }
 /* }}} */
 
@@ -202,27 +383,10 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtPrepare", "\t->");
 
-  /* TODO: These all stuff has to be moved to a separate function, smth like MADB_StmtReset */
-  MADB_CLEAR_ERROR(&Stmt->Error);
-  MADB_FREE(Stmt->NativeSql);
-  MADB_FREE(Stmt->StmtString);
-  Stmt->EmulatedStmt= FALSE;
-  RESET_DAE_STATUS(Stmt);
-
+  LOCK_MARIADB(Stmt->Connection);
+  MADB_StmtReset(Stmt);
   /* After this point we can't have SQL_NTS*/
   ADJUST_LENGTH(StatementText, TextLength);
-
-  Stmt->PositionedCursor= NULL;
-
-  LOCK_MARIADB(Stmt->Connection);
-  /* If we preparing something - we need to close that war prepared before */
-  if (Stmt->MultiStmtCount > 0)
-  {
-    CloseMultiStatements(Stmt);
-    Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-    MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-    Stmt->MultiStmtCount= 0;
-  }
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stnt.>MultiStnts */
@@ -1219,178 +1383,6 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
  }
  /* }}} */
 
-/* {{{ remove_stmt_ref_from_desc
-       Helper function removing references to the stmt in the descriptor when explisitly allocated descriptor is substituted
-       by some other descriptor */
-void remove_stmt_ref_from_desc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
-{
-  if (desc->AppType)
-  {
-    uint i;
-    for (i=0; i < desc->Stmts.elements; ++i)
-    {
-      MADB_Stmt **refStmt= ((MADB_Stmt **)desc->Stmts.buffer) + i;
-      if (Stmt == *refStmt)
-      {
-        delete_dynamic_element(&desc->Stmts, i);
-
-        if (!all)
-        {
-          return;
-        }
-      }
-    }
-  }
-}
-/* }}} */
-
-/* {{{ MADB_StmtFree */
-SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
-{
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
-  switch (Option) {
-  case SQL_CLOSE:
-    if (Stmt->stmt)
-    {
-      if (Stmt->Ird)
-        MADB_DescFree(Stmt->Ird, TRUE);
-      if (!Stmt->EmulatedStmt && !Stmt->MultiStmtCount)
-      {
-        ResetMetadata(Stmt);
-        mysql_stmt_free_result(Stmt->stmt);
-        MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
-        LOCK_MARIADB(Stmt->Connection);
-        mysql_stmt_reset(Stmt->stmt);
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-      if (Stmt->MultiStmtCount)
-      {
-        unsigned int i;
-        LOCK_MARIADB(Stmt->Connection);
-        for (i=0; i < Stmt->MultiStmtCount; ++i)
-        {
-          MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i],i);
-          mysql_stmt_reset(Stmt->MultiStmts[i]);
-        }
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-      if (Stmt->DefaultsResult)
-      {
-        mysql_free_result(Stmt->DefaultsResult);
-        Stmt->DefaultsResult= NULL;
-      }
-     
-      MADB_FREE(Stmt->result);
-      MADB_FREE(Stmt->CharOffset);
-      MADB_FREE(Stmt->Lengths);
-      Stmt->EmulatedStmt= FALSE;
-      RESET_DAE_STATUS(Stmt);
-    }
-    break;
-  case SQL_UNBIND:
-    MADB_FREE(Stmt->result);
-    MADB_FREE(Stmt->CharOffset);
-    MADB_FREE(Stmt->Lengths);
-    ResetMetadata(Stmt);
-    MADB_DescFree(Stmt->Ard, TRUE);
-    if (Stmt->DefaultsResult)
-    {
-      mysql_free_result(Stmt->DefaultsResult);
-      Stmt->DefaultsResult= NULL;
-    }
-    break;
-  case SQL_RESET_PARAMS:
-    MADB_FREE(Stmt->params);
-    if (Stmt->DefaultsResult)
-    {
-      mysql_free_result(Stmt->DefaultsResult);
-      Stmt->DefaultsResult= NULL;
-    }
-    MADB_DescFree(Stmt->Apd, TRUE);
-    RESET_DAE_STATUS(Stmt);
-    break;
-  case SQL_DROP:
-    MADB_FreeTokens(Stmt->Tokens);
-    MADB_FREE(Stmt->params);
-    MADB_FREE(Stmt->result);
-    MADB_FREE(Stmt->Cursor.Name);
-    MADB_FREE(Stmt->StmtString);
-    MADB_FREE(Stmt->NativeSql);
-    MADB_FREE(Stmt->CatalogName);
-    MADB_FREE(Stmt->TableName);
-    ResetMetadata(Stmt);
-
-    /* For explicit descriptors we only remove reference to the stmt*/
-    if (Stmt->Apd->AppType)
-    {
-      remove_stmt_ref_from_desc(Stmt->Apd, Stmt, TRUE);
-      MADB_DescFree(Stmt->IApd, FALSE);
-    }
-    else
-    {
-      MADB_DescFree( Stmt->Apd, FALSE);
-    }
-    if (Stmt->Ard->AppType)
-    {
-      remove_stmt_ref_from_desc(Stmt->Ard, Stmt, TRUE);
-      MADB_DescFree(Stmt->IArd, FALSE);
-    }
-    else
-    {
-      MADB_DescFree(Stmt->Ard, FALSE);
-    }
-    MADB_DescFree(Stmt->Ipd, FALSE);
-    MADB_DescFree(Stmt->Ird, FALSE);
-
-
-    MADB_FREE(Stmt->CharOffset);
-    MADB_FREE(Stmt->Lengths);
-    if (Stmt->DefaultsResult)
-    {
-      mysql_free_result(Stmt->DefaultsResult);
-      Stmt->DefaultsResult= NULL;
-    }
-
-    if (Stmt->DaeStmt != NULL)
-    {
-      Stmt->DaeStmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-      Stmt->DaeStmt= NULL;
-    }
-    ResetMetadata(Stmt);
-    EnterCriticalSection(&Stmt->Connection->cs);
-    if (Stmt->MultiStmtCount)
-    {
-      unsigned int i;
-      for (i= 0; i < Stmt->MultiStmtCount; ++i)
-      {
-        /* This dirty hack allows to avoid crash in case stmt object was not allocated
-           TODO: The better place for this check would be where MultiStmts was not allocated
-           to avoid inconsistency(MultiStmtCount > 0 and MultiStmts is NULL */
-        if (Stmt->MultiStmts!= NULL && Stmt->MultiStmts[i] != NULL)
-        {
-          MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x(%u)", Stmt->MultiStmts[i], i);
-          mysql_stmt_close(Stmt->MultiStmts[i]);
-        }
-      }
-      MADB_FREE(Stmt->MultiStmts);
-      Stmt->MultiStmtCount= Stmt->MultiStmtNr= 0;
-    }
-    else if (Stmt->stmt != NULL)
-    {
-      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-      mysql_stmt_close(Stmt->stmt);
-    }
-
-    MADB_FREE(Stmt->params);
-    Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
-    LeaveCriticalSection(&Stmt->Connection->cs);
-    MADB_FREE(Stmt);
-  }
-  return SQL_SUCCESS;
-}
-/* }}} */
-
 void MADB_InitStatusPtr(SQLUSMALLINT *Ptr, SQLULEN Size, SQLSMALLINT InitialValue)
 {
   SQLULEN i;
@@ -1985,7 +1977,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
         MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
         return Stmt->Error.ReturnValue;
       }
-      remove_stmt_ref_from_desc(Stmt->Apd, Stmt, FALSE);
+      RemoveStmtRefFromDesc(Stmt->Apd, Stmt, FALSE);
       Stmt->Apd= (MADB_Desc *)ValuePtr;
       Stmt->Apd->DescType= MADB_DESC_APD;
       if (Stmt->Apd != Stmt->IApd)
@@ -1997,7 +1989,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     else
     {
-      remove_stmt_ref_from_desc(Stmt->Apd, Stmt, FALSE);
+      RemoveStmtRefFromDesc(Stmt->Apd, Stmt, FALSE);
       Stmt->Apd= Stmt->IApd;
     }
     break;
@@ -2015,7 +2007,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
         MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
         return Stmt->Error.ReturnValue;
       }
-      remove_stmt_ref_from_desc(Stmt->Ard, Stmt, FALSE);
+      RemoveStmtRefFromDesc(Stmt->Ard, Stmt, FALSE);
       Stmt->Ard= (MADB_Desc *)ValuePtr;
       Stmt->Ard->DescType= MADB_DESC_ARD;
       if (Stmt->Ard != Stmt->IArd)
@@ -2027,7 +2019,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     else
     {
-      remove_stmt_ref_from_desc(Stmt->Ard, Stmt, FALSE);
+      RemoveStmtRefFromDesc(Stmt->Ard, Stmt, FALSE);
       Stmt->Ard= Stmt->IArd;
     }
     break;
@@ -3701,9 +3693,10 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           dynstr_free(&DynStmt);
           return Stmt->Error.ReturnValue;
         }
-        Stmt->DaeStmt->DefaultsResult= MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields);
         Stmt->DataExecutionType= MADB_DAE_ADD;
         ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS);
+        /* Prepare(SQL_CLOSE in fact) currently resets DefaultResult. Not sure why. But this should go after Prepare so far */
+        Stmt->DaeStmt->DefaultsResult= MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields);
         dynstr_free(&DynStmt);
         if (!SQL_SUCCEEDED(ret))
         {

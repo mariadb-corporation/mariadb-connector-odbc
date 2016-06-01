@@ -142,6 +142,9 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
     }
   }
   delete_dynamic(&Desc->Records);
+
+  Desc->Header.Count= 0;
+
   for (i=0; i < Desc->Stmts.elements; i++)
   {
     MADB_Stmt **XStmt= ((MADB_Stmt **)Desc->Stmts.buffer) + i;
@@ -896,7 +899,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
     Desc->Header.BindType= (SQLINTEGER)(SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_COUNT:
-    Desc->Header.Count= (SQLSMALLINT)ValuePtr;
+    Desc->Header.Count= (SQLSMALLINT)(SQLLEN)ValuePtr;
     return SQL_SUCCESS;
   case SQL_DESC_ROWS_PROCESSED_PTR:
     Desc->Header.RowsProcessedPtr= (SQLULEN *)ValuePtr;

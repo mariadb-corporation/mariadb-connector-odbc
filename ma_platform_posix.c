@@ -317,7 +317,7 @@ end:
 
 /* {{{ MADB_ConvertAnsi2Unicode
        @returns number of characters available at Src */
-size_t MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
+SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                       char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
   SQLLEN Length= 0;

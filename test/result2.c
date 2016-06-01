@@ -958,7 +958,8 @@ ODBC_TEST(t_odbc29)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug_odbc29 (id INT PRIMARY KEY auto_increment, value VARCHAR(100) NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO bug_odbc29(value) VALUES ('value')");
 
-  /* The problem was that connector trimmed extra spaces, but used initial statement length. Adding garbage at the end to verify that trimmed string length is calculated correctly */
+  /* The problem was that connector trimmed extra spaces, but used initial statement length. Adding garbage at the end to verify
+     that trimmed string length is calculated correctly */
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "  select * from bug_odbc29somegarbageafterendofstatement", sizeof("  select * from bug_odbc29") - 1));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols_count));
 
@@ -966,6 +967,31 @@ ODBC_TEST(t_odbc29)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug_odbc29");
+
+  return OK;
+}
+
+
+ODBC_TEST(t_odbc41)
+{
+  SQLSMALLINT cols_count;
+
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc41");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 1, 2, 3, 4");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols_count));
+  is_num(cols_count, 4);
+  /* Testing without SQLFreeStmt(Stmt, SQL_CLOSE). If it works - will work with it as well */
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc41 (id INT PRIMARY KEY auto_increment)");
+
+  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols_count));
+
+  is_num(cols_count, 0);
+
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc41");
 
   return OK;
 }
@@ -989,7 +1015,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_prefetch, "t_prefetch"},
   {t_outparams, "t_outparams"},
   {t_bug11766437, "t_bug11766437"},
-  {t_odbc29, "t_bug_odbc-29"},
+  {t_odbc29, "t_odbc-29"},
+  {t_odbc41, "t_odbc-41-nors_after_rs"},
   {NULL, NULL}
 };
 
