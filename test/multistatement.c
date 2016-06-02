@@ -182,6 +182,19 @@ ODBC_TEST(test_odbc16)
 }
 #undef TEST_MAX_PS_COUNT
 
+/* Test that connector does not get confused by ; inside string */
+ODBC_TEST(test_semicolon)
+{
+  SQLCHAR val[64];
+
+  OK_SIMPLE_STMT(Stmt, "SELECT \"Semicolon ; insert .. er... inside string\"");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, val, 1), "Semicolon ; insert .. er... inside string", sizeof("Semicolon ; insert .. er... inside string"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -190,6 +203,7 @@ MA_ODBC_TESTS my_tests[]=
 //  {test_noparams, "test_noparams"},
   {test_params, "test_params"},
   {test_odbc16, "test_odbc16"},
+  {test_semicolon, "test_semicolon_in_string"},
   {NULL, NULL}
 };
 
@@ -200,5 +214,6 @@ int main(int argc, char **argv)
   get_options(argc, argv);
   plan(tests);
   mark_all_tests_normal(my_tests);
+
   return run_tests(my_tests);
 }
