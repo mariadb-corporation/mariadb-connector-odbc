@@ -368,7 +368,6 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     CloseMultiStatements(Stmt);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
     MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-    Stmt->MultiStmtCount= 0;
   }
 }
 /* }}} */
@@ -874,6 +873,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   {
     if (Stmt->MultiStmts)
     {
+      /* If this is 1st stmt - we need to close current "main" stmt, or it's gonna be leaked */
+      if (StatementNr == 0)
+      {
+        mysql_stmt_close(Stmt->stmt);
+      }
       Stmt->stmt= Stmt->MultiStmts[StatementNr];
       Stmt->ParamCount= Stmt->MultiStmts[StatementNr]->param_count;
       Stmt->RebindParams= TRUE;
