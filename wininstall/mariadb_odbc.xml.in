@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <?include binaries_dir.xml ?>
+  <?include @ODBC_SOURCE_WIX_DIR@/binaries_dir.xml ?>
   <Product Id="*" Name="@PRODUCT_NAME@" Language="1033" 
     Version="@PRODUCT_VERSION@" 
     Manufacturer="@PRODUCT_MANUFACTURER@" UpgradeCode="b43bad5d-118f-4368-8977-e60fd4dd4317">
