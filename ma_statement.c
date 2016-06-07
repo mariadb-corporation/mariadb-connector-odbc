@@ -259,6 +259,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       Stmt->DaeStmt= NULL;
     }
     EnterCriticalSection(&Stmt->Connection->cs);
+    /* TODO: if multistatement was prepared, but not executed, we would get here Stmt->stmt leaked. Unlikely that is very probable scenario,
+             thus leaving this for new version */
     if (Stmt->MultiStmtCount)
     {
       unsigned int i;
@@ -1021,27 +1023,39 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_C_TIMESTAMP:
             case SQL_TYPE_TIMESTAMP:
               {
-                MYSQL_TIME *tm;
+                MYSQL_TIME           *tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
                 SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+
+                /* Default types. Not quite clear if time_type has any effect */
+                tm->time_type=                           MYSQL_TIMESTAMP_DATETIME;
+                Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_TIMESTAMP;
+
                 MADB_FREE(ApdRecord->InternalBuffer);
+
                 switch (IpdRecord->ConciseType) {
                 case SQL_TYPE_DATE:
                   if (ts->hour + ts->minute + ts->second + ts->fraction)
                   {
                     MADB_SetError(&Stmt->Error, MADB_ERR_22008, NULL, 0);
                     ret= Stmt->Error.ReturnValue;
+                    MADB_FREE(tm);
                     goto end;
                   }
+                  Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_DATE;
+                  tm->time_type=                           MYSQL_TIMESTAMP_DATE;
+                  break;
                 case SQL_TYPE_TIME:
                   if (ts->fraction)
                   {
                     MADB_SetError(&Stmt->Error, MADB_ERR_22008, NULL, 0);
                     ret= Stmt->Error.ReturnValue;
+                    MADB_FREE(tm);
                     goto end;
                   }
+                  Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_TIME;
+                  tm->time_type=                           MYSQL_TIMESTAMP_TIME;
                   break;
                 }
-                tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
                 tm->year= ts->year ? ts->year : 1970;
                 tm->month= ts->month ? ts->month : 1;
                 tm->day= ts->day ? ts->day : 1;
@@ -1049,9 +1063,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 tm->minute= ts->minute;
                 tm->second= ts->second;
                 tm->second_part= ts->fraction / 1000;
-                tm->time_type= MYSQL_TIMESTAMP_DATETIME;
                 ApdRecord->InternalBuffer= (void *)tm;
-                Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_TIMESTAMP;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
               }
@@ -1059,8 +1071,9 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
               case SQL_C_TIME:
               case SQL_TYPE_TIME:
               {
-                MYSQL_TIME *tm;
+                MYSQL_TIME      *tm;
                 SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+
                 MADB_FREE(ApdRecord->InternalBuffer);
                 tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
                 tm->year= 1970;

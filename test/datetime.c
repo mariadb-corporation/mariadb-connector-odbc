@@ -155,7 +155,7 @@ ODBC_TEST(t_tstotime)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  rc = SQLExecDirect(Stmt,"create table t_tstotime(col1 date ,col2 time, col3 timestamp)", SQL_NTS);
+  rc = SQLExecDirect(Stmt,"create table t_tstotime(col1 date, col2 time, col3 timestamp)", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
@@ -165,7 +165,7 @@ ODBC_TEST(t_tstotime)
   CHECK_STMT_RC(Stmt,rc);
 
   /* TIMESTAMP TO DATE, TIME and TS CONVERSION */
-  rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_tstotime(col1,col2,col3) values(?,?,?)",SQL_NTS);
+  rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_tstotime(col1, col2, col3) values(?,?,?)",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);   
 
   rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_TIMESTAMP,
@@ -173,9 +173,8 @@ ODBC_TEST(t_tstotime)
 
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindParameter(Stmt,2,SQL_PARAM_INPUT,SQL_C_TIMESTAMP,
-                        SQL_TIME,0,0,&ts1,sizeof(ts1),NULL);
-  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt,2,SQL_PARAM_INPUT,SQL_C_TIMESTAMP,
+                        SQL_TIME,0,0,&ts1,sizeof(ts1),NULL));
 
   rc = SQLBindParameter(Stmt,3,SQL_PARAM_INPUT,SQL_C_TIMESTAMP,
                         SQL_TIMESTAMP,0,0,&ts,sizeof(ts),NULL);
@@ -193,16 +192,23 @@ ODBC_TEST(t_tstotime)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  rc = SQLExecDirect(Stmt,"select * from t_tstotime", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);  
+  OK_SIMPLE_STMT(Stmt, "select * from t_tstotime");  
 
   IS( 1 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc = SQLFreeStmt(Stmt, SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIMESTAMP,
+                        SQL_TIME, 0, 0, &ts1, sizeof(ts1), NULL));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_tstotime WHERE col2= ?"); 
+
+  IS(1 == myrowcount(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_tstotime");
 
@@ -213,9 +219,6 @@ ODBC_TEST(t_tstotime)
 ODBC_TEST(t_tstotime1)
 {
   SQLCHAR ts[40]= "2001-08-02 18:20:45.05";
-
-  diag("Can't get datetime_precision for parameters");
-  return SKIP;
 
   OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS t_tstotime1");
 
@@ -238,6 +241,8 @@ ODBC_TEST(t_tstotime1)
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR,
                                   SQL_TIMESTAMP, 0, 0, &ts, sizeof(ts), NULL));
 
+  /* Here currently it's supposed to fail - when binding strings as date/time types, connector doesn't parse them,
+     and thus does not detect and report error. Created ODBC-43 for it */
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
 
   is_num(check_sqlstate(Stmt, "22008"), OK);
@@ -1209,24 +1214,25 @@ ODBC_TEST(t_b13975271)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {my_ts, "my_ts"},
-  {t_tstotime, "t_tstotime"},
-  {t_tstotime1, "t_tstotime1"},
-  {t_bug25846, "t_bug25846"},
-  {t_time, "t_time"},
-  {t_time1, "t_time1"},
-  {t_bug12520, "t_bug12520"},
-  {t_bug15773, "t_bug15773"},
-  {t_bug9927, "t_bug9927"},
-  {t_bug30081, "t_bug30081"},
-  {t_datecolumns, "t_datecolumns"},
-  {t_bug14414, "t_bug14414"},
-  {t_bug30939, "t_bug30939"},
-  {t_bug31009, "t_bug31009"},
-  {t_bug37342, "t_bug37342"},
-  {t_bug60646, "t_bug60646"},
-  {t_bug60648, "t_bug60648"},
-  {t_b13975271, "t_b13975271"},
+  {my_ts,         "my_ts",       NORMAL},
+  {t_tstotime,    "t_tstotime",  NORMAL},
+  {t_tstotime1,   "t_tstotime1", TO_FIX},
+  {t_bug25846,    "t_bug25846",  NORMAL},
+  {t_time,        "t_time",      NORMAL},
+  {t_time1,       "t_time1",     NORMAL},
+  {t_bug12520,    "t_bug12520",  NORMAL},
+  {t_bug15773,    "t_bug15773",  NORMAL},
+  {t_bug9927,     "t_bug9927",   NORMAL},
+  {t_bug30081,    "t_bug30081",  NORMAL},
+  {t_datecolumns, "t_datecolumns", NORMAL},
+  {t_bug14414,    "t_bug14414",  NORMAL},
+  {t_bug30939,    "t_bug30939",  NORMAL},
+  {t_bug31009,    "t_bug31009",  NORMAL},
+  {t_bug37342,    "t_bug37342",  NORMAL},
+  {t_bug60646,    "t_bug60646",  NORMAL},
+  {t_bug60648,    "t_bug60648",  NORMAL},
+  {t_b13975271,   "t_b13975271", NORMAL},
+
   {NULL, NULL}
 };
 
@@ -1235,6 +1241,6 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
-  mark_all_tests_normal(my_tests);
+
   return run_tests(my_tests);
 }
