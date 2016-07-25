@@ -900,6 +900,48 @@ ODBC_TEST(t_odbc_26)
   return OK;
 }
 
+/* In fact that is the testcase for ODBC-47 */
+ODBC_TEST(t_blob_reading_in_chunks)
+{
+  SQLLEN     valueLen;
+  SQLCHAR    value[12];
+  int        i= 0;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS blob_reading");
+  OK_SIMPLE_STMT(Stmt,
+         "CREATE TABLE blob_reading (id INT unsigned not null primary key auto_increment, value mediumblob)");
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO blob_reading(value) VALUES (0x0102030405060708090a0b0c0d0e0f101112131415161718)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT value FROM blob_reading");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, value, sizeof(value), &valueLen), SQL_SUCCESS_WITH_INFO);
+  check_sqlstate(Stmt, "01004");
+
+  is_num(valueLen, 24);
+  
+  for (;i < 12; ++i)
+  {
+    diag("#%d", i);
+    is_num(value[i], i + 1);
+  }
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, value, sizeof(value), &valueLen));
+  is_num(valueLen, 12);
+  for (;i < 24; ++i)
+  {
+    diag("#%d", i);
+    is_num(value[i - 12], i + 1);
+  }
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS blob_reading");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -915,6 +957,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug10562, "t_bug10562"},
   {t_bug_11746572, "t_bug_11746572"},
   {t_odbc_26, "t_odbc_26"},
+  {t_blob_reading_in_chunks, "t_blob_reading_in_chunks"},
   {NULL, NULL}
 };
 
