@@ -503,10 +503,12 @@ ODBC_TEST(t_pos_column_ignore)
   strcpy((char *)szData , "updated");
 
   pcbValue= SQL_COLUMN_IGNORE;
-  FAIL_IF(SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE) == SQL_ERROR, "No error expected");
+  /* We have all columns ignored - connector should return error and 21S02 */
+  EXPECT_STMT(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE), SQL_ERROR);
+  CHECK_SQLSTATE_EX(Stmt, SQL_HANDLE_STMT, "21S02");
 
   /* Affected rows should be 0 !! */
-  SQLRowCount(Stmt, &Rows);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
   FAIL_IF(Rows != 0, "Expected 0 rows");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
@@ -3318,7 +3320,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_setpos_del_all, "t_setpos_del_all",     NORMAL},
   {t_setpos_upd_decimal, "t_setpos_upd_decimal",     NORMAL},
   {t_setpos_position, "t_setpos_position",     NORMAL},
-  {t_pos_column_ignore, "t_pos_column_ignore",     KNOWN_FAILURE},
+  {t_pos_column_ignore, "t_pos_column_ignore",     NORMAL},
   {t_pos_datetime_delete, "t_pos_datetime_delete",     NORMAL},
   {t_pos_datetime_delete1, "t_pos_datetime_delete1",     NORMAL},
   {t_getcursor, "t_getcursor",     NORMAL},

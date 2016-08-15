@@ -711,7 +711,6 @@ ODBC_TEST(my_dynamic_cursor)
     CHECK_STMT_RC(Stmt,rc);
 
     OK_SIMPLE_STMT(Stmt, "select * from my_dynamic_cursor");
-    CHECK_STMT_RC(Stmt,rc);
 
     is_num(myrowcount(Stmt), 6);
 

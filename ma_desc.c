@@ -178,7 +178,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     return 1;
   }
 
-  MADB_RESET(Record->CatalogName,    Field->catalog);
+  MADB_RESET(Record->CatalogName,    Field->db);
   MADB_RESET(Record->TableName,      Field->table);
   MADB_RESET(Record->ColumnName,     Field->name);
   MADB_RESET(Record->BaseTableName,  Field->org_table);

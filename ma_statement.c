@@ -1445,7 +1445,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
   int             i;
   void            *DataPtr= NULL;
 
-  for (i=0; i < Stmt->Ird->Header.Count; ++i)
+  for (i=0; i < MADB_STMT_COLUMN_COUNT(Stmt); ++i)
   {
     ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (ArdRec == NULL || !ArdRec->inUse)
@@ -1578,7 +1578,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
   SQLLEN          *IndicatorPtr= NULL;
   void            *DataPtr=      NULL;
 
-  for (i= 0; i < Stmt->Ird->Header.Count; ++i)
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); ++i)
   {
     if ((ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ)) && ArdRec->inUse)
     {
@@ -1754,7 +1754,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   Stmt->LastRowFetched= 0;
 
-  if (Stmt->Ird->Header.Count > 0)
+  if (MADB_STMT_COLUMN_COUNT(Stmt) > 0)
   {
     if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
     {
@@ -1802,7 +1802,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
         int     col;
         my_bool HasError= 0;
 
-        for (col= 0; col < Stmt->Ird->Header.Count && !HasError; ++col)
+        for (col= 0; col < MADB_STMT_COLUMN_COUNT(Stmt) && !HasError; ++col)
         {
           if (Stmt->stmt->bind[col].error && *Stmt->stmt->bind[col].error > 0 &&
               !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
@@ -2641,7 +2641,7 @@ SQLRETURN MADB_StmtParamCount(MADB_Stmt *Stmt, SQLSMALLINT *ParamCountPtr)
 SQLRETURN MADB_StmtColumnCount(MADB_Stmt *Stmt, SQLSMALLINT *ColumnCountPtr)
 {
   /* We supposed to have that data in the descriptor by now. No sense to ask C/C API one more time for that */
-  *ColumnCountPtr= (SQLSMALLINT)Stmt->Ird->Header.Count;
+  *ColumnCountPtr= (SQLSMALLINT)MADB_STMT_COLUMN_COUNT(Stmt);
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -3578,12 +3578,17 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
 {
   unsigned char *row, *null_ptr, bit_offset= 4;
   unsigned int i;
+
   if (!Stmt->stmt->result_cursor)
     return SQL_ERROR;
+
   row= (unsigned char *)Stmt->stmt->result_cursor->data;
   row++;
   null_ptr= row;
+  /* TODO: to check what are these magical numbers. Must be some bytes skipping base on number of fields.
+     Bytes must be null value indicators. Too much of sacred knowledge here */
   row+= (Stmt->stmt->field_count + 9) / 8;
+
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
     MYSQL_BIND Bind;
@@ -3606,14 +3611,16 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
       Bind.error= (my_bool *)&MyError;
       Bind.length= &MyLength;
       Stmt->stmt->bind[i].row_ptr= row;
+
+      /* TODO: Too much of sacred knowledge here as well */
       mysql_ps_fetch_functions[Stmt->stmt->fields[i].type].func(&Bind, &Stmt->stmt->fields[i], &row);
     }
     if (!((bit_offset <<=1) & 255)) {
       bit_offset= 1; /* To next byte */
       null_ptr++;
     }
-
   }
+
   return SQL_SUCCESS;
 }
 
@@ -3621,16 +3628,21 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
 SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
 {
   SQLRETURN ret;
-  SQLLEN    CurrentRow=     Stmt->Cursor.Position; 
+  SQLLEN    CurrentRow=     Stmt->Cursor.Position;
   SQLBIGINT AffectedRows=   Stmt->AffectedRows;
   SQLLEN    LastRowFetched= Stmt->LastRowFetched;
 
   ret= Stmt->Methods->Execute(Stmt);
+
   Stmt->Cursor.Position= CurrentRow;
   if (Stmt->Cursor.Position > 0 && (my_ulonglong)Stmt->Cursor.Position >= mysql_stmt_num_rows(Stmt->stmt))
+  {
     Stmt->Cursor.Position= (long)mysql_stmt_num_rows(Stmt->stmt) - 1;
+  }
+
   Stmt->LastRowFetched= LastRowFetched;
-  Stmt->AffectedRows= AffectedRows;
+  Stmt->AffectedRows=   AffectedRows;
+
   MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
   if (SQL_SUCCEEDED(ret))
   {
@@ -3644,6 +3656,11 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
   return ret;
 }
 /* }}} */
+
+/* Couple of macsros for this function specifically */
+#define MADB_SETPOS_FIRSTROW(agg_result) (agg_result == SQL_INVALID_HANDLE)
+#define MADB_SETPOS_AGG_RESULT(agg_result, row_result) if (MADB_SETPOS_FIRSTROW(agg_result)) agg_result= row_result; \
+    else if (row_result != agg_result) agg_result= SQL_SUCCESS_WITH_INFO
 
 /* {{{ MADB_SetPos */
 SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT Operation,
@@ -3686,16 +3703,17 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   case SQL_ADD:
     {
       DYNAMIC_STRING DynStmt;
-      SQLRETURN ret;
-      int i;
-      int Offset;
-      char *TableName=   MADB_GetTableName(Stmt);
-      char *CatalogName= MADB_GetCatalogName(Stmt);
+      SQLRETURN      ret;
+      char          *TableName=   MADB_GetTableName(Stmt);
+      char          *CatalogName= MADB_GetCatalogName(Stmt);
+      int            column, param= 0;
 
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
         if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
           return Stmt->Error.ReturnValue;
+
       Stmt->DaeRowNumber= RowNumber;
+
       if (Stmt->DataExecutionType != MADB_DAE_ADD)
       {
         Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
@@ -3710,11 +3728,13 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           dynstr_free(&DynStmt);
           return Stmt->Error.ReturnValue;
         }
+
         Stmt->DataExecutionType= MADB_DAE_ADD;
         ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS);
         /* Prepare(SQL_CLOSE in fact) currently resets DefaultResult. Not sure why. But this should go after Prepare so far */
         Stmt->DaeStmt->DefaultsResult= MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields);
         dynstr_free(&DynStmt);
+
         if (!SQL_SUCCEEDED(ret))
         {
           MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
@@ -3723,35 +3743,37 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         }
       }
       
-      /* Bind parameters */
-      for (Offset= 0; Offset < 1 /* Stmt->Ard->Header.ArraySize; */; Offset++)
+      /* Bind parameters - DaeStmt will process whole array of values, thus we don't need to iterate through the array*/
+      for (column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
       {
-        SQLRETURN ret;
-        for (i=0; i < Stmt->DaeStmt->ParamCount; i++)
-        {
-          MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ),
-                          *ApdRec= MADB_DescGetInternalRecord(Stmt->DaeStmt->Apd, i, MADB_DESC_READ);
+        MADB_DescRecord *Rec=          MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ),
+                        *ApdRec=       NULL;
+        SQLLEN          *IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Rec, Rec->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Rec->OctetLength);
+
+        ApdRec= MADB_DescGetInternalRecord(Stmt->DaeStmt->Apd, param, MADB_DESC_READ);
+        ApdRec->DefaultValue= MADB_GetDefaultColumnValue(Stmt->DaeStmt->DefaultsResult,
+                                                          Stmt->stmt->fields[column].org_name);
+        if (Rec->inUse)
+          Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, 
+                          Rec->DataPtr, Rec->OctetLength, Rec->OctetLengthPtr);
+        else
+          Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
+                            ApdRec->DefaultValue, strlen(ApdRec->DefaultValue), NULL);
           
-          ApdRec->DefaultValue= MADB_GetDefaultColumnValue(Stmt->DaeStmt->DefaultsResult,
-                                                           Stmt->stmt->fields[i].org_name); 
-          if (Rec->inUse)
-            Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, i+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, 
-                            Rec->DataPtr, Rec->OctetLength, Rec->OctetLengthPtr);
-          else
-            Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, i+1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
-                             ApdRec->DefaultValue, strlen(ApdRec->DefaultValue), NULL);
-        }
-        memcpy(&Stmt->DaeStmt->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
-        ret= Stmt->Methods->Execute(Stmt->DaeStmt);
-        if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
-        {
-          MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
-          return ret;
-        }
-        if (Stmt->AffectedRows == -1)
-          Stmt->AffectedRows= 0;
-        Stmt->AffectedRows+= Stmt->DaeStmt->AffectedRows;
+        ++param;
       }
+
+      memcpy(&Stmt->DaeStmt->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
+      ret= Stmt->Methods->Execute(Stmt->DaeStmt);
+      if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+      {
+        MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
+        return ret;
+      }
+      if (Stmt->AffectedRows == -1)
+        Stmt->AffectedRows= 0;
+      Stmt->AffectedRows+= Stmt->DaeStmt->AffectedRows;
+
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
       Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
       Stmt->DaeStmt= NULL;
@@ -3762,6 +3784,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       char        *TableName= MADB_GetTableName(Stmt);
       my_ulonglong Start=     0, 
                    End=       mysql_stmt_num_rows(Stmt->stmt);
+      SQLRETURN    result=    SQL_INVALID_HANDLE; /* Just smth we cannot normally get */   
 
       if (!TableName)
       {
@@ -3799,13 +3822,16 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       else
       {
         Start= Stmt->Cursor.Position;
+        /* TODO: if num_rows returns 1, End is 0? Start would be 1, no */
         End= min(mysql_stmt_num_rows(Stmt->stmt)-1, Start + Stmt->Ard->Header.ArraySize - 1);
       }
       /* Stmt->ArrayOffset will be incremented in StmtExecute() */
       Start+= Stmt->ArrayOffset;
+
+      /* TODO: SQL_ATTR_ROW_STATUS_PTR should be filled */
       while (Start <= End)
       {
-        SQLSMALLINT j;
+        SQLSMALLINT param= 0, column;
         MADB_StmtDataSeek(Stmt,Start);
         Stmt->Methods->RefreshRowPtrs(Stmt);
         
@@ -3814,41 +3840,54 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         if (!ArrayOffset)
         {
           if (!SQL_SUCCEEDED(MADB_DaeStmt(Stmt, SQL_UPDATE)))
-            return Stmt->Error.ReturnValue;
+          {
+            MADB_SETPOS_AGG_RESULT(result, Stmt->Error.ReturnValue);
+            /* Moving to the next row */
+            Stmt->DaeRowNumber++;
+            Start++;
 
-          for(j= 0; j < (SQLSMALLINT)mysql_stmt_param_count(Stmt->DaeStmt->stmt); j++)
+            continue;
+          }
+
+          for(column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
           {
             SQLLEN          *LengthPtr= NULL;
             my_bool         GetDefault= FALSE;
-            MADB_DescRecord *Rec=       MADB_DescGetInternalRecord(Stmt->Ard, j, MADB_DESC_READ);
+            MADB_DescRecord *Rec=       MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ);
 
+            /* TODO: shouldn't here be IndicatorPtr? */
             if (Rec->OctetLengthPtr)
               LengthPtr= GetBindOffset(Stmt->Ard, Rec, Rec->OctetLengthPtr, Stmt->DaeRowNumber - 1, Rec->OctetLength);
             if (!Rec->inUse ||
                 (LengthPtr && *LengthPtr == SQL_COLUMN_IGNORE))
+            {
               GetDefault= TRUE;
+              continue;
+            }
             
+            /* TODO: Looks like this whole thing is not really needed. Not quite clear if !InUse should result in going this way */
             if (GetDefault)
             {
               SQLLEN Length= 0;
               /* set a default value */
-              if (Stmt->Methods->GetData(Stmt, j + 1, SQL_C_CHAR, NULL, 0, &Length) != SQL_ERROR && Length)
+              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, NULL, 0, &Length) != SQL_ERROR && Length)
               {
                 MADB_FREE(Rec->DefaultValue);
                 if (Length > 0) 
                 {
                   Rec->DefaultValue= (char *)MADB_CALLOC(Length + 1);
-                  Stmt->Methods->GetData(Stmt, j + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0);
+                  Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0);
                 }
-                Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, j + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
+                Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
                               Rec->DefaultValue, Length, NULL);
+                ++param;
                 continue;
               }
             }
 
             if (!GetDefault)
             {
-              Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, j + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale,
+              Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale,
                                GetBindOffset(Stmt->Ard, Rec, Rec->DataPtr, Stmt->DaeRowNumber - 1, Rec->OctetLength), Rec->OctetLength, LengthPtr);
             }
             if (PARAM_IS_DAE(LengthPtr) && !DAE_DONE(Stmt->DaeStmt))
@@ -3856,26 +3895,35 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
               Stmt->Status= SQL_NEED_DATA;
               continue;
             }
+
+            ++param;
           }
           if (Stmt->Status == SQL_NEED_DATA)
             return SQL_NEED_DATA;
-        }  
+        }                               /* End of if (!ArrayOffset) */ 
         
         if (Stmt->DaeStmt->Methods->Execute(Stmt->DaeStmt) != SQL_ERROR)
+        {
           Stmt->AffectedRows+= Stmt->DaeStmt->AffectedRows;
+        }
         else
         {
           MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
-          return Stmt->Error.ReturnValue;
         }
+
+        MADB_SETPOS_AGG_RESULT(result, Stmt->DaeStmt->Error.ReturnValue);
+
         Stmt->DaeRowNumber++;
         Start++;
-      }
+      }                                 /* End of while (Start <= End) */
+
       Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
       Stmt->DaeStmt= NULL;
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
+
+      /* Making sure we do not return initial value */
+      return result ==  SQL_INVALID_HANDLE ? SQL_SUCCESS :result;
     }
-    break;
   case SQL_DELETE:
     {
       DYNAMIC_STRING DynamicStmt;
@@ -3953,7 +4001,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   return SQL_SUCCESS;
 }
 /* }}} */
-
+#undef MADB_SETPOS_FIRSTROW
+#undef MADB_SETPOS_AGG_RESULT
 
 /* {{{ MADB_StmtFetchScroll */
 SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
@@ -3963,7 +4012,6 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   SQLLEN    Position;
   SQLLEN    RowsProcessed;
 
-  
   RowsProcessed= Stmt->LastRowFetched;
   
   if (Stmt->Options.CursorType == SQL_CURSOR_FORWARD_ONLY &&
@@ -3991,7 +4039,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
       Position++; */
     break;
   case SQL_FETCH_PRIOR:
-     Position= Stmt->Cursor.Position < 0 ? - 1: Stmt->Cursor.Position - MAX(1, Stmt->Ard->Header.ArraySize);
+    Position= Stmt->Cursor.Position < 0 ? - 1: Stmt->Cursor.Position - MAX(1, Stmt->Ard->Header.ArraySize);
      /* if (Stmt->Ird->Header.RowsProcessedPtr)
         Position-= MAX(1, *Stmt->Ird->Header.RowsProcessedPtr);
     else

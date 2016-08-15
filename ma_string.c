@@ -85,26 +85,26 @@ my_bool MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String)
 
 my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 {
-  unsigned int i;
-  int  IgnoredColumns= 0, Count= 0;
+  int             i, IgnoredColumns= 0, Count= 0;
   MADB_DescRecord *Record;
+
   if (dynstr_append(DynString, " SET "))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return TRUE;
   }
   // ???? memcpy(&Stmt->Da->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i=0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    SQLINTEGER *IndicatorPtr= NULL;
+    SQLLEN *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
- /*   if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
+      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
+    if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
     {
       IgnoredColumns++;
       continue;
-    } */
+    }
     
     if ((i - IgnoredColumns) && dynstr_append(DynString, ","))
     {
@@ -132,9 +132,8 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 
 my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 {
-  DYNAMIC_STRING ColVals;
-  unsigned int i;
-  int IgnoredColumns= 0, Count= 0;
+  DYNAMIC_STRING  ColVals;
+  int             i, NeedComma= 0;
   MADB_DescRecord *Record;
 
   init_dynamic_string(&ColVals, "VALUES (", 32, 32);
@@ -144,21 +143,29 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     
     return TRUE;
   }
-  // ???? memcpy(&Stmt->Da->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
     SQLINTEGER *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
       IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
     
-    if ((i) && 
+    /* We prepare query only once, different paramsets may have different SQL_COLUMN_IGNORE */
+    /*if (IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE)
+    {
+      continue;
+    }*/
+
+    if ((NeedComma) && 
         (dynstr_append(DynString, ",") || dynstr_append(&ColVals, ",")))
       goto dynerror;
 
     if (MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name) ||
         dynstr_append(&ColVals, "?"))
        goto dynerror;
+
+    NeedComma= 1;
   }
   if (dynstr_append(DynString, ") " ) ||
       dynstr_append(&ColVals, ")") ||

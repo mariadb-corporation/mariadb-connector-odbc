@@ -111,6 +111,9 @@ MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
   if (!(a) || !(a)->b)\
     return SQL_INVALID_HANDLE
 
+#define MADB_STMT_COLUMN_COUNT(aStmt) aStmt->Ird->Header.Count
+#define MADB_STMT_PARAM_COUNT(aStmt)  aStmt->ParamCount
+
 #define MADB_TRANSFER_OCTET_LENGTH\
   "CAST(CASE @dt"\
   "  WHEN " XSTR(SQL_BIT) " THEN 1 "\

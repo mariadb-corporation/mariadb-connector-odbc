@@ -261,6 +261,7 @@ typedef struct
   SQLULEN SimulateCursor;
 } MADB_StmtOptions;
 
+/* TODO: To check is it 0 or 1 based? not quite clear from its usage */
 typedef struct
 {
   char  *Name;
