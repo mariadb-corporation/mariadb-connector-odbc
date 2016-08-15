@@ -3691,6 +3691,8 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
       Bind.error= (my_bool *)&MyError;
       Bind.length= &MyLength;
       //Stmt->stmt->bind[i].row_ptr= row;
+
+      /* TODO: Too much of sacred knowledge here as well */
       mysql_ps_fetch_functions[Stmt->stmt->fields[i].type].func(&Bind, &Stmt->stmt->fields[i], &row);
     }
     if (!((bit_offset <<=1) & 255)) {
