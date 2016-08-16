@@ -551,13 +551,14 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
     {
       if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
       {
-         if (Record->OctetLengthPtr)
-         {
-          SQLLEN *OctetLength= (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, Stmt->DaeRowNumber, sizeof(SQLLEN));
+        if (Record->OctetLengthPtr)
+        {
+          /* Stmt->DaeRowNumber is 1 based */
+          SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, MAX(0, Stmt->DaeRowNumber - 1), sizeof(SQLLEN));
           if (PARAM_IS_DAE(OctetLength))
           {
             Stmt->PutDataRec= Record;
-            *ValuePtrPtr= GetBindOffset(Desc, Record, Record->DataPtr, Stmt->DaeRowNumber, Record->OctetLength);
+            *ValuePtrPtr = GetBindOffset(Desc, Record, Record->DataPtr, MAX(0, Stmt->DaeRowNumber - 1), Record->OctetLength);
             Stmt->PutParam= i;
             Stmt->Status= SQL_NEED_DATA;
 
@@ -570,7 +571,7 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
 
   /* reset status, otherwise SQLSetPos and SQLExecute will fail */
   MARK_DAE_DONE(Stmt);
-  if (Stmt->DataExecutionType == MADB_DAE_ADD)
+  if (Stmt->DataExecutionType == MADB_DAE_ADD || Stmt->DataExecutionType == MADB_DAE_UPDATE)
   {
     MARK_DAE_DONE(Stmt->DaeStmt);
   }
@@ -3893,11 +3894,12 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             if (PARAM_IS_DAE(LengthPtr) && !DAE_DONE(Stmt->DaeStmt))
             {
               Stmt->Status= SQL_NEED_DATA;
+              ++param;
               continue;
             }
 
             ++param;
-          }
+          }                             /* End of for(column=0;...) */
           if (Stmt->Status == SQL_NEED_DATA)
             return SQL_NEED_DATA;
         }                               /* End of if (!ArrayOffset) */ 

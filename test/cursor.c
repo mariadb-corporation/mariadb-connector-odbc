@@ -3359,7 +3359,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_cursor_pos_dynamic, "t_cursor_pos_dynamic",     NORMAL},
   {t_bug11846, "t_bug11846",     NORMAL},
   {t_dae_setpos_insert, "t_dae_setpos_insert", NORMAL},
-  {t_dae_setpos_update, "t_dae_setpos_update", KNOWN_FAILURE},
+  { t_dae_setpos_update, "t_dae_setpos_update", NORMAL},
   {t_bug39961, "t_bug39961",     NORMAL},
   {t_bug41946, "t_bug41946",     NORMAL},
   {NULL, NULL}
