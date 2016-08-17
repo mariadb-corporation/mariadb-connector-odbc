@@ -1375,6 +1375,21 @@ ODBC_TEST(t_gh_issue3)
 }
 
 
+ODBC_TEST(t_odbc_48)
+{
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS test_odbc_48");
+  OK_SIMPLE_STMT(Stmt,
+    "CREATE PROCEDURE test_odbc_48()"
+    "BEGIN"
+    " SELECT 1 AS ret;"
+    "END");
+  OK_SIMPLE_STMT(Stmt, "{ CALL test_odbc_48() }");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE test_odbc_48");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1412,6 +1427,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
   {t_odbc_32,      "SQL_ATTR_PACKET_SIZE_option", NORMAL},
   {t_gh_issue3,    "leading_space_gh_issue3",     NORMAL},
+  { t_odbc_48,     "iso_call_format", NORMAL },
   {NULL, NULL, 0}
 };
 

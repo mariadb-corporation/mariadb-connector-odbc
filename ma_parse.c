@@ -168,3 +168,23 @@ enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt)
 
   return MADB_QUERY_NO_RESULT;
 }
+
+
+char* FixIsoFormat(char * StmtString)
+{
+  size_t len;
+
+  StmtString= trim(StmtString);
+  
+  len= strlen(StmtString);
+
+  if (StmtString[0] == '{' && StmtString[len -1] == '}')
+  {
+    StmtString[0]=       ' ';
+    StmtString[len - 1]= '\0';
+
+    return trim(StmtString);
+  }
+
+  return StmtString;
+}

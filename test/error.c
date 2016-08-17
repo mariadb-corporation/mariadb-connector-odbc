@@ -429,7 +429,7 @@ ODBC_TEST(sqlerror)
 */
 ODBC_TEST(t_bug27158)
 {
-  ERR_SIMPLE_STMT(Stmt, "CALL test.does_not_exist");
+  ERR_SIMPLE_STMT(Stmt, "{ CALL test.does_not_exist }");
   return check_sqlstate(Stmt, "42000");
 }
 
