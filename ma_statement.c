@@ -1644,9 +1644,12 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
       break;
       case SQL_C_WCHAR:
       {
-        SQLLEN CharLen;
-        MADB_ConvertAnsi2Unicode(&Stmt->Connection->charset, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
-                                 (SQLWCHAR *)DataPtr, ArdRec->OctetLength, &CharLen, 1, &Stmt->Error);
+        SQLLEN CharLen= MADB_SetString(&Stmt->Connection->charset, DataPtr, ArdRec->OctetLength, (char *)Stmt->result[i].buffer,
+                                       *Stmt->stmt->bind[i].length, &Stmt->Error);
+
+
+        /*MADB_ConvertAnsi2Unicode(&Stmt->Connection->charset, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
+                                 (SQLWCHAR *)DataPtr, ArdRec->OctetLength, &CharLen, 1, &Stmt->Error);*/
         /* Not quite right */
         if (IndicatorPtr)
           *IndicatorPtr= CharLen * sizeof(SQLWCHAR);

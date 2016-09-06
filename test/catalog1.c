@@ -1592,7 +1592,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug12805, "t_bug12805"},
   {t_bug30770,"t_bug30770"},
   {t_bug36275, "t_bug36275"},
-  {t_bug39957, "t_bug39957"}, 
+  {t_bug39957, "t_bug39957"},
   {NULL, NULL}
 };
 

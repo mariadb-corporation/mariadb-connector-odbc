@@ -229,7 +229,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
   if (UniqueCount && UniqueCount != MADB_KeyTypeCount(Stmt->Connection, TableName, UNIQUE_KEY_FLAG))
     UniqueCount= 0;
   
-  /* if no primary or unique key is in the cursorm the cursor must contain all
+  /* if no primary or unique key is in the cursor, the cursor must contain all
      columns from table in TableName */
   if (!PrimaryCount && !UniqueCount)
   {

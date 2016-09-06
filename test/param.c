@@ -1341,7 +1341,6 @@ ODBC_TEST(t_longtextoutparam)
   SQLLEN      len= 0;
   SQLCHAR     blobValue[50]= "initial value", buff[100];
 
-
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_longtextoutparam");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_longtextoutparam (INOUT param1 LONGTEXT)\
                   BEGIN\
@@ -1373,6 +1372,91 @@ ODBC_TEST(t_longtextoutparam)
   return OK;
 }
 
+/* Test of inserting of previously fetched values, including NULL values, empty values etc
+   Also covers ODBC-51 and 52(duplicate) */
+ODBC_TEST(insert_fetched_null)
+{
+  SQLLEN      len[6];
+  SQLWCHAR    val[50], empty[50];
+  SQLINTEGER  id, mask;
+  SQLDOUBLE   double_val;
+  HSTMT       Stmt1;
+  const char     *str= "Text val";
+  const SQLWCHAR *wstr= CW(str);
+
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_insert_fetched_null");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_insert_fetched_null (id int not null primary key, double_val double not null,\
+                                                            val varchar(50) CHARACTER SET utf8 not null,\
+                                                            nullable_val varchar(50) CHARACTER SET utf8, mask int unsigned not null,\
+                                                            empty_val varchar(50) CHARACTER SET utf8)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 1, 0.001, _utf8'Text val', NULL, 127, _utf8''");
+
+  memset(len, 0, sizeof(len));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, &len[0] ));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_DOUBLE, &double_val, 0, &len[1]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_WCHAR, &val, sizeof(val), &len[2]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_WCHAR, &val, sizeof(val), &len[3]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_LONG, &mask, 0, &len[4]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 6, SQL_C_WCHAR, &empty, sizeof(empty), &len[5]));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(id, 1);
+  IS_WSTR(val, wstr, len[2] / sizeof(SQLWCHAR))
+  is_num(len[3], SQL_NULL_DATA);
+  is_num(mask, 127);
+  is_num(len[5], 0);
+  IS_WSTR(empty, sqlwchar_empty, len[5]);
+
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &id, 0, &len[0]));
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 2, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_DOUBLE, 0, 0, &double_val, 0, &len[1]));
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 3, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_VARCHAR, 0, 0, &val, sizeof(val), &len[2]));
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 4, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_VARCHAR, 0, 0, &val, sizeof(val), &len[3]));
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 5, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &mask, 0, &len[4]));
+  CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 6, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_VARCHAR, 0, 0, &empty, sizeof(empty), &len[5]));
+
+  CHECK_STMT_RC(Stmt1, SQLPrepare(Stmt1, "INSERT INTO t_insert_fetched_null(id, double_val, val, nullable_val, mask, empty_val)\
+                                          VALUES(?, ?, ?, ?, ?, ?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLExecute(Stmt1));
+  
+  OK_SIMPLE_STMT(Stmt1, "SELECT id, double_val, val, nullable_val, mask, empty_val FROM t_insert_fetched_null");
+
+  val[0]= 0;
+  empty[0]= 'a';
+  id= mask= 0;
+  memset(len, 0, sizeof(len));
+
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 1, SQL_C_LONG, &id, 0, &len[0]));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 2, SQL_C_DOUBLE, &double_val, 0, &len[1]));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 3, SQL_C_WCHAR, &val, 0, &len[2]));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 4, SQL_C_WCHAR, &val, sizeof(val), &len[3]));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 5, SQL_C_LONG, &mask, 0, &len[4]));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 6, SQL_C_WCHAR, &empty, sizeof(empty), &len[5]));
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  is_num(id, 1);
+  is_num(len[2], strlen(str)*sizeof(SQLWCHAR));
+  is_num(len[3], SQL_NULL_DATA);
+  is_num(mask, 127);
+  is_num(len[5], 0);
+  IS_WSTR(empty, sqlwchar_empty, len[5]);
+
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 3, SQL_C_WCHAR, &val, len[2]+sizeof(SQLWCHAR), &len[2]));
+  IS_WSTR(val, wstr, len[2]/sizeof(SQLWCHAR));
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_insert_fetched_null");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1397,6 +1481,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug14560916, "t_bug14560916"},
   {t_bug14586094, "t_bug14586094"},
   {t_longtextoutparam, "t_longtextoutparam"},
+  { insert_fetched_null, "insert_fetched_null" },
   {NULL, NULL}
 };
 

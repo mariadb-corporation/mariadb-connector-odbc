@@ -1130,6 +1130,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   if (Stmt->DaeStmt)
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
   Stmt->DaeStmt= NULL;
+
   if (!SQL_SUCCEEDED(MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);

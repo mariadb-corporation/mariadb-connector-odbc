@@ -1089,6 +1089,40 @@ ODBC_TEST(t_odbc38)
 }
 
 
+/*
+Bug ODBC-51 - SQLTables failed if string fields were bound as WCHAR, and of them(usually REMARKS) contained empty string
+In fact the bug is not SQLTables(or aby other catalog function) specific.
+*/
+ODBC_TEST(odbc51)
+{
+  SQLRETURN rc;
+  SQLWCHAR  remark[100];
+  SQLLEN    len;
+
+  /* Making sure there is at least one table with empty remarks */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS aaa_odbc51");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE aaa_odbc51 (a int not null)");
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR *)my_schema, strlen(my_schema), NULL, 0, NULL, 0, NULL, 0));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_WCHAR, remark, sizeof(remark), &len));
+
+  do {
+    rc = SQLFetch(Stmt);
+    if (!SQL_SUCCEEDED(rc) && rc != SQL_NO_DATA)
+    {
+      /* Just to get diagnostics printed */
+      CHECK_STMT_RC(Stmt, rc);
+    }
+  }
+  while (rc != SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE aaa_odbc51");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1108,6 +1142,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_sqlcolumns_after_select, "t_sqlcolumns_after_select", NORMAL},
   {t_bug14555713,             "t_bug14555713",             NORMAL},
   {t_odbc38,                  "odbc2_odbc3_data_types",    NORMAL},
+  { odbc51,    "odbc51_wchar_emptystring", NORMAL },
   {NULL, NULL}
 };
 
