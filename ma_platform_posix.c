@@ -214,9 +214,9 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
 
   AscLen= mariadb_convert_string((char*)Ptr, &PtrOctetLen, utf16, AscStr, &AscLen, cc->cs_info, Error);
 
-  if (AscLen != (size_t)-1 && AscLen != 0)
+  if (AscLen != (size_t)-1)
   {
-    if (PtrLength == -1)
+    if (PtrLength == -1 && AscLen > 0)
     {
       --AscLen;
     }
@@ -345,7 +345,11 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
     else
     {
       Length= MbstrCharLen(Src, SrcLength, cc->cs_info);
-      return Length;
+
+      /* In case of !DestLength || !Dest(application didn't give buffer and probably wants to know required length)
+       * we most probably have empty Src, and Length will be equal 0 in this case.
+       * Taking source length as character length. MultiByteToWideChar on windows does that for us */
+      return Length == 0 && SrcLength > 0 ? SrcLength : Length;
     }
   }
 
