@@ -1449,6 +1449,19 @@ ODBC_TEST(insert_fetched_null)
   CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 3, SQL_C_WCHAR, &val, len[2]+sizeof(SQLWCHAR), &len[2]));
   IS_WSTR(val, wstr, len[2]/sizeof(SQLWCHAR));
 
+  /* Testing also that with SQLGetData everything is fine */
+  len[3]= 0;
+  len[5]= 1;
+
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 4, SQL_C_WCHAR, &val, sizeof(val), &len[3]));
+  /* val len should not be changed, indicator should be NULL */
+  IS_WSTR(val, wstr, len[2]/sizeof(SQLWCHAR));
+  is_num(len[3], SQL_NULL_DATA);
+
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 6, SQL_C_WCHAR, &empty, sizeof(empty), &len[5]));
+  is_num(len[5], 0);
+  IS_WSTR(empty, sqlwchar_empty, len[5]);
+
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
