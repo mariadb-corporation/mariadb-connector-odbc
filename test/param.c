@@ -1108,7 +1108,7 @@ ODBC_TEST(t_bug14501952)
 {
   SQLSMALLINT ncol;
   SQLLEN      len= 0;
-  SQLCHAR     blobValue[50]= "initial value", buff[100];
+  SQLCHAR     blobValue[50]= "initial value", buff[100]= {0};
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS bug14501952");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE bug14501952 (INOUT param1 BLOB)\
@@ -1148,7 +1148,7 @@ ODBC_TEST(t_bug14563386)
 {
   SQLSMALLINT ncol;
   SQLLEN      len= 0, len1= 0;
-  SQLCHAR     blobValue[50]= "initial value", buff[100],
+  SQLCHAR     blobValue[50]= "initial value", buff[100]={0},
               binValue[50]= "varbinary init value";
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS b14563386");
@@ -1194,7 +1194,7 @@ ODBC_TEST(t_bug14563386)
 /* Bug#14551229(could not repeat) Procedure with signed out parameter */
 ODBC_TEST(t_bug14551229)
 {
-  SQLINTEGER param, value;
+  SQLINTEGER param= 0, value;
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS b14551229");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE b14551229 (OUT param INT)\
@@ -1293,7 +1293,7 @@ ODBC_TEST(t_bug14586094)
 {
   SQLSMALLINT ncol;
   SQLLEN      len= SQL_NTS, len1= SQL_NTS;
-  SQLCHAR     blobValue[50]= {0}/*"initial value"*/, buff[101],
+  SQLCHAR     blobValue[50]= {0}/*"initial value"*/, buff[101]= {0},
               vcValue[101]= "varchar init value";
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS b14586094");
