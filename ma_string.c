@@ -512,6 +512,20 @@ SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
         /* Dirty hack to avoid dead loop - Has to be the error! */
         charlen= 1;
       }
+
+      /* Skipping thru 0 bytes */
+      while (charlen > 0 && *ptr == '\0')
+      {
+          --charlen;
+          ++ptr;
+      }
+
+      /* Stopping if current character is terminating NULL - charlen == 0 means all bytes of current char was 0 */
+      if (charlen == 0)
+      {
+        return result;
+      }
+      /* else we increment ptr for number of left bytes */
       ptr+= charlen;
       ++result;
     }
