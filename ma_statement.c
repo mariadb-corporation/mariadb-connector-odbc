@@ -556,7 +556,7 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
         if (Record->OctetLengthPtr)
         {
           /* Stmt->DaeRowNumber is 1 based */
-          SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, MAX(0, Stmt->DaeRowNumber - 1), sizeof(SQLLEN));
+          SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN));
           if (PARAM_IS_DAE(OctetLength))
           {
             Stmt->PutDataRec= Record;
