@@ -822,7 +822,7 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   if (overflow)
   {
     FAIL_IF(SQLFetch(Stmt) != SQL_ERROR, "expected SQL_ERROR");
-    FAIL_IF(check_sqlstate(Stmt, "22003") != OK, "expected error 22003");
+    CHECK_SQLSTATE(Stmt, "22003");
   }
   else
     CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
@@ -999,7 +999,7 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR *numdata, SQLCHAR prec,
   exprc= SQLFetch(Stmt);
   if (exprc != SQL_SUCCESS)
   {
-    IS(check_sqlstate(Stmt, (char *)exptrunc) == OK);
+    CHECK_SQLSTATE(Stmt, (char *)exptrunc);
   }
   if (exprc == SQL_ERROR)
     return OK;
@@ -1073,7 +1073,7 @@ ODBC_TEST(t_bug31220)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 1, 999 /* unknown type */,
                             outbuf, 5, &outlen));
   FAIL_IF(SQLFetch(Stmt) != SQL_ERROR, "SQL_ERROR expected");
-  IS(check_sqlstate(Stmt, "07006") == OK);
+  CHECK_SQLSTATE(Stmt, "07006");
   is_num(outlen, 999);
   return OK;  
 }

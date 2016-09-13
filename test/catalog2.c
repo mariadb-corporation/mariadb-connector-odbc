@@ -977,7 +977,7 @@ ODBC_TEST(t_bug14085211_part1)
   FAIL_IF(SQLTables(Stmt, (SQLCHAR *)tab_1024_name, SQL_NTS, NULL, SQL_NTS,
                                   (SQLCHAR *)tab_1024_name, SQL_NTS, 
                                   "TABLE,VIEW", SQL_NTS) !=  SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, IS_ODBC3() ? "HY090" : "S1009"), OK);
+  CHECK_SQLSTATE(Stmt, IS_ODBC3() ? "HY090" : "S1009");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

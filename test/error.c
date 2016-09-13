@@ -48,22 +48,19 @@ ODBC_TEST(t_odbc3_error)
   CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
 
   ERR_SIMPLE_STMT(Stmt1, "SELECT * FROM non_existing_table");
-  if (check_sqlstate(Stmt1, "42S02") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "42S02");
 
   OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_error");
   OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t_error (id INT)");
 
   ERR_SIMPLE_STMT(Stmt1, "CREATE TABLE t_error (id INT)");
-  if (check_sqlstate(Stmt1, "42S01") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "42S01");
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   FAIL_IF(SQLSetStmtAttr(Stmt1, SQL_ATTR_FETCH_BOOKMARK_PTR,
                                      (SQLPOINTER)NULL, 0) !=SQL_ERROR, "Error expected");
-  if (check_sqlstate(Stmt1, "HYC00") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "HYC00");
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
@@ -102,23 +99,20 @@ ODBC_TEST(t_odbc2_error)
   FAIL_IF(SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1) == SQL_ERROR, "Success expected");
 
   ERR_SIMPLE_STMT(Stmt1, "SELECT * FROM non_existing_table");
-  if (check_sqlstate(Stmt1, "S0002") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "S0002");
 
   OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_error");
   OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t_error (id INT)");
 
   ERR_SIMPLE_STMT(Stmt1, "CREATE TABLE t_error (id INT)");
-  if (check_sqlstate(Stmt1, "S0001") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "S0001");
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
   FAIL_IF(SQLSetStmtAttr(Stmt1, SQL_ATTR_ENABLE_AUTO_IPD,
                                      (SQLPOINTER)SQL_TRUE, 0) !=SQL_ERROR,
                                      "Error expected");
-  if (check_sqlstate(Stmt1, "S1C00") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "S1C00");
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
@@ -278,12 +272,12 @@ ODBC_TEST(bind_invalidcol)
 
   /* test out of range column number */
   FAIL_IF(SQLBindCol(Stmt, 10, SQL_C_CHAR, "", 4, NULL) != SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, "07009"), OK);
+  CHECK_SQLSTATE(Stmt, "07009");
 
   /* test (unsupported) bookmark column number */
   FAIL_IF(SQLBindCol(Stmt, 0, SQL_C_BOOKMARK, "", 4, NULL) != SQL_ERROR, "Error expected");
 
-  is_num(check_sqlstate(Stmt, "07009"), OK);
+  CHECK_SQLSTATE(Stmt, "07009");
 
   /* SQLDescribeCol() */
   FAIL_IF(SQLDescribeCol(Stmt, 0, dummy, sizeof(dummy), NULL, NULL,
@@ -294,16 +288,16 @@ ODBC_TEST(bind_invalidcol)
 
   FAIL_IF(SQLDescribeCol(Stmt, 5, dummy, sizeof(dummy), NULL,
                                     NULL, NULL, NULL, NULL)!= SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, "07009"), OK);
+  CHECK_SQLSTATE(Stmt, "07009");
 
   /* SQLColAttribute() */
   FAIL_IF(SQLColAttribute(Stmt, 0, SQL_DESC_NAME, NULL, 0,
                                      NULL, NULL) != SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, "07009"), OK);
+  CHECK_SQLSTATE(Stmt, "07009");
 
   FAIL_IF(SQLColAttribute(Stmt, 7, SQL_DESC_NAME, NULL, 0,
                                      NULL, NULL) != SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, "07009"), OK);
+  CHECK_SQLSTATE(Stmt, "07009");
 
   return OK;
 }
@@ -384,12 +378,12 @@ ODBC_TEST(t_handle_err)
 
   FAIL_IF( SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
                                   (SQLPOINTER)SQL_OV_ODBC3, 0)!= SQL_ERROR, "Error expected");
-  is_num(check_sqlstate_ex(henv1, SQL_HANDLE_ENV, "HY010"), OK);
+  CHECK_SQLSTATE_EX(henv1, SQL_HANDLE_ENV, "HY010");
 
   FAIL_IF(SQLSetConnectAttr(Connection1, SQL_ATTR_ASYNC_ENABLE,
                                       (SQLPOINTER)SQL_ASYNC_ENABLE_ON,
                                       SQL_IS_INTEGER) != SQL_SUCCESS_WITH_INFO, "swi expected");
-  is_num(check_sqlstate_ex(Connection1, SQL_HANDLE_DBC, "01S02"), OK);
+  CHECK_SQLSTATE_EX(Connection1, SQL_HANDLE_DBC, "01S02");
 
   CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
   CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));

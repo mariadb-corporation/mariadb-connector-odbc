@@ -816,6 +816,29 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
 }
 /* }}} */
 
+/* {{{ MADB_ConvertCharToBit */
+char MADB_ConvertCharToBit(MADB_Stmt *Stmt, char *src)
+{
+  char *EndPtr= NULL;
+  float asNumber= strtof(src, &EndPtr);
+
+  if (asNumber < 0 || asNumber > 1)
+  {
+    /* 22003 */
+  }
+  else if (asNumber != 0 && asNumber != 1)
+  {
+    /* 22001 */
+  }
+  else if(EndPtr != NULL && *EndPtr != '\0')
+  {
+    /* 22018. TODO: check if condition is correct */
+  }
+
+  return asNumber != 0 ? '\1' : '\0';
+}
+/* }}} */
+
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 {
@@ -890,6 +913,8 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
     /* Convert and bind parameters */
     for (j= Start; j < Start + (int)MAX(Stmt->Apd->Header.ArraySize * test(Stmt->ParamCount), 1); ++j)
     {
+      SQLRETURN RowResult= SQL_SUCCESS;
+
       if (Stmt->Apd->Header.ArrayStatusPtr &&
           Stmt->Apd->Header.ArrayStatusPtr[j-Start] == SQL_PARAM_IGNORE)
       {
@@ -984,6 +1009,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_C_WCHAR:
               {
                 SQLULEN mbLength=0;
+
                 MADB_FREE(ApdRecord->InternalBuffer);
 
                 ApdRecord->InternalBuffer= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, (SQLINTEGER)(Length / sizeof(SQLWCHAR)), 
@@ -997,16 +1023,32 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_C_CHAR:
               if (!Stmt->stmt->params[i-ParamOffset].long_data_used)
               {
-                ApdRecord->InternalLength= (unsigned long)Length;
-                Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
-                Stmt->params[i-ParamOffset].buffer= DataPtr;
-                Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_STRING;
+                if (IpdRecord->ConciseType == SQL_BIT)
+                {
+                  MADB_FREE(ApdRecord->InternalBuffer);
+                  ApdRecord->InternalLength= 1;
+                  ApdRecord->InternalBuffer= (char *)MADB_CALLOC(ApdRecord->InternalLength);
+
+                  *ApdRecord->InternalBuffer=  MADB_ConvertCharToBit(Stmt, DataPtr);
+
+                  Stmt->params[i-ParamOffset].buffer=      ApdRecord->InternalBuffer;
+                  Stmt->params[i-ParamOffset].length=     &ApdRecord->InternalLength;
+                  Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_TINY;
+                }
+                else
+                {
+                  ApdRecord->InternalLength= (unsigned long)Length;
+                  Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
+                  Stmt->params[i-ParamOffset].buffer= DataPtr;
+                  Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_STRING;
+                }
               } 
               break;
             case SQL_C_NUMERIC:
               {
                 SQL_NUMERIC_STRUCT *p;
                 int ErrorCode= 0;
+
                 if (Stmt->RebindParams)
                 {
                   MADB_FREE(ApdRecord->InternalBuffer);
@@ -1017,7 +1059,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 p->precision= (SQLSCHAR)IpdRecord->Precision;
                 ApdRecord->InternalLength= (unsigned long)MADB_SqlNumericToChar((SQL_NUMERIC_STRUCT *)p, ApdRecord->InternalBuffer, &ErrorCode);
                 if (ErrorCode)
-                  MADB_SetError(&Stmt->Error, ErrorCode, NULL, 0);
+                {
+                  /*TODO: I guess this parameters row should be skipped */
+                  RowResult= MADB_SetError(&Stmt->Error, ErrorCode, NULL, 0);
+                }
                 Stmt->params[i-ParamOffset].length= &ApdRecord->InternalLength;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_STRING;
@@ -1059,13 +1104,16 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                   tm->time_type=                           MYSQL_TIMESTAMP_TIME;
                   break;
                 }
-                tm->year= ts->year ? ts->year : 1970;
+                tm->year=  ts->year ? ts->year : 1970;
                 tm->month= ts->month ? ts->month : 1;
-                tm->day= ts->day ? ts->day : 1;
-                tm->hour= ts->hour;
+                tm->day=   ts->day ? ts->day : 1;
+
+                tm->hour=   ts->hour;
                 tm->minute= ts->minute;
                 tm->second= ts->second;
+                
                 tm->second_part= ts->fraction / 1000;
+
                 ApdRecord->InternalBuffer= (void *)tm;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
@@ -1079,14 +1127,19 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
                 MADB_FREE(ApdRecord->InternalBuffer);
                 tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
-                tm->year= 1970;
+
+                tm->year=  1970;
                 tm->month= 1;
-                tm->day= 1;
-                tm->hour= ts->hour;
+                tm->day=   1;
+
+                tm->hour=   ts->hour;
                 tm->minute= ts->minute;
                 tm->second= ts->second;
+
                 tm->second_part= 0;
+
                 tm->time_type= MYSQL_TIMESTAMP_DATETIME;
+
                 ApdRecord->InternalBuffer= (void *)tm;
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_DATETIME;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
@@ -1098,13 +1151,18 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
               {
                 MYSQL_TIME *tm;
                 SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+ 
                 MADB_FREE(ApdRecord->InternalBuffer);
                 tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
-                tm->year= ts->year;
+
+                tm->year=  ts->year;
                 tm->month= ts->month;
-                tm->day= ts->day;
+                tm->day=   ts->day;
+
                 tm->hour= tm->minute= tm->second= tm->second_part= 0;
+
                 tm->time_type= MYSQL_TIMESTAMP_DATE;
+
                 ApdRecord->InternalBuffer= (void *)tm;
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_DATE;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
@@ -1158,6 +1216,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       }
       ret= SQL_SUCCESS;
 
+      /**************************** mysql_stmt_execute *************************************/
       if (mysql_stmt_execute(Stmt->stmt))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
@@ -1217,6 +1276,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                                                     MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
 
     /* Todo: for SQL_CURSOR_FORWARD_ONLY we should use cursor and prefetch rows */
+    /*************************** mysql_stmt_store_result ******************************/
     mysql_stmt_store_result(Stmt->stmt);
     /*todo: memleak */
  // mysql_stmt_result_metadata(Stmt->stmt);
@@ -1232,8 +1292,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 end:
   UNLOCK_MARIADB(Stmt->Connection);
   Stmt->LastRowFetched= 0;
+
   if (DefaultResult)
     mysql_free_result(DefaultResult);
+
   if (ErrorCount)
   {
     if (ErrorCount < Stmt->Apd->Header.ArraySize)
@@ -1241,6 +1303,7 @@ end:
     else
       ret= SQL_ERROR;
   }
+
   return ret;
 }
 /* }}} */
@@ -1614,7 +1677,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
         {
           char *p= (char *)Stmt->result[i].buffer;
           if (p)
-            *p= test(*p != 0);
+            *p= test(*p != '\0');
         }
         break;
       case SQL_TYPE_TIMESTAMP:
@@ -1779,6 +1842,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
     }
     for (j=0; j < ArraySize; j++)
     {
+      /*************** Setting up BIND structures ********************/
       RETURN_ERROR_OR_CONTINUE(MADB_PrepareBind(Stmt, j));
 
       /************************ Bind! ********************************/  

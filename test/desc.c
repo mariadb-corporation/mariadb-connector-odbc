@@ -128,7 +128,7 @@ ODBC_TEST(t_desc_set_error)
   /* Test bad header field permissions */
   FAIL_IF(SQLSetDescField(ard, 0, SQL_DESC_ROWS_PROCESSED_PTR,
                                    NULL, SQL_IS_POINTER) != SQL_ERROR, "Error exppected");
-  FAIL_IF(check_sqlstate_ex(ard, SQL_HANDLE_DESC, "HY091") != OK, "sqlstate != HY091");
+  CHECK_SQLSTATE_EX(ard, SQL_HANDLE_DESC, "HY091");
 
   /* Test the HY016 error received when setting any field on an IRD
    * besides SQL_DESC_ARRAY_STATUS_PTR or SQL_DESC_ROWS_PROCESSED_PTR.
@@ -140,16 +140,16 @@ ODBC_TEST(t_desc_set_error)
   FAIL_IF(SQLSetDescField(ird, 0, SQL_DESC_AUTO_UNIQUE_VALUE,
                                    (SQLPOINTER) 1, SQL_IS_INTEGER) != SQL_ERROR, "Error expected");
 
-  FAIL_IF(check_sqlstate_ex(ird, SQL_HANDLE_DESC, "HY091") != OK, "HY091 expected");
+  CHECK_SQLSTATE_EX(ird, SQL_HANDLE_DESC, "HY091");
 
   /* Test invalid field identifier (will be HY016 on ird, HY091 on others) */
   FAIL_IF(SQLSetDescField(ard, 0, 999, NULL, SQL_IS_POINTER) != SQL_ERROR, "Error expected");
-  FAIL_IF(check_sqlstate_ex(ard, SQL_HANDLE_DESC, "HY091") != OK, "HY091 expected");
+  CHECK_SQLSTATE_EX(ard, SQL_HANDLE_DESC, "HY091");
 
   /* Test bad data type (SQLINTEGER cant be assigned to SQLPOINTER) 
   FAIL_IF( SQLSetDescField(ard, 0, SQL_DESC_BIND_OFFSET_PTR,
                                    NULL, SQL_IS_INTEGER) != SQL_ERROR, "Error expected");
-  FAIL_IF(check_sqlstate_ex(ard, SQL_HANDLE_DESC, "HY015") != OK, "HY015 expected");
+  CHECK_SQLSTATE_EX(ard, SQL_HANDLE_DESC, "HY015");
   */
   return OK;
 }
@@ -319,7 +319,7 @@ ODBC_TEST(t_explicit_error)
   /* can't set implicit ard from a different statement */
   FAIL_IF(SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                     desc2, 0) != SQL_ERROR, "Error expected");
-  FAIL_IF(check_sqlstate(Stmt, "HY017") != OK, "HY017 expected");
+  CHECK_SQLSTATE(Stmt, "HY017");
 
   /* can set it to the same statement */
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, desc1, 0));
@@ -337,7 +337,7 @@ ODBC_TEST(t_explicit_error)
   */
   
   FAIL_IF(SQLFreeHandle(SQL_HANDLE_DESC, desc1) != SQL_ERROR, "Error expected");
-  FAIL_IF(check_sqlstate_ex(desc1, SQL_HANDLE_DESC, "HY017") != OK, "expected OK");
+  CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");
   
   /* can't set apd as ard (and vice-versa) */
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expapd));
@@ -346,7 +346,7 @@ ODBC_TEST(t_explicit_error)
 
   FAIL_IF(SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
                                     expapd, 0) != SQL_ERROR, "Error expected");
-  FAIL_IF(check_sqlstate(Stmt, "HY024") != OK, "Expected HY024");
+  CHECK_SQLSTATE(Stmt, "HY024");
 
   /*
     this exposes a bug in unixODBC (2.2.12 and current as of 2007-12-14).

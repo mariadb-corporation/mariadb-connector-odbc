@@ -1894,7 +1894,7 @@ ODBC_TEST(t_bug30958)
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
-  IS(check_sqlstate(Stmt, "01004") == OK);
+  CHECK_SQLSTATE(Stmt, "01004");
 
   /* expect the same result, and not SQL_NO_DATA */
   outlen= 99;
@@ -1902,7 +1902,7 @@ ODBC_TEST(t_bug30958)
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
-  IS(check_sqlstate(Stmt, "01004") == OK);
+  CHECK_SQLSTATE(Stmt, "01004");
 
   /* now provide a space to read the data */
   outmax= 1;
@@ -1953,7 +1953,7 @@ ODBC_TEST(t_bug30958_ansi)
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
-  IS(check_sqlstate(Stmt, "01004") == OK);
+  CHECK_SQLSTATE(Stmt, "01004");
 
   /* expect the same result, and not SQL_NO_DATA */
   outlen= 99;
@@ -1961,7 +1961,7 @@ ODBC_TEST(t_bug30958_ansi)
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
-  IS(check_sqlstate(Stmt, "01004") == OK);
+  CHECK_SQLSTATE(Stmt, "01004");
 
   /* now provide a space to read the data */
   outmax= 1;
@@ -2011,7 +2011,7 @@ ODBC_TEST(t_bug30958_wchar)
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
-  IS(check_sqlstate(Stmt, "01004") == OK);
+  CHECK_SQLSTATE(Stmt, "01004");
 
   /* expect the same result, and not SQL_NO_DATA */
   outlen= 99;
@@ -2019,7 +2019,7 @@ ODBC_TEST(t_bug30958_wchar)
                                 &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
-  IS(check_sqlstate(Stmt, "01004") == OK);
+  CHECK_SQLSTATE(Stmt, "01004");
 
 
   /* now provide a space to read the data */

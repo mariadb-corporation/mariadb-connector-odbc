@@ -1444,8 +1444,6 @@ ODBC_TEST(insert_fetched_null)
   is_num(len[3], SQL_NULL_DATA);
   is_num(mask, 127);
   is_num(len[5], 0);
-  IS_WSTR(empty, sqlwchar_empty, len[5]);
-
   CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 3, SQL_C_WCHAR, &val, len[2]+sizeof(SQLWCHAR), &len[2]));
   IS_WSTR(val, wstr, len[2]/sizeof(SQLWCHAR));
 
@@ -1466,6 +1464,58 @@ ODBC_TEST(insert_fetched_null)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE t_insert_fetched_null");
+
+  return OK;
+}
+
+
+ODBC_TEST(odbc45)
+{
+  SQLSMALLINT i;
+  SQLLEN      len= 0;
+  SQLCHAR     val[][4]=        {"0",            "1"};//, "4", "-1", "0.5", "z"},
+  SQLWCHAR    valw[][4]=       { { '0', '\0' }, { '1', '\0' }, { '4', '\0' }, { '-', '1', '\0' }, { '0', '.', '5', '\0' }, { 'z', '\0' } };
+  SQLRETURN   XpctdRc[]=       {SQL_SUCCESS,    SQL_SUCCESS, SQL_ERROR, SQL_ERROR, SQL_ERROR, SQL_ERROR};
+  SQLCHAR     XpctdState[][6]= { "",            "",          "22003",   "22003",   "22001",   "22018" };
+  SQLCHAR     XpctdValue[]=    { 0,             1 };// , 0, 1};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc45");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc45 (id int not null primary key auto_increment, val bit(1) not null)");
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO odbc45(val) VALUES(?)", SQL_NTS)); 
+  for (i = 0; i<sizeof(val)/sizeof(val[0]); ++i)
+  {
+    diag("SQLCHAR binding #%d(%s)", i + 1, val[i]);
+    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_BIT, 0, 0, val[i], sizeof(val[0]), &len));
+    EXPECT_STMT(Stmt, SQLExecute(Stmt), XpctdRc[i]);
+    if (XpctdRc[i] != SQL_SUCCESS)
+    {
+      CHECK_SQLSTATE(Stmt, XpctdState[i]);
+    }
+  }
+
+  for (i = 0; i < 0*sizeof(valw)/sizeof(valw[0]); ++i)
+  {
+    diag("SQLWCHAR binding #%d(%s)", i + 1, val[i]);
+    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_BIT, 0, 0, valw[i], sizeof(valw[0]), &len));
+    EXPECT_STMT(Stmt, SQLExecute(Stmt), XpctdRc[i]);
+    if (XpctdRc[i]!=SQL_SUCCESS)
+    {
+      CHECK_SQLSTATE(Stmt, XpctdState[i]);
+    }
+  }
+
+  OK_SIMPLE_STMT(Stmt, "SELECT val FROM odbc45");
+
+  for (i= 0; i<sizeof(XpctdValue); ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(my_fetch_int(Stmt, 1), XpctdValue[i]);
+  }
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc45");
 
   return OK;
 }
@@ -1495,6 +1545,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug14586094, "t_bug14586094"},
   {t_longtextoutparam, "t_longtextoutparam"},
   { insert_fetched_null, "insert_fetched_null" },
+  { odbc45, "odbc-45-binding2bit" },
   {NULL, NULL}
 };
 

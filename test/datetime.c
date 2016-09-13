@@ -245,7 +245,7 @@ ODBC_TEST(t_tstotime1)
      and thus does not detect and report error. Created ODBC-43 for it */
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
 
-  is_num(check_sqlstate(Stmt, "22008"), OK);
+  CHECK_SQLSTATE(Stmt, "22008");
 
   /* Taking only date part */
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR,
@@ -253,7 +253,7 @@ ODBC_TEST(t_tstotime1)
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
 
-  is_num(check_sqlstate(Stmt, "22008"), OK);
+  CHECK_SQLSTATE(Stmt, "22008");
 
   /* are not taking fractional part */
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
@@ -1087,10 +1087,7 @@ ODBC_TEST(t_bug60646)
     FAIL_IF(SQLGetData(Stmt, 6, SQL_C_TYPE_TIMESTAMP, &ts, sizeof(ts),
                               &len) != SQL_ERROR, "Error expected");
 
-    if (check_sqlstate(Stmt, "22018") != OK)
-    {
-      return FAIL;
-    }
+    CHECK_SQLSTATE(Stmt, "22018");
   }
 
   /* 5th col once again This time we get it in time struct. Thus we are
@@ -1103,10 +1100,7 @@ ODBC_TEST(t_bug60646)
                             sizeof(timestruct), &len) != SQL_SUCCESS_WITH_INFO, 
                             "SUCCESS_WITH_INFO expected");
 
-    if (check_sqlstate(Stmt, "01S07") != OK)
-    {
-      return FAIL;
-    }
+    CHECK_SQLSTATE(Stmt, "01S07");
   }
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
@@ -1134,13 +1128,13 @@ ODBC_TEST(t_bug60648)
     SQL_TYPE_DATE, 0, 0, &param, 0, NULL));
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, "22008"), OK);
+  CHECK_SQLSTATE(Stmt, "22008");
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TYPE_TIMESTAMP,
     SQL_TYPE_TIME, 0, 0, &param, 0, NULL));
 
   FAIL_IF(SQLExecute(Stmt) != SQL_ERROR, "Error expected");
-  is_num(check_sqlstate(Stmt, "22008"), OK);
+  CHECK_SQLSTATE(Stmt, "22008");
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TYPE_TIMESTAMP,
     SQL_TYPE_TIMESTAMP, 0, 0, &param, 0, NULL));

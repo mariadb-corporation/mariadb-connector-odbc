@@ -727,13 +727,17 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
   case SQL_C_UTINYINT:
     *Length= 1;
     *Unsigned= (SqlDataType == SQL_C_UTINYINT);
+
     return MYSQL_TYPE_TINY;
+
   case SQL_C_SHORT:
   case SQL_C_SSHORT:
   case SQL_C_USHORT:
     *Length= 2;
     *Unsigned= (SqlDataType == SQL_C_USHORT);
-     return MYSQL_TYPE_SHORT;
+
+    return MYSQL_TYPE_SHORT;
+ 
   case SQL_C_LONG:
   case SQL_C_SLONG:
   case SQL_C_ULONG:

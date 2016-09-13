@@ -197,13 +197,6 @@ void mark_all_tests_normal(MA_ODBC_TESTS *tests)
   }
 }
 
-#define FAIL_IF(expr,message)\
-  if (expr)\
-  {\
-    fprintf(stdout, "%s (File: %s Line: %d)\n", message, __FILE__, __LINE__);\
-    return FAIL;\
-  }
-
 
 void usage()
 {
@@ -475,6 +468,14 @@ do {\
 #define CHECK_ENV_RC(env,rc) CHECK_HANDLE_RC(SQL_HANDLE_ENV,env,rc)
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
+
+#define FAIL_IF(expr,message)\
+  if (expr)\
+    {\
+    fprintf(stdout, "%s (File: %s Line: %d)\n", message, __FILE__, __LINE__);\
+    return FAIL;\
+    }
+
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
 #define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF((A) == NULL || (B) == NULL || strncmp((A), (B), (C)) != 0, "String comparison failed")
 
@@ -508,12 +509,6 @@ do {\
   }\
 } while(0)
 
-#define CHECK_SQLSTATE_EX(A,B,C)\
-   {\
-    char Buffer[10];\
-    SQLRETURN ret= SQLGetDiagField((B),(A),1,SQL_DIAG_SQLSTATE, (SQLPOINTER *)Buffer, 10, NULL);\
-    FAIL_IF(strcmp((C),Buffer) != 0, "Wrong error code");\
-  }
 
 int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
 {
@@ -521,10 +516,6 @@ int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
   SQLGetData(Stmt, ColumnNumber, SQL_INTEGER, &value, 0, NULL);
   return value;
 }
-
-#define check_sqlstate(stmt, sqlstate) \
-  check_sqlstate_ex((stmt), SQL_HANDLE_STMT, (sqlstate))
-
 
 SQLWCHAR *my_fetch_wstr(SQLHSTMT Stmt, SQLWCHAR *buffer, SQLUSMALLINT icol, SQLLEN Length)
 {
@@ -568,6 +559,12 @@ int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 
   return OK;
 }
+#define check_sqlstate(stmt, sqlstate) \
+  check_sqlstate_ex((stmt), SQL_HANDLE_STMT, (sqlstate))
+
+#define CHECK_SQLSTATE_EX(A,B,C) FAIL_IF(check_sqlstate_ex(A,B,C) != OK, "Unexpected sqlstate!")
+#define CHECK_SQLSTATE(A,C) CHECK_SQLSTATE_EX(A, SQL_HANDLE_STMT, C)
+
 
 int using_dm(HDBC hdbc)
 {

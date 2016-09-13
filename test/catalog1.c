@@ -1214,8 +1214,7 @@ ODBC_TEST(t_bug26934)
   Sleep(5000);
   FAIL_IF(SQLTables(Stmt1, (SQLCHAR *)"%", 1, NULL, SQL_NTS,
                                 NULL, SQL_NTS, NULL, SQL_NTS) != SQL_ERROR, "error expected");
-  if (check_sqlstate(Stmt1, "08S01") != OK)
-    return FAIL;
+  CHECK_SQLSTATE(Stmt1, "08S01");
 
   ODBC_Disconnect(Env1, Connection1, Stmt1);
 

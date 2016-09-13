@@ -917,7 +917,7 @@ ODBC_TEST(t_blob_reading_in_chunks)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, value, sizeof(value), &valueLen), SQL_SUCCESS_WITH_INFO);
-  check_sqlstate(Stmt, "01004");
+  CHECK_SQLSTATE(Stmt, "01004");
 
   is_num(valueLen, 24);
   

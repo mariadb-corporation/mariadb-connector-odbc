@@ -505,7 +505,7 @@ ODBC_TEST(t_pos_column_ignore)
   pcbValue= SQL_COLUMN_IGNORE;
   /* We have all columns ignored - connector should return error and 21S02 */
   EXPECT_STMT(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE), SQL_ERROR);
-  CHECK_SQLSTATE_EX(Stmt, SQL_HANDLE_STMT, "21S02");
+  CHECK_SQLSTATE(Stmt, "21S02");
 
   /* Affected rows should be 0 !! */
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));

@@ -212,7 +212,7 @@ ODBC_TEST(sqlprepare_ansi)
   /* Now try SQLPrepareW with a character that doesn't translate. */
   FAIL_IF(SQLPrepareW(Stmt,  W(L"SELECT '\x30a1' FROM DUAL WHERE 1 = ?"), SQL_NTS) != SQL_ERROR, "Error expected");
               
-  IS(check_sqlstate(Stmt, "22018") == OK);
+  CHECK_SQLSTATE(Stmt, "22018");
 
   return OK;
 }
