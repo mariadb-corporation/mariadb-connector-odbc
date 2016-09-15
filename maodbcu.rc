@@ -50,8 +50,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,12,0
- PRODUCTVERSION 2,0,12,0
+ FILEVERSION 2,0,13,0
+ PRODUCTVERSION 2,0,13,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -68,12 +68,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "MariaDB Corporation AB"
             VALUE "FileDescription", "MariaDB ODBC Unicode Drvier"
-            VALUE "FileVersion", "2.0.12.0"
+            VALUE "FileVersion", "2.0.13.0"
             VALUE "InternalName", "ma_odbc_u"
             VALUE "LegalCopyright", "Copyright (C) 2013, 2016"
             VALUE "OriginalFilename", "maodbc.dll"
             VALUE "ProductName", "MariaDB ODBC Unicode Driver"
-            VALUE "ProductVersion", "2.0.12.0"
+            VALUE "ProductVersion", "2.0.13.0"
         END
     END
     BLOCK "VarFileInfo"
