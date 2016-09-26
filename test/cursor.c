@@ -3107,8 +3107,9 @@ ODBC_TEST(t_dae_setpos_insert)
 {
   SQLPOINTER holder= (SQLPOINTER) 0xcfcdcecc;
   SQLPOINTER paramptr;
-  SQLLEN offset= 0;
-  t_dae_row data[2];
+  SQLLEN     offset= 0;
+  t_dae_row  data[2];
+
   memset(data, 0, 2 * sizeof(t_dae_row));
   data[1].x= 20;
   data[1].z= 40;

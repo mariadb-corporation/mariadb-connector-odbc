@@ -99,7 +99,8 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     SQLLEN *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
+      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber-1 : 0,
+                                            sizeof(SQLLEN)/*Record->OctetLength*/);
     if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
     {
       IgnoredColumns++;
@@ -149,7 +150,8 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     SQLINTEGER *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, MAX(0, Stmt->DaeRowNumber-1), Record->OctetLength);
+      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0,
+                                                sizeof(SQLLEN)/*Record->OctetLength*/);
     
     /* We prepare query only once, different paramsets may have different SQL_COLUMN_IGNORE */
     /*if (IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE)

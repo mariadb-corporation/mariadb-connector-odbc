@@ -427,6 +427,14 @@ ODBC_TEST(my_position1)
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 4));
 
+  /* Small piece to test ODBC-56 */
+  is_num(nlen[0], 6);
+  is_num(nlen[1], 6);
+  is_num(nlen[2], 6);
+  is_num(nrow[0], nrow[1]);
+  is_num(nrow[0], nrow[2]);
+  is_num(nrow[2], sizeof(SQLINTEGER));
+
   nData[0]= 888;
   nData[1]= 999;
   nrow[1]= SQL_COLUMN_IGNORE;
@@ -555,74 +563,74 @@ ODBC_TEST(my_zero_irow_update)
 /* IROW VALUE - 0 - DELETE */
 ODBC_TEST(my_zero_irow_delete)
 {
-    SQLRETURN rc;
-    SQLLEN    nlen[15]= {0}, nrow[15]= {0};
-    char      szData[15][15]={0};
-    SQLINTEGER nData[15];
+  SQLRETURN rc;
+  SQLLEN    nlen[15]= {0}, nrow[15]= {0};
+  char      szData[15][15]={0};
+  SQLINTEGER nData[15];
 
-    OK_SIMPLE_STMT(Stmt, "drop table if exists my_zero_irow");
-    OK_SIMPLE_STMT(Stmt, "create table my_zero_irow(col1 int, col2 varchar(30))");
-    OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(1,'MySQL1')");
-    OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(2,'MySQL2')");
-    OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(3,'MySQL3')");
-    OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(4,'MySQL4')");
-    OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(5,'MySQL5')");
-    OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(6,'MySQL6')");
+  OK_SIMPLE_STMT(Stmt, "drop table if exists my_zero_irow");
+  OK_SIMPLE_STMT(Stmt, "create table my_zero_irow(col1 int, col2 varchar(30))");
+  OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(1,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(2,'MySQL2')");
+  OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(3,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(4,'MySQL4')");
+  OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(5,'MySQL5')");
+  OK_SIMPLE_STMT(Stmt, "insert into my_zero_irow values(6,'MySQL6')");
 
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)3 , 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)3 , 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    OK_SIMPLE_STMT(Stmt,"select * from my_zero_irow");
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from my_zero_irow");
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,nrow);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,nrow);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData[0]),nlen);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData[0]),nlen);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetPos(Stmt,0,SQL_DELETE,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetPos(Stmt,0,SQL_DELETE,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from my_zero_irow");
+  OK_SIMPLE_STMT(Stmt, "select * from my_zero_irow");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);
+  CHECK_STMT_RC(Stmt,rc);
 
-    is_num(nData[0], 1);
-    IS_STR(szData[0], "MySQL1", 7);
-    is_num(nData[1], 5);
-    IS_STR(szData[1], "MySQL5", 7);
-    is_num(nData[2], 6);
-    IS_STR(szData[2], "MySQL6", 7);
+  is_num(nData[0], 1);
+  IS_STR(szData[0], "MySQL1", 7);
+  is_num(nData[1], 5);
+  IS_STR(szData[1], "MySQL5", 7);
+  is_num(nData[2], 6);
+  IS_STR(szData[2], "MySQL6", 7);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
-    FAIL_IF(rc!=SQL_NO_DATA_FOUND, "no data found expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND, "no data found expected");
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+  CHECK_STMT_RC(Stmt, rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_zero_irow");
 
@@ -724,13 +732,13 @@ ODBC_TEST(my_dynamic_cursor)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {my_dynamic_pos_cursor, "my_dynamic_pos_cursor",     NORMAL},
-  {my_dynamic_pos_cursor1, "my_dynamic_pos_cursor1",     NORMAL},
-  {my_position, "my_position",     NORMAL},
-  {my_position1, "my_position1",     KNOWN_FAILURE},
-  {my_zero_irow_update, "my_zero_irow_update",     KNOWN_FAILURE},
-  {my_zero_irow_delete, "my_zero_irow_delete",     NORMAL},
-  {my_dynamic_cursor, "my_dynamic_cursor",     NORMAL},
+  {my_dynamic_pos_cursor, "my_dynamic_pos_cursor",   NORMAL},
+  {my_dynamic_pos_cursor1, "my_dynamic_pos_cursor1", NORMAL},
+  {my_position, "my_position",                       NORMAL},
+  { my_position1, "my_position1",                    NORMAL },
+  { my_zero_irow_update, "my_zero_irow_update",      NORMAL },
+  {my_zero_irow_delete, "my_zero_irow_delete",       NORMAL},
+  {my_dynamic_cursor, "my_dynamic_cursor",           NORMAL},
   {NULL, NULL}
 };
 

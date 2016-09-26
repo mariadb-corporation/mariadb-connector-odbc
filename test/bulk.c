@@ -65,6 +65,7 @@ ODBC_TEST(t_bulk_insert_nts)
   return OK;
 }
 
+/* TODO: As of now this test is useless */
 ODBC_TEST(t_bulk_insert_test)
 {
   char a[2][30]= {"Name 1", "Name 23"};
