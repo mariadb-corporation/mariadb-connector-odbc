@@ -997,6 +997,51 @@ ODBC_TEST(t_odbc41)
 }
 
 
+ODBC_TEST(t_odbc58)
+{
+  SQLLEN      len1, len2, len3;
+  SQLCHAR     text_col[96001];
+  SQLINTEGER  int_col;
+  SQLSMALLINT smint_col;
+
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc58");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc58 (text_col TEXT, smint_col SMALLINT, int_col INT)");
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc58 VALUES('data01', 21893, 1718038908), ('data2', -25734, -1857802040)");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, (SQLPOINTER)text_col, 96000, &len1));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_SHORT, (SQLPOINTER)&smint_col, 4, &len2));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_LONG, (SQLPOINTER)&int_col,  4, &len3));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT text_col, smint_col, int_col FROM t_odbc58");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(len1, 6);
+  IS_STR(text_col, "data01", len1 + 1);
+  is_num(len2, 2);
+  is_num(smint_col, 21893);
+  is_num(len3, 4);
+  is_num(int_col, 1718038908);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(len1, 5);
+  IS_STR(text_col, "data2", len1 + 1);
+  is_num(len2, 2);
+  is_num(smint_col, -25734);
+  is_num(len3, 4);
+  is_num(int_col, -1857802040);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc58");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1017,6 +1062,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug11766437, "t_bug11766437"},
   {t_odbc29, "t_odbc-29"},
   {t_odbc41, "t_odbc-41-nors_after_rs"},
+  { t_odbc58, "t_odbc-58-numeric_after_blob" },
   {NULL, NULL}
 };
 
