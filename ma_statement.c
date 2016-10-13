@@ -3690,9 +3690,9 @@ SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
       Bind.buffer_length= 2;
       Bind.error= (my_bool *)&MyError;
       Bind.length= &MyLength;
-      //Stmt->stmt->bind[i].row_ptr= row;
 
       /* TODO: Too much of sacred knowledge here as well */
+      //Stmt->stmt->bind[i].row_ptr= row;
       mysql_ps_fetch_functions[Stmt->stmt->fields[i].type].func(&Bind, &Stmt->stmt->fields[i], &row);
     }
     if (!((bit_offset <<=1) & 255)) {
@@ -3813,6 +3813,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS);
         /* Prepare(SQL_CLOSE in fact) currently resets DefaultResult. Not sure why. But this should go after Prepare so far */
         Stmt->DaeStmt->DefaultsResult= MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields);
+
         ma_dynstr_free(&DynStmt);
 
         if (!SQL_SUCCEEDED(ret))
