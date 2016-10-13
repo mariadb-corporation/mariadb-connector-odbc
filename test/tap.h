@@ -106,10 +106,9 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 
 #include <sql.h>
 #include <sqlext.h>
-#include <getopt.h>
 #include <time.h>
 #include <assert.h>
-/* We need mysql for CHARSET_INFO type and conversion routine */
+/* We need mysql for MARIADB_CHARSET_INFO type and conversion routine */
 #include <mysql.h>
 typedef unsigned int uint;
 
@@ -140,7 +139,7 @@ char          ma_strport[12]= ";PORT=3306";
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
 
-CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
+MARIADB_CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -252,37 +251,43 @@ void get_env_defaults()
 
 void get_options(int argc, char **argv)
 {
-  int c= 0;
+  int  i;
 
   get_env_defaults();
 
-  while ((c=getopt(argc,argv, "d:u:p:P:s:S:?")) >= 0)
+  for (i= 1; i < argc; i+= 2) /* "d:u:p:P:s:S:?" */
   {
-    switch(c) {
+    if (argv[i][0] != '-' || argv[i][1] == 0 || argc == i + 1)
+    {
+      usage();
+      exit(0);
+    }
+
+    switch(argv[i][1]) {
     case 'd':
-      my_dsn= (SQLCHAR*)optarg;
+      my_dsn= (SQLCHAR*)argv[i+1];
       break;
     case 'u':
-      my_uid= (SQLCHAR*)optarg;
+      my_uid= (SQLCHAR*)argv[i+1];
       break;
     case 'p':
-      my_pwd= (SQLCHAR*)optarg;
+      my_pwd= (SQLCHAR*)argv[i+1];
       break;
     case 's':
-      my_schema= (SQLCHAR*)optarg;
+      my_schema= (SQLCHAR*)argv[i+1];
       break;
     case 'P':
-      my_port= atoi(optarg);
+      my_port= atoi(argv[i+1]);
       break;
     case 'S':
-      my_servername= (SQLCHAR*)optarg;
+      my_servername= (SQLCHAR*)argv[i+1];
       break;
     case '?':
       usage();
       exit(0);
       break;
     default:
-      fprintf(stdout, "Unknown option %c\n", c);
+      fprintf(stdout, "Unknown option %c\n", argv[i][1]);
       usage();
       exit(0);
     }
@@ -341,8 +346,8 @@ char little_endian()
 
 
 /* More or less copy of the function from MariaDB C/C */
-size_t madbtest_convert_string(CHARSET_INFO *from_cs, const char *from, size_t *from_len,
-                               CHARSET_INFO *to_cs, char *to, size_t *to_len, int *errorcode)
+size_t madbtest_convert_string(MARIADB_CHARSET_INFO *from_cs, const char *from, size_t *from_len,
+                               MARIADB_CHARSET_INFO *to_cs, char *to, size_t *to_len, int *errorcode)
 {
   size_t rc= -1;
   size_t save_len= *to_len;
@@ -761,7 +766,7 @@ int reset_changed_server_variables(void)
   return error;
 }
 
-SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_INFO *from_cs, MARIADB_CHARSET_INFO *to_cs);
 
 int run_tests(MA_ODBC_TESTS *tests)
 {
@@ -769,7 +774,7 @@ int run_tests(MA_ODBC_TESTS *tests)
   const char *comment;
   SQLWCHAR   *buff_before_test;
   /*Dirty hack*/
-  CHARSET_INFO fakeUtf32le;
+  MARIADB_CHARSET_INFO fakeUtf32le;
 
   fakeUtf32le.encoding= "UTF32LE";
   fakeUtf32le.csname=   "utf32le";
@@ -971,7 +976,7 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 /**
   @len[in] - length of the source string in bytes, including teminating NULL
  */
-SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_INFO *from_cs, MARIADB_CHARSET_INFO *to_cs)
 {
   SQLWCHAR   *res= buff_pos;
   size_t      rc, buff_size= sqlwchar_buff + sizeof(sqlwchar_buff) - buff_pos;

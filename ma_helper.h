@@ -36,14 +36,14 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
 bool MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
-size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO *charset);
+size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset);
 int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 
-size_t MADB_GetDisplaySize(MYSQL_FIELD field, CHARSET_INFO *charset);
+size_t MADB_GetDisplaySize(MYSQL_FIELD field, MARIADB_CHARSET_INFO *charset);
 size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
 char *MADB_GetTypeName(MYSQL_FIELD Field);
 char *trim(char *Str);
@@ -70,19 +70,19 @@ extern my_bool DummyError;
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) \
-  my_free((a));\
+  free((a));\
   (a)= NULL;
-#define MADB_ALLOC(a) my_malloc((a), MYF(0))
-#define MADB_CALLOC(a) my_malloc((a), MYF(MY_ZEROFILL))
-#define MADB_REALLOC(a,b) my_realloc((a),(b),MYF(MY_ZEROFILL))
+#define MADB_ALLOC(a) malloc((a))
+#define MADB_CALLOC(a) calloc((a), sizeof(char))
+#define MADB_REALLOC(a,b) realloc((a),(b))
 
 /* If required to free old memory pointed by current ptr, and set new value */
 #define MADB_RESET(ptr, newptr) {\
   char *local_new_ptr= (newptr);\
   if (local_new_ptr != ptr) {\
-    my_free((gptr)(ptr));\
+    free((gptr)(ptr));\
     if (local_new_ptr != NULL)\
-      (ptr)= my_strdup(local_new_ptr, MYF(0));\
+      (ptr)= _strdup(local_new_ptr);\
     else\
       (ptr)= NULL;\
   }\

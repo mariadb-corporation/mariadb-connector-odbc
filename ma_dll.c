@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -28,10 +28,10 @@ BOOL __stdcall DllMain ( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved
       mysql_library_end();
       break;
     case DLL_THREAD_ATTACH:
-      my_thread_init();
+      mysql_thread_init();
       break;
     case DLL_THREAD_DETACH:
-      my_thread_end();
+      mysql_thread_end();
       break;
   }
   return TRUE;

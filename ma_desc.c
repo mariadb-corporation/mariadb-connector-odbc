@@ -81,14 +81,14 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   Desc->DescType= DescType;
   MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
-  if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
+  if (ma_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
   {
     MADB_FREE(Desc);
     return NULL;
   }
   if (isExternal)
   {
-    if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
+    if (ma_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
     {
       MADB_DescFree(Desc, FALSE);
       return NULL;
@@ -139,7 +139,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
       MADB_FREE(Record->TypeName);
     }
   }
-  delete_dynamic(&Desc->Records);
+  ma_delete_dynamic(&Desc->Records);
 
   Desc->Header.Count= 0;
 
@@ -156,7 +156,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
       break;
     }
   }
-  delete_dynamic(&Desc->Stmts);
+  ma_delete_dynamic(&Desc->Stmts);
   if (Desc->AppType)
   {
     Desc->Dbc->Descrs= list_delete(Desc->Dbc->Stmts, &Desc->ListItem);
@@ -348,7 +348,7 @@ void MADB_FixOctetLength(MADB_DescRecord *Record)
 /* }}} */
 
 /* {{{ MADB_FixDisplayLength */
-void MADB_FixDisplaySize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
+void MADB_FixDisplaySize(MADB_DescRecord *Record, const MARIADB_CHARSET_INFO *charset)
 {
   switch (Record->ConciseType) {
   case SQL_BIT:
@@ -408,7 +408,7 @@ void MADB_FixDisplaySize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
 /* }}} */
 
 /* {{{ MADB_FixDataSize - aka Column size */
-void MADB_FixDataSize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
+void MADB_FixDataSize(MADB_DescRecord *Record, const MARIADB_CHARSET_INFO *charset)
 {
   switch (Record->ConciseType) {
   case SQL_BIT:
@@ -539,7 +539,7 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
   MADB_FixDisplaySize(Record, Stmt->Connection->mariadb->charset);
   MADB_FixDataSize(Record, Stmt->Connection->mariadb->charset);
     
-  /*Record->TypeName= my_strdup(MADB_GetTypeName(Fields[i]), MYF(0));*/
+  /*Record->TypeName= strdup(MADB_GetTypeName(Fields[i]));*/
 
   switch(Record->ConciseType) {
   case SQL_BINARY:
@@ -656,7 +656,7 @@ MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordN
 
   while (RecordNumber >= (SQLINTEGER)Desc->Records.elements)
   {
-    if (!(DescRecord= (MADB_DescRecord *)alloc_dynamic(&Desc->Records)))
+    if (!(DescRecord= (MADB_DescRecord *)ma_alloc_dynamic(&Desc->Records)))
     {
       MADB_SetError(&Desc->Error, MADB_ERR_HY001, NULL, 0);
       return NULL;
@@ -993,8 +993,8 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
     return SQL_ERROR;
   }
   /* make sure there aren't old records */
-  delete_dynamic(&DestDesc->Records);
-  if (my_init_dynamic_array(&DestDesc->Records, sizeof(MADB_DescRecord),
+  ma_delete_dynamic(&DestDesc->Records);
+  if (ma_init_dynamic_array(&DestDesc->Records, sizeof(MADB_DescRecord),
                             SrcDesc->Records.elements, SrcDesc->Records.alloc_increment))
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY001, NULL, 0);

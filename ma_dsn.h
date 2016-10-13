@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -162,7 +162,7 @@ void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
     if ((len) == SQL_NTS)\
       (len)=(SQLSMALLINT)strlen((value));\
     MADB_FREE((dsn)->item);\
-    (dsn)->item= (char *)my_malloc(len + 1, MYF(MY_ZEROFILL));\
+    (dsn)->item= (char *)calloc(len + 1, sizeof(char));\
     memcpy((dsn)->item, (value),(len));\
   }
 

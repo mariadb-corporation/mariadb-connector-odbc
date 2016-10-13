@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2015 MariaDB Corporation AB
+   Copyright (C) 2014,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,7 +26,7 @@
 #include <ma_odbc.h>
 #include <stdarg.h>
 
-extern CHARSET_INFO  *utf16;
+extern MARIADB_CHARSET_INFO *utf16;
 extern Client_Charset utf8;
 
 char LogFile[256];

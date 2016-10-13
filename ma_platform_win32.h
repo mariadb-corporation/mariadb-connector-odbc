@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2015 MariaDB Corporation AB
+   Copyright (C) 2014,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -36,5 +36,7 @@
 #include <windows.h>
 
 #define MADB_DRIVER_NAME "maodbc.dll"
+
+char *strndup(const char *s, size_t n);
 
 #endif /*_ma_platform_x_h_ */

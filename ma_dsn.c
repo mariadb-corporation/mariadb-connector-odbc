@@ -373,7 +373,7 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
         break;
       case DSN_TYPE_INT:
         {
-          my_snprintf(Value ,32, "%d", *(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
+          snprintf(Value ,32, "%d", *(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
           ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Value, "ODBC.INI");
         }
         break;
@@ -395,7 +395,7 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
     i++;
   }
   /* Save Options */
-  my_snprintf(Value ,32, "%d", Dsn->Options);
+  snprintf(Value ,32, "%d", Dsn->Options);
   if (!(ret= SQLWritePrivateProfileString(Dsn->DSNName, "OPTIONS", Value, "ODBC.INI")))
   {
     SQLInstallerError(1,&ErrNum, Dsn->ErrorMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
@@ -549,7 +549,7 @@ SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLeng
     if (Value)
     {
       my_bool isSpecial= (strchr(Value, ' ') ||  strchr(Value, ';') || strchr(Value, '@'));
-      CpyLength= my_snprintf(TmpStr + TotalLength, 1024 - TotalLength, "%s%s=%s%s%s", (TotalLength) ? ";" : "",
+      CpyLength= snprintf(TmpStr + TotalLength, 1024 - TotalLength, "%s%s=%s%s%s", (TotalLength) ? ";" : "",
                              DsnKeys[i].DsnKey, isSpecial ? "{" : "", Value, isSpecial ? "}" : "");
       TotalLength+= CpyLength;
     }

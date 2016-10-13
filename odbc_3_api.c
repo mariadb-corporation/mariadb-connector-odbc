@@ -307,7 +307,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       goto end;
     }
     
-    my_snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
+    snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
     if (mysql_query(MariaDb, StmtStr))
     {
       mysql_close(MariaDb);

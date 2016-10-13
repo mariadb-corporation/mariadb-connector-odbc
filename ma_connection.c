@@ -192,7 +192,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       if (isWChar)
         Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, NULL, &Dbc->charset, NULL);
       else
-        Dbc->CatalogName= my_strdup((char *)ValuePtr, MYF(0));
+        Dbc->CatalogName= _strdup((char *)ValuePtr);
 
       if (Dbc->mariadb &&
           mysql_select_db(Dbc->mariadb, Dbc->CatalogName))
@@ -248,7 +248,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         if (MADB_IsolationLevel[i].SqlIsolation == (SQLLEN)ValuePtr)
         {
           char StmtStr[128];
-          my_snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+          snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                       MADB_IsolationLevel[i].StrIsolation);
           LOCK_MARIADB(Dbc);
           if (mysql_query(Dbc->mariadb, StmtStr))
@@ -675,13 +675,13 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
   if (Connection->PacketSize)
   {
-    /*my_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
+    /*snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
     if (mysql_query(Connection->mariadb, StmtStr))
       goto err;*/
   }
 
   if (!Connection->CatalogName && Dsn->Catalog)
-    Connection->CatalogName= my_strdup(Dsn->Catalog, MYF(0));
+    Connection->CatalogName= _strdup(Dsn->Catalog);
 
   /* set default catalog */
   if (Connection->CatalogName && Connection->CatalogName[0])
@@ -705,7 +705,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     {
       if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
       {
-        my_snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+        snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                     MADB_IsolationLevel[i].StrIsolation);
         if (mysql_query(Connection->mariadb, StmtStr))
           goto err;
@@ -1053,7 +1053,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
       if (Dbc->mariadb)
       {
         ServerVersion= mysql_get_server_version(Dbc->mariadb);
-        my_snprintf(Version, 11, "%02u.%02u.%06u", ServerVersion / 10000,
+        snprintf(Version, 11, "%02u.%02u.%06u", ServerVersion / 10000,
                     (ServerVersion % 10000) / 100, ServerVersion % 100);
       }
       else

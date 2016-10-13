@@ -18,7 +18,7 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
-extern CHARSET_INFO*  utf16;
+extern MARIADB_CHARSET_INFO*  utf16;
 
 char *MADB_GetTableName(MADB_Stmt *Stmt)
 {
@@ -76,9 +76,9 @@ char *MADB_GetCatalogName(MADB_Stmt *Stmt)
 
 my_bool MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String)
 {
-  if (dynstr_append(DynString, "`") ||
-      dynstr_append(DynString, String) ||
-      dynstr_append(DynString, "`"))
+  if (ma_dynstr_append(DynString, "`") ||
+      ma_dynstr_append(DynString, String) ||
+      ma_dynstr_append(DynString, "`"))
     return TRUE;
   return FALSE;
 }
@@ -88,7 +88,7 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
   int             i, IgnoredColumns= 0;
   MADB_DescRecord *Record;
 
-  if (dynstr_append(DynString, " SET "))
+  if (ma_dynstr_append(DynString, " SET "))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return TRUE;
@@ -107,7 +107,7 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
       continue;
     }
     
-    if ((i - IgnoredColumns) && dynstr_append(DynString, ","))
+    if ((i - IgnoredColumns) && ma_dynstr_append(DynString, ","))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
       return TRUE;
@@ -117,7 +117,7 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
       return TRUE;
     }
-    if (dynstr_append(DynString, "=?"))
+    if (ma_dynstr_append(DynString, "=?"))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
       return TRUE;
@@ -137,8 +137,8 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
   int             i, NeedComma= 0;
   MADB_DescRecord *Record;
 
-  init_dynamic_string(&ColVals, "VALUES (", 32, 32);
-  if (dynstr_append(DynString, " (") )
+  ma_init_dynamic_string(&ColVals, "VALUES (", 32, 32);
+  if (ma_dynstr_append(DynString, " (") )
   {
     goto dynerror;
     
@@ -152,46 +152,40 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     if (Record->IndicatorPtr)
       IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0,
                                                 sizeof(SQLLEN)/*Record->OctetLength*/);
-    
-    /* We prepare query only once, different paramsets may have different SQL_COLUMN_IGNORE */
-    /*if (IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE)
-    {
-      continue;
-    }*/
 
     if ((NeedComma) && 
-        (dynstr_append(DynString, ",") || dynstr_append(&ColVals, ",")))
+        (ma_dynstr_append(DynString, ",") || ma_dynstr_append(&ColVals, ",")))
       goto dynerror;
 
     if (MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name) ||
-        dynstr_append(&ColVals, "?"))
+        ma_dynstr_append(&ColVals, "?"))
        goto dynerror;
 
     NeedComma= 1;
   }
-  if (dynstr_append(DynString, ") " ) ||
-      dynstr_append(&ColVals, ")") ||
-      dynstr_append(DynString, ColVals.str))
+  if (ma_dynstr_append(DynString, ") " ) ||
+      ma_dynstr_append(&ColVals, ")") ||
+      ma_dynstr_append(DynString, ColVals.str))
     goto dynerror;
-  dynstr_free(&ColVals);
+  ma_dynstr_free(&ColVals);
   return FALSE;
 dynerror:
   MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-  dynstr_free(&ColVals);
+  ma_dynstr_free(&ColVals);
   return TRUE;
 }
 
 my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 {
   unsigned int i;
-  if (dynstr_append(DynString, " ("))
+  if (ma_dynstr_append(DynString, " ("))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return TRUE;
   }
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (i && dynstr_append(DynString, ", "))
+    if (i && ma_dynstr_append(DynString, ", "))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
       return TRUE;
@@ -202,7 +196,7 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
       return TRUE;
     }
   }
-  if (dynstr_append(DynString, " )"))
+  if (ma_dynstr_append(DynString, " )"))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return TRUE;
@@ -240,7 +234,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
     int       FieldCount= 0;
 
     MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE*)&CountStmt);
-    my_snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
+    snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
     CountStmt->Methods->ExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
     CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
@@ -251,18 +245,18 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
       return TRUE;
     }
   }
-  if (dynstr_append(DynString, " WHERE 1"))
+  if (ma_dynstr_append(DynString, " WHERE 1"))
     goto memerror;
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt);i++)
   {
     if (Stmt->stmt->fields[i].flags & Flag || !Flag)
     {
-      if (dynstr_append(DynString, " AND ") ||
+      if (ma_dynstr_append(DynString, " AND ") ||
           MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name))
           goto memerror;
       if (ParameterMarkers)
       {
-        if (dynstr_append(DynString, "=?"))
+        if (ma_dynstr_append(DynString, "=?"))
           goto memerror;
       }
       else
@@ -274,16 +268,16 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
         }
         if (StrLength < 0)
         {
-           if (dynstr_append(DynString, " IS NULL"))
+           if (ma_dynstr_append(DynString, " IS NULL"))
              goto memerror;
         }
         else
         {
           Column= MADB_CALLOC(StrLength + 1);
           Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL);
-          if (dynstr_append(DynString, "= '") ||
-                 dynstr_append(DynString, Column) ||
-                 dynstr_append(DynString, "'"))
+          if (ma_dynstr_append(DynString, "= '") ||
+                 ma_dynstr_append(DynString, Column) ||
+                 ma_dynstr_append(DynString, "'"))
           goto memerror;
           MADB_FREE(Column);
           Column= NULL;
@@ -291,7 +285,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
       }
     }
   }
-  if (dynstr_append(DynString, " LIMIT 1"))
+  if (ma_dynstr_append(DynString, " LIMIT 1"))
     goto memerror;
   MADB_FREE(Column);
   return FALSE;
@@ -304,20 +298,20 @@ memerror:
 my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 {
   unsigned int i;
-  if (dynstr_append(DynString, " VALUES("))
+  if (ma_dynstr_append(DynString, " VALUES("))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return TRUE;
   }
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (dynstr_append(DynString, (i) ? ",?" : "?"))
+    if (ma_dynstr_append(DynString, (i) ? ",?" : "?"))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
       return TRUE;
     }
   }
-  if (dynstr_append(DynString, ")"))
+  if (ma_dynstr_append(DynString, ")"))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return TRUE;
@@ -342,10 +336,10 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
     goto error;
   p= StmtStr;
   
-  p+= my_snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
+  p+= snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (strlen(StmtStr) > Length - 100)
+    if (strlen(StmtStr) > Length - NAME_LEN - 4/* comma + 2 ticks + terminating NULL */)
     {
       Length+= 1024;
       if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
@@ -354,23 +348,26 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
         goto error;
       }
     }
-    p+= my_snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Stmt->stmt->fields[i].org_name);
+    p+= snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Stmt->stmt->fields[i].org_name);
   }
-  p+= my_snprintf(p, Length - strlen(StmtStr), ") VALUES (");
+  p+= snprintf(p, Length - strlen(StmtStr), ") VALUES (");
+
+  if (strlen(StmtStr) > Length - mysql_stmt_field_count(Stmt->stmt)*2 - 1)/* , and ? for each column  + (- 1 comma for 1st column + closing ')')
+                                                                            + terminating NULL */
+  {
+    Length= strlen(StmtStr) + mysql_stmt_field_count(Stmt->stmt)*2 + 1;
+    if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
+      goto error;
+    }
+  }
+
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (strlen(StmtStr) > Length - 100)
-    {
-      Length+= 1024;
-      if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
-        goto error;
-      }
-    }
-    p+= my_snprintf(p, Length - strlen(StmtStr), "%s?", (i==0) ? "" : ",");
+    p+= snprintf(p, Length - strlen(StmtStr), "%s?", (i==0) ? "" : ",");
   }
-  p+= my_snprintf(p, Length - strlen(StmtStr), ")");
+  p+= snprintf(p, Length - strlen(StmtStr), ")");
   return StmtStr;
 
 error:
@@ -454,7 +451,7 @@ void CloseClientCharset(Client_Charset *cc)
 
 
 /* Hmmm... Length in characters is SQLLEN, octet length SQLINTEGER */
-SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
+SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
 {
   SQLLEN result= 0, inChars= *CharLen;
 
@@ -494,7 +491,7 @@ SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
 
 
 /* Number of characters in given number of bytes */
-SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs)
+SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs)
 {
   SQLLEN       result= 0;
   char        *ptr= str;

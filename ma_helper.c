@@ -79,7 +79,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
       end--;
     Length= (SQLINTEGER)(end - StmtStr);
   }
-  p= last= StmtCopy= my_strdup(StmtStr, MYF(0));
+  p= last= StmtCopy= _strdup(StmtStr);
   
   while (p < StmtCopy + Length)
   {
@@ -134,7 +134,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
         if (StmtCopy)
-          my_free(StmtCopy);
+          free(StmtCopy);
         return 0;
       }
       if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
@@ -146,7 +146,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
   }
   if (StmtCopy)
-    my_free(StmtCopy);
+    free(StmtCopy);
 
   return statements;
 }
@@ -185,10 +185,12 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   MADB_Stmt    *KeyStmt;
   
   Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
-  p+= my_snprintf(p, 1024, "SELECT * FROM ");
+  p+= snprintf(p, 1024, "SELECT * FROM ");
   if (Database)
-    p+= my_snprintf(p, 1024 - strlen(p), "`%s`.", Database);
-  p+= my_snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
+  {
+    p+= snprintf(p, 1024 - strlen(p), "`%s`.", Database);
+  }
+  p+= snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
       Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
       Stmt->Methods->Execute(Stmt) == SQL_ERROR ||
@@ -358,21 +360,21 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
   unsigned int i;
   MYSQL_RES *result= NULL;
   
-  init_dynamic_string(&DynStr, "SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='", 512, 512);
-  if (dynstr_append(&DynStr, fields[0].db) ||
-      dynstr_append(&DynStr, "' AND TABLE_NAME='") ||
-      dynstr_append(&DynStr, fields[0].org_table) ||
-      dynstr_append(&DynStr, "' AND COLUMN_NAME IN ("))
+  ma_init_dynamic_string(&DynStr, "SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='", 512, 512);
+  if (ma_dynstr_append(&DynStr, fields[0].db) ||
+      ma_dynstr_append(&DynStr, "' AND TABLE_NAME='") ||
+      ma_dynstr_append(&DynStr, fields[0].org_table) ||
+      ma_dynstr_append(&DynStr, "' AND COLUMN_NAME IN ("))
     goto error;
 
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (dynstr_append(&DynStr, i > 0 ? ",'" : "'") ||
-        dynstr_append(&DynStr, fields[i].org_name) ||
-        dynstr_append(&DynStr, "'"))
+    if (ma_dynstr_append(&DynStr, i > 0 ? ",'" : "'") ||
+        ma_dynstr_append(&DynStr, fields[i].org_name) ||
+        ma_dynstr_append(&DynStr, "'"))
       goto error;
   }
-  if (dynstr_append(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
+  if (ma_dynstr_append(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
     goto error;
 
   LOCK_MARIADB(Stmt->Connection);
@@ -382,7 +384,7 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
   
 error:
     UNLOCK_MARIADB(Stmt->Connection);
-    dynstr_free(&DynStr);
+    ma_dynstr_free(&DynStr);
     return result;
 }
 
@@ -401,7 +403,7 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
   return NULL;
 }
 
-size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO *charset)
+size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset)
 {
   switch(Record->ConciseType)
   {
@@ -445,7 +447,7 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO
 }
 
 /* {{{ MADB_GetDisplaySize */
-size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
+size_t MADB_GetDisplaySize(MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset)
 {
   /* Todo: check these values with output from mysql --with-columntype-info */
   switch (Field.type) {
@@ -1144,39 +1146,39 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   switch(Operation)
   {
   case SQL_ADD:
-    if (init_dynamic_string(&DynStmt, "INSERT INTO ", 1024, 1024) ||
+    if (ma_init_dynamic_string(&DynStmt, "INSERT INTO ", 1024, 1024) ||
         MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-        dynstr_append(&DynStmt, ".") ||
+        ma_dynstr_append(&DynStmt, ".") ||
         MADB_DynStrAppendQuoted(&DynStmt, TableName)||
         MADB_DynStrUpdateSet(Stmt, &DynStmt))
     {
-      dynstr_free(&DynStmt);
+      ma_dynstr_free(&DynStmt);
       return Stmt->Error.ReturnValue;
     }
     Stmt->DataExecutionType= MADB_DAE_ADD;
     break;
   case SQL_DELETE:
-    if (init_dynamic_string(&DynStmt, "DELETE FROM ", 1024, 1024) ||
+    if (ma_init_dynamic_string(&DynStmt, "DELETE FROM ", 1024, 1024) ||
         MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-        dynstr_append(&DynStmt, ".") ||
+        ma_dynstr_append(&DynStmt, ".") ||
         MADB_DynStrAppendQuoted(&DynStmt, TableName) ||
         MADB_DynStrGetWhere(Stmt, &DynStmt, TableName, FALSE))
     {
-      dynstr_free(&DynStmt);
+      ma_dynstr_free(&DynStmt);
       return Stmt->Error.ReturnValue;
     }
     Stmt->DataExecutionType= MADB_DAE_DELETE;
     break;
   case SQL_UPDATE:
     Stmt->Methods->RefreshRowPtrs(Stmt);
-    if (init_dynamic_string(&DynStmt, "UPDATE ", 1024, 1024) ||
+    if (ma_init_dynamic_string(&DynStmt, "UPDATE ", 1024, 1024) ||
         MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-        dynstr_append(&DynStmt, ".") ||
+        ma_dynstr_append(&DynStmt, ".") ||
         MADB_DynStrAppendQuoted(&DynStmt, TableName)||
         MADB_DynStrUpdateSet(Stmt, &DynStmt)||
         MADB_DynStrGetWhere(Stmt, &DynStmt, TableName, FALSE))
     {
-      dynstr_free(&DynStmt);
+      ma_dynstr_free(&DynStmt);
       return Stmt->Error.ReturnValue;
     }
     Stmt->DataExecutionType= MADB_DAE_UPDATE;
@@ -1190,7 +1192,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   }
    
 end:
-  dynstr_free(&DynStmt);
+  ma_dynstr_free(&DynStmt);
   return Stmt->Error.ReturnValue;
 
 }

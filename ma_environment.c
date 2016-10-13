@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2105 MariaDB Corporation AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,9 +19,9 @@
 #include <ma_odbc.h>
 
 extern Client_Charset utf8;
-extern CHARSET_INFO*  utf16;
+extern MARIADB_CHARSET_INFO*  utf16;
 
-CHARSET_INFO * mysql_find_charset_name(const char *name);
+MARIADB_CHARSET_INFO * mysql_find_charset_name(const char *name);
 
 #ifdef _WIN32
 # pragma comment(lib, "ws2_32.lib")
@@ -101,7 +101,7 @@ MADB_Env *MADB_EnvInit()
   {
     utf16= mysql_find_charset_name(little_endian() ? "utf16le" : "utf16");
   }
-  utf8.cs_info= my_charset_utf8_general_ci;
+  utf8.cs_info= ma_charset_utf8_general_ci;
   GetDefaultLogDir();
 
 cleanup:

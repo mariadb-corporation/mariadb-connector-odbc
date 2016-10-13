@@ -22,7 +22,7 @@
 
 #include <ma_odbc.h>
 
-CHARSET_INFO*  utf16= NULL;
+MARIADB_CHARSET_INFO*  utf16= NULL;
 Client_Charset utf8=  {CP_UTF8, NULL};
 
 

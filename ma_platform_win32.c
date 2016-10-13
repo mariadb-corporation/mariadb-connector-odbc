@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2015 MariaDB Corporation AB
+   Copyright (C) 2014,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -27,6 +27,21 @@
 
 extern Client_Charset utf8;
 char LogFile[256];
+
+
+char *strndup(const char *s, size_t n)
+{
+  size_t len= MIN(strlen(s), n);
+  char  *res= (char*)malloc(len + 1);
+
+  if (res != NULL)
+  {
+    memcpy(res, s, len);
+    res[len]= '\0';
+  }
+
+  return res;
+}
 
 
 const char* GetDefaultLogDir()

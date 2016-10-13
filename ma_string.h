@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -38,8 +38,8 @@ SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 my_bool   MADB_ValidateStmt(char *StmtStr);
 my_bool   MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);
 
-SQLLEN     MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
-SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
+SQLLEN     MbstrOctetLen(char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs);
+SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLINTEGER SqlwcsLen(SQLWCHAR *str);
 

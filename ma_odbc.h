@@ -29,15 +29,15 @@
 
 #include <stdlib.h>
 
-#include <my_global.h>
-#include <my_sys.h>
+#include <ma_global.h>
+#include <ma_sys.h>
 #include <mysql.h>
 
 #include <sql.h>
 #include <sqlext.h>
 #include <odbcinst.h>
 
-#include <errmsg.h>
+#include <ma_errmsg.h>
 #include <string.h>
 
 #include <ma_odbc_version.h>
@@ -365,7 +365,7 @@ typedef struct st_ma_odbc_environment {
 typedef struct st_client_charset
 {
   unsigned int CodePage;
-  CHARSET_INFO *cs_info;
+  MARIADB_CHARSET_INFO *cs_info;
 } Client_Charset;
 
 struct st_ma_odbc_connection

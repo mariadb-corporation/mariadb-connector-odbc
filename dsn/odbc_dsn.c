@@ -47,7 +47,8 @@ const int    *EffectiveDisabledPages=    NULL,
              *EffectiveDisabledControls= NULL;
 BOOL          OpenCurSelection=          TRUE;
 
-#ifdef HAVE_OPENSSL
+/* On Windows we are supposed to have schannel, or we can have openssl */
+#if defined(_WIN32) || defined(HAVE_OPENSSL) 
 # define  SSL_DISABLED 0
 #else
 # define  SSL_DISABLED 1
@@ -441,7 +442,7 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
   {
     char Info[1024];
 	if (ret == SQL_SUCCESS)
-      my_snprintf(Info, 1024, "Connection successfully established\n\nServer information: %s", mysql_get_server_info(((MADB_Dbc *)Connection)->mariadb));
+      snprintf(Info, 1024, "Connection successfully established\n\nServer information: %s", mysql_get_server_info(((MADB_Dbc *)Connection)->mariadb));
     MessageBox(hwndTab[CurrentPage],  (ret == SQL_SUCCESS) ? Info : 
 	         ((MADB_Dbc *)Connection)->Error.SqlErrorMsg, "Connection test",MB_ICONINFORMATION| MB_OK);
   }
