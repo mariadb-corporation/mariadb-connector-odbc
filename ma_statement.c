@@ -352,7 +352,6 @@ MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 /* {{{ MADB_StmtReset - reseting Stmt handler for new use */
 void MADB_StmtReset(MADB_Stmt *Stmt)
 {
-  /* TODO: These all stuff has to be moved to a separate function, smth like MADB_StmtReset */
   MADB_StmtFree(Stmt, SQL_CLOSE);
   MADB_CLEAR_ERROR(&Stmt->Error);
   MADB_FREE(Stmt->NativeSql);
@@ -685,16 +684,6 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   return Stmt->Error.ReturnValue;
 }
 /* }}} */
-
-/* TODO: This function doesn't seem to be used anywhere */
-SQLULEN GetOffset(MADB_Stmt *Stmt, SQLUINTEGER Count, MADB_DescRecord *Record, SQLUINTEGER Size)
-{
-  if (Stmt->Ard->Header.BindType)
-    return Stmt->Ard->Header.BindType * Count;
-  if (Size)
-    return Count * Size;
-  return Count * Record->OctetLength;
-}
 
 /* {{{ MADB_ExecutePositionedUpdate */
 SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
@@ -1221,9 +1210,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       }
       if (Stmt->ParamCount)
       {
-        //TODO: mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
-        memcpy(Stmt->stmt->params, Stmt->params, sizeof(MYSQL_BIND) * Stmt->ParamCount);
-        Stmt->stmt->send_types_to_server= 1;
+        mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
       }
       ret= SQL_SUCCESS;
 
@@ -1654,7 +1641,7 @@ void SwitchEndianness(char *Src, SQLLEN SrcBytes, char *Dst, SQLLEN DstBytes)
 
 /* {{{ MADB_FixFetchedValues 
        Converting and/or fixing fetched values if needed */
-SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *SaveCursor)
+SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET SaveCursor)
 {
   MADB_DescRecord *IrdRec, *ArdRec;
   int             i;
@@ -1684,7 +1671,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
         {
           MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
           if (SaveCursor)
-            Stmt->stmt->result_cursor= SaveCursor;
+            mysql_stmt_row_seek(Stmt->stmt, SaveCursor);
           return Stmt->Error.ReturnValue;
         }
       }
@@ -1811,10 +1798,10 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
 /* {{{ MADB_StmtFetch */
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 {
-  unsigned int j, rc;
-  SQLULEN      ArraySize=  Stmt->Ard->Header.ArraySize;
-  MADB_Desc   *ArdDesc= Stmt->Ard;
-  MYSQL_ROWS  *SaveCursor= NULL;
+  unsigned int      j, rc;
+  SQLULEN           ArraySize=  Stmt->Ard->Header.ArraySize;
+  MADB_Desc         *ArdDesc=    Stmt->Ard;
+  MYSQL_ROW_OFFSET  SaveCursor= NULL;
     
   if (!Stmt->stmt)
     return SQL_INVALID_HANDLE;
@@ -1831,7 +1818,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   /* We don't know if any of the ARD parameter changed, so we need to rebind */
   MADB_FREE(Stmt->result);
   if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
-      SaveCursor= Stmt->stmt->result_cursor;
+    SaveCursor= mysql_stmt_row_tell(Stmt->stmt);
 
   if (Stmt->Ird->Header.ArrayStatusPtr)
   {
@@ -1937,7 +1924,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   }
 
   if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY && SaveCursor)
-      Stmt->stmt->result_cursor= SaveCursor;
+    mysql_stmt_row_seek(Stmt->stmt, SaveCursor);
   return Stmt->Error.ReturnValue;
 }
 /* }}} */
