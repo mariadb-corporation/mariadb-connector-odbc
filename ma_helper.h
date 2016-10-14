@@ -73,7 +73,7 @@ extern my_bool DummyError;
   free((a));\
   (a)= NULL;
 #define MADB_ALLOC(a) malloc((a))
-#define MADB_CALLOC(a) calloc((a), sizeof(char))
+#define MADB_CALLOC(a) calloc((a) > 0 ? (a) : 1, sizeof(char))
 #define MADB_REALLOC(a,b) realloc((a),(b))
 
 /* If required to free old memory pointed by current ptr, and set new value */
