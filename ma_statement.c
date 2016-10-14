@@ -978,6 +978,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             {
               Stmt->params[i-ParamOffset].buffer=       ApdRecord->DefaultValue;
               Stmt->params[i-ParamOffset].length_value= (unsigned long)strlen(ApdRecord->DefaultValue);
+              Stmt->params[i-ParamOffset].length=       &Stmt->params[i-ParamOffset].length_value;
               Stmt->params[i-ParamOffset].buffer_type=  MYSQL_TYPE_STRING;
             }
           }
@@ -995,15 +996,21 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             {
               if (DataPtr)
               {
-                if (ApdRecord->ConciseType == SQL_C_WCHAR)
+                switch (ApdRecord->ConciseType)
+                {
+                case SQL_C_WCHAR:
                   Length= SqlwcsLen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
-                else if (ApdRecord->ConciseType == SQL_C_CHAR)
+                  break;
+                case SQL_C_CHAR:
+                case SQL_BINARY:
+                case SQL_LONGVARBINARY:
                   Length= strlen((SQLCHAR *)DataPtr);
+                }
               }
               if (!OctetLengthPtr && ApdRecord->OctetLength && ApdRecord->OctetLength != SQL_SETPARAM_VALUE_MAX)
                 Length= MIN(Length, ApdRecord->OctetLength);
             }
-            Stmt->params[i-ParamOffset].length= 0;
+            Stmt->params[i-ParamOffset].length= NULL;
 
             switch (ApdRecord->ConciseType) {
             case SQL_C_WCHAR:
@@ -1117,6 +1124,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 ApdRecord->InternalBuffer= (void *)tm;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
+                Stmt->params[i-ParamOffset].length= &Stmt->params[i-ParamOffset].length_value;
               }
               break;
               case SQL_C_TIME:
@@ -1144,6 +1152,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_DATETIME;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
+                Stmt->params[i-ParamOffset].length= &Stmt->params[i-ParamOffset].length_value;
               }
               break;
               case SQL_C_DATE:
@@ -1167,22 +1176,20 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_DATE;
                 Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
                 Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
+                Stmt->params[i-ParamOffset].length= &Stmt->params[i-ParamOffset].length_value;
               }
               break;
             case SQL_BINARY:
             case SQL_LONGVARBINARY:
               {
-                SQLLEN *length= (SQLLEN *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, j - Start, sizeof(SQLLEN));
+                Stmt->params[i-ParamOffset].buffer= (char *)DataPtr;
 
-                Stmt->params[i-ParamOffset].buffer= (char *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
-
-                if (length && *length == SQL_NTS)
-                  *length= strlen((char *)Stmt->params[i-ParamOffset].buffer);
-
-                if (length)
-                  Stmt->params[i-ParamOffset].length_value= (unsigned long)*length;
+                if (OctetLengthPtr)
+                  Stmt->params[i-ParamOffset].length_value= (unsigned long)Length;
                 else
                   Stmt->params[i-ParamOffset].length_value= (unsigned long)ApdRecord->OctetLength;
+
+                Stmt->params[i-ParamOffset].length= &Stmt->params[i-ParamOffset].length_value;
 
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_BLOB;
               }
@@ -1194,8 +1201,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 Stmt->params[i-ParamOffset].buffer_type= MADB_GetTypeAndLength(ApdRecord->ConciseType,
                                       &Stmt->params[i-ParamOffset].is_unsigned, &Stmt->params[i-ParamOffset].buffer_length);
                 if (!ApdRecord->OctetLength)
+                {
                   ApdRecord->OctetLength= Stmt->params[i-ParamOffset].buffer_length;
-                Stmt->params[i-ParamOffset].buffer= GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                  DataPtr= GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                }
+                Stmt->params[i-ParamOffset].buffer= DataPtr;
               }
             }
           }
@@ -1211,6 +1221,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       }
       if (Stmt->ParamCount)
       {
+        //TODO: mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
         memcpy(Stmt->stmt->params, Stmt->params, sizeof(MYSQL_BIND) * Stmt->ParamCount);
         Stmt->stmt->send_types_to_server= 1;
       }

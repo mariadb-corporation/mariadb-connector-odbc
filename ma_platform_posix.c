@@ -141,7 +141,7 @@ SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)
 }
 
 
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
+SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
   size_t Length= 0;
@@ -173,7 +173,7 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 
 
 /* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
+char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
                             BOOL *Error)
 {
   char *AscStr;
@@ -241,7 +241,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length
        @IsNull[in]        - whether to copy terminating blank. The value has to be 1 or 0(TRUE/FALSE)
                             If AnsiString is negative, its value is neglected(null is copied)
        @returns 1 in case of error, 0 otherwise */
-int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLength, 
+int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
@@ -318,7 +318,7 @@ end:
 /* {{{ MADB_ConvertAnsi2Unicode
        @returns number of characters available at Src */
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
-                      char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
+                      const char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
   SQLLEN Length= 0;
 

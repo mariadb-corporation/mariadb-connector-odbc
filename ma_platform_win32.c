@@ -94,7 +94,7 @@ int DSNPrompt_Free(MADB_Prompt *prompt)
 }
 
 
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
+SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
   int Length;
@@ -124,7 +124,7 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 }
 
 /* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
+char *MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
 {
   char *AscStr;
   int AscLen, AllocLen;
@@ -158,7 +158,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Len
 /* }}} */
 
 
-int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLength, 
+int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
@@ -219,7 +219,7 @@ end:
 
 
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
-                      char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
+                      const char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
   char  *p= (char *)Dest;
   SQLLEN Length= 0;
