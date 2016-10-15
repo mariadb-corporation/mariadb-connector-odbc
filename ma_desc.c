@@ -86,7 +86,7 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
     MADB_FREE(Desc);
     return NULL;
   }
-  if (Desc && isExternal)
+  if (isExternal)
   {
     if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
     {
