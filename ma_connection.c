@@ -1167,7 +1167,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_FILE_USAGE:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_FILE_NOT_SUPPORTED, StringLengthPtr);
+    MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_FILE_NOT_SUPPORTED, StringLengthPtr);
     break;
   case SQL_FORWARD_ONLY_CURSOR_ATTRIBUTES1:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_CA1_ABSOLUTE |
