@@ -85,7 +85,7 @@ my_bool MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String)
 
 my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 {
-  int             i, IgnoredColumns= 0, Count= 0;
+  int             i, IgnoredColumns= 0;
   MADB_DescRecord *Record;
 
   if (dynstr_append(DynString, " SET "))

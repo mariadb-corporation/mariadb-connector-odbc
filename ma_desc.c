@@ -84,14 +84,14 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
   {
     MADB_FREE(Desc);
-    Desc= NULL;
+    return NULL;
   }
   if (isExternal)
   {
     if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
     {
       MADB_DescFree(Desc, FALSE);
-      Desc= NULL;
+      return NULL;
     }
     else
     {
@@ -101,9 +101,7 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
       Dbc->Descrs= list_add(Dbc->Descrs, &Desc->ListItem);
     }
   }
-  if (Desc)
-    Desc->AppType= isExternal;
-
+  Desc->AppType= isExternal;
   Desc->Header.ArraySize= 1;
  
   return Desc;
