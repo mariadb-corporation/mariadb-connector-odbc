@@ -1789,15 +1789,13 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 {
   unsigned int j, rc;
-  SQLULEN      ArraySize;
-  MADB_Desc   *ArdDesc;
+  SQLULEN      ArraySize=  Stmt->Ard->Header.ArraySize;
+  MADB_Desc   *ArdDesc= Stmt->Ard;
   MYSQL_ROWS  *SaveCursor= NULL;
     
-  if (!Stmt || !Stmt->stmt)
+  if (!Stmt->stmt)
     return SQL_INVALID_HANDLE;
 
-  ArraySize=  Stmt->Ard->Header.ArraySize;
-  ArdDesc= Stmt->Ard;
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType != SQL_C_VARBOOKMARK) ||
