@@ -110,8 +110,6 @@ SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER Te
 /* {{{ MADB_StmtBulkOperations */
 SQLRETURN MADB_StmtBulkOperations(MADB_Stmt *Stmt, SQLSMALLINT Operation)
 {
-  SQLHSTMT NewStmt= NULL;
-
   MADB_CLEAR_ERROR(&Stmt->Error);
   switch(Operation)
   {
@@ -441,7 +439,6 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
   if ((CursorName = MADB_ParseCursorName(Stmt, &WhereOffset)))
   {
-    unsigned int Length= WhereOffset + 10;
     DYNAMIC_STRING StmtStr;
     char *TableName;
 
@@ -1312,12 +1309,13 @@ end:
 SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
     SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN *StrLen_or_Ind)
 {
-  MADB_Desc *Ard= Stmt->Ard;
+  MADB_Desc *Ard;
   MADB_DescRecord *Record;
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   
+  Ard= Stmt->Ard;
   if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || 
       (mysql_stmt_field_count(Stmt->stmt) &&
        Stmt->stmt->state > MYSQL_STMT_PREPARED && 
@@ -1795,13 +1793,15 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 {
   unsigned int j, rc;
-  SQLULEN      ArraySize=  Stmt->Ard->Header.ArraySize;
-  MADB_Desc   *ArdDesc=    Stmt->Ard;
+  SQLULEN      ArraySize;
+  MADB_Desc   *ArdDesc;
   MYSQL_ROWS  *SaveCursor= NULL;
     
   if (!Stmt || !Stmt->stmt)
     return SQL_INVALID_HANDLE;
 
+  ArraySize=  Stmt->Ard->Header.ArraySize;
+  ArdDesc= Stmt->Ard;
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType != SQL_C_VARBOOKMARK) ||

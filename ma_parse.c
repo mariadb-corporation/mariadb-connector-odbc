@@ -42,8 +42,6 @@ MADB_QUERY *MADB_Tokenize(const char *Stmt)
   const char *End= (char *)Stmt + strlen(Stmt);
   const char *Pos;
   const char *Start= Stmt;
-  const char *p= Stmt;
-  int Tokens= 0;
 
   MADB_QUERY *Query= (MADB_QUERY *)MADB_CALLOC(sizeof(MADB_QUERY));
   init_dynamic_array(&Query->tokens, sizeof(unsigned int), 20, 20);
