@@ -1309,12 +1309,9 @@ end:
 SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
     SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN *StrLen_or_Ind)
 {
-  MADB_Desc *Ard;
+  MADB_Desc *Ard = Stmt->Ard;
   MADB_DescRecord *Record;
 
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
-  
   Ard= Stmt->Ard;
   if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || 
       (mysql_stmt_field_count(Stmt->stmt) &&
