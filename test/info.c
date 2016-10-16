@@ -486,23 +486,37 @@ ODBC_TEST(test_need_long_data_len)
 }
 
 
+/* https://jira.mariadb.org/browse/ODBC-61
+Request of SQL_FILE_USAGE info crashes connector */
+ODBC_TEST(bug_odbc61)
+{
+  SQLUSMALLINT info= 0xef;
+
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_FILE_USAGE, &info,
+    0, NULL));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
-  {t_gettypeinfo, "t_gettypeinfo",          NORMAL},
-  {sqlgetinfo, "sqlgetinfo",                NORMAL},
-  {t_stmt_attr_status, "t_stmt_attr_status",NORMAL},
-  {t_msdev_bug, "t_msdev_bug",              NORMAL},
-  {t_bug14639, "t_bug14639",                NORMAL},
-  {t_bug31055, "t_bug31055",                NORMAL},
-  {t_bug3780, "t_bug3780",                  NORMAL},
-  {t_bug16653, "t_bug16653",                NORMAL},
-  {t_bug30626, "t_bug30626",                NORMAL},
-  {t_bug43855, "t_bug43855",                NORMAL},
-  {t_bug46910, "t_bug46910",                NORMAL}, 
-  {t_bug11749093, "t_bug11749093",          TO_FIX},
-  {bug_odbc15, "bug_odbc15",                NORMAL},
-  {test_need_long_data_len, "test_need_long_data_len", NORMAL},
-  {NULL, NULL}
+  { t_gettypeinfo, "t_gettypeinfo", NORMAL },
+  { sqlgetinfo, "sqlgetinfo", NORMAL },
+  { t_stmt_attr_status, "t_stmt_attr_status", NORMAL },
+  { t_msdev_bug, "t_msdev_bug", NORMAL },
+  { t_bug14639, "t_bug14639", NORMAL },
+  { t_bug31055, "t_bug31055", NORMAL },
+  { t_bug3780, "t_bug3780", NORMAL },
+  { t_bug16653, "t_bug16653", NORMAL },
+  { t_bug30626, "t_bug30626", NORMAL },
+  { t_bug43855, "t_bug43855", NORMAL },
+  { t_bug46910, "t_bug46910", NORMAL },
+  { t_bug11749093, "t_bug11749093", TO_FIX },
+  { bug_odbc15, "odbc15", NORMAL },
+  { test_need_long_data_len, "test_need_long_data_len", NORMAL },
+  { bug_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
+  { NULL, NULL }
 };
 
 int main(int argc, char **argv)
