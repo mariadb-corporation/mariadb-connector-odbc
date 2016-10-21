@@ -1170,7 +1170,6 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     Stmt->DataExecutionType= MADB_DAE_DELETE;
     break;
   case SQL_UPDATE:
-    Stmt->Methods->RefreshRowPtrs(Stmt);
     if (ma_init_dynamic_string(&DynStmt, "UPDATE ", 1024, 1024) ||
         MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
         ma_dynstr_append(&DynStmt, ".") ||

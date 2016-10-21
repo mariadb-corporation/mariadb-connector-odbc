@@ -103,14 +103,12 @@ typedef struct
 
 typedef struct
 {
-	SQLLEN RowsetSize; /* for ODBC3 fetch operation */
 	SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
 	SQLUSMALLINT	*RowOperationPtr;
 	SQLULEN		*RowOffsetPtr;
   MADB_ColBind *ColumnBind;
 	MYSQL_BIND *Bind;
 	SQLSMALLINT	Allocated;
-	SQLLEN		size_of_rowset_odbc2; /* for SQLExtendedFetch */
 } MADB_Ard;
 
 typedef struct
@@ -266,6 +264,7 @@ typedef struct
 {
   char  *Name;
   SQLLEN Position;
+  SQLLEN RowsetSize;
 } MADB_Cursor;
 
 enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DAE_DELETE=3};

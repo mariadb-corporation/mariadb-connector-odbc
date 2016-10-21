@@ -19,7 +19,8 @@
  #ifndef _ma_result_h_
  #define _ma_result_h_
 
-SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset);
+SQLRETURN MADB_StmtDataSeek   (MADB_Stmt *Stmt, my_ulonglong FetchOffset);
 SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt);
+SQLULEN   MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long long RowsInResultst);
 
  #endif /* _ma_result_h_ */

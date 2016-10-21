@@ -155,7 +155,7 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     SQLLEN      nRowCount;
     SQLHSTMT    hstmt_pos;
     SQLINTEGER  i,nData[15];
-    char        data[30],szData[15][10]={0};
+    char        data[30],szData[15][10]={0}, buff[10];
 
     /* initialize data */
     OK_SIMPLE_STMT(Stmt, "drop table if exists my_dynamic_cursor");
@@ -203,6 +203,9 @@ ODBC_TEST(my_dynamic_pos_cursor1)
       diag("i %d nData: %d szData: %s", i, nData[i - 5], szData[i - 5]);
       is_num(i, nData[i - 5]);
     }
+
+    /* Cursor is supposed to stay on the 1st row of the rowset */
+    IS_STR(my_fetch_str(Stmt, buff, 2), "MySQL5", sizeof("MySQL5"));
 
     /*rc = SQLSetPos(Stmt,SQL_POSITION,2,SQL_LOCK_NO_CHANGE);
     CHECK_STMT_RC(Stmt,rc); */

@@ -27,12 +27,7 @@ SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
   {
    return SQL_NO_DATA_FOUND;
   }
-  /*
-  Stmt->Cursor.Position= 0;
-  for (tmp= Stmt->stmt->result.data; FetchOffset-- && tmp ; tmp = tmp->next)
-    Stmt->Cursor.Position++;
-  Stmt->stmt->result_cursor= tmp;
-  */
+
   mysql_stmt_data_seek(Stmt->stmt, FetchOffset);
 
   /* We need to fetch lengths, so SQLGetData will return correct results. 
@@ -114,3 +109,19 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   return ret;
 }
 /* }}} */
+
+/* {{{ MADB_RecordsToFetch */
+SQLULEN MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long long RowsInResultst)
+{
+  SQLLEN  Position= Cursor->Position >= 0 ? Cursor->Position : 0;
+  SQLULEN result= ArraySize;
+
+  Cursor->RowsetSize= ArraySize;
+
+  if (Position + ArraySize > RowsInResultst)
+    result= (SQLULEN)(RowsInResultst - Position);
+
+  return result > 0 ? result : 1;
+}
+/* }}} */
+
