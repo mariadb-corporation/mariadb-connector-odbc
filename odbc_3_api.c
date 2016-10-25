@@ -3207,10 +3207,18 @@ SQLRETURN SQL_API SQLParamOptions(
     SQLULEN  *pirow)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)hstmt;
+  SQLRETURN result;
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  return MADB_DescSetField(Stmt->Apd, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)crow, SQL_IS_USMALLINT, 0);
+  result= MADB_DescSetField(Stmt->Apd, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)crow, SQL_IS_UINTEGER, 0);
+
+  if (SQL_SUCCEEDED(result))
+  {
+    result= MADB_DescSetField(Stmt->Ipd, 0, SQL_DESC_ROWS_PROCESSED_PTR, (SQLPOINTER)pirow, SQL_IS_POINTER, 0);
+  }
+
+  return result;
 }
 /* }}} */

@@ -780,8 +780,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
   /* Since Outparams are only one row, we use store result */
   if (mysql_stmt_store_result(Stmt->stmt))
   {
-    MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt);
   }
 
   Bind= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt));
@@ -847,6 +846,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   unsigned int ParamOffset=   0; /* for multi statements */
   unsigned int Iterations=    1;
   SQLLEN       j, Start=      0;
+
+  BOOL         FetchedOutParams= FALSE;
+
+
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
@@ -1223,7 +1226,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       else
       {
         if (Stmt->stmt->mysql->server_status & SERVER_PS_OUT_PARAMS)
+        {
+          FetchedOutParams= TRUE;
           ret= Stmt->Methods->GetOutParams(Stmt, 0);
+        }
       }
  
       /* We need to unset InternalLength */
@@ -1274,7 +1280,8 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
     /* Todo: for SQL_CURSOR_FORWARD_ONLY we should use cursor and prefetch rows */
     /*************************** mysql_stmt_store_result ******************************/
-    if (mysql_stmt_store_result(Stmt->stmt) != 0)
+    /*If we did OUT params already, we should not store */
+    if (FetchedOutParams == FALSE && mysql_stmt_store_result(Stmt->stmt) != 0)
     {
       UNLOCK_MARIADB(Stmt->Connection);
       if (DefaultResult)
@@ -1972,7 +1979,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)(SQLULEN)Stmt->Ipd->Header.BindType;
     break;
   case SQL_ATTR_PARAMSET_SIZE:
-    *(SQLULEN *)ValuePtr= Stmt->Apd->Header.BindType;
+    *(SQLULEN *)ValuePtr= Stmt->Apd->Header.ArraySize;
     break;
   case SQL_ATTR_ASYNC_ENABLE:
     *(SQLPOINTER *)ValuePtr= SQL_ASYNC_ENABLE_OFF;

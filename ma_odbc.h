@@ -95,7 +95,7 @@ typedef struct
   SQLULEN       ArraySize;
   SQLUSMALLINT *ArrayStatusPtr;
   SQLULEN      *BindOffsetPtr;
-  SQLINTEGER    BindType;
+  SQLULEN       BindType;
   SQLSMALLINT   Count;
   SQLULEN      *RowsProcessedPtr;
   /* Header end */
