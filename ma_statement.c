@@ -1274,9 +1274,14 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
     /* Todo: for SQL_CURSOR_FORWARD_ONLY we should use cursor and prefetch rows */
     /*************************** mysql_stmt_store_result ******************************/
-    mysql_stmt_store_result(Stmt->stmt);
-    /*todo: memleak */
- // mysql_stmt_result_metadata(Stmt->stmt);
+    if (mysql_stmt_store_result(Stmt->stmt) != 0)
+    {
+      UNLOCK_MARIADB(Stmt->Connection);
+      if (DefaultResult)
+        mysql_free_result(DefaultResult);
+
+      return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+    }
 
     Stmt->Cursor.Position= -1;
     
@@ -1967,7 +1972,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)(SQLULEN)Stmt->Ipd->Header.BindType;
     break;
   case SQL_ATTR_PARAMSET_SIZE:
-    *(SQLUINTEGER *)ValuePtr= Stmt->Apd->Header.BindType;
+    *(SQLULEN *)ValuePtr= Stmt->Apd->Header.BindType;
     break;
   case SQL_ATTR_ASYNC_ENABLE:
     *(SQLPOINTER *)ValuePtr= SQL_ASYNC_ENABLE_OFF;

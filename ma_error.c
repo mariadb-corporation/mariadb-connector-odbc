@@ -166,7 +166,7 @@ char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
 }
 
 
-void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
+SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
 {
   char *Sqlstate= NULL, *Errormsg= NULL;
   int NativeError= 0;
@@ -197,12 +197,14 @@ void MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
   if (Error->SqlState[0] == '0')
     Error->ReturnValue= (Error->SqlState[1] == '0') ? SQL_SUCCESS :
                         (Error->SqlState[1] == '1') ? SQL_SUCCESS_WITH_INFO : SQL_ERROR;
+
+  return Error->ReturnValue;
 }
 
 /* {{{ MADB_SetError */
 SQLRETURN MADB_SetError(MADB_Error  *Error,
                         unsigned int SqlErrorCode,
-                        char        *NativeErrorMsg,
+                        const char  *NativeErrorMsg,
                         unsigned int NativeError)
 {
   unsigned int ErrorCode= SqlErrorCode;
