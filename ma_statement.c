@@ -453,6 +453,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       MADB_SetError(&Stmt->Error, MADB_ERR_42000, "Invalid SQL Syntax: DELETE or UPDATE expected for positioned update", 0);
       return Stmt->Error.ReturnValue;
     }
+
     if (!(Stmt->PositionedCursor= MADB_FindCursor(Stmt, CursorName)))
       return Stmt->Error.ReturnValue;
 
@@ -466,6 +467,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     TextLength= (SQLINTEGER)strlen(Stmt->StmtString);
     ma_dynstr_free(&StmtStr);
   }
+
   if (Stmt->Options.MaxRows)
   {
     char *p;
@@ -1808,6 +1810,11 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
+  if (!(MADB_STMT_COLUMN_COUNT(Stmt) > 0))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
+  }
+
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType != SQL_C_VARBOOKMARK) ||
       (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && Stmt->Options.BookmarkType == SQL_C_VARBOOKMARK))
   {
@@ -1919,8 +1926,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
       if (Stmt->Ird->Header.RowsProcessedPtr && *Stmt->Ird->Header.RowsProcessedPtr)/* TODO: Why not the Stmt->LastRowFetched > 0) ?
                                                                                        I guess we need here more >1 row fetched, and >0 successfully */
         return SQL_SUCCESS_WITH_INFO;
-      else
-        return SQL_NO_DATA;
+      return SQL_NO_DATA;
     }  /* End of switch on fetch result */
 
     Stmt->LastRowFetched++;
@@ -2296,7 +2302,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   unsigned long   Length= 0;
   my_bool         Error;
   unsigned int    i;
-  //unsigned char   *SavePtr=Stmt->stmt->bind[Offset].row_ptr;
+  //unsigned char   *SavePtr;
   MADB_DescRecord *IrdRec= NULL;
 
   if (BufferLength < 0)
@@ -2304,6 +2310,15 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
+
+  /* Should not really happen, and is evidence of that something wrong happened in some previous call(SQLFetch?) */
+  if (Stmt->stmt->bind == NULL)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  //SavePtr= Stmt->stmt->bind[Offset].row_ptr;
 
   if (Stmt->stmt->bind[Offset].is_null != NULL && *Stmt->stmt->bind[Offset].is_null != '\0')
   {
