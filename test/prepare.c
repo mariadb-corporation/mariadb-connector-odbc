@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2016 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1173,6 +1173,26 @@ ODBC_TEST(t_bug67702)
   return OK;
 }
 
+/**
+ODBC-57: MS Access adds parenthesis around each "SELECT" in a "UNION" query. Connector had problems preparing it.
+But in general any (returning result) query in parenthesis caused the same problem
+*/
+ODBC_TEST(odbc_57)
+{
+  int value= 0;
+
+  OK_SIMPLE_STMT(Stmt, "(SELECT 1)");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_INTEGER, &value, 0, NULL));
+  
+  is_num(value, 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_prep_basic, "t_prep_basic"},
@@ -1191,6 +1211,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29871, "t_bug29871"},
   {t_bug67340, "t_bug67340"},
   {t_bug67702, "t_bug67702"},
+  {odbc_57, "odbc-57-query_in_parenthesis" },
   {NULL, NULL}
 };
 

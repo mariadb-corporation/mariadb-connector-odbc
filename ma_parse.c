@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -143,23 +143,28 @@ const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt)
 
 enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt)
 {
-  if (_strnicmp(Stmt->StmtString, "SELECT", 6) == 0)
+  char *p= Stmt->StmtString;
+
+  while (*p && !isalpha(*p))
+    ++p;
+
+  if (_strnicmp(p, "SELECT", 6) == 0)
   {
     return MADB_QUERY_SELECT;
   }
-  if (_strnicmp(Stmt->StmtString, "UPDATE", 6) == 0)
+  if (_strnicmp(p, "UPDATE", 6) == 0)
   {
     return MADB_QUERY_UPDATE;
   }
-  if (_strnicmp(Stmt->StmtString, "DELETE", 6) == 0)
+  if (_strnicmp(p, "DELETE", 6) == 0)
   {
     return MADB_QUERY_DELETE;
   }
-  if (_strnicmp(Stmt->StmtString, "CALL", 4) == 0)
+  if (_strnicmp(p, "CALL", 4) == 0)
   {
     return MADB_QUERY_CALL;
   }
-  if (_strnicmp(Stmt->StmtString, "SHOW", 4) == 0)
+  if (_strnicmp(p, "SHOW", 4) == 0)
   {
     return MADB_QUERY_SHOW;
   }

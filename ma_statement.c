@@ -454,6 +454,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       MADB_SetError(&Stmt->Error, MADB_ERR_42000, "Invalid SQL Syntax: DELETE or UPDATE expected for positioned update", 0);
       return Stmt->Error.ReturnValue;
     }
+
     if (!(Stmt->PositionedCursor= MADB_FindCursor(Stmt, CursorName)))
       return Stmt->Error.ReturnValue;
 
@@ -467,6 +468,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     TextLength= (SQLINTEGER)strlen(Stmt->StmtString);
     dynstr_free(&StmtStr);
   }
+
   if (Stmt->Options.MaxRows)
   {
     char *p;
@@ -1810,6 +1812,11 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
+  if (!(MADB_STMT_COLUMN_COUNT(Stmt) > 0))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
+  }
+
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType != SQL_C_VARBOOKMARK) ||
       (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && Stmt->Options.BookmarkType == SQL_C_VARBOOKMARK))
   {
@@ -1829,103 +1836,100 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   Stmt->LastRowFetched= 0;
 
-  if (MADB_STMT_COLUMN_COUNT(Stmt) > 0)
+  if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
   {
-    if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-      return Stmt->Error.ReturnValue;
-    }
-
-    if (ArraySize)
-    {
-      if (Stmt->Ard->Header.ArrayStatusPtr)
-        MADB_InitStatusPtr(Stmt->Ard->Header.ArrayStatusPtr, ArraySize, SQL_NO_DATA);
-      if (Stmt->Ird->Header.RowsProcessedPtr)
-        *Stmt->Ird->Header.RowsProcessedPtr= 0;
-      if (Stmt->Ird->Header.ArrayStatusPtr)
-        MADB_InitStatusPtr(Stmt->Ird->Header.ArrayStatusPtr, ArraySize, SQL_ROW_NOROW);
-    }
-    for (j=0; j < ArraySize; j++)
-    {
-      /*************** Setting up BIND structures ********************/
-      RETURN_ERROR_OR_CONTINUE(MADB_PrepareBind(Stmt, j));
-
-      /************************ Bind! ********************************/  
-      mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
-
-      if (Stmt->Options.UseBookmarks)
-      {
-        /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
-        long *p= (long *)Stmt->Options.BookmarkPtr;
-        p+= j * Stmt->Options.BookmarkLength;
-        *p= (long)Stmt->Cursor.Position;
-      }
-      /************************ Fetch! ********************************/
-      rc= mysql_stmt_fetch(Stmt->stmt);
-
-      if (Stmt->Cursor.Position < 0)
-        Stmt->Cursor.Position= 0;
-      switch(rc) {
-      case 1:
-        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-        if (Stmt->Ird->Header.ArrayStatusPtr)
-          Stmt->Ird->Header.ArrayStatusPtr[j]= SQL_ROW_ERROR;
-        return Stmt->Error.ReturnValue;
-      case MYSQL_DATA_TRUNCATED:
-      {
-        /* We will not report truncation if a dummy buffer was bound */
-        int     col;
-        my_bool HasError= 0;
-
-        for (col= 0; col < MADB_STMT_COLUMN_COUNT(Stmt) && !HasError; ++col)
-        {
-          if (Stmt->stmt->bind[col].error && *Stmt->stmt->bind[col].error > 0 &&
-              !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
-          {
-            HasError= 1;
-
-            MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
-            if (Stmt->Ird->Header.ArrayStatusPtr)
-              Stmt->Ird->Header.ArrayStatusPtr[j]= SQL_ROW_SUCCESS_WITH_INFO;
-          }
-        }
-        if (!HasError)
-          rc= 0;
-        break;
-      }
-      case MYSQL_NO_DATA:
-        if (Stmt->Ird->Header.RowsProcessedPtr && *Stmt->Ird->Header.RowsProcessedPtr)
-          return SQL_SUCCESS_WITH_INFO;
-        return SQL_NO_DATA;
-        break;
-      }
-      Stmt->LastRowFetched++;
-      Stmt->PositionedCursor++;
-
-      if (Stmt->Ird->Header.ArrayStatusPtr)
-        Stmt->Ird->Header.ArrayStatusPtr[j]= SQL_ROW_SUCCESS;
-      if (Stmt->Ard->Header.ArrayStatusPtr)
-        Stmt->Ard->Header.ArrayStatusPtr[j]= Stmt->Error.ReturnValue;
-
-      MADB_CLEAR_ERROR(&Stmt->Error);
-
-      if (Stmt->Ird->Header.RowsProcessedPtr)
-        *Stmt->Ird->Header.RowsProcessedPtr= *Stmt->Ird->Header.RowsProcessedPtr+1;
-
-      /*Conversion etc*/
-      RETURN_ERROR_OR_CONTINUE(MADB_FixFetchedValues(Stmt, j, SaveCursor));
-    }
-    
-    Stmt->CharOffset= (unsigned long *)my_realloc((gptr)Stmt->CharOffset, 
-                                                  sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
-                                                  MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
-    memset(Stmt->CharOffset, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
-    Stmt->Lengths= (unsigned long *)my_realloc((gptr)Stmt->Lengths, 
-                                                  sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
-                                                  MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
-    memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    return Stmt->Error.ReturnValue;
   }
+
+  if (ArraySize)
+  {
+    if (Stmt->Ard->Header.ArrayStatusPtr)
+      MADB_InitStatusPtr(Stmt->Ard->Header.ArrayStatusPtr, ArraySize, SQL_NO_DATA);
+    if (Stmt->Ird->Header.RowsProcessedPtr)
+      *Stmt->Ird->Header.RowsProcessedPtr= 0;
+    if (Stmt->Ird->Header.ArrayStatusPtr)
+      MADB_InitStatusPtr(Stmt->Ird->Header.ArrayStatusPtr, ArraySize, SQL_ROW_NOROW);
+  }
+  for (j=0; j < ArraySize; j++)
+  {
+    /*************** Setting up BIND structures ********************/
+    RETURN_ERROR_OR_CONTINUE(MADB_PrepareBind(Stmt, j));
+
+    /************************ Bind! ********************************/  
+    mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
+
+    if (Stmt->Options.UseBookmarks)
+    {
+      /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
+      long *p= (long *)Stmt->Options.BookmarkPtr;
+      p+= j * Stmt->Options.BookmarkLength;
+      *p= (long)Stmt->Cursor.Position;
+    }
+    /************************ Fetch! ********************************/
+    rc= mysql_stmt_fetch(Stmt->stmt);
+
+    if (Stmt->Cursor.Position < 0)
+      Stmt->Cursor.Position= 0;
+    switch(rc) {
+    case 1:
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+      if (Stmt->Ird->Header.ArrayStatusPtr)
+        Stmt->Ird->Header.ArrayStatusPtr[j]= SQL_ROW_ERROR;
+      return Stmt->Error.ReturnValue;
+    case MYSQL_DATA_TRUNCATED:
+    {
+      /* We will not report truncation if a dummy buffer was bound */
+      int     col;
+      my_bool HasError= 0;
+
+      for (col= 0; col < MADB_STMT_COLUMN_COUNT(Stmt) && !HasError; ++col)
+      {
+        if (Stmt->stmt->bind[col].error && *Stmt->stmt->bind[col].error > 0 &&
+            !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
+        {
+          HasError= 1;
+
+          MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+          if (Stmt->Ird->Header.ArrayStatusPtr)
+            Stmt->Ird->Header.ArrayStatusPtr[j]= SQL_ROW_SUCCESS_WITH_INFO;
+        }
+      }
+      if (!HasError)
+        rc= 0;
+      break;
+    }
+    case MYSQL_NO_DATA:
+      if (Stmt->Ird->Header.RowsProcessedPtr && *Stmt->Ird->Header.RowsProcessedPtr)
+        return SQL_SUCCESS_WITH_INFO;
+      return SQL_NO_DATA;
+      break;
+    }
+    Stmt->LastRowFetched++;
+    Stmt->PositionedCursor++;
+
+    if (Stmt->Ird->Header.ArrayStatusPtr)
+      Stmt->Ird->Header.ArrayStatusPtr[j]= SQL_ROW_SUCCESS;
+    if (Stmt->Ard->Header.ArrayStatusPtr)
+      Stmt->Ard->Header.ArrayStatusPtr[j]= Stmt->Error.ReturnValue;
+
+    MADB_CLEAR_ERROR(&Stmt->Error);
+
+    if (Stmt->Ird->Header.RowsProcessedPtr)
+      *Stmt->Ird->Header.RowsProcessedPtr= *Stmt->Ird->Header.RowsProcessedPtr+1;
+
+    /*Conversion etc*/
+    RETURN_ERROR_OR_CONTINUE(MADB_FixFetchedValues(Stmt, j, SaveCursor));
+  }
+    
+  Stmt->CharOffset= (unsigned long *)my_realloc((gptr)Stmt->CharOffset, 
+                                                sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
+                                                MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
+  memset(Stmt->CharOffset, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+  Stmt->Lengths= (unsigned long *)my_realloc((gptr)Stmt->Lengths, 
+                                                sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
+                                                MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
+  memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
 
   if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY && SaveCursor)
       Stmt->stmt->result_cursor= SaveCursor;
@@ -2282,7 +2286,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   unsigned long   Length= 0;
   my_bool         Error;
   unsigned int    i;
-  unsigned char   *SavePtr=Stmt->stmt->bind[Offset].row_ptr;
+  unsigned char   *SavePtr;
   MADB_DescRecord *IrdRec= NULL;
 
   if (BufferLength < 0)
@@ -2290,6 +2294,15 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
+
+  /* Should not really happen, and is evidence of that something wrong happened in some previous call(SQLFetch?) */
+  if (Stmt->stmt->bind == NULL)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  SavePtr= Stmt->stmt->bind[Offset].row_ptr;
 
   if (Stmt->stmt->bind[Offset].row_ptr == NULL)
   {
