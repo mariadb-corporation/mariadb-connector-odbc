@@ -658,9 +658,8 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
 
 int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 {
-  SQLRETURN   rc;
-  char        buffer[100];
-  SQLHANDLE   Stmt1;
+  char      buffer[100];
+  SQLHANDLE Stmt1;
 
   *Env=         NULL;
   *Connection=  NULL;
@@ -674,12 +673,11 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
     return FAIL;
   }
 
-  rc= SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &Stmt1);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate statement handle");
+  CHECK_DBC_RC(*Connection, SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &Stmt1));
 
   strcpy(buffer, "CREATE SCHEMA IF NOT EXISTS ");
   strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
-  rc= SQLExecDirect(Stmt1, (SQLCHAR *)buffer, (SQLINTEGER)strlen(buffer));
+  OK_SIMPLE_STMT(Stmt1, buffer);
 
   strcpy(buffer, "USE ");
   strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");

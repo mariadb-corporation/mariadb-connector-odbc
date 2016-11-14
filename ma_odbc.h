@@ -275,6 +275,12 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
 
+
+enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3 };
+
+#define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State > MADB_SS_EMULATED)
+#define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ? MADB_SS_PREPARED : MADB_SS_INITED
+
 typedef struct {
   DYNAMIC_ARRAY tokens;
 } MADB_QUERY;
@@ -314,7 +320,7 @@ struct st_ma_odbc_stmt
   char                      *NativeSql;
   MADB_Stmt                 *PositionedCursor;
   unsigned int              PositionedCommand;
-  my_bool                   EmulatedStmt;
+  enum MADB_StmtState       State;
   unsigned int              MultiStmtCount;
   MYSQL_STMT                **MultiStmts;
   unsigned int              MultiStmtNr;
@@ -402,6 +408,7 @@ struct st_ma_odbc_connection
   char *TranslateLib;
   SQLINTEGER TxnIsolation;
   SQLINTEGER CursorCount;
+  char ServerCapabilities;
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
@@ -417,12 +424,13 @@ int       DSNPrompt_Free  (MADB_Prompt *prompt);
 
 Client_Charset* GetDefaultOsCharset(Client_Charset *cc);
 int             InitClientCharset  (Client_Charset *cc, const char * name);
-void            CloseClientCharset (Client_Charset *cc);
+void            CloseClientCharset(Client_Charset *cc);
 
 /* Default precision of SQL_NUMERIC */
 #define MADB_DEFAULT_PRECISION 38
 #define BINARY_CHARSETNR       63
-
+/* Inexistent param id */
+#define MADB_NOPARAM           -1
 /* Macros to guard communications with the server.
    TODO: make it(locking) optional depending on designated connection string option */
 #define LOCK_MARIADB(Dbc)   EnterCriticalSection(&(Dbc)->cs)
@@ -434,7 +442,7 @@ void            CloseClientCharset (Client_Charset *cc);
 #define RETURN_ERROR_OR_CONTINUE(sqlreturn_func_call) {\
   SQLRETURN rc= (sqlreturn_func_call);\
   if (!SQL_SUCCEEDED(rc)) return rc;\
-}
+} while(0)
 
 #include <ma_error.h>
 #include <ma_parse.h>
@@ -448,6 +456,7 @@ void            CloseClientCharset (Client_Charset *cc);
 #include <ma_result.h>
 #include <ma_driver.h>
 #include <ma_helper.h>
+#include <ma_server.h>
 
 /* SQLFunction calls inside MariaDB Connector/ODBC needs to be mapped,
  * on non Windows platforms these function calls will call the driver
@@ -466,12 +475,6 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
     SQLPOINTER ParameterValuePtr,
     SQLLEN BufferLength,
     SQLLEN *StrLen_or_IndPtr);
-
-SQLRETURN MA_SQLExecDirect(MADB_Stmt *Stmt,
-    SQLCHAR *StatementText,
-    SQLINTEGER TextLength);
-
-SQLRETURN MA_SQLExecute(MADB_Stmt *Stmt);
 
 SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
 

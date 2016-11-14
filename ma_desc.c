@@ -667,7 +667,9 @@ MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordN
 
   if (RecordNumber + 1 > Desc->Header.Count)
     Desc->Header.Count= (SQLSMALLINT)(RecordNumber + 1);
+
   DescRecord= ((MADB_DescRecord *)Desc->Records.buffer) + RecordNumber;
+
   return DescRecord;
 }
 /* }}} */

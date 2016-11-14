@@ -128,7 +128,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
       /* Need to be incremented before CloseMultiStatements() */
       ++Stmt->MultiStmtCount;
       Stmt->MultiStmts[i]= mysql_stmt_init(Stmt->Connection->mariadb);
-      MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d)", Stmt->MultiStmts[i], i);
+      MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
       if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
@@ -192,8 +192,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   }
   p+= snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
-      Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
-      Stmt->Methods->Execute(Stmt) == SQL_ERROR ||
+      Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
       Stmt->Methods->Fetch(Stmt, FALSE) == SQL_ERROR)
       goto end;
   KeyStmt= (MADB_Stmt *)Stmt;
@@ -1184,7 +1183,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS, FALSE)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
@@ -1194,4 +1193,28 @@ end:
   ma_dynstr_free(&DynStmt);
   return Stmt->Error.ReturnValue;
 
+}
+
+int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber)
+{
+  int             i;
+  MADB_DescRecord *Record;
+
+  for (i= InitialParam > -1 ? InitialParam + 1 : 0; i < Desc->Header.Count; i++)
+  {
+    if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
+    {
+      if (Record->OctetLengthPtr)
+      {
+        /* Stmt->DaeRowNumber is 1 based */
+        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
+        if (PARAM_IS_DAE(OctetLength))
+        {
+          return i;
+        }
+      }
+    }
+  }
+
+  return MADB_NOPARAM;
 }

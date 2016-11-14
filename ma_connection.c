@@ -486,7 +486,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
 SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar) 
 {
-  SQLHANDLE Stmt;
+  MADB_Stmt *Stmt;
   SQLRETURN ret;
   SQLLEN Size;
   char Buffer[65 * sizeof(WCHAR)];
@@ -495,14 +495,14 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, &Stmt);
   if (!SQL_SUCCEEDED(ret))
     return ret;
-  if (!SQL_SUCCEEDED(MA_SQLExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-      !SQL_SUCCEEDED(MA_SQLFetch(Stmt)))
+  if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
+      !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt, FALSE)))
   {
-    MADB_CopyError(&Connection->Error, &((MADB_Stmt *)Stmt)->Error);
+    MADB_CopyError(&Connection->Error, &Stmt->Error);
     goto end;
   }
   
-  ret= MA_SQLGetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
+  ret= Stmt->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
  /* Size= (SQLINTEGER)MADB_SetString(isWChar ? Connection->CodePage : 0, CurrentDB, 
                       (isWChar) ? (int)(MIN(Size + sizeof(SQLWCHAR), CurrentDBLength) / sizeof(SQLWCHAR)) : 
                       (int)(MIN(Size + 1, CurrentDBLength)),
@@ -680,15 +680,15 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       goto err;*/
   }
 
-  if (!Connection->CatalogName && Dsn->Catalog)
-    Connection->CatalogName= _strdup(Dsn->Catalog);
-
   /* set default catalog */
   if (Connection->CatalogName && Connection->CatalogName[0])
   {
     if (mysql_select_db(Connection->mariadb, Connection->CatalogName))
       goto err;
   }
+
+  if (!Connection->CatalogName && Dsn->Catalog)
+    Connection->CatalogName= _strdup(Dsn->Catalog);
 
   /* Turn sql_auto_is_null behavior off.
      For more details see: http://bugs.mysql.com/bug.php?id=47005 */
@@ -712,6 +712,8 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
         break;
       }
     }
+
+  MADB_SetCapabilities(Connection, mysql_get_server_version(Connection->mariadb));
 
   goto end;
 

@@ -1262,32 +1262,19 @@ SQLRETURN SQL_API SQLTransact(SQLHENV Env, SQLHDBC Dbc, SQLUSMALLINT CompletionT
 /* }}} */
 
 /* {{{ SQLExecDirect */
-SQLRETURN MA_SQLExecDirect(MADB_Stmt *Stmt,
+SQLRETURN SQL_API SQLExecDirect(SQLHSTMT StatementHandle,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength)
 {
+  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
 
   if (!Stmt)
     ret= SQL_INVALID_HANDLE;
   else
     ret= Stmt->Methods->ExecDirect(Stmt, (char *)StatementText, TextLength);
+
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-}
-
-
-SQLRETURN SQL_API SQLExecDirect(SQLHSTMT StatementHandle,
-    SQLCHAR *StatementText,
-    SQLINTEGER TextLength)
-{
-  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-
-  MDBUG_C_ENTER(Stmt->Connection, "SQLExecDirect");
-  MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
-  MDBUG_C_DUMP(Stmt->Connection, StatementText, s);
-  MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
-
-  return MA_SQLExecDirect(Stmt, StatementText, TextLength);
 }
 /* }}} */
 
@@ -1326,16 +1313,6 @@ SQLRETURN SQL_API SQLExecDirectW(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-/* {{{ SQLExecute */
-SQLRETURN MA_SQLExecute(MADB_Stmt *Stmt)
-{
-  SQLRETURN ret;
-
-  ret= Stmt->Methods->Execute(Stmt);
-
-  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-}
-
 SQLRETURN SQL_API SQLExecute(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
@@ -1348,7 +1325,7 @@ SQLRETURN SQL_API SQLExecute(SQLHSTMT StatementHandle)
   MDBUG_C_ENTER(Stmt->Connection, "SQLExecute");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
 
-  return MA_SQLExecute(Stmt);
+  return Stmt->Methods->Execute(Stmt, FALSE);
 }
 /* }}} */
 
@@ -2310,18 +2287,6 @@ SQLRETURN SQL_API SQLParamData(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-/* {{{ MA_SQLPrepare */
-SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
-    SQLCHAR *StatementText,
-    SQLINTEGER TextLength)
-{
-  SQLRETURN ret;
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
-  ret= Stmt->Methods->Prepare(Stmt, (char *)StatementText, TextLength);
-
-  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-}
 
 SQLRETURN SQL_API SQLPrepare(SQLHSTMT StatementHandle,
     SQLCHAR *StatementText,
@@ -2342,7 +2307,7 @@ SQLRETURN SQL_API SQLPrepare(SQLHSTMT StatementHandle,
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  return MA_SQLPrepare(Stmt, StatementText, TextLength);
+  return Stmt->Methods->Prepare(Stmt, (char *)StatementText, TextLength, FALSE);
 }
 /* }}} */
 
@@ -2375,7 +2340,7 @@ SQLRETURN SQL_API SQLPrepareW(SQLHSTMT StatementHandle,
     ret= Stmt->Error.ReturnValue;
   }
   else
-    ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)StmtLength);
+    ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)StmtLength, FALSE);
   MADB_FREE(StmtStr);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);

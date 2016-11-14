@@ -906,10 +906,10 @@ ODBC_TEST(sqlcancel)
 
 ODBC_TEST(t_describe_nulti)
 {
-  SQLHENV     henv1;
-  SQLHDBC     hdbc1;
-  SQLHSTMT    hstmt1;
-  SQLCHAR ColumnName[64];
+  SQLHENV   henv1;
+  SQLHDBC   hdbc1;
+  SQLHSTMT  hstmt1;
+  SQLCHAR   ColumnName[64];
 
   my_options= 67108866;
 

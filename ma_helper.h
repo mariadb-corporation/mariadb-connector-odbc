@@ -43,22 +43,23 @@ SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 
-size_t MADB_GetDisplaySize(MYSQL_FIELD field, MARIADB_CHARSET_INFO *charset);
-size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
-char *MADB_GetTypeName(MYSQL_FIELD Field);
-char *trim(char *Str);
+size_t  MADB_GetDisplaySize(MYSQL_FIELD field, MARIADB_CHARSET_INFO *charset);
+size_t  MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
+char *  MADB_GetTypeName(MYSQL_FIELD Field);
+char *  trim(char *Str);
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
-void *GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
+void *  GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
 
-SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
-MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
-char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);
+SQLRETURN     MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
+MYSQL_RES *   MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
+char *        MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);
 
 /* SQL_NUMERIC stuff */
-int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, unsigned long RowNumber);
-size_t MADB_SqlNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode);
-void MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
+int           MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, unsigned long RowNumber);
+size_t        MADB_SqlNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode);
+void          MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
 unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt);
+int           MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber);
 
 /* for dummy binding */
 extern my_bool DummyError;

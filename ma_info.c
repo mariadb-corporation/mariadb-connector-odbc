@@ -182,9 +182,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
          TypeInfo[i].SqlDateTimeSub,TypeInfo[i].NumPrecRadix);
     }
   }
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
-  if (SQL_SUCCEEDED(ret))
-    ret= Stmt->Methods->Execute(Stmt);
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
   if (SQL_SUCCEEDED(ret))
   {
     MADB_FixColumnDataTypes(Stmt, gtiDefType);

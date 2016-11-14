@@ -61,7 +61,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   }
 
   /* in case we executed a multi statement, it was done via mysql_query */
-  if (Stmt->EmulatedStmt)
+  if (Stmt->State == MADB_SS_EMULATED)
   {
     if (!mysql_more_results(Stmt->Connection->mariadb))
       return SQL_NO_DATA;
