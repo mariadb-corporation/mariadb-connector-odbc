@@ -152,7 +152,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
       if(isFirst)
       {
         isFirst= FALSE;
-        p+= snprintf(p, 5120 - strlen(StmtStr),
+        p+= _snprintf(p, 5120 - strlen(StmtStr),
           "SELECT \"%s\" AS TYPE_NAME, %d AS DATA_TYPE, %lu AS COLUMN_SIZE, \"%s\" AS LITERAL_PREFIX, "
           "\"%s\" AS LITERAL_SUFFIX, \"%s\" AS CREATE_PARAMS, %d AS NULLABLE, %d AS CASE_SENSITIVE, "
           "%d AS SEARCHABLE, %d AS UNSIGNED_ATTRIBUTE, %d AS FIXED_PREC_SCALE, %d AS AUTO_UNIQUE_VALUE, "
@@ -167,7 +167,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
          TypeInfo[i].SqlDateTimeSub,TypeInfo[i].NumPrecRadix);
       }
       else
-          p+= snprintf(p, 5120 - strlen(StmtStr),
+          p+= _snprintf(p, 5120 - strlen(StmtStr),
           "UNION SELECT \"%s\", %d, %lu , \"%s\", "
           "\"%s\", \"%s\", %d, %d, "
           "%d, %d, %d, %d, "

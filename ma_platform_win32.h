@@ -34,6 +34,12 @@
 #define HAVE_UNICODE
 
 #include <windows.h>
+#include <WinSock2.h>
+
+#if !defined(HAVE_mit_thread) && !defined(HAVE_STRTOK_R)
+#define strtok_r(A,B,C) strtok((A),(B))
+#endif
+#define strcasecmp(A,B) _stricmp((A),(B))
 
 #define MADB_DRIVER_NAME "maodbc.dll"
 

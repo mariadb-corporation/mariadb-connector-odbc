@@ -26,12 +26,12 @@ int MADB_ConvertAnsi2Unicode(Client_Charset* cc, const char *AnsiString, SQLLEN 
 char*     MADB_GetInsertStatement(MADB_Stmt *Stmt);
 char*     MADB_GetTableName(MADB_Stmt *Stmt);
 char*     MADB_GetCatalogName(MADB_Stmt *Stmt);
-my_bool   MADB_DynStrUpdateSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-my_bool   MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-my_bool   MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *TableName, my_bool ParameterMarkers);
-my_bool   MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String);
-my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
+my_bool   MADB_DynStrUpdateSet(MADB_Stmt *Stmt, MADB_DynString *DynString);
+my_bool   MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString);
+my_bool   MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *TableName, my_bool ParameterMarkers);
+my_bool   MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String);
+my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString);
+my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString);
 SQLWCHAR* MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
 SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                         const char *Src, SQLLEN SrcLength, MADB_Error *Error);

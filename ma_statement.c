@@ -57,7 +57,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 
   EnterCriticalSection(&Connection->cs);
   Stmt->ListItem.data= (void *)Stmt;
-  Stmt->Connection->Stmts= list_add(Stmt->Connection->Stmts, &Stmt->ListItem);
+  Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
   LeaveCriticalSection(&Connection->cs);
   Stmt->Ard->Header.ArraySize= 1;
 
@@ -129,13 +129,13 @@ void RemoveStmtRefFromDesc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
 {
   if (desc->AppType)
   {
-    uint i;
+    unsigned int i;
     for (i=0; i < desc->Stmts.elements; ++i)
     {
       MADB_Stmt **refStmt= ((MADB_Stmt **)desc->Stmts.buffer) + i;
       if (Stmt == *refStmt)
       {
-        ma_delete_dynamic_element(&desc->Stmts, i);
+        MADB_DeleteDynamicElement(&desc->Stmts, i);
 
         if (!all)
         {
@@ -286,7 +286,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     }
 
     MADB_FREE(Stmt->params);
-    Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
+    Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
     LeaveCriticalSection(&Stmt->Connection->cs);
     MADB_FREE(Stmt);
   }
@@ -339,7 +339,7 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
 MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 {
   MADB_Dbc *Dbc= Stmt->Connection;
-  LIST *LStmt, *LStmtNext;
+  MADB_List *LStmt, *LStmtNext;
 
   for (LStmt= Dbc->Stmts; LStmt; LStmt= LStmtNext)
   {
@@ -511,7 +511,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
   if ((CursorName = MADB_ParseCursorName(Stmt, &WhereOffset)))
   {
-    DYNAMIC_STRING StmtStr;
+    MADB_DynString StmtStr;
     char *TableName;
 
     /* Make sure we have a delete or update statement
@@ -531,21 +531,21 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       return Stmt->Error.ReturnValue;
 
     TableName= MADB_GetTableName(Stmt->PositionedCursor);
-    ma_init_dynamic_string(&StmtStr, "", 8192, 1024);
-    ma_dynstr_append_mem(&StmtStr, Stmt->StmtString, WhereOffset);
+    MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
+    MADB_DynstrAppendMem(&StmtStr, Stmt->StmtString, WhereOffset);
     MADB_DynStrGetWhere(Stmt->PositionedCursor, &StmtStr, TableName, TRUE);
     
     MADB_FREE(Stmt->StmtString);
     Stmt->StmtString= _strdup(StmtStr.str);
-    ma_dynstr_free(&StmtStr);
+    MADB_DynstrFree(&StmtStr);
   }
 
   if (Stmt->Options.MaxRows)
   {
     char *p;
-    Stmt->StmtString= realloc((gptr)Stmt->StmtString, strlen(Stmt->StmtString) + 40);
+    Stmt->StmtString= realloc((char *)Stmt->StmtString, strlen(Stmt->StmtString) + 40);
     p= Stmt->StmtString + strlen(Stmt->StmtString);
-    snprintf(p, 40, " LIMIT %d", Stmt->Options.MaxRows);
+    _snprintf(p, 40, " LIMIT %d", Stmt->Options.MaxRows);
   }
 
   if (QUERY_DOESNT_RETURN_RESULT(QueryType) && MADB_FindParamPlaceholder(Stmt) == 0
@@ -739,7 +739,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
   int ParamOffset2;
   int j;
   SQLRETURN ret;
-  DYNAMIC_ARRAY DynData;
+  MADB_DynArray DynData;
   MADB_Stmt *SaveCursor;
 
   char *p;
@@ -758,7 +758,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
   Stmt->AffectedRows= 0;
   
   ParamOffset2= Stmt->ParamCount - mysql_stmt_field_count(Stmt->PositionedCursor->stmt);
-  ma_init_dynamic_array(&DynData, sizeof(char *), 8, 8);
+  MADB_InitDynamicArray(&DynData, sizeof(char *), 8, 8);
 
   for (j=ParamOffset2; j < Stmt->ParamCount; j++)
   {
@@ -771,7 +771,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
     {
       Stmt->Methods->GetData(Stmt->PositionedCursor, j - ParamOffset2 + 1, SQL_CHAR,  NULL, 0, &Length);
       p= (char *)MADB_CALLOC(Length + 2);
-      ma_insert_dynamic(&DynData, (gptr)&p);
+      MADB_InsertDynamic(&DynData, (char *)&p);
       Stmt->Methods->GetData(Stmt->PositionedCursor, j - ParamOffset2 + 1, SQL_CHAR,  p, Length + 1, NULL);
       Stmt->Methods->BindParam(Stmt, j+1, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
     }
@@ -784,10 +784,10 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
 
   for (j=0; j < (int)DynData.elements; j++)
   {
-    ma_get_dynamic(&DynData, (gptr)&p, j);
+    MADB_GetDynamic(&DynData, (char *)&p, j);
     MADB_FREE(p);
   }
-  ma_delete_dynamic(&DynData);
+  MADB_DeleteDynamic(&DynData);
 
   if (Stmt->PositionedCursor->Options.CursorType == SQL_CURSOR_DYNAMIC && 
      (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO))
@@ -822,7 +822,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
 
   Bind= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt));
   
-  for (i=0; i < (uint)Stmt->ParamCount && ParameterNr < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i=0; i < (unsigned int)Stmt->ParamCount && ParameterNr < mysql_stmt_field_count(Stmt->stmt); i++)
   {
     MADB_DescRecord *IpdRecord, *ApdRecord;
     if (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ))
@@ -833,7 +833,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
         ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ);
         Bind[ParameterNr].buffer= GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, CurrentOffset, ApdRecord->OctetLength);
         if (ApdRecord->OctetLengthPtr)
-          Bind[ParameterNr].length= (ulong *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, CurrentOffset, sizeof(SQLLEN));
+          Bind[ParameterNr].length= (unsigned long *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, CurrentOffset, sizeof(SQLLEN));
         Bind[ParameterNr].buffer_length= (unsigned long)ApdRecord->OctetLength;
         Bind[ParameterNr].buffer_type= Stmt->stmt->params[i].buffer_type;
         ParameterNr++;
@@ -1335,10 +1335,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   if (!Stmt->MultiStmts && mysql_stmt_field_count(Stmt->stmt) > 0)
   {
-    Stmt->CharOffset= (unsigned long *)realloc((gptr)Stmt->CharOffset, 
+    Stmt->CharOffset= (unsigned long *)realloc((char *)Stmt->CharOffset, 
                                                     sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
     memset(Stmt->CharOffset, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
-    Stmt->Lengths= (unsigned long *)realloc((gptr)Stmt->Lengths, 
+    Stmt->Lengths= (unsigned long *)realloc((char *)Stmt->Lengths, 
                                                    sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
     memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
 
@@ -2161,7 +2161,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
       if (Stmt->Apd != Stmt->IApd)
       {
         MADB_Stmt **IntStmt;
-        IntStmt = (MADB_Stmt **)ma_alloc_dynamic(&Stmt->Apd->Stmts);
+        IntStmt = (MADB_Stmt **)MADB_AllocDynamic(&Stmt->Apd->Stmts);
         *IntStmt= Stmt;
       }
     }
@@ -2191,7 +2191,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
       if (Stmt->Ard != Stmt->IArd)
       {
         MADB_Stmt **IntStmt;
-        IntStmt = (MADB_Stmt **)ma_alloc_dynamic(&Stmt->Ard->Stmts);
+        IntStmt = (MADB_Stmt **)MADB_AllocDynamic(&Stmt->Ard->Stmts);
         *IntStmt= Stmt;
       }
     }
@@ -3006,19 +3006,19 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   }
 
   p= StmtStr;
-  p+= snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG as TABLE_SCHEM, TABLE_NAME,"
+  p+= _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG as TABLE_SCHEM, TABLE_NAME,"
                                  "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
                                  "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
   if (CatalogName && CatalogName[0])
-    p+= snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
   else
-    p+= snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE DATABASE() ");
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE DATABASE() ");
   if (TableName && TableName[0])
-    p+= snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
   if (ColumnName && ColumnName[0])
-    p+= snprintf(p, 1024 - strlen(StmtStr), "AND COLUMN_NAME LIKE '%s' ", ColumnName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "AND COLUMN_NAME LIKE '%s' ", ColumnName);
 
-   p+= snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
+   p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
   
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
 }
@@ -3035,17 +3035,17 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   p= StmtStr;
-  p += snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG AS TABLE_SCHEM, TABLE_NAME, "
+  p += _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG AS TABLE_SCHEM, TABLE_NAME, "
                                   "NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE, IS_GRANTABLE "
                                   "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
   if (CatalogName)
-    p+= snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
   else
-    p+= snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE(), DATABASE(), '%%') ");
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE(), DATABASE(), '%%') ");
   if (TableName)
-    p+= snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
   
-  p+= snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
+  p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
   
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
 }
@@ -3056,7 +3056,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
                           char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
                           SQLSMALLINT NameLength3, char *TableType, SQLSMALLINT NameLength4)
 {
-  DYNAMIC_STRING StmtStr;
+  MADB_DynString StmtStr;
    char Quote[2];
   SQLRETURN ret;
 
@@ -3090,7 +3090,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   */
   if (CatalogName && NameLength1 && !NameLength3 && !strcmp(CatalogName, SQL_ALL_TABLE_TYPES))
   {
-    ma_init_dynamic_string(&StmtStr, "SELECT SCHEMA_NAME AS TABLE_CAT, CONVERT(NULL,CHAR(64)) AS TABLE_SCHEM, "
+    MADB_InitDynamicString(&StmtStr, "SELECT SCHEMA_NAME AS TABLE_CAT, CONVERT(NULL,CHAR(64)) AS TABLE_SCHEM, "
                                   "CONVERT(NULL,CHAR(64)) AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
                                   "FROM INFORMATION_SCHEMA.SCHEMATA "
                                   "GROUP BY SCHEMA_NAME ORDER BY SCHEMA_NAME",
@@ -3104,7 +3104,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   else if (!NameLength1 && !NameLength3 && TableType && NameLength4 &&
             !strcmp(TableType, SQL_ALL_TABLE_TYPES))
   {
-    ma_init_dynamic_string(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+    MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
                                   "NULL AS TABLE_NAME, 'TABLE' AS TABLE_TYPE, NULL AS REMARKS "
                                   "FROM DUAL "
                                   "UNION "
@@ -3115,7 +3115,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
   }
   else
   {
-    ma_init_dynamic_string(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+    MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                                   "if(TABLE_TYPE='BASE TABLE','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
                                   "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
                                   8192, 512);
@@ -3124,52 +3124,52 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
     else
       strcpy(Quote, "'");
 
-    ma_dynstr_append(&StmtStr, " AND TABLE_SCHEMA ");
+    MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA ");
     if (CatalogName && NameLength1)
     {
-      ma_dynstr_append(&StmtStr, "LIKE ");
-      ma_dynstr_append(&StmtStr, Quote);
-      ma_dynstr_append(&StmtStr, CatalogName);
-      ma_dynstr_append(&StmtStr, Quote);
+      MADB_DynstrAppend(&StmtStr, "LIKE ");
+      MADB_DynstrAppend(&StmtStr, Quote);
+      MADB_DynstrAppend(&StmtStr, CatalogName);
+      MADB_DynstrAppend(&StmtStr, Quote);
     }
     else
-      ma_dynstr_append(&StmtStr, "= DATABASE() ");
+      MADB_DynstrAppend(&StmtStr, "= DATABASE() ");
 
     if (TableName && NameLength3)
     {
-      ma_dynstr_append(&StmtStr, " AND TABLE_NAME LIKE ");
-      ma_dynstr_append(&StmtStr, Quote);
-      ma_dynstr_append(&StmtStr, TableName);
-      ma_dynstr_append(&StmtStr, Quote);
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_NAME LIKE ");
+      MADB_DynstrAppend(&StmtStr, Quote);
+      MADB_DynstrAppend(&StmtStr, TableName);
+      MADB_DynstrAppend(&StmtStr, Quote);
     }
     if (TableType && NameLength4 && strcmp(TableType, SQL_ALL_TABLE_TYPES) != 0)
     {
-      uint i;
+      unsigned int i;
       char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};
-      ma_dynstr_append(&StmtStr, " AND TABLE_TYPE IN (''");
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_TYPE IN (''");
       for (i= 0; i < 3; i++)
       {
         if (strstr(TableType, myTypes[i]))
         {
           if (strstr(myTypes[i], "TABLE"))
-            ma_dynstr_append(&StmtStr, ", 'BASE TABLE'");
+            MADB_DynstrAppend(&StmtStr, ", 'BASE TABLE'");
           else
           {
-            ma_dynstr_append(&StmtStr, ", '");
-            ma_dynstr_append(&StmtStr, myTypes[i]);
-            ma_dynstr_append(&StmtStr, "'");
+            MADB_DynstrAppend(&StmtStr, ", '");
+            MADB_DynstrAppend(&StmtStr, myTypes[i]);
+            MADB_DynstrAppend(&StmtStr, "'");
           }
         }
       }
-      ma_dynstr_append(&StmtStr, ") ");
+      MADB_DynstrAppend(&StmtStr, ") ");
     }
-    ma_dynstr_append(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE");
+    MADB_DynstrAppend(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE");
   }
   MDBUG_C_PRINT(Stmt->Connection, "SQL Statement: %s", StmtStr.str);
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
 
-  ma_dynstr_free(&StmtStr);
+  MADB_DynstrFree(&StmtStr);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
@@ -3201,7 +3201,7 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     return Stmt->Error.ReturnValue;
   }
  
-  snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG AS TABLE_SCHEM, TABLE_NAME, "
+  _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG AS TABLE_SCHEM, TABLE_NAME, "
                           "NON_UNIQUE, NULL AS INDEX_QUALIFIER, INDEX_NAME, "
                           "%d AS TYPE, "
                           "SEQ_IN_INDEX AS ORDINAL_POSITION, COLUMN_NAME, COLLATION AS ASC_OR_DESC, "
@@ -3210,17 +3210,17 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
                           SQL_INDEX_OTHER);
   p+= strlen(StmtStr);
   if (CatalogName && CatalogName[0])
-    p+= snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA LIKE '%s' ", CatalogName);
   else
-    p+= snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA LIKE IF(DATABASE() IS NOT NULL, DATABASE(), '%%') ");
+    p+= _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA LIKE IF(DATABASE() IS NOT NULL, DATABASE(), '%%') ");
   
   if (TableName)
-    p+= snprintf(p, 1023- strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+    p+= _snprintf(p, 1023- strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
 
   if (Unique == SQL_INDEX_UNIQUE)
-    p+= snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
+    p+= _snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
 
-  snprintf(p, 1023 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME");
+  _snprintf(p, 1023 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME");
 
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
@@ -3248,15 +3248,15 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
                            char *TableName,   SQLSMALLINT NameLength3,
                            char *ColumnName,  SQLSMALLINT NameLength4)
 {
-  DYNAMIC_STRING StmtStr;
+  MADB_DynString StmtStr;
   SQLRETURN ret;
 
   MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
 
-  ma_init_dynamic_string(&StmtStr, "", 8192, 1024);
+  MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
  
   MADB_CLEAR_ERROR(&Stmt->Error);
-  if (ma_dynstr_append(&StmtStr, MADB_CATALOG_COLUMNS(Stmt)))
+  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNS(Stmt)))
     goto dynerror;
 
   ADJUST_LENGTH(CatalogName, NameLength1);
@@ -3264,33 +3264,33 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   ADJUST_LENGTH(TableName, NameLength3);
   ADJUST_LENGTH(ColumnName, NameLength4);
 
-  if(ma_dynstr_append(&StmtStr, "TABLE_SCHEMA LIKE "))
+  if(MADB_DynstrAppend(&StmtStr, "TABLE_SCHEMA LIKE "))
     goto dynerror;
 
   if (CatalogName  && CatalogName[0])
   {
-    if (ma_dynstr_append(&StmtStr, "'") ||
-        ma_dynstr_append_mem(&StmtStr, CatalogName, NameLength1) ||
-        ma_dynstr_append(&StmtStr, "' "))
+    if (MADB_DynstrAppend(&StmtStr, "'") ||
+        MADB_DynstrAppendMem(&StmtStr, CatalogName, NameLength1) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
       goto dynerror;
   }
   else
-    if (ma_dynstr_append(&StmtStr, "IF(DATABASE() IS NOT NULL, DATABASE(), '%') "))
+    if (MADB_DynstrAppend(&StmtStr, "IF(DATABASE() IS NOT NULL, DATABASE(), '%') "))
       goto dynerror;
 
   if (TableName && NameLength3)
-    if (ma_dynstr_append(&StmtStr, "AND TABLE_NAME LIKE '") ||
-        ma_dynstr_append_mem(&StmtStr, TableName, NameLength3) ||
-        ma_dynstr_append(&StmtStr, "' "))
+    if (MADB_DynstrAppend(&StmtStr, "AND TABLE_NAME LIKE '") ||
+        MADB_DynstrAppendMem(&StmtStr, TableName, NameLength3) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
     goto dynerror;
 
   if (ColumnName && NameLength4)
-    if (ma_dynstr_append(&StmtStr, "AND COLUMN_NAME LIKE '") ||
-        ma_dynstr_append_mem(&StmtStr, ColumnName, NameLength4) ||
-        ma_dynstr_append(&StmtStr, "' "))
+    if (MADB_DynstrAppend(&StmtStr, "AND COLUMN_NAME LIKE '") ||
+        MADB_DynstrAppendMem(&StmtStr, ColumnName, NameLength4) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
     goto dynerror;
 
-  if (ma_dynstr_append(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION"))
+  if (MADB_DynstrAppend(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION"))
     goto dynerror;
 
   MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
@@ -3302,7 +3302,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
     MADB_FixColumnDataTypes(Stmt, SqlColumnsColType);
   }
 
-  ma_dynstr_free(&StmtStr);
+  MADB_DynstrFree(&StmtStr);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
 
   return ret;
@@ -3333,17 +3333,17 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   p= StmtStr;
 
-  p+= snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt));
+  p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt));
   
   if (CatalogName && CatalogName[0])
-    p+= snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE '%s' ", CatalogName);
   else
-    p+= snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE DATABASE() ");
+    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE DATABASE() ");
   if (ProcName && ProcName[0])
-    p+= snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
+    p+= _snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
   if (ColumnName && ColumnName[0])
-    p+= snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
-  p+= snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
+    p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
+  p+= _snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 
@@ -3371,23 +3371,23 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   }
 
   p= StmtStr;
-  p+= snprintf(p, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+  p+= _snprintf(p, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
                            "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
                            "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
                            "COLUMN_KEY = 'pri' AND ");
   if (CatalogName && CatalogName[0])
   {
-    p+= snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
   }
   else
   {
-    p+= snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE() IS NOT NULL, DATABASE(), '%%') ");
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE() IS NOT NULL, DATABASE(), '%%') ");
   }
   if (TableName)
   {
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
   }
-  p+= snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
+  p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
 
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -3412,7 +3412,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     return Stmt->Error.ReturnValue;
   }
 
-  p+= snprintf(p, 2048, "SELECT NULL AS SCOPE, COLUMN_NAME, %s,"
+  p+= _snprintf(p, 2048, "SELECT NULL AS SCOPE, COLUMN_NAME, %s,"
                            "DATA_TYPE TYPE_NAME,"
                            "CASE" 
                            "  WHEN DATA_TYPE in ('bit', 'tinyint', 'smallint', 'year', 'mediumint', 'int',"
@@ -3427,20 +3427,20 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
                            "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
 
   if (CatalogName && CatalogName[0])
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA LIKE '%s' ", CatalogName);
   else
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA LIKE IF(DATABASE() IS NOT NULL, DATABASE(), '%%') ");
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA LIKE IF(DATABASE() IS NOT NULL, DATABASE(), '%%') ");
   if (TableName && TableName[0])
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
 
   if (Nullable == SQL_NO_NULLS)
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND IS_NULLABLE <> 'YES' ");
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND IS_NULLABLE <> 'YES' ");
 
   if (IdentifierType == SQL_BEST_ROWID)
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND COLUMN_KEY IN ('PRI', 'UNI') ");
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND COLUMN_KEY IN ('PRI', 'UNI') ");
   else if (IdentifierType == SQL_ROWVER)
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
-  p+= snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
+  p+= _snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
 
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -3458,7 +3458,7 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
 
   p= StmtStr;
 
-  p+= snprintf(p, 2048, "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
+  p+= _snprintf(p, 2048, "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
                            "SPECIFIC_NAME PROCEDURE_NAME, NULL NUM_INPUT_PARAMS, "
                            "NULL NUM_OUTPUT_PARAMS, NULL NUM_RESULT_SETS, "
                            "ROUTINE_COMMENT REMARKS, "
@@ -3469,13 +3469,13 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
                            "END PROCEDURE_TYPE "
                            "FROM INFORMATION_SCHEMA.ROUTINES ");
   if (CatalogName && CatalogName[0])
-    p+= snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE '%s' ", CatalogName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE '%s' ", CatalogName);
   else
-    p+= snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE DATABASE() ");
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE DATABASE() ");
   if (ProcName && ProcName[0])
-    p+= snprintf(p, 2048 - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
   
-  p+= snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
+  p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
 
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -3489,7 +3489,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
                                SQLSMALLINT NameLength6)
 {
   SQLRETURN ret= SQL_ERROR;
-  DYNAMIC_STRING StmtStr;
+  MADB_DynString StmtStr;
   char EscapeBuf[256];
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -3511,7 +3511,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   }
 
   /* modified from JDBC driver */
-  ma_init_dynamic_string(&StmtStr,
+  MADB_InitDynamicString(&StmtStr,
                       "SELECT A.REFERENCED_TABLE_SCHEMA PKTABLE_CAT, NULL PKTABLE_SCHEM, "
                       "A.REFERENCED_TABLE_NAME PKTABLE_NAME, " 
                       "A.REFERENCED_COLUMN_NAME PKCOLUMN_NAME, "
@@ -3549,48 +3549,48 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 
   if (PKTableName && PKTableName[0])
   {
-    ma_dynstr_append(&StmtStr, " AND A.REFERENCED_TABLE_SCHEMA "); 
+    MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_SCHEMA "); 
 
     if (PKCatalogName && PKCatalogName[0])
     {
-      ma_dynstr_append(&StmtStr, "LIKE '");
+      MADB_DynstrAppend(&StmtStr, "LIKE '");
       mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKCatalogName, MIN(NameLength1, 255));
-      ma_dynstr_append(&StmtStr, EscapeBuf);
-      ma_dynstr_append(&StmtStr, "' ");
+      MADB_DynstrAppend(&StmtStr, EscapeBuf);
+      MADB_DynstrAppend(&StmtStr, "' ");
     }
     else 
-      ma_dynstr_append(&StmtStr, "= DATABASE()");
-    ma_dynstr_append(&StmtStr, " AND A.REFERENCED_TABLE_NAME = '");
+      MADB_DynstrAppend(&StmtStr, "= DATABASE()");
+    MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_NAME = '");
 
     mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKTableName, MIN(255, NameLength3));
-    ma_dynstr_append(&StmtStr, EscapeBuf);
-    ma_dynstr_append(&StmtStr, "' ");
+    MADB_DynstrAppend(&StmtStr, EscapeBuf);
+    MADB_DynstrAppend(&StmtStr, "' ");
   }
 
   if (FKTableName && FKTableName[0])
   {
-    ma_dynstr_append(&StmtStr, " AND A.TABLE_SCHEMA = "); 
+    MADB_DynstrAppend(&StmtStr, " AND A.TABLE_SCHEMA = "); 
 
     if (FKCatalogName && FKCatalogName[0])
     {
-      ma_dynstr_append(&StmtStr, "'");
+      MADB_DynstrAppend(&StmtStr, "'");
       mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKCatalogName, MIN(NameLength4, 255));
-      ma_dynstr_append(&StmtStr, EscapeBuf);
-      ma_dynstr_append(&StmtStr, "' ");
+      MADB_DynstrAppend(&StmtStr, EscapeBuf);
+      MADB_DynstrAppend(&StmtStr, "' ");
     }
     else
-      ma_dynstr_append(&StmtStr, "DATABASE() ");
-    ma_dynstr_append(&StmtStr, " AND A.TABLE_NAME = '");
+      MADB_DynstrAppend(&StmtStr, "DATABASE() ");
+    MADB_DynstrAppend(&StmtStr, " AND A.TABLE_NAME = '");
 
     mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKTableName, MIN(255, NameLength6));
-    ma_dynstr_append(&StmtStr, EscapeBuf);
-    ma_dynstr_append(&StmtStr, "' ");
+    MADB_DynstrAppend(&StmtStr, EscapeBuf);
+    MADB_DynstrAppend(&StmtStr, "' ");
   }
-  ma_dynstr_append(&StmtStr, "ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ, PKTABLE_NAME");
+  MADB_DynstrAppend(&StmtStr, "ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ, PKTABLE_NAME");
   
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
 
-  ma_dynstr_free(&StmtStr);
+  MADB_DynstrFree(&StmtStr);
 
   return ret;
 }
@@ -3652,7 +3652,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
 /* {{{ MADB_SetCursorName */
 SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLength)
 {
-  LIST *LStmt, *LStmtNext;
+  MADB_List *LStmt, *LStmtNext;
   if (!Buffer)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
@@ -3706,7 +3706,7 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
   if (!Stmt->Cursor.Name)
   {
     Stmt->Cursor.Name= (char *)MADB_CALLOC(MADB_MAX_CURSOR_NAME);
-    snprintf(Stmt->Cursor.Name, MADB_MAX_CURSOR_NAME, "SQL_CUR%d", 
+    _snprintf(Stmt->Cursor.Name, MADB_MAX_CURSOR_NAME, "SQL_CUR%d", 
                 Stmt->Connection->CursorCount++);
   }
   Length= (SQLSMALLINT)MADB_SetString(isWChar ? &Stmt->Connection->charset : 0, CursorName,
@@ -3838,7 +3838,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     break;
   case SQL_ADD:
     {
-      DYNAMIC_STRING DynStmt;
+      MADB_DynString DynStmt;
       SQLRETURN      ret;
       char          *TableName=   MADB_GetTableName(Stmt);
       char          *CatalogName= MADB_GetCatalogName(Stmt);
@@ -3855,13 +3855,13 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
         MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt);
 
-        if (ma_init_dynamic_string(&DynStmt, "INSERT INTO ", 8192, 1024) ||
+        if (MADB_InitDynamicString(&DynStmt, "INSERT INTO ", 8192, 1024) ||
             MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-            ma_dynstr_append(&DynStmt, ".") ||
+            MADB_DynstrAppend(&DynStmt, ".") ||
             MADB_DynStrAppendQuoted(&DynStmt, TableName)||
             MADB_DynStrInsertSet(Stmt, &DynStmt))
         {
-          ma_dynstr_free(&DynStmt);
+          MADB_DynstrFree(&DynStmt);
           return Stmt->Error.ReturnValue;
         }
 
@@ -3870,7 +3870,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         /* Prepare(SQL_CLOSE in fact) currently resets DefaultResult. Not sure why. But this should go after Prepare so far */
         Stmt->DaeStmt->DefaultsResult= MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields);
 
-        ma_dynstr_free(&DynStmt);
+        MADB_DynstrFree(&DynStmt);
 
         if (!SQL_SUCCEEDED(ret))
         {
@@ -4066,7 +4066,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     }
   case SQL_DELETE:
     {
-      DYNAMIC_STRING DynamicStmt;
+      MADB_DynString DynamicStmt;
       SQLULEN        SaveArraySize= Stmt->Ard->Header.ArraySize;
       my_ulonglong   Start=         0,
                      End=           mysql_stmt_num_rows(Stmt->stmt);
@@ -4098,11 +4098,11 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       {
         MADB_StmtDataSeek(Stmt, Start);
         Stmt->Methods->RefreshRowPtrs(Stmt);
-        ma_init_dynamic_string(&DynamicStmt, "DELETE FROM ", 8192, 1024);
+        MADB_InitDynamicString(&DynamicStmt, "DELETE FROM ", 8192, 1024);
         if (MADB_DynStrAppendQuoted(&DynamicStmt, TableName) ||
            MADB_DynStrGetWhere(Stmt, &DynamicStmt, TableName, FALSE))
         {
-          ma_dynstr_free(&DynamicStmt);
+          MADB_DynstrFree(&DynamicStmt);
           MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
 
           return Stmt->Error.ReturnValue;
@@ -4111,7 +4111,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         LOCK_MARIADB(Stmt->Connection);
         if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, (unsigned long)DynamicStmt.length))
         {
-          ma_dynstr_free(&DynamicStmt);
+          MADB_DynstrFree(&DynamicStmt);
           MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
                             mysql_errno(Stmt->Connection->mariadb));
 
@@ -4119,7 +4119,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
           return Stmt->Error.ReturnValue;
         }
-        ma_dynstr_free(&DynamicStmt);
+        MADB_DynstrFree(&DynamicStmt);
         Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
         Start++;
       }
@@ -4194,7 +4194,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   case SQL_FETCH_ABSOLUTE:
     if (FetchOffset < 0)
     {
-      if ((longlong)mysql_stmt_num_rows(Stmt->stmt) - 1 + FetchOffset < 0 &&
+      if ((long long)mysql_stmt_num_rows(Stmt->stmt) - 1 + FetchOffset < 0 &&
           ((SQLULEN)-FetchOffset <= Stmt->Ard->Header.ArraySize))
         Position= 0;
       else

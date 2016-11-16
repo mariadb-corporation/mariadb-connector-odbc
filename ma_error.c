@@ -158,7 +158,7 @@ char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
     strcpy_s(error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, MARIADB_ODBC_ERR_PREFIX);
     if (dbc != NULL && dbc->mariadb != NULL)
     {
-      error->PrefixLen += snprintf(error->SqlErrorMsg + error->PrefixLen,
+      error->PrefixLen += _snprintf(error->SqlErrorMsg + error->PrefixLen,
         SQL_MAX_MESSAGE_LENGTH + 1 - error->PrefixLen, "[%s]", mysql_get_server_info(dbc->mariadb)); 
     }
   }

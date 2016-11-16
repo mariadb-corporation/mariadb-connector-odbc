@@ -307,7 +307,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       goto end;
     }
     
-    snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
+    _snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
     if (mysql_query(MariaDb, StmtStr))
     {
       mysql_close(MariaDb);
@@ -890,7 +890,7 @@ SQLRETURN SQL_API SQLDisconnect(SQLHDBC ConnectionHandle)
 {
   SQLRETURN ret= SQL_ERROR;
   MADB_Dbc *Connection = (MADB_Dbc *)ConnectionHandle;
-  LIST *Element, *NextElement;
+  MADB_List *Element, *NextElement;
 
   if (!Connection)
     return SQL_INVALID_HANDLE;
@@ -1070,7 +1070,7 @@ SQLRETURN MA_SQLEndTran(SQLSMALLINT HandleType,
   case SQL_HANDLE_ENV:
     {
       MADB_Env *Env= (MADB_Env *)Handle;
-      LIST *List= Env->Dbcs;
+      MADB_List *List= Env->Dbcs;
 
       for (List= Env->Dbcs; List; List= List->next)
         ((MADB_Dbc *)List->data)->Methods->EndTran((MADB_Dbc *)List->data, CompletionType);

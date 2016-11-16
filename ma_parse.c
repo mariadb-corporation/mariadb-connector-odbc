@@ -44,12 +44,12 @@ MADB_QUERY *MADB_Tokenize(const char *Stmt)
   const char *Start= Stmt;
 
   MADB_QUERY *Query= (MADB_QUERY *)MADB_CALLOC(sizeof(MADB_QUERY));
-  ma_init_dynamic_array(&Query->tokens, sizeof(unsigned int), 20, 20);
+  MADB_InitDynamicArray(&Query->tokens, sizeof(unsigned int), 20, 20);
 
   while ((Pos = MADB_GetToken(&Stmt, End)) != End)
   {
     unsigned int Offset= (unsigned int)(Stmt - Start);
-    ma_insert_dynamic(&Query->tokens, (gptr)&Offset);
+    MADB_InsertDynamic(&Query->tokens, (char *)&Offset);
     Stmt= Pos;
   } 
   return Query; 
@@ -59,7 +59,7 @@ void MADB_FreeTokens(MADB_QUERY *Query)
 {
   if (!Query)
     return;
-  ma_delete_dynamic(&Query->tokens);
+  MADB_DeleteDynamic(&Query->tokens);
   MADB_FREE(Query);
 }
 
@@ -67,7 +67,7 @@ char *MADB_Token(MADB_Stmt *Stmt, unsigned int Idx)
 {
   char *p;
   unsigned int Offset= 0;
-  DYNAMIC_ARRAY *Tokens;
+  MADB_DynArray *Tokens;
   
   p= Stmt->StmtString;
   if (!Stmt->Tokens || !p)
@@ -75,7 +75,7 @@ char *MADB_Token(MADB_Stmt *Stmt, unsigned int Idx)
   Tokens= &Stmt->Tokens->tokens;
   if (Idx >= Tokens->elements)
     return NULL;
-  ma_get_dynamic(Tokens, (gptr)&Offset, Idx);
+  MADB_GetDynamic(Tokens, (char *)&Offset, Idx);
   return Stmt->StmtString + Offset;  
 }
 

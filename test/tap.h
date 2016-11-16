@@ -110,7 +110,6 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 #include <assert.h>
 /* We need mysql for MARIADB_CHARSET_INFO type and conversion routine */
 #include <mysql.h>
-typedef unsigned int uint;
 
 SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 SQLCHAR *my_uid=        (SQLCHAR *)"root";

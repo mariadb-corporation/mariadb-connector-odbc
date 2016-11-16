@@ -29,9 +29,11 @@
 
 #include <stdlib.h>
 
-#include <ma_global.h>
-#include <ma_sys.h>
+//#include <ma_global.h>
+//#include <ma_sys.h>
 #include <mysql.h>
+
+#include <ma_legacy_helpers.h>
 
 #include <sql.h>
 #include <sqlext.h>
@@ -39,6 +41,11 @@
 
 #include <ma_errmsg.h>
 #include <string.h>
+#include <stdio.h>
+#include <math.h>
+#include <stddef.h>
+#include <assert.h>
+#include <time.h>
 
 #include <ma_odbc_version.h>
 
@@ -198,12 +205,12 @@ typedef struct
   MADB_Header Header;
   SQLINTEGER DescType;  /* SQL_ATTR_APP_ROW_DESC or SQL_ATTR_APP_PARAM_DESC */
   my_bool AppType;      /* Allocated by Application ? */
-  DYNAMIC_ARRAY Records;
-  DYNAMIC_ARRAY Stmts;
+  MADB_DynArray Records;
+  MADB_DynArray Stmts;
   MADB_Error Error;
   MADB_Dbc * Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
                            descriptor has to know the connection it is allocated on */
-  LIST ListItem;        /* To store in the dbc */
+  MADB_List ListItem;        /* To store in the dbc */
   union {
     MADB_Ard Ard;
     MADB_Apd Apd;
@@ -282,7 +289,7 @@ enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2
 #define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ? MADB_SS_PREPARED : MADB_SS_INITED
 
 typedef struct {
-  DYNAMIC_ARRAY tokens;
+  MADB_DynArray tokens;
 } MADB_QUERY;
 
 /* Struct used to define column type when driver has to fix it (in catalog functions + SQLGetTypeInfo) */
@@ -304,7 +311,7 @@ struct st_ma_odbc_stmt
   MADB_Cursor               Cursor;
   MYSQL_STMT                *stmt;
   MYSQL_RES                 *metadata;
-  LIST                      ListItem;
+  MADB_List                      ListItem;
   MADB_QUERY                *Tokens;
   SQLINTEGER                ParamCount;
   my_bool                   isMultiQuery;
@@ -356,7 +363,7 @@ struct st_ma_odbc_stmt
 typedef struct st_ma_odbc_environment {
   MADB_Error Error;
   CRITICAL_SECTION cs;
-  LIST *Dbcs;
+  MADB_List *Dbcs;
   SQLUINTEGER Trace;
   SQLWCHAR *TraceFile;
   SQLINTEGER OdbcVersion;
@@ -383,9 +390,9 @@ struct st_ma_odbc_connection
   MADB_Error Error;
   Client_Charset charset;
   char *DataBase;
-  LIST ListItem;
-  LIST *Stmts;
-  LIST *Descrs;
+  MADB_List ListItem;
+  MADB_List *Stmts;
+  MADB_List *Descrs;
   /* Attributes */
   SQLINTEGER AccessMode;
   my_bool IsAnsi;

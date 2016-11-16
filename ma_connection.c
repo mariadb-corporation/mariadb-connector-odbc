@@ -248,7 +248,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         if (MADB_IsolationLevel[i].SqlIsolation == (SQLLEN)ValuePtr)
         {
           char StmtStr[128];
-          snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+          _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                       MADB_IsolationLevel[i].StrIsolation);
           LOCK_MARIADB(Dbc);
           if (mysql_query(Dbc->mariadb, StmtStr))
@@ -429,7 +429,7 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
 
   /* Save connection in Environment list */
   Connection->ListItem.data= (void *)Connection;
-  Connection->Environment->Dbcs= list_add(Connection->Environment->Dbcs, &Connection->ListItem);
+  Connection->Environment->Dbcs= MADB_ListAdd(Connection->Environment->Dbcs, &Connection->ListItem);
 
   LeaveCriticalSection(&Connection->cs);
 
@@ -468,7 +468,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
   /* todo: delete all descriptors */
 
   EnterCriticalSection(&Env->cs);
-  Connection->Environment->Dbcs= list_delete(Connection->Environment->Dbcs, &Connection->ListItem);
+  Connection->Environment->Dbcs= MADB_ListDelete(Connection->Environment->Dbcs, &Connection->ListItem);
   LeaveCriticalSection(&Env->cs);
 
   MADB_FREE(Connection->CatalogName);
@@ -651,12 +651,12 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
   if (Dsn->SslVerify)
   {
-    const uint verify= 0x01010101;
+    const unsigned int verify= 0x01010101;
     mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
   }
   else
   {
-    const uint verify= 0;
+    const unsigned int verify= 0;
     mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
   }
 
@@ -675,7 +675,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
   if (Connection->PacketSize)
   {
-    /*snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
+    /*_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
     if (mysql_query(Connection->mariadb, StmtStr))
       goto err;*/
   }
@@ -705,7 +705,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     {
       if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
       {
-        snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+        _snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                     MADB_IsolationLevel[i].StrIsolation);
         if (mysql_query(Connection->mariadb, StmtStr))
           goto err;
@@ -1049,13 +1049,13 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_DBMS_VER:
     {
       char Version[11];
-      ulong ServerVersion= 0L;
+      unsigned long ServerVersion= 0L;
       unsigned int Major=0, Minor=0, Patch= 0;
       
       if (Dbc->mariadb)
       {
         ServerVersion= mysql_get_server_version(Dbc->mariadb);
-        snprintf(Version, 11, "%02u.%02u.%06u", ServerVersion / 10000,
+        _snprintf(Version, 11, "%02u.%02u.%06u", ServerVersion / 10000,
                     (ServerVersion % 10000) / 100, ServerVersion % 100);
       }
       else

@@ -33,7 +33,7 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
                             unsigned int NumCols,
                             char **Buffers,
                             size_t *Buffer_Lengths);
-bool MADB_CheckODBCType(SQLSMALLINT Type);
+BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
 size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset);
@@ -68,6 +68,18 @@ extern my_bool DummyError;
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
+#define MADB_INT_MAX32       0x7FFFFFFFL
+
+#ifndef MIN
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef test
+#define test(a)		((a) ? 1 : 0)
+#endif
+
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) \
@@ -81,7 +93,7 @@ extern my_bool DummyError;
 #define MADB_RESET(ptr, newptr) {\
   char *local_new_ptr= (newptr);\
   if (local_new_ptr != ptr) {\
-    free((gptr)(ptr));\
+    free((char*)(ptr));\
     if (local_new_ptr != NULL)\
       (ptr)= _strdup(local_new_ptr);\
     else\
