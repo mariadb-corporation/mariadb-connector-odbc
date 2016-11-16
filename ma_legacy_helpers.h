@@ -42,7 +42,7 @@ void MADB_ListFree(MADB_List *root, unsigned int free_data);
 MADB_List *MADB_ListCons(void *data, MADB_List *list);
 MADB_List *MADB_ListReverse(MADB_List *root);
 unsigned int MADB_ListLength(MADB_List *list);
-int MADB_ListWalk(MADB_List *list, MADB_ListWalkAction action, void* argument);
+int MADB_ListWalk(MADB_List *list, MADB_ListWalkAction action, char *argument);
 
 #define MADB_LIST_REST(a) ((a)->next)
 #define MADB_LIST_PUSH(a,b) (a)=MADB_ListCons((b),(a))

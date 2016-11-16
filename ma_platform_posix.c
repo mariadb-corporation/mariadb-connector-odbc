@@ -119,7 +119,7 @@ const char* GetDefaultLogDir()
 
 
 /* CharLen < 0 - treat as NTS */
-SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)
+SQLINTEGER SqlwcsOctetLen(const SQLWCHAR *str, SQLINTEGER *CharLen)
 {
   SQLINTEGER result= 0, inChars= *CharLen;
 

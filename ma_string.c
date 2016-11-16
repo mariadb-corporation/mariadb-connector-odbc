@@ -451,7 +451,7 @@ void CloseClientCharset(Client_Charset *cc)
 
 
 /* Hmmm... Length in characters is SQLLEN, octet length SQLINTEGER */
-SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
+SQLLEN MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
 {
   SQLLEN result= 0, inChars= *CharLen;
 
@@ -491,10 +491,10 @@ SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
 
 
 /* Number of characters in given number of bytes */
-SQLLEN MbstrCharLen(char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs)
+SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs)
 {
   SQLLEN       result= 0;
-  char        *ptr= str;
+  const char   *ptr= str;
   unsigned int charlen;
 
   if (str)

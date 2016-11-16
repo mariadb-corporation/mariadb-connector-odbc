@@ -38,8 +38,8 @@ SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 my_bool   MADB_ValidateStmt(char *StmtStr);
 my_bool   MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);
 
-SQLLEN     MbstrOctetLen(char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs);
-SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs);
+SQLLEN     MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs);
+SQLLEN     MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLINTEGER SqlwcsLen(SQLWCHAR *str);
 
