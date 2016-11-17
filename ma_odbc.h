@@ -39,7 +39,7 @@
 #include <sqlext.h>
 #include <odbcinst.h>
 
-#include <ma_errmsg.h>
+#include <errmsg.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
