@@ -20,12 +20,12 @@ PROJECT(mariadb_connector_odbc C)
 
 cmake_minimum_required(VERSION 2.8)
 
-SET(MARIADB_ODBC_VERSION_MAJOR 2)
+SET(MARIADB_ODBC_VERSION_MAJOR 3)
 SET(MARIADB_ODBC_VERSION_MINOR 0)
-SET(MARIADB_ODBC_VERSION_PATCH 13)
-SET(MARIADB_ODBC_VERSION_QUALITY "ga")
+SET(MARIADB_ODBC_VERSION_PATCH 0)
+SET(MARIADB_ODBC_VERSION_QUALITY "alpha")
 
-SET(MARIADB_ODBC_VERSION "02.00.0013")
+SET(MARIADB_ODBC_VERSION "03.00.0000")
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
@@ -185,26 +185,30 @@ ELSE()
 
 ENDIF()
 
-IF(WITH_OPENSSL)
-  FIND_PACKAGE(OpenSSL)
+IF(WIN32 OR WITH_OPENSSL)
+  IF(WITH_OPENSSL)
+    FIND_PACKAGE(OpenSSL)
 
-  IF(OPENSSL_FOUND)
-    MESSAGE(STATUS "Configuring to build with OpenSSL")
+    IF(OPENSSL_FOUND)
+      MESSAGE(STATUS "Configuring to build with OpenSSL")
 
-    ADD_DEFINITIONS(-DHAVE_OPENSSL)
-    INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
-    SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
+      ADD_DEFINITIONS(-DHAVE_OPENSSL)
+      INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+      SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
 
-    IF(OPENSSL_CRYPTO_LIBRARIES)
-      SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+      IF(OPENSSL_CRYPTO_LIBRARIES)
+        SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+      ENDIF()
+
+      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
+    ELSE()
+      MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
     ENDIF()
-
-    SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
   ELSE()
-    MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
+    MESSAGE(STATUS "Configuring SSL support using SChannel")
   ENDIF()
 ELSE()
-    MESSAGE(STATUS "Configuring to build without SSL support")
+  MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
 SET(LIBRARY_NAME "maodbc")
@@ -212,29 +216,57 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 
 ####### MAODBC #######             
-ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
+ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
+
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
 TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
 # Currently on Windows only
 IF(WIN32)
-  cmake_policy(SET CMP0026 OLD)
-  GET_TARGET_PROPERTY(DRIVER_LIB_LOCATION maodbc LOCATION)
-  GET_FILENAME_COMPONENT(DRIVER_LIB_DIR ${DRIVER_LIB_LOCATION} DIRECTORY)
   ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=${DRIVER_LIB_DIR}
+    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
                                   -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
                                   -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
                                   -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
                      )
-
+  ####### MAODBCS #######
   ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
   SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
   TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc ${ODBC_INSTLIBS})
 
   ADD_EXECUTABLE(dsn_test WIN32 dsn_test.c)
   TARGET_LINK_LIBRARIES(dsn_test ${MARIADB_LIB})
+ELSE()
+  # Configuring ini files for testing with UnixODBC
+  SET(TEST_DRIVER "maodbc_test")
+  IF(DEFINED ENV{TEST_DRIVER})
+    SET(TEST_DRIVER "$ENV{TEST_DRIVER}")
+  ENDIF()
+
+  SET(TEST_DSN "maodbc_test")
+  IF(DEFINED ENV{TEST_DSN})
+    SET(TEST_DSN "$ENV{TEST_DSN}")
+  ENDIF()
+
+  MESSAGE(STATUS "Configurig Test Driver Name : ${TEST_DRIVER}, Test DSN Name: ${TEST_DSN}")
+
+  ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
+                                  -DTEST_DRIVER=${TEST_DRIVER}
+                                  -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                  -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbcinst.ini
+                                  -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                     )
+
+  ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
+                                  -DTEST_DSN=${TEST_DSN}
+                                  -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                  -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbc.ini
+                                  -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                     )
 ENDIF()
+
 
 SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
 IF(WIN32)

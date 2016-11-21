@@ -1,0 +1,9 @@
+[ODBC]
+# Change to "yes" to turn on tracing
+Trace     = no
+TraceFile = /tmp/maodbc_trace.log
+
+[@TEST_DRIVER@]
+Driver      = @DRIVER_LIB_LOCATION@
+DESCRIPTION = MariaDB ODBC Connector
+Threading   = 0

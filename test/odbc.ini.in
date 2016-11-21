@@ -1,0 +1,6 @@
+[@TEST_DSN@]
+Driver      = @TEST_DRIVER@
+DESCRIPTION =MariaDB ODBC Connector Test
+# To turn off connectors log(slows execution significantly)
+#OPTIONS     =4
+
