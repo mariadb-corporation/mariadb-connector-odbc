@@ -1,6 +1,11 @@
 [@TEST_DSN@]
 Driver      = @TEST_DRIVER@
-DESCRIPTION =MariaDB ODBC Connector Test
+DESCRIPTION = MariaDB ODBC Connector Test
+SERVER      = @TEST_SERVER@
+PORT        = @TEST_PORT@
+DATABASE    = @TEST_SCHEMA@
+UID         = @TEST_UID@
+PASSWORD    = @TEST_PASSWORD@
 # To turn off connectors log(slows execution significantly)
 #OPTIONS     =4
 

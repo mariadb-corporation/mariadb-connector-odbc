@@ -3961,7 +3961,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       {
         Start= Stmt->Cursor.Position;
         /* TODO: if num_rows returns 1, End is 0? Start would be 1, no */
-        End= min(mysql_stmt_num_rows(Stmt->stmt)-1, Start + Stmt->Ard->Header.ArraySize - 1);
+        End= MIN(mysql_stmt_num_rows(Stmt->stmt)-1, Start + Stmt->Ard->Header.ArraySize - 1);
       }
       /* Stmt->ArrayOffset will be incremented in StmtExecute() */
       Start+= Stmt->ArrayOffset;

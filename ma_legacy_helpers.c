@@ -253,7 +253,7 @@ my_bool MADB_InitDynamicArray(MADB_DynArray *array, unsigned int element_size,
 {
   if (!alloc_increment)
   {
-    alloc_increment=max((8192-MALLOC_OVERHEAD)/element_size,16);
+    alloc_increment=MAX((8192-MALLOC_OVERHEAD)/element_size,16);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment=init_alloc*2;
   }
@@ -379,7 +379,7 @@ void MADB_DeleteDynamicElement(MADB_DynArray *array, unsigned int idx)
 
 void MADB_FreezeSizeDynamic(MADB_DynArray *array)
 {
-  unsigned int elements=max(array->elements,1);
+  unsigned int elements=MAX(array->elements,1);
 
   if (array->buffer && array->max_element != elements)
   {
