@@ -1869,9 +1869,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   MADB_Desc         *ArdDesc=    Stmt->Ard;
   MYSQL_ROW_OFFSET  SaveCursor= NULL;
   SQLRETURN         result= SQL_SUCCESS;
-    
-  if (!Stmt->stmt)
-    return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
@@ -1892,8 +1889,8 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   Stmt->LastRowFetched= 0;
 
-  /* We don't have anything to do if there is no result, and we don't have much to do if ArraySize == 0 */
-  if (!(MADB_STMT_COLUMN_COUNT(Stmt) > 0) || Stmt->Ard->Header.ArraySize == 0)
+  /* We don't have much to do if ArraySize == 0 */
+  if (Stmt->Ard->Header.ArraySize == 0)
   {
     return Stmt->Error.ReturnValue;
   }

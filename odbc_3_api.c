@@ -1354,7 +1354,7 @@ SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
    
   Stmt->Ird->Header.RowsProcessedPtr= RowCountPtr;
   Stmt->Ird->Header.ArrayStatusPtr= RowStatusArray;
-  ret= MA_SQLFetchScroll((SQLHSTMT)Stmt, FetchOrientation, FetchOffset);
+  ret=  Stmt->Methods->FetchScroll(Stmt, FetchOrientation, FetchOffset);
 
   if (RowStatusArray && SaveArrayStatusPtr)
   {
@@ -1380,56 +1380,41 @@ SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLFetch */
-SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle)
-{
-  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLRETURN ret;
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
-  Stmt->FetchType= MADB_FETCH_TYPE_FETCH;
-  MDBUG_C_ENTER(Stmt->Connection, "SQLFetch");
-  ret= Stmt->Methods->Fetch(Stmt, FALSE);
-
-  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-}
-
 SQLRETURN SQL_API SQLFetch(SQLHSTMT StatementHandle)
 {
+  MADB_Stmt *Stmt;
+  
   if (StatementHandle == SQL_NULL_HSTMT)
     return SQL_INVALID_HANDLE;
-  MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
 
-  return MA_SQLFetch(StatementHandle);
+  Stmt= (MADB_Stmt *)StatementHandle;
+
+  MDBUG_C_ENTER(Stmt->Connection, "SQLFetch");
+  MADB_CLEAR_ERROR(&Stmt->Error);
+  Stmt->FetchType= MADB_FETCH_TYPE_FETCH;
+
+  MDBUG_C_RETURN(Stmt->Connection, Stmt->Methods->Fetch(Stmt, FALSE), &Stmt->Error);
 }
 /* }}} */
 
 /* {{{ SQLFetchScroll */
-SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
-    SQLSMALLINT FetchOrientation,
-    SQLLEN FetchOffset)
-{
-  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLRETURN ret;
-  if(!Stmt)
-    return SQL_INVALID_HANDLE;
-
-  MDBUG_C_ENTER(Stmt->Connection, "SQLFetchScroll");
-  MDBUG_C_DUMP(Stmt->Connection, FetchOrientation, d);
-
-  ret= Stmt->Methods->FetchScroll(Stmt, FetchOrientation, FetchOffset);
-
-  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-}
-
 SQLRETURN SQL_API SQLFetchScroll(SQLHSTMT StatementHandle,
     SQLSMALLINT FetchOrientation,
     SQLLEN FetchOffset)
 {
+  MADB_Stmt *Stmt;
+
   if (StatementHandle == SQL_NULL_HSTMT)
     return SQL_INVALID_HANDLE;
-  MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
 
-  return MA_SQLFetchScroll(StatementHandle, FetchOrientation, FetchOffset);
+  Stmt= (MADB_Stmt *)StatementHandle;
+
+  MDBUG_C_ENTER(Stmt->Connection, "SQLFetchScroll");
+  MDBUG_C_DUMP(Stmt->Connection, FetchOrientation, d);
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  MDBUG_C_RETURN(Stmt->Connection, Stmt->Methods->FetchScroll(Stmt, FetchOrientation, FetchOffset), &Stmt->Error);
 }
 /* }}} */
 

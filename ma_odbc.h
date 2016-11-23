@@ -483,8 +483,6 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
     SQLLEN BufferLength,
     SQLLEN *StrLen_or_IndPtr);
 
-SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
-
 SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
     SQLUSMALLINT Option);
 
@@ -506,10 +504,6 @@ SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
     SQLINTEGER TextLength);
 
 SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle);
-
-SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
-    SQLSMALLINT FetchOrientation,
-    SQLLEN FetchOffset);
 
 SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
@@ -541,8 +535,6 @@ SQLRETURN MA_SQLAllocConnect(SQLHANDLE InputHandle,
 
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);
-
-SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
 
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);
