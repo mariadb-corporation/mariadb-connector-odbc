@@ -29,8 +29,6 @@
 
 #include <stdlib.h>
 
-//#include <ma_global.h>
-//#include <ma_sys.h>
 #include <mysql.h>
 
 #include <ma_legacy_helpers.h>
@@ -313,7 +311,7 @@ struct st_ma_odbc_stmt
   MYSQL_RES                 *metadata;
   MADB_List                      ListItem;
   MADB_QUERY                *Tokens;
-  SQLINTEGER                ParamCount;
+  SQLSMALLINT               ParamCount;
   my_bool                   isMultiQuery;
   unsigned int              FetchType;
   enum MADB_DaeType         DataExecutionType;

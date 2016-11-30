@@ -207,16 +207,16 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString)
 my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *TableName, my_bool ParameterMarkers)
 {
   int UniqueCount=0, PrimaryCount= 0;
-  unsigned int i;
-  int Flag= 0;
+  int i, Flag= 0;
   char *Column= NULL;
   SQLLEN StrLength;
 
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt);i++)
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    if (Stmt->stmt->fields[i].flags & PRI_KEY_FLAG)
+    MYSQL_FIELD *field= mysql_fetch_field_direct(FetchMetadata(Stmt), i);
+    if (field->flags & PRI_KEY_FLAG)
       PrimaryCount++;
-    if (Stmt->stmt->fields[i].flags & UNIQUE_KEY_FLAG)
+    if (field->flags & UNIQUE_KEY_FLAG)
       UniqueCount++;
   }
   /* We need to use all columns, otherwise it will be difficult to map fields for Positioned Update */
@@ -239,7 +239,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
     CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
 
-    if (FieldCount != mysql_stmt_field_count(Stmt->stmt))
+    if (FieldCount != MADB_STMT_COLUMN_COUNT(Stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
       return TRUE;
@@ -247,12 +247,13 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
   }
   if (MADB_DynstrAppend(DynString, " WHERE 1"))
     goto memerror;
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt);i++)
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    if (Stmt->stmt->fields[i].flags & Flag || !Flag)
+    MYSQL_FIELD *field= mysql_fetch_field_direct(Stmt->metadata, i);
+    if (field->flags & Flag || !Flag)
     {
       if (MADB_DynstrAppend(DynString, " AND ") ||
-          MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name))
+          MADB_DynStrAppendQuoted(DynString, field->org_name))
           goto memerror;
       if (ParameterMarkers)
       {
@@ -288,12 +289,16 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
   if (MADB_DynstrAppend(DynString, " LIMIT 1"))
     goto memerror;
   MADB_FREE(Column);
+
   return FALSE;
+
 memerror:
   MADB_FREE(Column);
   MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+
   return TRUE;
 }
+
 
 my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString)
 {

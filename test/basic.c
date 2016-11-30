@@ -1305,7 +1305,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
   is_num(my_fetch_int(Stmt, 1), 3);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  /* Unsuccessful quer */
+  /* Unsuccessful query */
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT count(*) FROM t_reset_nonexistent", SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

@@ -2290,7 +2290,7 @@ SQLRETURN SQL_API SQLPrepare(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, StatementText, s);
   MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
 
-  MADB_CLEAR_ERROR(&Stmt->Error);
+  /* Prepare method clears error */
 
   return Stmt->Methods->Prepare(Stmt, (char *)StatementText, TextLength, FALSE);
 }
