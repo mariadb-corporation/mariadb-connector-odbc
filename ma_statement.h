@@ -114,6 +114,8 @@ MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
 #define MADB_STMT_COLUMN_COUNT(aStmt) (aStmt)->Ird->Header.Count
 #define MADB_STMT_PARAM_COUNT(aStmt)  (aStmt)->ParamCount
 #define MADB_POSITIONED_COMMAND(aStmt) ((aStmt)->PositionedCommand && (aStmt)->PositionedCursor)
+/* So far we always use all fields for index. Once that is changed, this should be changed as well */
+#define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor)
 
 #define MADB_TRANSFER_OCTET_LENGTH\
   "CAST(CASE @dt"\

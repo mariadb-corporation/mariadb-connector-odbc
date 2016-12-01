@@ -424,7 +424,9 @@ SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
   {
     if (Stmt->params)
       MADB_FREE(Stmt->params);
-    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
+    /* If we have "WHERE CURRENT OF", we will need bind additionaly parameters for each field in the index */
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * (Stmt->ParamCount +
+                                  (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)));
   }
   return SQL_SUCCESS;
 }
@@ -785,8 +787,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
   
   MADB_InitDynamicArray(&DynData, sizeof(char *), 8, 8);
 
-  /*So far we always use all fields for index. Once that is changed, this should be changed as well*/
-  for (j= Stmt->ParamCount; j < Stmt->ParamCount + MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor); j++)
+  for (j= Stmt->ParamCount; j < Stmt->ParamCount + MADB_POS_COMM_IDX_FIELD_COUNT(Stmt); j++)
   {
     SQLLEN Length;
     MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, (SQLSMALLINT)(j - Stmt->ParamCount + 1), MADB_DESC_READ);
@@ -805,7 +806,17 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   SaveCursor= Stmt->PositionedCursor;
   Stmt->PositionedCursor= NULL;
-  Stmt->ParamCount= Stmt->Apd->Header.Count;
+
+  if (DAE_DONE(Stmt))
+  {
+    /* Re-marking DAE as done */
+    Stmt->ParamCount= Stmt->Apd->Header.Count;
+    MARK_DAE_DONE(Stmt);
+  }
+  else
+  {
+    Stmt->ParamCount= Stmt->Apd->Header.Count;
+  }
 
   ret= Stmt->Methods->Execute(Stmt, ExecDirect);
 
