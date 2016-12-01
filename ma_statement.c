@@ -296,7 +296,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
        Checking if we can deploy mariadb_stmt_execute_direct */
 BOOL MADB_CheckIfExecDirectPossible(MADB_Stmt *Stmt)
 {
-  return MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_EXEC_DIRECT) && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;
+  return MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_EXEC_DIRECT)
+      && !(Stmt->Apd->Header.ArraySize > 1)                              /* With array of parameters exec_direct will be not optimal */
+      && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;
 }
 /* }}} */
 
@@ -420,13 +422,12 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
 SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
 {
   /* TODO: In case of positioned command it shouldn't be always*/
-  if (Stmt->ParamCount= Stmt->Apd->Header.Count)
+  if (Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0))
   {
     if (Stmt->params)
       MADB_FREE(Stmt->params);
     /* If we have "WHERE CURRENT OF", we will need bind additionaly parameters for each field in the index */
-    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * (Stmt->ParamCount +
-                                  (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)));
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
   }
   return SQL_SUCCESS;
 }
@@ -765,10 +766,10 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
 /* {{{ MADB_ExecutePositionedUpdate */
 SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
-  int j;
-  SQLRETURN ret;
+  SQLSMALLINT   j;
+  SQLRETURN     ret;
   MADB_DynArray DynData;
-  MADB_Stmt *SaveCursor;
+  MADB_Stmt     *SaveCursor;
 
   char *p;
 
@@ -787,43 +788,36 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
   
   MADB_InitDynamicArray(&DynData, sizeof(char *), 8, 8);
 
-  for (j= Stmt->ParamCount; j < Stmt->ParamCount + MADB_POS_COMM_IDX_FIELD_COUNT(Stmt); j++)
+  for (j= 1; j < MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) + 1; ++j)
   {
     SQLLEN Length;
-    MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, (SQLSMALLINT)(j - Stmt->ParamCount + 1), MADB_DESC_READ);
+    MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
     Length= Rec->OctetLength;
  /*   if (Rec->inUse)
       MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
     else */
     {
-      Stmt->Methods->GetData(Stmt->PositionedCursor, (SQLUSMALLINT)(j - Stmt->ParamCount + 1), SQL_CHAR, NULL, 0, &Length);
+      Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, NULL, 0, &Length);
       p= (char *)MADB_CALLOC(Length + 2);
       MADB_InsertDynamic(&DynData, (char *)&p);
-      Stmt->Methods->GetData(Stmt->PositionedCursor, (SQLUSMALLINT)(j - Stmt->ParamCount + 1), SQL_CHAR, p, Length + 1, NULL);
-      Stmt->Methods->BindParam(Stmt, j+1, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
+      Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, NULL);
+      Stmt->Methods->BindParam(Stmt, j + (Stmt->ParamCount - MADB_POS_COMM_IDX_FIELD_COUNT(Stmt)), SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
     }
   }
 
   SaveCursor= Stmt->PositionedCursor;
   Stmt->PositionedCursor= NULL;
 
-  if (DAE_DONE(Stmt))
-  {
-    /* Re-marking DAE as done */
-    Stmt->ParamCount= Stmt->Apd->Header.Count;
-    MARK_DAE_DONE(Stmt);
-  }
-  else
-  {
-    Stmt->ParamCount= Stmt->Apd->Header.Count;
-  }
-
   ret= Stmt->Methods->Execute(Stmt, ExecDirect);
 
   Stmt->PositionedCursor= SaveCursor;
-  /* We must restore real number of application's bound parameters */
-  Stmt->Apd->Header.Count-= MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor);
-  Stmt->ParamCount= Stmt->Apd->Header.Count;
+
+  /* For the case of direct execution we need to restore number of parameters bound by application, for the case when application
+     re-uses handle with same parameters for another query. Otherwise we won't know that number (of application's parameters) */
+  if (ExecDirect)
+  {
+    Stmt->Apd->Header.Count-= MADB_POS_COMM_IDX_FIELD_COUNT(Stmt);
+  }
 
   for (j=0; j < (int)DynData.elements; j++)
   {
