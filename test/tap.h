@@ -631,11 +631,11 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%u;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
-  diag("DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+  diag("DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%u;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");

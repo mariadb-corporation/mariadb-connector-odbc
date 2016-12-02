@@ -37,7 +37,9 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 /* Required, but not sufficient condition */
 BOOL QueryIsPossiblyMultistmt(char *queryStr)
 {
-  if (strchr(queryStr, ';'))
+  char *semicolon_pos= strchr(queryStr, ';');
+  /* String supposed to come here trimmed. Checking that semicolon is not last char in the string */
+  if (semicolon_pos != NULL && semicolon_pos < queryStr + strlen(queryStr) - 1)
   {
     /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
         protocol */

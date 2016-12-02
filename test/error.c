@@ -237,9 +237,10 @@ ODBC_TEST(t_bug3456)
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, (SQLCHAR *)buf, SQL_NTS));
 
   /* Now check that the connection killed returns the right SQLSTATE */
-  ERR_SIMPLE_STMT(Stmt2, "SELECT connection_id()");
+  EXPECT_STMT(Stmt2, SQLExecDirect(Stmt2, "SELECT connection_id()", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt2, "08S01");
 
-  return check_sqlstate(Stmt2, "08S01");
+  return OK;
 }
 
 
@@ -315,7 +316,9 @@ ODBC_TEST(bind_notenoughparam1)
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &i, 0, NULL));
   FAIL_IF(SQLExecute(Stmt)!= SQL_ERROR, "error expected");
-  return check_sqlstate(Stmt, "07002");
+  CHECK_SQLSTATE(Stmt, "07002");
+
+  return OK;
 }
 
 
@@ -337,7 +340,9 @@ ODBC_TEST(bind_notenoughparam2)
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &i, 0, NULL));
   FAIL_IF(SQLExecute(Stmt)!= SQL_ERROR, "error expected");
-  return check_sqlstate(Stmt, "07002");
+  CHECK_SQLSTATE(Stmt, "07002");
+
+  return OK;
 }
 
 
@@ -356,7 +361,9 @@ ODBC_TEST(getdata_need_nullind)
 
   /* now that it's an error */
   FAIL_IF(SQLGetData(Stmt, 2, SQL_C_LONG, &i, 0, NULL) != SQL_ERROR, "Error expected");
-  return check_sqlstate(Stmt, "22002");
+  CHECK_SQLSTATE(Stmt, "22002");
+
+  return OK;
 }
 
 
@@ -424,7 +431,9 @@ ODBC_TEST(sqlerror)
 ODBC_TEST(t_bug27158)
 {
   ERR_SIMPLE_STMT(Stmt, "{ CALL test.does_not_exist }");
-  return check_sqlstate(Stmt, "42000");
+  CHECK_SQLSTATE(Stmt, "42000");
+
+  return OK;
 }
 
 
@@ -437,8 +446,9 @@ ODBC_TEST(t_bug13542600)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, &i, 0, NULL));
 
   FAIL_IF(SQLFetch(Stmt)!= SQL_ERROR, "error expected");
+  CHECK_SQLSTATE(Stmt, "22002");
 
-  return check_sqlstate(Stmt, "22002");
+  return OK;
 }
 
 
@@ -603,7 +613,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc2_error, "t_odbc2_error"},
   {t_diagrec, "t_diagrec"},
   {t_warning, "t_warning"},
-  {t_bug3456, "t_bug3456"},
+  {t_bug3456, "t_bug3456_fails_due_to_conc_bug"},
   {t_bug16224, "t_bug16224"},
   {bind_invalidcol, "bind_invalidcol"},
   {bind_notenoughparam1, "bind_notenoughparam1"},

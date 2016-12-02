@@ -407,6 +407,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
   case MADB_SS_PREPARED:
     ResetMetadata(&Stmt->metadata, NULL);
     Stmt->PositionedCursor= NULL;
+    Stmt->Ird->Header.Count= 0;
 
   case MADB_SS_EMULATED:
     MADB_FREE(Stmt->NativeSql);
@@ -979,7 +980,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         mysql_stmt_close(Stmt->stmt);
       }
       Stmt->stmt= Stmt->MultiStmts[StatementNr];
-      Stmt->ParamCount= Stmt->MultiStmts[StatementNr]->param_count;
+      Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
       Stmt->RebindParams= TRUE;
     }
     /* Convert and bind parameters */
