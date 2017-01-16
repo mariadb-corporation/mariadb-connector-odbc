@@ -622,7 +622,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
     client_flags|= CLIENT_NO_SCHEMA;
-  if (DSN_OPTION(Connection, MADB_OPT_FLAG_PAD_SPACE))
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_IGNORE_SPACE))
     client_flags|= CLIENT_IGNORE_SPACE;
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_FOUND_ROWS))

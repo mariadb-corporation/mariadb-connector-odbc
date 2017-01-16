@@ -237,7 +237,7 @@ BEGIN
     CONTROL         "Return matched rows instead of affected rows",ckReturnMatchedRows,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,48,165,10,WS_EX_TRANSPARENT
     CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,63,105,10,WS_EX_TRANSPARENT
-    CONTROL         "Pad Char to fulllength with SPACE",ckPadCharFullLength,
+    CONTROL         "Allow spaces after function names",ckIgnoreSpace,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,78,124,10,WS_EX_TRANSPARENT
     CONTROL         "Return SQL_NULL_DATA for zero date",ckNullDate,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,93,139,10,WS_EX_TRANSPARENT
 //    CONTROL         "Don't cache results of forward only cursors",ckDontCacheForwardCursor,
