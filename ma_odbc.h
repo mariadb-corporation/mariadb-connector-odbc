@@ -338,7 +338,7 @@ struct st_ma_odbc_stmt
   int                       PutParam;
   my_bool                   RebindParams;
   my_bool                   bind_done;
-  SQLBIGINT                 AffectedRows;
+  long long                 AffectedRows;
   unsigned long             *CharOffset;
   unsigned long             *Lengths;
   char                      *TableName;

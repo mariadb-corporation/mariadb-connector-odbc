@@ -2589,7 +2589,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_WLONGVARCHAR:
     {
       char  *ClientValue;
-      size_t CharLength= 0, SrcLength;
+      SQLULEN  CharLength= 0, SrcLength;
 
       if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
       {
@@ -3800,7 +3800,7 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
 {
   SQLRETURN ret;
   SQLLEN    CurrentRow=     Stmt->Cursor.Position;
-  SQLBIGINT AffectedRows=   Stmt->AffectedRows;
+  long long AffectedRows=   Stmt->AffectedRows;
   SQLLEN    LastRowFetched= Stmt->LastRowFetched;
 
   ret= Stmt->Methods->Execute(Stmt, FALSE);
