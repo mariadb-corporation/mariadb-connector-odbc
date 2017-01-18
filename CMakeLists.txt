@@ -161,6 +161,10 @@ ENDIF()
 
 SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
 
+SET(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
+SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
+
 # TODO: Make it optional
 # Disable dbug information for release builds 
 #SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
@@ -277,14 +281,15 @@ ELSE()
 
   INSTALL(TARGETS
           maodbc
-          RUNTIME DESTINATION ${INSTALL_LIB_SUFFIX}
-          LIBRARY DESTINATION ${INSTALL_LIB_SUFFIX}
-          ARCHIVE DESTINATION ${INSTALL_LIB_SUFFIX})
+          LIBRARY DESTINATION ./${INSTALL_LIB_SUFFIX}
+          COMPONENT ODBCLibs)
+
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/COPYING
           ${CMAKE_SOURCE_DIR}/README
           DESTINATION
-          ./share/doc/${CPACK_PACKAGE_NAME}/)
+          ./share/doc/${CPACK_PACKAGE_NAME}/
+          COMPONENT Documentation)
 ENDIF()
 
 # Tests. Checking if we have them. May be not the case if we are building from source package
