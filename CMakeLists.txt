@@ -55,13 +55,15 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_common.c)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
 
 IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)
@@ -91,6 +93,12 @@ IF(WIN32)
 
   SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
   SET(PLATFORM_DEPENDENCIES ws2_32)
+  #IF(MARIADB_LINK_DYNAMIC)
+  #  SET(MARIADB_CLIENT_FILENAME libmariadb.lib)
+  #ELSE()
+  #  SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
+  #ENDIF()
+  #SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
     IF (NOT(MSVC_VERSION LESS 1900))
@@ -111,14 +119,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
-ENDIF()
-
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindMariaDB.cmake)
-IF(MARIADB_FOUND)
-  INCLUDE_DIRECTORIES(${MARIADB_INCLUDE_DIR})
-  SET(MARIADB_LIB ${MARIADB_LIBRARY_DIR}/${MARIADB_CLIENT_FILENAME})
-ELSE()
-  MESSAGE(FATAL_ERROR "MariaDB not found")
 ENDIF()
 
 IF(NOT WIN32)
@@ -144,6 +144,10 @@ IF(APPLE)
 ENDIF()
 
 SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
+
+SET(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
+SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
 
 # TODO: Make it optional
 # Disable dbug information for release builds 
@@ -221,10 +225,10 @@ SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 
-####### MAODBC #######             
-ADD_LIBRARY(maodbc SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
+ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
+
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
+TARGET_LINK_LIBRARIES(maodbc mariadbclient ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
 # Currently on Windows only
 IF(WIN32)
@@ -257,14 +261,15 @@ ELSE()
 
   INSTALL(TARGETS
           maodbc
-          RUNTIME DESTINATION ${INSTALL_LIB_SUFFIX}
-          LIBRARY DESTINATION ${INSTALL_LIB_SUFFIX}
-          ARCHIVE DESTINATION ${INSTALL_LIB_SUFFIX})
+          LIBRARY DESTINATION ./${INSTALL_LIB_SUFFIX}
+          COMPONENT ODBCLibs)
+
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/COPYING
           ${CMAKE_SOURCE_DIR}/README
           DESTINATION
-          ./share/doc/${CPACK_PACKAGE_NAME}/)
+          ./share/doc/${CPACK_PACKAGE_NAME}/
+          COMPONENT Documentation)
 ENDIF()
 
 # Tests. Checking if we have them. May be not the case if we are building from source package
@@ -327,6 +332,7 @@ SET(CPACK_SOURCE_IGNORE_FILES
 test/
 .git/
 .gitignore
+.gitmodules
 .gitattributes
 CMakeCache.txt
 cmake_dist.cmake
@@ -342,7 +348,8 @@ CPackConfig.cmake
 .*gz$
 .*zip$
 .*so$
-.*so.*$
+.*so.2
+.*so.3
 .*dll$
 .*a$
 .*pdb$
@@ -353,6 +360,11 @@ CPackConfig.cmake
 /_CPack_Packages/
 Makefile$
 /autom4te.cache/
+libmariadb/win
+libmariadb/client
+libmariadb/examples
+.travis/
+.travis.yml
 )
 
 # Build source packages
