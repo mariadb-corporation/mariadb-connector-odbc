@@ -58,11 +58,15 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_common.c)
 
-#Debug log is controlled by connection option solely
+ADD_SUBDIRECTORY(libmariadb)
+
+#Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libmariadb/include)
 
 IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)
@@ -93,11 +97,11 @@ IF(WIN32)
   SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                           ma_platform_win32.c)
 
-  IF(MARIADB_LINK_DYNAMIC)
-    SET(MARIADB_CLIENT_FILENAME libmariadb.lib)
-  ELSE()
-    SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
-  ENDIF()
+  #IF(MARIADB_LINK_DYNAMIC)
+  #  SET(MARIADB_CLIENT_FILENAME libmariadb.lib)
+  #ELSE()
+  #  SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
+  #ENDIF()
   SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
@@ -238,11 +242,11 @@ SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 
-####### MAODBC #######             
+####### MAODBC #######
 ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
 
 SET_TARGET_PROPERTIES(maodbc PROPERTIES LANGUAGE C)
-TARGET_LINK_LIBRARIES(maodbc ${MARIADB_LIB} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
+TARGET_LINK_LIBRARIES(maodbc mariadbclient ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
 # Currently on Windows only
 IF(WIN32)
