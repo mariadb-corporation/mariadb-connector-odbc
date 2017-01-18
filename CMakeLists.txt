@@ -58,7 +58,7 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_common.c)
 
-ADD_SUBDIRECTORY(libmariadb)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
