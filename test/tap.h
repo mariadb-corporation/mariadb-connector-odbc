@@ -477,7 +477,9 @@ do {\
     }
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
-#define IS_STR(A,B,C) diag("%s %s", (A),(B)); FAIL_IF((A) == NULL || (B) == NULL || strncmp((A), (B), (C)) != 0, "String comparison failed")
+#define IS_STR(A,B,C) do {const char *loc_a=(A), *loc_b=(B);\
+diag("%s %s", loc_a, loc_b);\
+FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "String comparison failed"); } while(0)
 
 #define is_num(A,B) \
 do {\
@@ -627,11 +629,11 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
-  diag("DSN=%s;UID=%s;PWD=%s;PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+  diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%ul;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");

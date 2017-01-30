@@ -301,7 +301,8 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
   if (!SQL_SUCCEEDED(ret))
   {
     /* This is not quite good - 1064 may simply mean that syntax is wrong. we are screwed then */
-    if (Stmt->Error.NativeError == 1295 || Stmt->Error.NativeError == 1064)
+    /* Stmt->StmtString is NULL if we had error on one of statements in the batch */
+    if ((Stmt->Error.NativeError == 1295 || Stmt->Error.NativeError == 1064) && Stmt->StmtString != NULL)
     {
       Stmt->EmulatedStmt= TRUE;
     }
@@ -850,8 +851,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   SQLLEN       j, Start=      0;
 
   BOOL         FetchedOutParams= FALSE;
-
-
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 

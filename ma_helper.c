@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013, 2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -37,7 +37,9 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 /* Required, but not sufficient condition */
 BOOL QueryIsPossiblyMultistmt(char *queryStr)
 {
-  if (strchr(queryStr, ';'))
+  char *semicolon_pos= strchr(queryStr, ';');
+  /* String supposed to come here trimmed. Checking that semicolon is not last char in the string */
+  if (semicolon_pos != NULL && semicolon_pos < queryStr + strlen(queryStr) - 1)
   {
     /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
         protocol */
@@ -53,9 +55,10 @@ BOOL QueryIsPossiblyMultistmt(char *queryStr)
   return FALSE;
 }
 
+#define STRING_OR_COMMENT() (quote[0] || quote[1] || comment)
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Length)
 {
-  char *p, *last, *prev= NULL;
+  char *p, *prev= NULL, wait_char= 0;
   unsigned int statements= 1;
   int quote[2]= {0,0}, comment= 0;
   char *end;
@@ -76,41 +79,63 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
   {
     end= StmtStr + Length - 1;
     while (end > StmtStr && (isspace(*end) || *end == ';'))
-      end--;
+      --end;
     Length= (SQLINTEGER)(end - StmtStr);
   }
-  p= last= StmtCopy= my_strdup(StmtStr, MYF(0));
+  p= StmtCopy= my_strdup(StmtStr, MYF(0));
   
   while (p < StmtCopy + Length)
   {
-    switch (*p) {
-    case ';':
-      if (!quote[0] && !quote[1] && !comment)
+    if (wait_char)
+    {
+      if (*p == wait_char && *prev != '\\') /* What if that is escaped backslash? */
       {
-        statements++;
-        last= p + 1;
-        *p= '\0';
+        wait_char= 0;
       }
-      break;
-    case '/':
-      if (!comment && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '*')
-        comment= 1;
-      else if (comment && (p > StmtCopy) && (char)*(p-1) == '*')
-        comment= 0;
-      break;
-    case '\"':
-      if (prev && *prev != '\\')
-        quote[0] = !quote[0];
-      break;
-    case 39:
-      if (prev && *prev != '\\')
-        quote[1] = !quote[1];
-      break;
-    default:
-      break;
     }
+    else
+    {
+      switch (*p) {
+      case '-':
+        if (!STRING_OR_COMMENT() && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '-')
+        {
+          wait_char= '\n';
+        }
+        break;
+      case '#':
+        if (!STRING_OR_COMMENT())
+        {
+          wait_char= '\n';
+        }
+        break;
+      case ';':
+        if (!STRING_OR_COMMENT())
+        {
+          statements++;
+          *p= '\0';
+        }
+        break;
+      case '/':
+        if (!STRING_OR_COMMENT() && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '*')
+          comment= 1;
+        else if (comment && (p > StmtCopy) && (char)*(prev) == '*')
+          comment= 0;
+        break;
+      case '"':
+        if (prev && *prev != '\\')
+          quote[0] = !STRING_OR_COMMENT();
+        break;
+      case '\'':
+        if (prev && *prev != '\\')
+          quote[1] = !STRING_OR_COMMENT();
+        break;
+      default:
+        break;
+      }
+    }
+
     prev= p;
-    p++;
+    ++p;
   }
 
   if (statements > 1)
@@ -150,6 +175,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
 
   return statements;
 }
+#undef STRING_OR_COMMENT
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen)
 {

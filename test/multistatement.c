@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -108,7 +108,7 @@ ODBC_TEST(test_params)
 
 
 #define TEST_MAX_PS_COUNT 25
-ODBC_TEST(test_odbc16)
+ODBC_TEST(t_odbc_16)
 {
   SQLLEN    num_inserted;
   SQLRETURN rc;
@@ -195,6 +195,35 @@ ODBC_TEST(test_semicolon)
   return OK;
 }
 
+/* Double quote inside single quotes caused error in parsing while*/
+ODBC_TEST(t_odbc_74)
+{
+  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end"}, val[4];
+  unsigned int i;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc74; CREATE TABLE odbc74(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\
+                        val VARCHAR(64) NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO odbc74 (val) VALUES('\"');INSERT INTO odbc74 (val) VALUES(\"'\");\
+                        /*\"*//*'*//*/**/INSERT INTO odbc74 (val) VALUES('*/');\
+                        # Pound-sign comment\"'--; insert into non_existent values(1)\n\
+                        # 2 lines of comments \"'--;\n\
+                        INSERT INTO odbc74 (val) VALUES('/*');-- comment\"'; insert into non_existent values(1)\n\
+                        INSERT INTO odbc74 (val) VALUES('end')\n\
+                        # ;Unhappy comment at the end ");
+  OK_SIMPLE_STMT(Stmt, "SELECT val FROM odbc74 ORDER BY id");
+
+  for (i= 0; i < sizeof(ref)/sizeof(ref[0]); ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    IS_STR(my_fetch_str(Stmt, val, 1), ref[i], sizeof(ref[i]));
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc74");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -202,8 +231,9 @@ MA_ODBC_TESTS my_tests[]=
   {test_multi_on_off, "test_multi_on_off"},
 //  {test_noparams, "test_noparams"},
   {test_params, "test_params"},
-  {test_odbc16, "test_odbc16"},
+  {t_odbc_16, "test_odbc_16"},
   {test_semicolon, "test_semicolon_in_string"},
+  {t_odbc_74, "test_odbc_74"},
   {NULL, NULL}
 };
 
