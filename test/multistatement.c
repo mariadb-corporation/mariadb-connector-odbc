@@ -198,7 +198,7 @@ ODBC_TEST(test_semicolon)
 /* Double quote inside single quotes caused error in parsing while*/
 ODBC_TEST(t_odbc_74)
 {
-  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end"}, val[4];
+  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end", "one", "two"}, val[4];
   unsigned int i;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc74; CREATE TABLE odbc74(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\
@@ -210,6 +210,10 @@ ODBC_TEST(t_odbc_74)
                         INSERT INTO odbc74 (val) VALUES('/*');-- comment\"'; insert into non_existent values(1)\n\
                         INSERT INTO odbc74 (val) VALUES('end')\n\
                         # ;Unhappy comment at the end ");
+  OK_SIMPLE_STMT(Stmt, "-- comment ;1 \n\
+                        # comment ;2 \n\
+                        INSERT INTO odbc74 (val) VALUES('one');\
+                        INSERT INTO odbc74 (val) VALUES(\"two\");");
   OK_SIMPLE_STMT(Stmt, "SELECT val FROM odbc74 ORDER BY id");
 
   for (i= 0; i < sizeof(ref)/sizeof(ref[0]); ++i)

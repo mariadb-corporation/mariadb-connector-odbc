@@ -1042,6 +1042,39 @@ ODBC_TEST(t_odbc58)
 }
 
 
+ODBC_TEST(t_odbc77)
+{
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc41");
+
+  OK_SIMPLE_STMT(Stmt, "ANALYZE TABLE non_existent");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+#ifdef MDEV_11966_FIXED
+  OK_SIMPLE_STMT(Stmt, "ANALYZE SELECT 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+#endif
+  OK_SIMPLE_STMT(Stmt, "EXPLAIN SELECT 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /*CHECK is not preparable */
+  /*OK_SIMPLE_STMT(Stmt, "CHECK TABLE non_existent");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));*/
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1062,7 +1095,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug11766437, "t_bug11766437"},
   {t_odbc29, "t_odbc-29"},
   {t_odbc41, "t_odbc-41-nors_after_rs"},
-  { t_odbc58, "t_odbc-58-numeric_after_blob" },
+  {t_odbc58, "t_odbc-58-numeric_after_blob"},
+  {t_odbc77, "t_odbc-77-analyze_table"},
   {NULL, NULL}
 };
 
