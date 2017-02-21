@@ -506,7 +506,7 @@ do {\
   if (ret != (Expected))\
   {\
     CHECK_STMT_RC(Stmt, ret);\
-    diag("%s returned %d, expected %s(%d)", #Function, ret, #Expected, Expected);\
+    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #Function, ret, #Expected, Expected);\
     return FAIL;\
   }\
 } while(0)

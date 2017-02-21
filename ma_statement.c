@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -735,10 +735,10 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
       MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
     else */
     {
-      Stmt->Methods->GetData(Stmt->PositionedCursor, j - ParamOffset2 + 1, SQL_CHAR,  NULL, 0, &Length);
+      Stmt->Methods->GetData(Stmt->PositionedCursor, j - ParamOffset2 + 1, SQL_CHAR,  NULL, 0, &Length, TRUE);
       p= (char *)MADB_CALLOC(Length + 2);
       insert_dynamic(&DynData, (gptr)&p);
-      Stmt->Methods->GetData(Stmt->PositionedCursor, j - ParamOffset2 + 1, SQL_CHAR,  p, Length + 1, NULL);
+      Stmt->Methods->GetData(Stmt->PositionedCursor, j - ParamOffset2 + 1, SQL_CHAR,  p, Length + 1, NULL, TRUE);
       Stmt->Methods->BindParam(Stmt, j+1, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
     }
   }
@@ -2268,13 +2268,46 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
 }
 /* }}} */
 
+SQLRETURN MADB_GetBookmark(MADB_Stmt  *Stmt,
+                           SQLSMALLINT TargetType,
+                           SQLPOINTER  TargetValuePtr,
+                           SQLLEN      BufferLength,
+                           SQLLEN     *StrLen_or_IndPtr)
+{
+  if (Stmt->Options.UseBookmarks == SQL_UB_OFF)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && TargetType != SQL_C_VARBOOKMARK) ||
+    (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && TargetType == SQL_C_VARBOOKMARK))
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY003, NULL, 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  if (TargetValuePtr && TargetType == SQL_C_BOOKMARK && BufferLength <= sizeof(SQLULEN))
+  {
+    *(SQLULEN *)TargetValuePtr= Stmt->Cursor.Position;
+    if (StrLen_or_IndPtr)
+      *StrLen_or_IndPtr= sizeof(SQLULEN);
+    return SQL_SUCCESS;
+  }
+
+  /* Keeping compiler happy */
+  return SQL_SUCCESS;
+}
+
 /* {{{ MADB_StmtGetData */
 SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
                            SQLUSMALLINT Col_or_Param_Num,
                            SQLSMALLINT TargetType,
                            SQLPOINTER TargetValuePtr,
                            SQLLEN BufferLength,
-                           SQLLEN * StrLen_or_IndPtr)
+                           SQLLEN * StrLen_or_IndPtr,
+                           BOOL   InternalUse /* Currently this is respected for SQL_CHAR type only,
+                                                 since all "internal" calls of the function need string representation of datat */)
 {
   MADB_Stmt       *Stmt= (MADB_Stmt *)StatementHandle;
   SQLUSMALLINT    Offset= Col_or_Param_Num - 1;
@@ -2282,17 +2315,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   MYSQL_BIND      Bind;
   my_bool         IsNull= FALSE;
   my_bool         ZeroTerminated= 0;
-  unsigned long   Length= 0;
+  unsigned long   CurrentOffset= InternalUse == TRUE ? 0 : Stmt->CharOffset[Offset]; /* We are supposed not get bookmark column here */
   my_bool         Error;
-  unsigned int    i;
   unsigned char   *SavePtr;
   MADB_DescRecord *IrdRec= NULL;
-
-  if (BufferLength < 0)
-  {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
-    return Stmt->Error.ReturnValue;
-  }
 
   /* Should not really happen, and is evidence of that something wrong happened in some previous call(SQLFetch?) */
   if (Stmt->stmt->bind == NULL)
@@ -2314,34 +2340,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     return SQL_SUCCESS;
   }
 
-  /* Bookmark */
-  if (Col_or_Param_Num == 0)
-  {
-    if (Stmt->Options.UseBookmarks == SQL_UB_OFF)
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
-      return Stmt->Error.ReturnValue;
-    }
-    if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && TargetType != SQL_C_VARBOOKMARK) ||
-        (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && TargetType == SQL_C_VARBOOKMARK))
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY003, NULL, 0);
-      return Stmt->Error.ReturnValue;
-    }
-    if (TargetValuePtr && TargetType == SQL_C_BOOKMARK && BufferLength <= sizeof(SQLULEN))
-    {
-      *(SQLULEN *)TargetValuePtr= Stmt->Cursor.Position;
-      if (StrLen_or_IndPtr)
-        *StrLen_or_IndPtr= sizeof(SQLULEN);
-      return SQL_SUCCESS;
-    }
-
-  }
-  /* reset offsets for other columns */
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
-    if (i != Col_or_Param_Num - 1)
-      Stmt->CharOffset[i]= 0;
-
   memset(&Bind, 0, sizeof(MYSQL_BIND));
 
   /* We might need it for SQL_C_DEFAULT type, or to obtain length of fixed length types(Access likes to have it) */
@@ -2356,7 +2354,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_ARD_TYPE:
     {
       MADB_DescRecord *Ard= MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
-      char *InteralBuffer= NULL;
+
       if (!Ard)
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
@@ -2382,7 +2380,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
   /* set global values for Bind */
   Bind.error=   &Error;
-  Bind.length=  &Length;
+  Bind.length=  &Bind.length_value;
   Bind.is_null= &IsNull;
 
   switch(OdbcType) {
@@ -2429,9 +2427,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       else
       {
-      ts->year= tm.year;
-      ts->month= tm.month;
-      ts->day= tm.day;
+        ts->year= tm.year;
+        ts->month= tm.month;
+        ts->day= tm.day;
       }
       ts->hour= tm.hour;
       ts->minute= tm.minute;
@@ -2573,12 +2571,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       Bind.buffer_length= (unsigned long)BufferLength;
       Bind.buffer_type=   MadbType;
 
-      if (Stmt->Lengths[Offset] && Stmt->CharOffset[Offset] >= Stmt->Lengths[Offset])
-      {
-        Stmt->CharOffset[Offset]= 0;
-        return SQL_NO_DATA;
-      }
-
       if (!(BufferLength) && StrLen_or_IndPtr)
       {
         /* Paranoid - before StrLen_or_IndPtr was used as length directly. so leaving same value in Bind.length. Unlikely needed */
@@ -2587,17 +2579,25 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
         mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]);
         
-        if (!Stmt->CharOffset[Offset])
+        if (InternalUse) 
         {
-          Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+          *StrLen_or_IndPtr= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
         }
-        *StrLen_or_IndPtr= Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
+        else
+        {
+          if (!Stmt->CharOffset[Offset])
+          {
+            Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+          }
+          *StrLen_or_IndPtr= Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
+        }
+        
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
 
         return SQL_SUCCESS_WITH_INFO;
       }
       
-      if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
+      if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, CurrentOffset))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         return Stmt->Error.ReturnValue;
@@ -2606,27 +2606,40 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if ((long)*Bind.length == -1)
         *Bind.length= 0;
       /* end of dirty hack */
-      if (*Bind.length > Bind.buffer_length) 
-        if (!Stmt->CharOffset[Offset])
-          Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+
+      if (!InternalUse && !Stmt->CharOffset[Offset])
+      {
+        Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+      }
       if (ZeroTerminated)
       {
         char *p= (char *)Bind.buffer;
         if (BufferLength > (SQLLEN)*Bind.length)
+        {
           p[*Bind.length]= 0;
+        }
         else
+        {
           p[BufferLength-1]= 0;
+        }
       }
+
+      
       if (StrLen_or_IndPtr)
-        *StrLen_or_IndPtr= *Bind.length - Stmt->CharOffset[Offset];
-      /* Increase Offset only when the buffer wasn't fetched completely */
-      if (*Bind.length > (Bind.buffer_length - ZeroTerminated))
-        Stmt->CharOffset[Offset]+= MIN((unsigned long)BufferLength - ZeroTerminated, *Bind.length);
-      if ((BufferLength - ZeroTerminated) && Stmt->Lengths[Offset] > Stmt->CharOffset[Offset])
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
-        return Stmt->Error.ReturnValue;
+        *StrLen_or_IndPtr= *Bind.length - CurrentOffset;
       }
+      if (InternalUse == FALSE)
+      {
+        /* Recording new offset only if that is API call, and not getting data for internal use */
+        Stmt->CharOffset[Offset]+= MIN((unsigned long)BufferLength - ZeroTerminated, *Bind.length);
+        if ((BufferLength - ZeroTerminated) && Stmt->Lengths[Offset] > Stmt->CharOffset[Offset])
+        {
+          MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+          return Stmt->Error.ReturnValue;
+        }
+      }
+
       if (StrLen_or_IndPtr && BufferLength - ZeroTerminated < *StrLen_or_IndPtr)
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
@@ -2640,13 +2653,15 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       Bind.buffer_type= MadbType;
       Bind.buffer= TargetValuePtr;
       if (Bind.buffer_length == 0 && BufferLength > 0)
+      {
         Bind.buffer_length= (unsigned long)BufferLength;
+      }
       mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
       if (StrLen_or_IndPtr != NULL)
       {
-        if (Length != 0 && (long)Length != -1)
+        if (Bind.length_value != 0 && (long)Bind.length_value != -1)
         {
-          *StrLen_or_IndPtr= Length;
+          *StrLen_or_IndPtr= Bind.length_value;
         }
         else if (Bind.buffer_length > 0)
         {
@@ -2661,7 +2676,17 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       Stmt->stmt->bind[Offset].row_ptr= SavePtr;
     }
     break;
+  }             /* End of switch(OdbcType) */
+
+  /* Marking fixed length fields to be able to return SQL_NO_DATA on subsequent calls, as standard prescribes
+     "SQLGetData cannot be used to return fixed-length data in parts. If SQLGetData is called more than one time
+      in a row for a column containing fixed-length data, it returns SQL_NO_DATA for all calls after the first."
+     Stmt->Lengths[Offset] would be set for variable length types */
+  if (!InternalUse && Stmt->Lengths[Offset] == 0)
+  {
+    Stmt->CharOffset[Offset]= MAX((unsigned long)Bind.buffer_length, Bind.length_value);
   }
+
   if (IsNull)
   {
     if (!StrLen_or_IndPtr)
@@ -2675,7 +2700,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   else if (MDBUG_C_IS_ON(Stmt->Connection) && (TargetType == SQL_C_DEFAULT || TargetType == SQL_ARD_TYPE))
   {
     ma_debug_print(1, "%s(%s)", IrdRec->BaseColumnName, IrdRec->ColumnName);
-    ma_print_value(OdbcType, TargetValuePtr, Length > 0 ? Length : IrdRec->OctetLength);
+    ma_print_value(OdbcType, TargetValuePtr, Bind.length_value > 0 ? Bind.length_value : IrdRec->OctetLength);
   }
 #endif
   return SQL_SUCCESS;
@@ -3959,13 +3984,13 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             {
               SQLLEN Length= 0;
               /* set a default value */
-              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, NULL, 0, &Length) != SQL_ERROR && Length)
+              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, NULL, 0, &Length, TRUE) != SQL_ERROR && Length)
               {
                 MADB_FREE(Rec->DefaultValue);
                 if (Length > 0) 
                 {
                   Rec->DefaultValue= (char *)MADB_CALLOC(Length + 1);
-                  Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0);
+                  Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0, TRUE);
                 }
                 Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
                               Rec->DefaultValue, Length, NULL);

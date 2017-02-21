@@ -508,12 +508,11 @@ ODBC_TEST(charset_utf8)
   
   if (str_size == 30)
   {
-    FAIL_IF(GetIntVal(hstmt1, 8) != 30, "Comparison failed");
     FAIL_IF(GetIntVal(hstmt1, 16) != 30, "Comparison failed");
   }
   else
   {
-    FAIL_IF(GetIntVal(hstmt1, 8) != 40, "Comparison failed");
+    FAIL_IF(str_size != 40, "Comparison failed");
     FAIL_IF(GetIntVal(hstmt1, 16) != 40, "Comparison failed");
   }
 

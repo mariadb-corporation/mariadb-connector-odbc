@@ -267,7 +267,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
       }
       else
       { 
-        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, NULL, 0, &StrLength)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, NULL, 0, &StrLength, TRUE)))
         {
           MADB_FREE(Column);
           return TRUE;
@@ -280,7 +280,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
         else
         {
           Column= MADB_CALLOC(StrLength + 1);
-          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL);
+          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL, TRUE);
           if (dynstr_append(DynString, "= '") ||
                  dynstr_append(DynString, Column) ||
                  dynstr_append(DynString, "'"))

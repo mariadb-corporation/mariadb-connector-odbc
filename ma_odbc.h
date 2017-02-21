@@ -485,13 +485,6 @@ SQLRETURN MA_SQLGetConnectAttr(SQLHDBC ConnectionHandle,
     SQLINTEGER BufferLength,
     SQLINTEGER *StringLengthPtr);
 
-SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
-    SQLUSMALLINT Col_or_Param_Num,
-    SQLSMALLINT TargetType,
-    SQLPOINTER TargetValuePtr,
-    SQLLEN BufferLength,
-    SQLLEN *StrLen_or_IndPtr);
-
 SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength);
@@ -529,6 +522,12 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
 
 SQLRETURN MA_SQLAllocConnect(SQLHANDLE InputHandle,
                              SQLHANDLE *OutputHandlePtr);
+
+SQLRETURN MADB_GetBookmark(MADB_Stmt  *StatementHandle,
+                           SQLSMALLINT TargetType,
+                           SQLPOINTER  TargetValuePtr,
+                           SQLLEN      BufferLength,
+                           SQLLEN     *StrLen_or_IndPtr);
 
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);

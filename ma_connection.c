@@ -501,7 +501,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
     goto end;
   }
   
-  ret= MA_SQLGetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
+  ret= ((MADB_Stmt*)Stmt)->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size, TRUE);
  /* Size= (SQLINTEGER)MADB_SetString(isWChar ? Connection->CodePage : 0, CurrentDB, 
                       (isWChar) ? (int)(MIN(Size + sizeof(SQLWCHAR), CurrentDBLength) / sizeof(SQLWCHAR)) : 
                       (int)(MIN(Size + 1, CurrentDBLength)),

@@ -397,6 +397,9 @@ ODBC_TEST(t_bug32684)
                               20, &alen));
     diag("data= %s, len=%d\n", abuf, alen);
   } while(alen > 20);
+  /* Small addition to ensure that connector returns SQL_NO_DATA after all data fetched */
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, abuf, 20, &alen), SQL_NO_DATA);
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, abuf, 20, &alen), SQL_NO_DATA);
 
   do
   {
@@ -1044,8 +1047,6 @@ ODBC_TEST(t_odbc58)
 
 ODBC_TEST(t_odbc77)
 {
-  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc41");
-
   OK_SIMPLE_STMT(Stmt, "ANALYZE TABLE non_existent");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1075,6 +1076,34 @@ ODBC_TEST(t_odbc77)
 }
 
 
+ODBC_TEST(t_odbc78)
+{
+  SQLLEN      len;
+  SQLCHAR     val[16];
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 'abc'");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, val, sizeof(val), &len));
+  is_num(len, 3);
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, val, sizeof(val), &len), SQL_NO_DATA);
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, val, sizeof(val), &len), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 1");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_LONG, val, 0, 0));
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_LONG, val, 0, 0), SQL_NO_DATA);
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_LONG, val, 0, 0), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1097,6 +1126,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc41, "t_odbc-41-nors_after_rs"},
   {t_odbc58, "t_odbc-58-numeric_after_blob"},
   {t_odbc77, "t_odbc-77-analyze_table"},
+  {t_odbc78, "t_odbc-78-sql_no_data"},
   {NULL, NULL}
 };
 

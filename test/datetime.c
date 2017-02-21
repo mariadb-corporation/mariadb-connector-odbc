@@ -1061,6 +1061,7 @@ ODBC_TEST(t_bug60646)
         and if fractional part in place. former can actually fail if day is
         being changed */
 
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   {
     time_t sec_time= time(NULL);
     struct tm * cur_tm;
@@ -1093,17 +1094,17 @@ ODBC_TEST(t_bug60646)
   /* 5th col once again This time we get it in time struct. Thus we are
      loosing fractioanl part. Thus the state has to be 01S07 and
      SQL_SUCCESS_WITH_INFO returned */
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   {
     SQL_TIME_STRUCT timestruct;
 
-    FAIL_IF(SQLGetData(Stmt, 5, SQL_C_TYPE_TIME, &timestruct,
-                            sizeof(timestruct), &len) != SQL_SUCCESS_WITH_INFO, 
-                            "SUCCESS_WITH_INFO expected");
+    EXPECT_STMT(Stmt, SQLGetData(Stmt, 5, SQL_C_TYPE_TIME, &timestruct,
+      sizeof(timestruct), &len), SQL_SUCCESS_WITH_INFO);
 
     CHECK_SQLSTATE(Stmt, "01S07");
   }
 
-  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
+  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L), SQL_NO_DATA);
 
   return OK;
 }
