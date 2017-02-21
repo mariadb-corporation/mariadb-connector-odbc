@@ -488,7 +488,7 @@ ODBC_TEST(test_need_long_data_len)
 
 /* https://jira.mariadb.org/browse/ODBC-61
 Request of SQL_FILE_USAGE info crashes connector */
-ODBC_TEST(bug_odbc61)
+ODBC_TEST(t_odbc61)
 {
   SQLUSMALLINT info= 0xef;
 
@@ -498,6 +498,60 @@ ODBC_TEST(bug_odbc61)
   return OK;
 }
 
+/*
+Bug #30626 - No result record for SQLGetTypeInfo for TIMESTAMP
+*/
+ODBC_TEST(t_odbc84)
+{
+  SQLHANDLE henv1;
+  SQLHANDLE Connection1;
+  SQLHANDLE Stmt1;
+  SQLCHAR conn[512];
+
+  /* odbc 3 */
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WCHAR));
+  is_num(myrowcount(Stmt), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WVARCHAR));
+  is_num(myrowcount(Stmt), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WLONGVARCHAR));
+  is_num(myrowcount(Stmt), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* odbc 2 */
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
+    my_drivername, my_servername, my_uid, my_pwd, my_port);
+
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
+  CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
+    (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+    NULL, SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WCHAR));
+  is_num(myrowcount(Stmt), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WVARCHAR));
+  is_num(myrowcount(Stmt), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WLONGVARCHAR));
+  is_num(myrowcount(Stmt), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLFreeHandle(SQL_HANDLE_STMT, Stmt1));
+  CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
+  CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));
+  CHECK_ENV_RC(henv1, SQLFreeHandle(SQL_HANDLE_ENV, henv1));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -515,7 +569,8 @@ MA_ODBC_TESTS my_tests[]=
   { t_bug11749093, "t_bug11749093", TO_FIX },
   { bug_odbc15, "odbc15", NORMAL },
   { test_need_long_data_len, "test_need_long_data_len", NORMAL },
-  { bug_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
+  { t_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
+  { t_odbc84, "odbc84_WCHAR_types", NORMAL },
   { NULL, NULL }
 };
 
