@@ -423,9 +423,28 @@ my_bool MADB_ValidateStmt(char *StmtStr)
 }
 
 
+char *MADB_ToLower(const char *src, char *buff, size_t buff_size)
+{
+  size_t i= 0;
+
+  if (buff_size > 0)
+  {
+    while (*src && i < buff_size)
+    {
+      buff[i++]= tolower(*src++);
+    }
+
+    buff[i == buff_size ? i - 1 : i]= '\0';
+  }
+  return buff;
+}
+
+
 int InitClientCharset(Client_Charset *cc, const char * name)
 {
-  cc->cs_info= mysql_get_charset_by_name(name);
+  /* There is no legal charset names longer than 31 chars */
+  char lowered[32];
+  cc->cs_info= mysql_get_charset_by_name(MADB_ToLower(name, lowered, sizeof(lowered)));
 
   if (cc->cs_info == NULL)
   {
