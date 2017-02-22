@@ -33,16 +33,20 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
  
+  LOCK_MARIADB(Connection);
+
   if (!(Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb)) ||
-      !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
-      !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
-      !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
-      !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
+    !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
+    !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
+    !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
+    !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
+  {
     goto error;
+  }
+
   MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
   mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
 
-  Stmt->Connection= Connection;
   Stmt->PutParam= -1;
   Stmt->Methods= &MADB_StmtMethods;
   /* default behaviour is SQL_CURSOR_STATIC */
@@ -54,10 +58,9 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   Stmt->Ipd= Stmt->IIpd;
   Stmt->Ird= Stmt->IIrd;
 
-  EnterCriticalSection(&Connection->cs);
   Stmt->ListItem.data= (void *)Stmt;
   Stmt->Connection->Stmts= list_add(Stmt->Connection->Stmts, &Stmt->ListItem);
-  LeaveCriticalSection(&Connection->cs);
+  UNLOCK_MARIADB(Connection);
   Stmt->Ard->Header.ArraySize= 1;
 
   return SQL_SUCCESS;
@@ -65,7 +68,6 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 error:
   if (Stmt && Stmt->stmt)
   {
-    LOCK_MARIADB(Stmt->Connection);
     mysql_stmt_close(Stmt->stmt);
     UNLOCK_MARIADB(Stmt->Connection);
   }
@@ -350,7 +352,7 @@ MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 }
 /* }}} */
 
-/* {{{ MADB_StmtReset - reseting Stmt handler for new use */
+/* {{{ MADB_StmtReset - reseting Stmt handler for new use. Has to be called inside a lock */
 void MADB_StmtReset(MADB_Stmt *Stmt)
 {
   /* TODO: These all stuff has to be moved to a separate function, smth like MADB_StmtReset */
@@ -493,8 +495,9 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
     mysql_stmt_close(Stmt->stmt);
-    UNLOCK_MARIADB(Stmt->Connection);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+
+    UNLOCK_MARIADB(Stmt->Connection);
 
     return Stmt->Error.ReturnValue;
   }

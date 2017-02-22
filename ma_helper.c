@@ -65,15 +65,19 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
   MYSQL_STMT *stmt;
   char *StmtCopy= NULL;
 
+  /* mysql_stmt_init requires locking as well */
+  LOCK_MARIADB(Stmt->Connection);
   stmt= mysql_stmt_init(Stmt->Connection->mariadb);
 
   /* if the entire stmt string passes, we don't have multistatement */
   if (stmt && !mysql_stmt_prepare(stmt, StmtStr, Length))
   {
     mysql_stmt_close(stmt);
+    UNLOCK_MARIADB(Stmt->Connection);
     return 1;
   }
   mysql_stmt_close(stmt);
+
   /* make sure we don't have trailing whitespace or semicolon */
   if (Length)
   {
@@ -159,7 +163,11 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
         if (StmtCopy)
+        {
           my_free(StmtCopy);
+        }
+        UNLOCK_MARIADB(Stmt->Connection);
+
         return 0;
       }
       if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
@@ -167,6 +175,8 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
       p+= strlen(p) + 1;
       ++i;
     }
+    UNLOCK_MARIADB(Stmt->Connection);
+
     if (MaxParams)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
   }
