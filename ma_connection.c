@@ -424,13 +424,13 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
   InitializeCriticalSection(&Connection->cs);
   /* Not sure that critical section is really needed here - this init routine is called when
      no one has the handle yet */
-  EnterCriticalSection(&Connection->cs);
+  EnterCriticalSection(&Connection->Environment->cs);
 
   /* Save connection in Environment list */
   Connection->ListItem.data= (void *)Connection;
   Connection->Environment->Dbcs= list_add(Connection->Environment->Dbcs, &Connection->ListItem);
 
-  LeaveCriticalSection(&Connection->cs);
+  LeaveCriticalSection(&Connection->Environment->cs);
 
   MADB_PutErrorPrefix(NULL, &Connection->Error);
 
@@ -461,7 +461,10 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
            more fingers movements
     LOCK_MARIADB(Dbc);*/
   if (Connection->mariadb)
+  {
     mysql_close(Connection->mariadb);
+    Connection->mariadb= NULL;
+  }
   /*UNLOCK_MARIADB(Dbc);*/
 
   /* todo: delete all descriptors */
