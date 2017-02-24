@@ -127,7 +127,9 @@ IF(NOT WIN32)
   ELSE()
     MESSAGE(FATAL_ERROR "Driver Manager was not found")
   ENDIF()
+ENDIF()
 
+IF(APPLE)
   # Looking for iconv files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindIconv.cmake)
   IF(ICONV_FOUND)
