@@ -9,6 +9,7 @@ IF(APPLE)
   find_path(ICONV_INCLUDE_DIR iconv.h PATHS
             /opt/local/include/
             /usr/include/
+            /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/
             NO_CMAKE_SYSTEM_PATH)
 ELSE()
   find_path(ICONV_INCLUDE_DIR iconv.h)
