@@ -317,7 +317,7 @@ ODBC_TEST(aliases_tests)
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
 
   IS_STR(Dsn->UserName,   "user",         sizeof("user"));
-  IS_STR(Dsn->Password,   "password",     sizeof("password"))
+  IS_STR(Dsn->Password,   "password",     sizeof("password"));
   IS_STR(Dsn->ServerName, "servername",   sizeof("servername"));
   IS_STR(Dsn->Catalog,    "randomdbname", sizeof("randomdbname"));
   is_num(Dsn->Options,    option);
