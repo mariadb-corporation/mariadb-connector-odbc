@@ -2096,6 +2096,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     if (ValuePtr)
     {
       MADB_Desc *Desc= (MADB_Desc *)ValuePtr;
+
       if (!Desc->AppType && Desc != Stmt->IArd)
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY017, NULL, 0);
@@ -2107,7 +2108,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
         return Stmt->Error.ReturnValue;
       }
       RemoveStmtRefFromDesc(Stmt->Ard, Stmt, FALSE);
-      Stmt->Ard= (MADB_Desc *)ValuePtr;
+      Stmt->Ard= Desc;
       Stmt->Ard->DescType= MADB_DESC_ARD;
       if (Stmt->Ard != Stmt->IArd)
       {
@@ -2833,8 +2834,16 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
                                               Record->CatalogName, strlen(Record->CatalogName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
+  case SQL_DESC_SCHEMA_NAME:
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->charset : 0,
+                                              CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
+                                              "", 0, &Stmt->Error);
+    IsNumericAttr= FALSE;
   case SQL_DESC_CONCISE_TYPE:
     NumericAttribute= (SQLLEN)Record->ConciseType;
+    break;
+  case SQL_DESC_SEARCHABLE:
+    NumericAttribute= (SQLLEN)Record->Searchable;
     break;
   case SQL_DESC_COUNT:
     NumericAttribute= (SQLLEN)Stmt->Ird->Header.Count;

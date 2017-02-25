@@ -24,6 +24,9 @@
 #define MADB_DESC_WRITE 2
 #define MADB_DESC_RW 3
 
+#define MADB_DESC_INIT_REC_NUM 32
+#define MADB_DESC_INIT_STMT_NUM 16
+
 enum enum_madb_desc_type {MADB_DESC_APD= 0, MADB_DESC_ARD, MADB_DESC_IPD, MADB_DESC_IRD, MADB_DESC_UNKNOWN=254};
 
 MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type);

@@ -81,14 +81,14 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   Desc->DescType= DescType;
   MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
-  if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
+  if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, MADB_DESC_INIT_REC_NUM))
   {
     MADB_FREE(Desc);
     return NULL;
   }
   if (isExternal)
   {
-    if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
+    if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, MADB_DESC_INIT_STMT_NUM))
     {
       MADB_DescFree(Desc, FALSE);
       return NULL;
@@ -987,7 +987,7 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY016, NULL, 0);
     return SQL_ERROR;
   }
-  if (!SrcDesc->Header.Count)
+  if (SrcDesc->DescType == MADB_DESC_IRD && !SrcDesc->Header.Count)
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY007, NULL, 0);
     return SQL_ERROR;
@@ -995,20 +995,23 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
   /* make sure there aren't old records */
   delete_dynamic(&DestDesc->Records);
   if (my_init_dynamic_array(&DestDesc->Records, sizeof(MADB_DescRecord),
-                            SrcDesc->Records.elements, SrcDesc->Records.alloc_increment))
+                            SrcDesc->Records.max_element, SrcDesc->Records.alloc_increment))
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY001, NULL, 0);
     return SQL_ERROR;
   }
 
   memcpy(&DestDesc->Header, &SrcDesc->Header, sizeof(MADB_Header));
-  DestDesc->AppType= SrcDesc->AppType;
+  
+  /* We don't copy AppType from Src to Dest. If we copy internal descriptor to the explicit/external, it stays explicit/external */
+
   DestDesc->DescType= SrcDesc->DescType;
   memcpy(&DestDesc->Error, &SrcDesc->Error, sizeof(MADB_Error));
 
   /* Since we never allocate pointers we can just copy content */
   memcpy(DestDesc->Records.buffer, SrcDesc->Records.buffer,
          SrcDesc->Records.size_of_element * SrcDesc->Records.max_element);
+  DestDesc->Records.elements= SrcDesc->Records.elements;
   /* todo: internal buffer needs to be clearead or we need to move it outside of
            record structure 
   */

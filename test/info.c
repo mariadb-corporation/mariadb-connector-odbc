@@ -553,6 +553,24 @@ ODBC_TEST(t_odbc84)
   return OK;
 }
 
+/* Test for part of problems causing ODBC-71. Other part is tested in desc.c:t_set_explicit_copy*/
+ODBC_TEST(t_odbc71)
+{
+  SQLINTEGER Info;
+
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_POS_OPERATIONS, &Info, 0, NULL));
+  is_num(Info, SQL_POS_POSITION | SQL_POS_REFRESH | SQL_POS_UPDATE | SQL_POS_DELETE | SQL_POS_ADD);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_STATIC_SENSITIVITY, &Info, 0, NULL));
+  is_num(Info, SQL_SS_DELETIONS | SQL_SS_UPDATES);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_LOCK_TYPES, &Info, 0, NULL));
+  is_num(Info, SQL_LCK_NO_CHANGE);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_SCROLL_CONCURRENCY, &Info, 0, NULL));
+  is_num(Info, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -571,6 +589,7 @@ MA_ODBC_TESTS my_tests[]=
   { test_need_long_data_len, "test_need_long_data_len", NORMAL },
   { t_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
   { t_odbc84, "odbc84_WCHAR_types", NORMAL },
+  { t_odbc71, "odbc71_some_odbc2_types", NORMAL },
   { NULL, NULL }
 };
 

@@ -632,6 +632,38 @@ ODBC_TEST(t_odbc14)
 }
 
 
+ODBC_TEST(t_set_explicit_copy)
+{
+  SQLHANDLE desc1, desc2;
+  SQLHANDLE hstmt2;
+  SQLCHAR   szOutData[4];
+  SQLINTEGER c1, c2;
+
+  /* TODO using an exp from a different dbc */
+
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt2));
+
+  OK_SIMPLE_STMT(hstmt2, "SELECT 1, 2, 'abc'");
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &c1, 0, NULL));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, &c2, 0, NULL));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, szOutData, sizeof(szOutData), NULL));
+
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &desc2));
+
+  CHECK_STMT_RC(hstmt2, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+    &desc1, 0, NULL));
+
+  CHECK_DESC_RC(desc2, SQLCopyDesc(desc1, desc2));
+
+  /* can set it to the same statement */
+  CHECK_STMT_RC(hstmt2, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, desc2, 0));
+
+  CHECK_STMT_RC(hstmt2, SQLFreeStmt(hstmt2, SQL_DROP));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_desc_paramset,"t_desc_paramset"},
@@ -647,6 +679,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug44576, "t_bug44576"},
   {t_desc_curcatalog, "t_desc_curcatalog"},
   {t_odbc14, "t_odbc14"},
+  {t_set_explicit_copy, "t_set_explicit_copy_of_ard"},
   {NULL, NULL}
 };
 

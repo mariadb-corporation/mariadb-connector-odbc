@@ -1390,9 +1390,6 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
-  case SQL_POS_OPERATIONS:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
-    break;
   case SQL_QUOTED_IDENTIFIER_CASE:  
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_IC_SENSITIVE, StringLengthPtr);
     break;
@@ -1579,7 +1576,21 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "N", SQL_NTS, &Dbc->Error);
     break;
-  default:
+  /* 2.0 types */
+  case SQL_POS_OPERATIONS:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_POS_POSITION | SQL_POS_REFRESH | SQL_POS_UPDATE | SQL_POS_DELETE | SQL_POS_ADD,
+                     StringLengthPtr);
+    break;
+  case SQL_STATIC_SENSITIVITY:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SS_DELETIONS | SQL_SS_UPDATES, StringLengthPtr);
+    break;
+  case SQL_LOCK_TYPES:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_LCK_NO_CHANGE, StringLengthPtr);
+    break;
+  case SQL_SCROLL_CONCURRENCY:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES, StringLengthPtr);
+    break;
+default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY096, NULL, 0);
     return Dbc->Error.ReturnValue;
   }
