@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -25,7 +25,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
-void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber);
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber);
 int  MADB_GetWCharType(int Type);
 my_bool MADB_get_single_row(MADB_Dbc *Connection,
                             const char *StmtString,

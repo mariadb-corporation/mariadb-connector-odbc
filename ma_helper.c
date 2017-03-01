@@ -814,7 +814,7 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
 }
 /* }}} */
 
-void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
 {
   void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
 
@@ -849,15 +849,17 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
     }
     break;
     case SQL_C_TIME:
-    case SQL_TYPE_TIME:
+    case SQL_C_TYPE_TIME:
     {
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
+
+      if (tm->hour > 23 || tm->minute > 59 || tm->second > 59)
+      {
+        return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+      }
       ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
-       if (ts->hour + ts->minute + ts->second == 0)
-        if (ArdRecord->IndicatorPtr)
-          *ArdRecord->IndicatorPtr= SQL_NULL_DATA;
     }
     break;
     case SQL_C_DATE:
@@ -873,6 +875,8 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
     }
     break;
   }
+
+  return SQL_SUCCESS;
 }
 
 void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN RowNumber, size_t PtrSize)
