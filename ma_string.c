@@ -497,7 +497,7 @@ SQLLEN MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs)
     {
       while (inChars > 0 || inChars < 0 && *str)
       {
-        result+= cs->mb_charlen(*str);
+        result+= cs->mb_charlen(0 + *str);
         --inChars;
         str+= cs->mb_charlen(*str);
       }

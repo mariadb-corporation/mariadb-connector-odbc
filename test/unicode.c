@@ -1375,7 +1375,7 @@ ODBC_TEST(t_bug14363601)
 
 
 /* Issue ODBC-19 - if same ptr used for StrLen_IndPtr when binding columns, */
-ODBC_TEST(odbc19)
+ODBC_TEST(t_odbc19)
 {
   SQLLEN   lenPtr;
   SQLWCHAR a[10], b[10], c[10];
@@ -1408,6 +1408,79 @@ ODBC_TEST(odbc19)
 }
 
 
+/* Issue ODBC-19 - if same ptr used for StrLen_IndPtr when binding columns, */
+ODBC_TEST(t_odbc72)
+{
+  SQLLEN   len, counter= 0;
+  SQLWCHAR a[3]= {0};
+  SQLRETURN rc= SQL_ERROR;
+  SQLHDBC    hdbc1;
+  SQLHSTMT   Stmt1;
+
+  AllocEnvConn(&Env, &hdbc1);
+  Stmt1= ConnectWithCharset(&hdbc1, "utf8mb4", NULL);
+
+  OK_SIMPLE_STMT(Stmt1, "SELECT 0x61F09F98986400");
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  while (rc != SQL_SUCCESS && counter < 3)
+  {
+    rc= SQLGetData(Stmt1, 1, SQL_C_WCHAR, a, sizeof(a), &len);
+    ++counter; /* To avoid indefinite loop */
+    switch (counter)
+    {
+    case 1:
+      is_num(rc, SQL_SUCCESS_WITH_INFO);
+      is_num(len, 8);
+      is_num(a[0], 'a');
+      is_num(a[1], 0xd83d);
+      is_num(a[2], 0);
+      break;
+    case 2:
+      is_num(rc, SQL_SUCCESS);
+      is_num(len, 4);
+      is_num(a[0], 0xde18);
+      is_num(a[1], 'd');
+      is_num(a[2], 0);
+      break;
+    case 3:
+      FAIL_IF(1, "SQLGetData's \"stuck\" in eternal cycle");
+    }
+  }
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt1, "SELECT 0xF09F989800");
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  while (rc != SQL_SUCCESS && counter < 3)
+  {
+    rc= SQLGetData(Stmt1, 1, SQL_C_WCHAR, a, 2, &len);
+    ++counter; /* To avoid indefinite loop */
+    switch (counter)
+    {
+    case 1:
+      is_num(rc, SQL_SUCCESS_WITH_INFO);
+      is_num(len, 4);
+      is_num(a[0], 0xd83d);
+      is_num(a[1], 0);
+      break;
+    case 2:
+      is_num(rc, SQL_SUCCESS);
+      is_num(len, 2);
+      is_num(a[0], 0xde18);
+      is_num(a[1], 0);
+      break;
+    case 3:
+      FAIL_IF(1, "SQLGetData's \"stuck\" in eternal cycle");
+    }
+  }
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1,        "test_CONO1",         NORMAL},
@@ -1435,7 +1508,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug34672,        "t_bug34672",         NORMAL},
   {t_bug28168,        "t_bug28168",         NORMAL},
   {t_bug14363601,     "t_bug14363601",      NORMAL},
-  {odbc19,            "test_issue_odbc19",  NORMAL},
+  {t_odbc19,          "test_issue_odbc19",  NORMAL},
+  {t_odbc72,          "odbc72_surrogate_pairs",  NORMAL},
   {NULL, NULL}
 };
 

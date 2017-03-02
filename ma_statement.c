@@ -1840,6 +1840,22 @@ SQLUSMALLINT MADB_MapToRowStatus(SQLRETURN rc)
   return SQL_ROW_SUCCESS;
 }
 
+
+void ResetDescIntBuffers(MADB_Desc *Desc)
+{
+  MADB_DescRecord *Rec;
+  SQLSMALLINT i;
+
+  for (i= 0; i < Desc->Header.Count; ++i)
+  {
+    Rec= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ);
+    if (Rec)
+    {
+      MADB_FREE(Rec->InternalBuffer);
+    }
+  }
+}
+
 /* For first row we just take its result as initial.
    For the rest, if all rows SQL_SUCCESS or SQL_ERROR - aggregated result is SQL_SUCCESS or SQL_ERROR, respectively
    Otherwise - SQL_SUCCESS_WITH_INFO */
@@ -1998,6 +2014,8 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
                                                 sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
                                                 MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
   memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+
+  ResetDescIntBuffers(Stmt->Ird);
 
   if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY && SaveCursor)
   {
@@ -2458,7 +2476,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   Bind.length=  &Bind.length_value;
   Bind.is_null= &IsNull;
 
-  switch(OdbcType) {
+  switch(OdbcType)
+  {
   case SQL_DATE:
   case SQL_C_TYPE_DATE:
     {
@@ -2544,71 +2563,117 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_WVARCHAR:
   case SQL_WLONGVARCHAR:
     {
-      char  *ClientValue;
-      size_t CharLength= 0, SrcLength;
+      char  *ClientValue= NULL;
+      size_t CharLength= 0;
 
-      if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
+      /* Kinda this it not 1st call for this value, and we have it nice and recoded */
+      if (IrdRec->InternalBuffer == NULL/* && Stmt->Lengths[Offset] == 0*/)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-        return Stmt->Error.ReturnValue;
+        if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
+        {
+          MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+          return Stmt->Error.ReturnValue;
+        }
+        Bind.buffer=        ClientValue;
+        Bind.buffer_type=   MYSQL_TYPE_STRING;
+        Bind.buffer_length= Stmt->stmt->fields[Offset].max_length + 1;
+
+        if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
+        {
+          MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+          return Stmt->Error.ReturnValue;
+        }
+
+        /* reset row_ptr */
+        Stmt->stmt->bind[Offset].row_ptr= SavePtr;
+
+        /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
+        if (Stmt->stmt->fields[Offset].max_length)
+        {
+          size_t ReqBuffOctetLen;
+          /* Size in chars */
+          CharLength= MbstrCharLen(ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
+            Stmt->Connection->charset.cs_info);
+          /* MbstrCharLen gave us length in characters. For encoding of each character we might need
+             2 SQLWCHARs in case of UTF16, or 1 SQLWCHAR in case of UTF32. Probably we need calcualate better
+             number of required SQLWCHARs */
+          ReqBuffOctetLen= (CharLength + 1)*2*sizeof(SQLWCHAR);
+
+          if (BufferLength)
+          {
+            /* Buffer is not big enough. Alocating InternalBuffer.
+               MADB_SetString would do that anyway if - allocate buffer fitting the whole wide string,
+               and then copied its part to the application's buffer */
+            if (ReqBuffOctetLen > (size_t)BufferLength)
+            {
+              IrdRec->InternalBuffer= (char*)MADB_CALLOC(ReqBuffOctetLen);
+
+              if (IrdRec->InternalBuffer == 0)
+              {
+                MADB_FREE(ClientValue);
+                return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+              }
+
+              CharLength= MADB_SetString(&Stmt->Connection->charset, IrdRec->InternalBuffer, (SQLINTEGER)ReqBuffOctetLen,
+                ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
+            }
+            else
+            {
+              /* Application's buffer is big enough - writing directly there */
+              CharLength= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
+                ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
+            }
+          }
+
+          if (!Stmt->CharOffset[Offset])
+          {
+            Stmt->Lengths[Offset]= CharLength*sizeof(SQLWCHAR);
+          }
+        }
       }
-      Bind.buffer=        ClientValue;
-      Bind.buffer_type=   MYSQL_TYPE_STRING;
-      Bind.buffer_length= Stmt->stmt->fields[Offset].max_length + 1;
-
-      if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
+      else  /* IrdRec->InternalBuffer == NULL && Stmt->Lengths[Offset] == 0 */
       {
-        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-        return Stmt->Error.ReturnValue;
-      } 
-      if (!Stmt->CharOffset[Offset])
-        Stmt->Lengths[Offset]= MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
-      /* reset row_ptr */
-      Stmt->stmt->bind[Offset].row_ptr= SavePtr;
-      SrcLength= Stmt->stmt->fields[Offset].max_length;
-            
-      /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
-      if (Stmt->stmt->fields[Offset].max_length)
-      {
-        CharLength= MbstrCharLen(ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset],
-                             Stmt->Connection->charset.cs_info);
+        CharLength= SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]));
       }
-
-      if (!BufferLength)
-      {
-        MADB_FREE(ClientValue);
-        if (StrLen_or_IndPtr)
-          *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
-        MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
-        return Stmt->Error.ReturnValue;
-      }
-
-
-     // memset(TargetValuePtr, 0, MIN((size_t)BufferLength, (SrcLength+1) * sizeof(SQLWCHAR) ));
-      if (Stmt->stmt->fields[Offset].max_length)
-        CharLength= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
-                                   ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
 
       if (StrLen_or_IndPtr)
       {
         *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
       }
-      if (CharLength > BufferLength / sizeof(SQLWCHAR))
+
+      if (!BufferLength)
       {
-        /* Calculate new offset and substract 1 byte for null termination. Since we fill the buffer with all characters we can -1 char for NULL */
-        CharLength= BufferLength / sizeof(SQLWCHAR);
-        Stmt->CharOffset[Offset]+= (unsigned long)MbstrOctetLen(ClientValue, &CharLength, Stmt->Connection->charset.cs_info) - 1;
-        
-        MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
         MADB_FREE(ClientValue);
-        return Stmt->Error.ReturnValue;
+
+        return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+      }
+
+      if (IrdRec->InternalBuffer)
+      {
+        /* If we have more place than only for the TN */
+        if (BufferLength > sizeof(SQLWCHAR))
+        {
+          memcpy(TargetValuePtr, (char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset],
+            MIN(BufferLength - sizeof(SQLWCHAR), CharLength*sizeof(SQLWCHAR)));
+        }
+        /* Terminating Null */
+        *(SQLWCHAR*)((char*)TargetValuePtr + MIN(BufferLength - sizeof(SQLWCHAR), CharLength*sizeof(SQLWCHAR)))= 0;
+      }
+
+      if (CharLength >= BufferLength / sizeof(SQLWCHAR))
+      {
+        /* Calculate new offset and substract 1 byte for null termination */
+        Stmt->CharOffset[Offset]+= BufferLength - sizeof(SQLWCHAR);
+        MADB_FREE(ClientValue);
+
+        return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
       }
       else
       {
-        Stmt->CharOffset[Offset]= Stmt->stmt->fields[Offset].max_length;
-        if (StrLen_or_IndPtr)
-          *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
+        Stmt->CharOffset[Offset]= Stmt->Lengths[Offset];
+        MADB_FREE(IrdRec->InternalBuffer);
       }
+
       MADB_FREE(ClientValue);
       Stmt->stmt->bind[Offset].row_ptr= SavePtr;
     }
@@ -2677,7 +2742,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         return Stmt->Error.ReturnValue;
       }
-      /* Dirty temporary hack before we know what is going on */
+      /* Dirty temporary hack before we know what is going on. Yes, there is nothing more eternal, than temporary
+         It's not that bad, after all */
       if ((long)*Bind.length == -1)
         *Bind.length= 0;
       /* end of dirty hack */
@@ -2698,7 +2764,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
           p[BufferLength-1]= 0;
         }
       }
-
       
       if (StrLen_or_IndPtr)
       {
@@ -2750,7 +2815,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       /* Bind.fetch_result(&Bind, &Stmt->stmt->fields[Offset], &Stmt->stmt->bind[Offset].row_ptr); */
       Stmt->stmt->bind[Offset].row_ptr= SavePtr;
     }
-    break;
   }             /* End of switch(OdbcType) */
 
   /* Marking fixed length fields to be able to return SQL_NO_DATA on subsequent calls, as standard prescribes
@@ -2766,8 +2830,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   {
     if (!StrLen_or_IndPtr)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
-      return Stmt->Error.ReturnValue;
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
     }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
   }

@@ -108,7 +108,9 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
   return WStr;
 }
 
-/* {{{ MADB_ConvertFromWChar */
+/* {{{ MADB_ConvertFromWChar
+       Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
+       TN in the Wstr) */
 char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
 {
   char *AscStr;
@@ -142,7 +144,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Len
 }
 /* }}} */
 
-
+/* Required Length without or with TN(if IsNull is TRUE, or AnsiLength == -1 or SQL_NTS) is put to LenghtIndicator*/
 int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
@@ -168,7 +170,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLe
     IsNull= 1;
 
   /* calculate required length */
-  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -IsNull : (int)AnsiLength, NULL, 0);
+  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -1 : (int)AnsiLength, NULL, 0);
 
   /* Set LengthIndicator */
   if (LengthIndicator)
@@ -179,7 +181,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLe
   if (RequiredLength > UnicodeLength)
     Tmp= (SQLWCHAR *)malloc(RequiredLength * sizeof(SQLWCHAR));
   
-  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -IsNull : (int)AnsiLength, Tmp, (int)RequiredLength);
+  RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -1 : (int)AnsiLength, Tmp, (int)RequiredLength);
   if (RequiredLength < 1)
   {
     if (Error)
@@ -202,7 +204,10 @@ end:
   return rc;
 }
 
-
+/* Returns required length for result string with(if dest and dest length are provided)
+   or without terminating NULL(otherwise). If cc is NULL, or not initialized(CodePage is 0),
+   then simply SrcLength is returned. 
+   If Dest is not NULL, and DestLenth is 0, then error*/
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                       char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
@@ -243,9 +248,8 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 
   if (!cc || !cc->CodePage)
   {
-    size_t len= SrcLength;
     strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
-    if (Error && len >= DestLength)
+    if (Error && SrcLength >= DestLength)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
     return SrcLength;
   }
