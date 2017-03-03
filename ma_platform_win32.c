@@ -185,7 +185,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLe
   if (RequiredLength < 1)
   {
     if (Error)
-      MADB_SetError(Error, MADB_ERR_HY000, "Ansi to Unicode conversion error occured", GetLastError());
+      MADB_SetError(Error, MADB_ERR_HY000, "Ansi to Unicode conversion error occurred", GetLastError());
     rc= 1;
     goto end;
   }
@@ -249,7 +249,7 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
   if (!cc || !cc->CodePage)
   {
     strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
-    if (Error && SrcLength >= DestLength)
+    if (Error && (SQLULEN)SrcLength >= DestLength)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
     return SrcLength;
   }

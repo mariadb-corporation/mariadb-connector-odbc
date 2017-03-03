@@ -2597,7 +2597,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
           /* MbstrCharLen gave us length in characters. For encoding of each character we might need
              2 SQLWCHARs in case of UTF16, or 1 SQLWCHAR in case of UTF32. Probably we need calcualate better
              number of required SQLWCHARs */
-          ReqBuffOctetLen= (CharLength + 1)*2*sizeof(SQLWCHAR);
+          ReqBuffOctetLen= (CharLength + 1)*(4/sizeof(SQLWCHAR))*sizeof(SQLWCHAR);
 
           if (BufferLength)
           {
@@ -2622,6 +2622,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
               /* Application's buffer is big enough - writing directly there */
               CharLength= MADB_SetString(&Stmt->Connection->charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
                 ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
+            }
+
+            if (!SQL_SUCCEEDED(Stmt->Error.ReturnValue))
+            {
+              MADB_FREE(ClientValue);
+              MADB_FREE(IrdRec->InternalBuffer);
+
+              return Stmt->Error.ReturnValue;
             }
           }
 

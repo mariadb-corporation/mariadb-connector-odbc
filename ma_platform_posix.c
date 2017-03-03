@@ -291,7 +291,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLe
   if (RequiredLength < 1)
   {
     if (Error)
-      MADB_SetError(Error, MADB_ERR_HY000, "Ansi to Unicode conversion error occured", error);
+      MADB_SetError(Error, MADB_ERR_HY000, "Ansi to Unicode conversion error occurred", error);
     rc= 1;
     goto end;
   }

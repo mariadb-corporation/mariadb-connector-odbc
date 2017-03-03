@@ -1397,7 +1397,7 @@ ODBC_TEST(t_odbc69)
   SQLSMALLINT conn_out_len;
 
   /* Testing also that key names are case insensitve. Supposing, that there is no mariadb/mysql on 3310 port with same login credentials */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=3310;DATABASE=%s;OPTION=%ul;SERVER=%s;PoRt=%s;charset=UTF8",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=3310;DATABASE=%s;OPTION=%lu;SERVER=%s;PoRt=%s;charset=UTF8",
     my_dsn, my_uid, my_pwd, my_schema, my_options, my_servername, ma_strport);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
