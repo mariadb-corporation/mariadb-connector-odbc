@@ -584,7 +584,7 @@ MA_ODBC_TESTS my_tests[]=
   { t_bug30626, "t_bug30626", NORMAL },
   { t_bug43855, "t_bug43855", NORMAL },
   { t_bug46910, "t_bug46910", NORMAL },
-  { t_bug11749093, "t_bug11749093", TO_FIX },
+  { t_bug11749093, "t_bug11749093", NORMAL },
   { bug_odbc15, "odbc15", NORMAL },
   { test_need_long_data_len, "test_need_long_data_len", NORMAL },
   { t_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },

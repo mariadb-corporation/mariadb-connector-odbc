@@ -1104,6 +1104,28 @@ ODBC_TEST(t_odbc78)
 }
 
 
+ODBC_TEST(t_odbc73)
+{
+  SQLSMALLINT data_type;
+
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc73");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc73 (binvc VARCHAR(64) COLLATE utf8_bin)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT binvc FROM t_odbc73");
+
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, NULL, NULL, NULL));
+
+  FAIL_IF(data_type == SQL_VARBINARY || data_type == SQL_BINARY || data_type == SQL_LONGVARBINARY,
+          "The field shouldn't be described as binary");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc73");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1127,6 +1149,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc58, "t_odbc-58-numeric_after_blob"},
   {t_odbc77, "t_odbc-77-analyze_table"},
   {t_odbc78, "t_odbc-78-sql_no_data"},
+  {t_odbc73, "t_odbc-73-bin_collation"},
   {NULL, NULL}
 };
 

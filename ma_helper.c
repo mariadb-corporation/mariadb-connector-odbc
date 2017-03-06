@@ -19,6 +19,7 @@
 #include <ma_odbc.h>
 #include <stdint.h>
 
+#define MADB_FIELD_IS_BINARY(_field) ((_field).charsetnr == BINARY_CHARSETNR)
 
 void CloseMultiStatements(MADB_Stmt *Stmt)
 {
@@ -363,7 +364,7 @@ char *MADB_GetTypeName(MYSQL_FIELD Field)
     return "date";
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    return (Field.flags & BINARY_FLAG) ? "varbinary" : "varchar";
+    return MADB_FIELD_IS_BINARY(Field) ? "varbinary" : "varchar";
   case MYSQL_TYPE_BIT:
     return "bit";
   case MYSQL_TYPE_ENUM:
@@ -371,15 +372,15 @@ char *MADB_GetTypeName(MYSQL_FIELD Field)
   case MYSQL_TYPE_SET:
     return "set";
   case MYSQL_TYPE_TINY_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "tinyblob" : "tinytext";
+    return MADB_FIELD_IS_BINARY(Field) ? "tinyblob" : "tinytext";
   case MYSQL_TYPE_MEDIUM_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "mediumblob" : "mediumtext";
+    return MADB_FIELD_IS_BINARY(Field) ? "mediumblob" : "mediumtext";
   case MYSQL_TYPE_LONG_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "longblob" : "longtext";
+    return MADB_FIELD_IS_BINARY(Field) ? "longblob" : "longtext";
   case MYSQL_TYPE_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "blob" : "text";
+    return MADB_FIELD_IS_BINARY(Field) ? "blob" : "text";
   case MYSQL_TYPE_STRING:
-    return (Field.flags & BINARY_FLAG) ? "binary" : "char";
+    return MADB_FIELD_IS_BINARY(Field) ? "binary" : "char";
   case MYSQL_TYPE_GEOMETRY:
     return "geometry";
   default:
@@ -467,8 +468,7 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO
     return Field.length;
   default:
     {
-      if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR
-        || charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+      if (MADB_FIELD_IS_BINARY(Field) || charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
       {
         return Field.length;
       }
@@ -526,7 +526,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
   {
-    if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR)
+    if (MADB_FIELD_IS_BINARY(Field))
     {
       return Field.length*2; /* ODBC specs says we should give 2 characters per byte to display binaray data in hex form */
     }
@@ -688,13 +688,13 @@ SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field)
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
-      return field->flags & BINARY_FLAG ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
+      return MADB_FIELD_IS_BINARY(*field) ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
     case MYSQL_TYPE_LONGLONG:
       return SQL_BIGINT;
-     case MYSQL_TYPE_STRING:
-      return field->flags & BINARY_FLAG ? SQL_BINARY : SQL_CHAR;
+    case MYSQL_TYPE_STRING:
+      return MADB_FIELD_IS_BINARY(*field) ? SQL_BINARY : SQL_CHAR;
     case MYSQL_TYPE_VAR_STRING:
-      return field->flags & BINARY_FLAG ? SQL_VARBINARY : SQL_VARCHAR;
+      return MADB_FIELD_IS_BINARY(*field) ? SQL_VARBINARY : SQL_VARCHAR;
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_ENUM:
       return SQL_CHAR;
