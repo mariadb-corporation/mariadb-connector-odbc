@@ -1429,7 +1429,11 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
 
    /* Map to the correspoinding type */
    if (ValueType == SQL_C_DEFAULT)
+   {
      ValueType= MADB_GetDefaultType(ParameterType);
+     /*ValueType= Stmt->Connection->IsAnsi ? MADB_GetDefaultType(ParameterType)
+                                         : MADB_GetWCharType(MADB_GetDefaultType(ParameterType));*/
+   }
    
    if (!(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)(SQLLEN)ValueType, SQL_IS_SMALLINT, 0))) ||
        !(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_OCTET_LENGTH_PTR, (SQLPOINTER)StrLen_or_IndPtr, SQL_IS_POINTER, 0))) ||
@@ -2462,6 +2466,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
          (Access uses default types on getting catalog functions results, and not quite happy when it gets something unexpected. Seemingly it cares about returned data lenghts even for types,
          for which standard says application should not care about */
       OdbcType= IrdRec->ConciseType;
+      /*OdbcType= Stmt->Connection->IsAnsi || (Col_or_Param_Num == 10 && BufferLength == 2) ?
+                IrdRec->ConciseType : MADB_GetWCharType(IrdRec->ConciseType);*/
     }
     break;
   default:
@@ -3104,7 +3110,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   }
 
   p= StmtStr;
-  p+= my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG as TABLE_SCHEM, TABLE_NAME,"
+  p+= my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL as TABLE_SCHEM, TABLE_NAME,"
                                  "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
                                  "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
   if (CatalogName && CatalogName[0])
@@ -3138,7 +3144,7 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   p= StmtStr;
-  p += my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG AS TABLE_SCHEM, TABLE_NAME, "
+  p += my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                                   "NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE, IS_GRANTABLE "
                                   "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
   if (CatalogName)
@@ -3306,7 +3312,7 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     return Stmt->Error.ReturnValue;
   }
  
-  my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, TABLE_CATALOG AS TABLE_SCHEM, TABLE_NAME, "
+  my_snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                              "NON_UNIQUE, NULL AS INDEX_QUALIFIER, INDEX_NAME, "
                              "%d AS TYPE, "
                              "SEQ_IN_INDEX AS ORDINAL_POSITION, COLUMN_NAME, COLLATION AS ASC_OR_DESC, "

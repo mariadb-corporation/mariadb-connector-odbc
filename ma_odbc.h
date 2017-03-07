@@ -400,7 +400,6 @@ struct st_ma_odbc_connection
   HWND QuietMode;
   SQLUINTEGER Trace;
   char *TraceFile;
-  char *TranslateLib;
   SQLINTEGER TxnIsolation;
   SQLINTEGER CursorCount;
 };
