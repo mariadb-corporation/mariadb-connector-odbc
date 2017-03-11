@@ -253,6 +253,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->Lengths);
     ResetMetadata(&Stmt->DefaultsResult);
 
+    MADB_FREE(Stmt->params);
+
     if (Stmt->DaeStmt != NULL)
     {
       Stmt->DaeStmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
@@ -284,11 +286,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       mysql_stmt_close(Stmt->stmt);
     }
 
-    MADB_FREE(Stmt->params);
     Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
     LeaveCriticalSection(&Stmt->Connection->cs);
     MADB_FREE(Stmt);
-  }
+  } /* End of switch (Option) */
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -430,8 +431,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   TextLength= (SQLINTEGER)strlen(Stmt->StmtString);
   MADB_FREE(p);
 
-  if (Stmt->Tokens)
-    MADB_FreeTokens(Stmt->Tokens);
+  MADB_FreeTokens(Stmt->Tokens);
   Stmt->Tokens= MADB_Tokenize(Stmt->StmtString);
 
   QueryType= MADB_GetQueryType(Stmt);

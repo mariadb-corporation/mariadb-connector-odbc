@@ -57,8 +57,10 @@ MADB_QUERY *MADB_Tokenize(const char *Stmt)
 
 void MADB_FreeTokens(MADB_QUERY *Query)
 {
-  if (!Query)
+  if (Query == NULL)
+  {
     return;
+  }
   delete_dynamic(&Query->tokens);
   MADB_FREE(Query);
 }
