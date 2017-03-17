@@ -1012,9 +1012,22 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
   memcpy(DestDesc->Records.buffer, SrcDesc->Records.buffer,
          SrcDesc->Records.size_of_element * SrcDesc->Records.max_element);
   DestDesc->Records.elements= SrcDesc->Records.elements;
-  /* todo: internal buffer needs to be clearead or we need to move it outside of
-           record structure 
-  */
+
+  /* internal buffer needs to be clearead or we will get it freed twice with all nice subsequences */
+  {
+    unsigned int i;
+
+    for (i= 0; i < DestDesc->Records.elements; ++i)
+    {
+      MADB_DescRecord *Rec= MADB_DescGetInternalRecord(DestDesc, i, MADB_DESC_READ);
+
+      if (Rec != NULL)
+      {
+        Rec->InternalBuffer= NULL;
+      }
+    }
+  }
+
   return SQL_SUCCESS;
 }
 /* }}} */

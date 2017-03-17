@@ -404,6 +404,12 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
 
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
+    MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
+
+    if (!Rec->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == TRUE)
+    {
+      continue;
+    }
     if (dynstr_append(&DynStr, i > 0 ? ",'" : "'") ||
         dynstr_append(&DynStr, fields[i].org_name) ||
         dynstr_append(&DynStr, "'"))
@@ -427,7 +433,7 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
 {
   MYSQL_ROW row;
 
-  if (!res->row_count)
+  if (res == NULL || !res->row_count)
     return NULL;
   mysql_data_seek(res, 0);
   while ((row= mysql_fetch_row(res)))
@@ -895,6 +901,25 @@ void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN
   else
     BindOffset+= Desc->Header.BindType * RowNumber;
   return (char *)Ptr + BindOffset;
+}
+
+/* Checking if column ignored in all bound rows. Should hel*/
+BOOL MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec)
+{
+  SQLULEN row;
+  SQLLEN *IndicatorPtr;
+
+  for (row= 0; row < Desc->Header.ArraySize; ++row)
+  {
+    IndicatorPtr= (SQLLEN *)GetBindOffset(Desc, Rec, Rec->IndicatorPtr, row, sizeof(SQLLEN));
+
+    if (IndicatorPtr == NULL || *IndicatorPtr != SQL_COLUMN_IGNORE)
+    {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
 }
 
 

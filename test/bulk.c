@@ -287,7 +287,6 @@ typedef struct {
   SQLLEN     ind;
 } row;
 
-
 /**
   This is related to the fix for Bug #24306 -- handling of row-wise binding,
   plus handling of SQL_ATTR_ROW_BIND_OFFSET_PTR, within the context of
@@ -373,6 +372,148 @@ ODBC_TEST(t_bulk_insert_rows)
   return OK;
 }
 
+#define MAODBC_ROWS 2
+ODBC_TEST(t_odbc90)
+{
+  SQLHANDLE  henv1;
+  SQLHANDLE  Connection1;
+  SQLHANDLE  Stmt1;
+  SQLCHAR    conn[512], sval[MAODBC_ROWS][32]={"Record 1", "Record 21"};
+  SQLLEN     ind1[MAODBC_ROWS]= {SQL_COLUMN_IGNORE, 0}, ind2[MAODBC_ROWS]= {sizeof(int), sizeof(int)},
+             ind3[MAODBC_ROWS]= {8, 9}, ind4[MAODBC_ROWS]={SQL_COLUMN_IGNORE, SQL_COLUMN_IGNORE};
+  SQLINTEGER nval[MAODBC_ROWS]={100, 500}, id[MAODBC_ROWS]={2, 7};
+ 
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc90");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id int not null primary key auto_increment, \
+                          nval int not null, sval varchar(32) not null, ts timestamp)");
+
+  /* odbc 3 */
+  /* This cursor closing is required, otherwise DM(on Windows) freaks out */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+    (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+
+  CHECK_STMT_RC(Stmt,
+    SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, id, 0, ind1));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, nval, 0, ind2));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, sval, sizeof(sval[0]), ind3));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, NULL, 0, ind4));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, nval, sval, ts FROM odbc90");
+
+  FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
+
+  CHECK_STMT_RC(Stmt, SQLBulkOperations(Stmt, SQL_ADD));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, nval, sval, ts FROM odbc90");
+
+  ind4[0]= 0;
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, nval, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, sval[0], sizeof(sval[0]), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, sval[1], sizeof(sval[0]), ind4));
+
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
+  is_num(id[0], 1);
+  is_num(nval[0], 100);
+  IS_STR(sval[0], "Record 1", ind3[0] + 1);
+  is_num(ind4[0], 19);
+
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
+  is_num(id[0], 7);
+  is_num(nval[0], 500);
+  IS_STR(sval[0], "Record 21", ind3[1] + 1);
+  is_num(ind4[0], 19);
+
+  FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
+
+  /* odbc 2. Not sure if it's really needed internaly one call is mapped to another as well. But won't hurt. */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc90");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id int not null primary key auto_increment, \
+                                            nval int not null, sval varchar(32) not null, ts timestamp)");
+  id[0]= 2;
+  ind4[0]= SQL_COLUMN_IGNORE;
+  strcpy(sval[0], "Record 1");
+  strcpy(sval[1], "Record 21");
+  nval[0]= 100;
+
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s%s;",
+    my_drivername, my_servername, my_uid, my_pwd, my_schema, ma_strport);
+
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
+  CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
+    (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+    NULL, SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
+
+  /* This cursor closing is required, otherwise DM(on Windows) freaks out */
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt1, SQLSetStmtAttr(Stmt1, SQL_ATTR_CURSOR_TYPE,
+    (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+
+  CHECK_STMT_RC(Stmt1,
+    SQLSetStmtAttr(Stmt1, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
+
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 1, SQL_C_LONG, id, 0, ind1));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 2, SQL_C_LONG, nval, 0, ind2));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 3, SQL_C_CHAR, sval, sizeof(sval[0]), ind3));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 4, SQL_C_CHAR, NULL, 0, ind4));
+
+  OK_SIMPLE_STMT(Stmt1, "SELECT id, nval, sval, ts FROM odbc90");
+
+  FAIL_IF(SQLExtendedFetch(Stmt1, SQL_FETCH_FIRST, 2, NULL, NULL)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
+
+  CHECK_STMT_RC(Stmt1, SQLSetPos(Stmt1, 0, SQL_ADD, SQL_LOCK_NO_CHANGE));
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLSetStmtAttr(Stmt1, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt1, "SELECT id, nval, sval, ts FROM odbc90");
+
+  ind4[0]= 0;
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 1, SQL_C_LONG, id, 0, NULL));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 2, SQL_C_LONG, nval, 0, NULL));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 3, SQL_C_CHAR, sval[0], sizeof(sval[0]), NULL));
+  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 4, SQL_C_CHAR, sval[1], sizeof(sval[0]), ind4));
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(id[0], 1);
+  is_num(nval[0], 100);
+  IS_STR(sval[0], "Record 1", ind3[0] + 1);
+  is_num(ind4[0], 19);
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(id[0], 7);
+  is_num(nval[0], 500);
+  IS_STR(sval[0], "Record 21", ind3[1] + 1);
+  is_num(ind4[0], 19);
+
+  FAIL_IF(SQLFetch(Stmt1)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
+
+  CHECK_STMT_RC(Stmt1, SQLFreeHandle(SQL_HANDLE_STMT, Stmt1));
+  CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
+  CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));
+  CHECK_ENV_RC(henv1, SQLFreeHandle(SQL_HANDLE_ENV, henv1));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc90");
+
+  return OK;
+}
+#undef MAODBC_ROWS
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -382,6 +523,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_mul_pkdel, "t_mul_pkdel"}, 
   {t_bulk_insert_indicator, "t_bulk_insert_indicator"},
   {t_bulk_insert_rows, "t_bulk_insert_rows"},
+  {t_odbc90, "odbc90_insert_with_ts_col"},
   {NULL, NULL}
 };
 

@@ -541,34 +541,31 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
   }
   else
   {
-    if (!Stmt->Ard || !(ParamCount= mysql_stmt_field_count(Stmt->stmt)))
+    if (!Stmt->Ard || !(ParamCount= Stmt->DaeStmt->ParamCount))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY010, NULL, 0);
       return Stmt->Error.ReturnValue;
     }
-    Desc= Stmt->Ard;
+    Desc= Stmt->DaeStmt->Apd;
   }
 
-  /* for (RowNumber=0; RowNumber < MAX(1, Desc->Header.ArraySize); RowNumber ++) Do we need this?
-     We should use Stmt->DaeRowNumber to obtain correct offset */
+  /* If we have last DAE param(Stmt->PutParam), we are starting from the next one. Otherwise from first */
+  for (i= Stmt->PutParam > -1 ? Stmt->PutParam + 1 : 0; i < ParamCount; i++)
   {
-    for (i= Stmt->PutParam > -1 ? Stmt->PutParam + 1 : 0; i < ParamCount; i++)
+    if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
     {
-      if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
+      if (Record->OctetLengthPtr)
       {
-        if (Record->OctetLengthPtr)
+        /* Stmt->DaeRowNumber is 1 based */
+        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN));
+        if (PARAM_IS_DAE(OctetLength))
         {
-          /* Stmt->DaeRowNumber is 1 based */
-          SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN));
-          if (PARAM_IS_DAE(OctetLength))
-          {
-            Stmt->PutDataRec= Record;
-            *ValuePtrPtr = GetBindOffset(Desc, Record, Record->DataPtr, MAX(0, Stmt->DaeRowNumber - 1), Record->OctetLength);
-            Stmt->PutParam= i;
-            Stmt->Status= SQL_NEED_DATA;
+          Stmt->PutDataRec= Record;
+          *ValuePtrPtr = GetBindOffset(Desc, Record, Record->DataPtr, MAX(0, Stmt->DaeRowNumber - 1), Record->OctetLength);
+          Stmt->PutParam= i;
+          Stmt->Status= SQL_NEED_DATA;
 
-            return SQL_NEED_DATA;
-          }
+          return SQL_NEED_DATA;
         }
       }
     }
@@ -621,8 +618,9 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   }
 
   if (Stmt->DataExecutionType != MADB_DAE_NORMAL)
+  {
     MyStmt= Stmt->DaeStmt;
-
+  }
   Record= MADB_DescGetInternalRecord(MyStmt->Apd, Stmt->PutParam, MADB_DESC_READ);
   assert(Record);
 
@@ -4021,26 +4019,37 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       {
         MADB_DescRecord *Rec=          MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ),
                         *ApdRec=       NULL;
-        SQLLEN          *IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Rec, Rec->IndicatorPtr,
-                                        Stmt->DaeRowNumber > 1 ?Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN)/*Rec->OctetLength*/);
 
+        if (Rec->inUse && MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == FALSE)
+        {
+          Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale,
+            Rec->DataPtr, Rec->OctetLength, Rec->OctetLengthPtr);
+        }
+        else
+        {
+          /*Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
+                            ApdRec->DefaultValue, strlen(ApdRec->DefaultValue), NULL);*/
+          continue;
+        }
+        
         ApdRec= MADB_DescGetInternalRecord(Stmt->DaeStmt->Apd, param, MADB_DESC_READ);
         ApdRec->DefaultValue= MADB_GetDefaultColumnValue(Stmt->DaeStmt->DefaultsResult,
-                                                          Stmt->stmt->fields[column].org_name);
-        if (Rec->inUse)
-          Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, 
-                          Rec->DataPtr, Rec->OctetLength, Rec->OctetLengthPtr);
-        else
-          Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
-                            ApdRec->DefaultValue, strlen(ApdRec->DefaultValue), NULL);
-          
+          Stmt->stmt->fields[column].org_name);
+
         ++param;
       }
 
-      memcpy(&Stmt->DaeStmt->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
+      //memcpy(&Stmt->DaeStmt->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
+      Stmt->DaeStmt->Apd->Header.ArraySize= Stmt->Ard->Header.ArraySize;
+      Stmt->DaeStmt->Apd->Header.ArrayStatusPtr= Stmt->Ard->Header.ArrayStatusPtr;
+      Stmt->DaeStmt->Apd->Header.BindOffsetPtr= Stmt->Ard->Header.BindOffsetPtr;
+      Stmt->DaeStmt->Apd->Header.BindType= Stmt->Ard->Header.BindType;
+      Stmt->DaeStmt->Apd->Header.RowsProcessedPtr= Stmt->Ard->Header.RowsProcessedPtr;
+
       ret= Stmt->Methods->Execute(Stmt->DaeStmt);
-      if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO)
+      if (!SQL_SUCCEEDED(ret))
       {
+        /* We can have SQL_NEED_DATA here, which would not set error (and its ReturnValue) */
         MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
         return ret;
       }

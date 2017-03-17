@@ -145,19 +145,15 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
     return TRUE;
   }
 
+  /* We use only columns, that have been bound, and are not IGNORED */
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    SQLINTEGER *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
-    if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0,
-                                                sizeof(SQLLEN)/*Record->OctetLength*/);
     
-    /* We prepare query only once, different paramsets may have different SQL_COLUMN_IGNORE */
-    /*if (IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE)
+    if (!Record->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Record) == TRUE)
     {
       continue;
-    }*/
+    }
 
     if ((NeedComma) && 
         (dynstr_append(DynString, ",") || dynstr_append(&ColVals, ",")))
