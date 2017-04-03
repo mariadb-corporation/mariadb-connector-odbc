@@ -913,6 +913,10 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
     case SQL_DESC_CONCISE_TYPE:
       DescRecord->ConciseType= (SQLSMALLINT)(SQLLEN)ValuePtr;
       DescRecord->Type= MADB_GetTypeFromConciseType(DescRecord->ConciseType);
+      if (DescRecord->Type == SQL_INTERVAL)
+      {
+        DescRecord->DateTimeIntervalCode= DescRecord->ConciseType - 100;
+      }
       break;
     case SQL_DESC_DATA_PTR:
       DescRecord->DataPtr= ValuePtr;

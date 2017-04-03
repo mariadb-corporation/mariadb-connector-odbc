@@ -839,6 +839,26 @@ char MADB_ConvertCharToBit(MADB_Stmt *Stmt, char *src)
 }
 /* }}} */
 
+BOOL MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To)
+{
+  switch (From->ConciseType)
+  {
+  case SQL_C_TIMESTAMP:
+  case SQL_C_TYPE_TIMESTAMP:
+  case SQL_C_TIME:
+  case SQL_C_TYPE_TIME:
+  case SQL_C_DATE:
+  case SQL_C_TYPE_DATE:
+
+    if (To->Type == SQL_INTERVAL)
+    {
+      return FALSE;
+    }
+
+  }
+  return TRUE;
+}
+
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 {
@@ -970,6 +990,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             }
           }
 
+          if (MADB_ConversionSupported(ApdRecord, IpdRecord) == FALSE)
+          {
+            ret= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
+            goto end;
+          }
+
           /* Long if-else's to fill BIND structures */
           if (IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE)
           {
@@ -998,16 +1024,23 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
               if (DataPtr)
               {
                 if (ApdRecord->ConciseType == SQL_C_WCHAR)
+                {
                   Length= SqlwcsLen((SQLWCHAR *)DataPtr) * sizeof(SQLWCHAR);
+                }
                 else if (ApdRecord->ConciseType == SQL_C_CHAR)
+                {
                   Length= strlen((SQLCHAR *)DataPtr);
+                }
               }
               if (!OctetLengthPtr && ApdRecord->OctetLength && ApdRecord->OctetLength != SQL_SETPARAM_VALUE_MAX)
+              {
                 Length= MIN(Length, ApdRecord->OctetLength);
+              }
             }
             Stmt->params[i-ParamOffset].length= 0;
 
-            switch (ApdRecord->ConciseType) {
+            switch (ApdRecord->ConciseType)
+            {
             case SQL_C_WCHAR:
               {
                 SQLULEN mbLength=0;
@@ -1056,7 +1089,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                   MADB_FREE(ApdRecord->InternalBuffer);
                   ApdRecord->InternalBuffer= (char *)MADB_CALLOC(80);
                 }
-                p= (SQL_NUMERIC_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                p= (SQL_NUMERIC_STRUCT *)DataPtr;
                 p->scale= (SQLSCHAR)IpdRecord->Scale;
                 p->precision= (SQLSCHAR)IpdRecord->Precision;
                 ApdRecord->InternalLength= (unsigned long)MADB_SqlNumericToChar((SQL_NUMERIC_STRUCT *)p, ApdRecord->InternalBuffer, &ErrorCode);
@@ -1074,7 +1107,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_TYPE_TIMESTAMP:
               {
                 MYSQL_TIME           *tm= NULL;
-                SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
                 MADB_FREE(ApdRecord->InternalBuffer);
 
@@ -1138,7 +1171,15 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
               case SQL_TYPE_TIME:
               {
                 MYSQL_TIME      *tm;
-                SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
+
+                if ((IpdRecord->ConciseType == SQL_TYPE_TIME || IpdRecord->ConciseType == SQL_TYPE_TIMESTAMP ||
+                  IpdRecord->ConciseType == SQL_TIME || IpdRecord->ConciseType == SQL_TIMESTAMP || IpdRecord->ConciseType == SQL_DATETIME) &&
+                  ts->hour > 23|| ts->minute > 59 || ts->second > 59)
+                {
+                  ret= MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+                  goto end;
+                }
 
                 MADB_FREE(ApdRecord->InternalBuffer);
                 tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
@@ -1161,11 +1202,31 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                 Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
               }
               break;
+              case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+              case SQL_C_INTERVAL_HOUR_TO_SECOND:
+              {
+                SQL_INTERVAL_STRUCT *is= (SQL_INTERVAL_STRUCT *)DataPtr;
+                MYSQL_TIME          *tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
+
+                tm->hour=   is->intval.day_second.hour;
+                tm->minute= is->intval.day_second.minute;
+                tm->second= ApdRecord->ConciseType == SQL_C_INTERVAL_HOUR_TO_SECOND ? is->intval.day_second.second : 0;
+
+                tm->second_part= 0;
+
+                tm->time_type= MYSQL_TIMESTAMP_TIME;
+                ApdRecord->InternalBuffer= (void *)tm;
+                Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_TIME;
+                Stmt->params[i-ParamOffset].buffer= ApdRecord->InternalBuffer;
+                Stmt->params[i-ParamOffset].length_value= sizeof(MYSQL_TIME);
+              }
+              break;
+
               case SQL_C_DATE:
               case SQL_TYPE_DATE:
               {
                 MYSQL_TIME *tm;
-                SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)DataPtr;
  
                 MADB_FREE(ApdRecord->InternalBuffer);
                 tm= (MYSQL_TIME *)MADB_CALLOC(sizeof(MYSQL_TIME));
@@ -1187,17 +1248,21 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
             case SQL_BINARY:
             case SQL_LONGVARBINARY:
               {
-                SQLLEN *length= (SQLLEN *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr, j - Start, sizeof(SQLLEN));
+                Stmt->params[i-ParamOffset].buffer= (char *)DataPtr;
 
-                Stmt->params[i-ParamOffset].buffer= (char *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                if (OctetLengthPtr && *OctetLengthPtr == SQL_NTS)
+                {
+                  *OctetLengthPtr= strlen((char *)Stmt->params[i-ParamOffset].buffer);
+                }
 
-                if (length && *length == SQL_NTS)
-                  *length= strlen((char *)Stmt->params[i-ParamOffset].buffer);
-
-                if (length)
-                  Stmt->params[i-ParamOffset].length_value= (unsigned long)*length;
+                if (OctetLengthPtr)
+                {
+                  Stmt->params[i-ParamOffset].length_value= (unsigned long)*OctetLengthPtr;
+                }
                 else
+                {
                   Stmt->params[i-ParamOffset].length_value= (unsigned long)ApdRecord->OctetLength;
+                }
 
                 Stmt->params[i-ParamOffset].buffer_type= MYSQL_TYPE_BLOB;
               }
@@ -1210,7 +1275,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
                                       &Stmt->params[i-ParamOffset].is_unsigned, &Stmt->params[i-ParamOffset].buffer_length);
                 if (!ApdRecord->OctetLength)
                   ApdRecord->OctetLength= Stmt->params[i-ParamOffset].buffer_length;
-                Stmt->params[i-ParamOffset].buffer= GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, j - Start, ApdRecord->OctetLength);
+                Stmt->params[i-ParamOffset].buffer= DataPtr;
               }
             }
           }
@@ -1237,6 +1302,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         ret= Stmt->Error.ReturnValue;
         ErrorCount++;
+        MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_execute:ERROR");
       }
       else
       {
@@ -1598,6 +1664,17 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
       Stmt->result[i].buffer_type=   MYSQL_TYPE_TIMESTAMP;
       break;
+    case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+    case SQL_C_INTERVAL_HOUR_TO_SECOND:
+      {
+        MYSQL_FIELD *Field= mysql_fetch_field_direct(Stmt->metadata, i);
+        MADB_FREE(ArdRec->InternalBuffer);
+        ArdRec->InternalBuffer=       (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
+        Stmt->result[i].buffer=        ArdRec->InternalBuffer;
+        Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
+        Stmt->result[i].buffer_type=   Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+      }
+      break;
     case SQL_C_TINYINT:
     case SQL_C_UTINYINT:
     case SQL_C_STINYINT:
@@ -1706,7 +1783,8 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
       }
       else
       {
-        switch (ArdRec->Type) {
+        switch (ArdRec->Type)
+        {
         case SQL_C_BIT:
         {
           char *p= (char *)Stmt->result[i].buffer;
@@ -1723,6 +1801,45 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
           FieldRc= MADB_CopyMadbTimestamp(Stmt, (MYSQL_TIME *)ArdRec->InternalBuffer, Stmt->Ard, ArdRec, ArdRec->Type, RowNumber);
           CALC_ALL_FLDS_RC(rc, FieldRc);
           break;
+        case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+        case SQL_C_INTERVAL_HOUR_TO_SECOND:
+        {
+          MYSQL_TIME          *tm= (MYSQL_TIME*)ArdRec->InternalBuffer;
+          SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr, RowNumber, ArdRec->OctetLength);;
+
+          if (tm->hour > 99999)
+          {
+            FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_22015, NULL, 0);
+            CALC_ALL_FLDS_RC(rc, FieldRc);
+            break;
+          }
+
+          ts->intval.day_second.hour= tm->hour;
+          ts->intval.day_second.minute= tm->minute;
+          ts->interval_sign= tm->neg ? SQL_TRUE : SQL_FALSE;
+
+          if (ArdRec->Type == SQL_C_INTERVAL_HOUR_TO_MINUTE)
+          {
+            ts->intval.day_second.second= 0;
+            ts->interval_type= SQL_INTERVAL_HOUR_TO_MINUTE;
+            if (tm->second)
+            {
+              FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+              CALC_ALL_FLDS_RC(rc, FieldRc);
+              break;
+            }
+          }
+          else
+          {
+            ts->interval_type= SQL_INTERVAL_HOUR_TO_SECOND;
+            ts->intval.day_second.second= tm->second;
+          }
+          if (IndicatorPtr)
+          {
+            *IndicatorPtr= sizeof(SQL_INTERVAL_STRUCT);
+          }
+        }
+        break;
         case SQL_C_NUMERIC:
         {
           int rc= 0;
@@ -2414,6 +2531,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   my_bool         Error;
   unsigned char   *SavePtr;
   MADB_DescRecord *IrdRec= NULL;
+  MYSQL_FIELD     *Field= mysql_fetch_field_direct(Stmt->metadata, Offset);
 
   /* Should not really happen, and is evidence of that something wrong happened in some previous call(SQLFetch?) */
   if (Stmt->stmt->bind == NULL)
@@ -2487,11 +2605,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     {
       MYSQL_TIME tm;
       SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)TargetValuePtr;
-      if (BufferLength < sizeof(SQL_DATE_STRUCT))
-      {
-        IsNull= TRUE;
-        break;
-      }
+
       Bind.buffer_length= sizeof(MYSQL_TIME);
       Bind.buffer= (void *)&tm;
       Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
@@ -2542,25 +2656,66 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     {
       MYSQL_TIME tm;
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)TargetValuePtr;
-      if (BufferLength < sizeof(SQL_TIME_STRUCT))
-      {
-        IsNull= TRUE;
-        break;
-      }
+
       Bind.buffer_length= sizeof(MYSQL_TIME);
       Bind.buffer= (void *)&tm;
-      Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
+      /* c/c is too smart to convert hours to days and days to hours, we don't need that */
+      Bind.buffer_type= Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
       mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
       ts->hour= tm.hour;
       ts->minute= tm.minute;
       ts->second= tm.second;
+
+      if (tm.hour > 23)
+      {
+        return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+      }
       if (tm.second_part)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
-        return Stmt->Error.ReturnValue;
+        return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
       }
       if (StrLen_or_IndPtr)
         *StrLen_or_IndPtr= sizeof(SQL_TIME_STRUCT);
+    }
+    break;
+  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+  case SQL_C_INTERVAL_HOUR_TO_SECOND:
+    {
+      MYSQL_TIME tm;
+      SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)TargetValuePtr;
+
+      Bind.buffer_length= sizeof(MYSQL_TIME);
+      Bind.buffer= (void *)&tm;
+      /* c/c is too smart to convert hours to days and days to hours, we don't need that */
+      Bind.buffer_type= Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+
+      mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+
+      if (tm.hour > 99999)
+      {
+        return MADB_SetError(&Stmt->Error, MADB_ERR_22015, NULL, 0);
+      }
+
+      ts->intval.day_second.hour= tm.hour;
+      ts->intval.day_second.minute= tm.minute;
+      ts->interval_sign= tm.neg ? SQL_TRUE : SQL_FALSE;
+
+      if (TargetType == SQL_C_INTERVAL_HOUR_TO_MINUTE)
+      {
+        ts->intval.day_second.second= 0;
+        ts->interval_type= SQL_INTERVAL_HOUR_TO_MINUTE;
+        if (tm.second)
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+        }
+      }
+      else
+      {
+        ts->interval_type= SQL_INTERVAL_HOUR_TO_SECOND;
+        ts->intval.day_second.second= tm.second;
+      }
+      if (StrLen_or_IndPtr)
+        *StrLen_or_IndPtr= sizeof(SQL_INTERVAL_STRUCT);
     }
     break;
   case SQL_WCHAR:
