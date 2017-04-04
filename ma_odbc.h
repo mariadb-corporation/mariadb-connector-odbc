@@ -276,6 +276,13 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
 
+
+enum MADB_StmtState { MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3 };
+
+#define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State > MADB_SS_EMULATED)
+#define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ? MADB_SS_PREPARED : MADB_SS_INITED
+
+
 typedef struct {
   DYNAMIC_ARRAY tokens;
 } MADB_QUERY;
@@ -315,7 +322,7 @@ struct st_ma_odbc_stmt
   char                      *NativeSql;
   MADB_Stmt                 *PositionedCursor;
   unsigned int              PositionedCommand;
-  my_bool                   EmulatedStmt;
+  enum MADB_StmtState       State;
   unsigned int              MultiStmtCount;
   MYSQL_STMT                **MultiStmts;
   unsigned int              MultiStmtNr;

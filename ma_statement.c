@@ -19,12 +19,14 @@
 #include <ma_odbc.h>
 
 struct st_ma_stmt_methods MADB_StmtMethods; /* declared at the end of file */
+static my_bool UpdateMaxLength= 1;
+
 
 /* {{{ MADB_StmtInit */
 SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 {
   MADB_Stmt *Stmt= NULL;
-  my_bool UpdateMaxLength= 1;
+
 
   if (!(Stmt = (MADB_Stmt *)MADB_CALLOC(sizeof(MADB_Stmt))))
     goto error;
@@ -93,7 +95,7 @@ SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER Te
       ret= SQL_SUCCESS;
       MADB_CLEAR_ERROR(&Stmt->Error);
       Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
-      Stmt->EmulatedStmt= TRUE;
+      Stmt->State= MADB_SS_EMULATED;
     }
     else
     {
@@ -171,7 +173,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     {
       if (Stmt->Ird)
         MADB_DescFree(Stmt->Ird, TRUE);
-      if (!Stmt->EmulatedStmt && !Stmt->MultiStmtCount)
+      if (Stmt->State > MADB_SS_PREPARED && !Stmt->MultiStmtCount)
       {
         mysql_stmt_free_result(Stmt->stmt);
         MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
@@ -197,7 +199,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
       MADB_FREE(Stmt->Lengths);
-      Stmt->EmulatedStmt= FALSE;
       RESET_DAE_STATUS(Stmt);
     }
     break;
@@ -307,7 +308,7 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
     /* Stmt->StmtString is NULL if we had error on one of statements in the batch */
     if ((Stmt->Error.NativeError == 1295 || Stmt->Error.NativeError == 1064) && Stmt->StmtString != NULL)
     {
-      Stmt->EmulatedStmt= TRUE;
+      Stmt->State= MADB_SS_EMULATED;
     }
     else
     {
@@ -356,22 +357,52 @@ MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 /* {{{ MADB_StmtReset - reseting Stmt handler for new use. Has to be called inside a lock */
 void MADB_StmtReset(MADB_Stmt *Stmt)
 {
-  /* TODO: These all stuff has to be moved to a separate function, smth like MADB_StmtReset */
-  MADB_StmtFree(Stmt, SQL_CLOSE);
-  MADB_CLEAR_ERROR(&Stmt->Error);
-  MADB_FREE(Stmt->NativeSql);
-  MADB_FREE(Stmt->StmtString);
-  Stmt->EmulatedStmt= FALSE;
-  RESET_DAE_STATUS(Stmt);
+  if (!Stmt->MultiStmtCount)
+  {
+    if (Stmt->State > MADB_SS_PREPARED)
+    {
+      MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt);
+      mysql_stmt_free_result(Stmt->stmt);
+    }
 
-  Stmt->PositionedCursor= NULL;
-  
-  /* If we preparing something - we need to close that war prepared before */
-  if (Stmt->MultiStmtCount > 0)
+    if (Stmt->State >= MADB_SS_PREPARED)
+    {
+      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
+      mysql_stmt_close(Stmt->stmt);
+      Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+      mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+
+      MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
+    }
+  }
+  else
   {
     CloseMultiStatements(Stmt);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+    mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+
     MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
+  }
+
+  switch (Stmt->State)
+  {
+  case MADB_SS_EXECUTED:
+
+    MADB_FREE(Stmt->result);
+    MADB_FREE(Stmt->CharOffset);
+    MADB_FREE(Stmt->Lengths);
+    RESET_DAE_STATUS(Stmt);
+
+  case MADB_SS_PREPARED:
+    ResetMetadata(&Stmt->metadata);
+    Stmt->PositionedCursor= NULL;
+    Stmt->Ird->Header.Count= 0;
+
+  case MADB_SS_EMULATED:
+    MADB_FREE(Stmt->NativeSql);
+    MADB_FREE(Stmt->StmtString);
+    Stmt->State= MADB_SS_INITED;
+    MADB_CLEAR_ERROR(&Stmt->Error);
   }
 }
 /* }}} */
@@ -401,14 +432,6 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       return Stmt->Error.ReturnValue;
     if (MultiStmts > 1)
     {
-      /* Not optimal - if this is 1st use of STMT no need to close and re-init stmt */
-      if (Stmt->stmt)
-      {
-        MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-        mysql_stmt_close(Stmt->stmt);
-        Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-        MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-      }
       /* all statemtens successfully prepared */
       Stmt->StmtString= _strdup(StatementText);
 
@@ -484,7 +507,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   if (QUERY_DOESNT_RETURN_RESULT(QueryType) && MADB_FindParamPlaceholder(Stmt) == 0
    && !QueryIsPossiblyMultistmt(Stmt->StmtString))
   {
-    Stmt->EmulatedStmt= TRUE;
+    Stmt->State= MADB_SS_EMULATED;
     return SQL_SUCCESS;
   }
 
@@ -496,12 +519,15 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
     mysql_stmt_close(Stmt->stmt);
     Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+    mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
 
     UNLOCK_MARIADB(Stmt->Connection);
 
     return Stmt->Error.ReturnValue;
   }
   UNLOCK_MARIADB(Stmt->Connection);
+
+  Stmt->State= MADB_SS_PREPARED;
 
   /* If we have result returning query - fill descriptor records with metadata */
   if (mysql_stmt_field_count(Stmt->stmt) > 0)
@@ -877,7 +903,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  if (Stmt->EmulatedStmt)
+  if (Stmt->State == MADB_SS_EMULATED)
   {
     return MADB_ExecuteQuery(Stmt, Stmt->StmtString, (SQLINTEGER)strlen(Stmt->StmtString));
   }
@@ -923,11 +949,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   {
     if (Stmt->MultiStmts)
     {
-      /* If this is 1st stmt - we need to close current "main" stmt, or it's gonna be leaked */
-      if (StatementNr == 0)
-      {
-        mysql_stmt_close(Stmt->stmt);
-      }
       Stmt->stmt= Stmt->MultiStmts[StatementNr];
       Stmt->ParamCount= Stmt->MultiStmts[StatementNr]->param_count;
       Stmt->RebindParams= TRUE;
@@ -1302,10 +1323,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         ret= Stmt->Error.ReturnValue;
         ErrorCount++;
-        MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_execute:ERROR");
+        MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_execute:ERROR%s", "");
       }
       else
       {
+        Stmt->State= MADB_SS_EXECUTED;
+
         if (Stmt->stmt->mysql->server_status & SERVER_PS_OUT_PARAMS)
         {
           FetchedOutParams= TRUE;

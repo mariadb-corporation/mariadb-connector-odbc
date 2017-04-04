@@ -602,7 +602,7 @@ ODBC_TEST(t_prep_catalog)
 
     rc = SQLGetData(Stmt,4,SQL_C_CHAR,table,0,&length);
     mystmt(Stmt,rc);
-    IS(length == 1);
+    is_num(length, 1);
 
     rc = SQLGetData(Stmt,4,SQL_C_CHAR,table,2,&length);
     mystmt(Stmt,rc);

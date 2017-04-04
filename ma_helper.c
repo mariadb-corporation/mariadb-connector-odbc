@@ -157,7 +157,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
     {
       /* Need to be incremented before CloseMultiStatements() */
       ++Stmt->MultiStmtCount;
-      Stmt->MultiStmts[i]= mysql_stmt_init(Stmt->Connection->mariadb);
+      Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : mysql_stmt_init(Stmt->Connection->mariadb);
       MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d)", Stmt->MultiStmts[i], i);
       if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
       {
