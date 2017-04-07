@@ -2029,7 +2029,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   }
 
   /* We don't know if any of the ARD parameter changed, so we need to rebind */
-  MADB_FREE(Stmt->result);
+  //MADB_FREE(Stmt->result);
   if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
       SaveCursor= Stmt->stmt->result_cursor;
 
@@ -2040,7 +2040,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   Stmt->LastRowFetched= 0;
 
-  if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
+  if (Stmt->result == NULL && !(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     return Stmt->Error.ReturnValue;
