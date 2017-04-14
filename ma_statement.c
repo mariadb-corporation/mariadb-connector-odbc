@@ -199,6 +199,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
       MADB_FREE(Stmt->Lengths);
+
+      RESET_STMT_STATE(Stmt);
       RESET_DAE_STATUS(Stmt);
     }
     break;
@@ -249,12 +251,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_DescFree(Stmt->Ipd, FALSE);
     MADB_DescFree(Stmt->Ird, FALSE);
 
-
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
     ResetMetadata(&Stmt->DefaultsResult);
-
-    MADB_FREE(Stmt->params);
 
     if (Stmt->DaeStmt != NULL)
     {
