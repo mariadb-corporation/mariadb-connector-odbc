@@ -267,8 +267,8 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
   /* check if we have to map the SQLState to ODBC version 2 state */
   if (OdbcVersion == SQL_OV_ODBC2)
   {
-    int i=0;
-    while (MADB_ErrorList[i].SqlState)
+    int i= 0;
+    while (MADB_ErrorList[i].SqlState[0])
     {
       if (strcmp(Err->SqlState, MADB_ErrorList[i].SqlState) == 0)
       {
@@ -276,7 +276,7 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
           SqlStateVersion= MADB_ErrorList[i].SqlStateV2;
         break;
       }
-      i++;
+      ++i;
     }
   }
 

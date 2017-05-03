@@ -1054,12 +1054,13 @@ ODBC_TEST(t_odbc77)
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-#ifdef MDEV_11966_FIXED
-  OK_SIMPLE_STMT(Stmt, "ANALYZE SELECT 1");
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-#endif
+  if (ServerNewerThan(Connection, 10, 2, 5))
+  {
+    OK_SIMPLE_STMT(Stmt, "ANALYZE SELECT 1");
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
   OK_SIMPLE_STMT(Stmt, "EXPLAIN SELECT 1");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
@@ -1071,6 +1072,17 @@ ODBC_TEST(t_odbc77)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));*/
+
+  /* Just to test some more exotic commands */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc77");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc77(id INT NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "TRUNCATE TABLE odbc77");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc77");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
 }

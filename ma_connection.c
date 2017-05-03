@@ -1057,14 +1057,13 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_DBMS_VER:
     {
-      char Version[11];
+      char Version[13];
       ulong ServerVersion= 0L;
-      unsigned int Major=0, Minor=0, Patch= 0;
       
       if (Dbc->mariadb)
       {
         ServerVersion= mysql_get_server_version(Dbc->mariadb);
-        my_snprintf(Version, 11, "%02u.%02u.%06u", ServerVersion / 10000,
+        _snprintf(Version, sizeof(Version), "%02u.%02u.%06u", ServerVersion / 10000,
                     (ServerVersion % 10000) / 100, ServerVersion % 100);
       }
       else
