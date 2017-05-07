@@ -30,11 +30,6 @@ SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
 
   mysql_stmt_data_seek(Stmt->stmt, FetchOffset);
 
-  /* We need to fetch lengths, so SQLGetData will return correct results. 
-     Since we need to prevent overwriting bound variables we will set buffer_types
-     to SQL_TYPE_NULL temporarily
-  */
-
   return SQL_SUCCESS;  
 }
 /* }}} */
@@ -45,8 +40,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   SQLRETURN ret= SQL_SUCCESS;
   if (!Stmt->stmt)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_08S01, NULL, 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_08S01, NULL, 0);
   }
 
   if (Stmt->MultiStmts)
@@ -121,7 +115,7 @@ SQLULEN MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long l
   if (Position + ArraySize > RowsInResultst)
     result= (SQLULEN)(RowsInResultst - Position);
 
-  return result > 0 ? result : 1;
+  return result >= 0 ? result : 1;
 }
 /* }}} */
 

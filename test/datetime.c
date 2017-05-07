@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -412,15 +412,13 @@ ODBC_TEST(t_time1)
   tt.minute= 00;
   tt.second= 03;
 
-  rc = SQLExecute(Stmt);
-  CHECK_STMT_RC(Stmt, rc);
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   tt.hour= 01;
   tt.minute= 00;
   tt.second= 00;
 
-  rc = SQLExecute(Stmt);
-  CHECK_STMT_RC(Stmt, rc);
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   tt.hour= 19;
   tt.minute= 00;
@@ -1061,6 +1059,7 @@ ODBC_TEST(t_bug60646)
         and if fractional part in place. former can actually fail if day is
         being changed */
 
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   {
     time_t sec_time= time(NULL);
     struct tm * cur_tm;
@@ -1093,17 +1092,17 @@ ODBC_TEST(t_bug60646)
   /* 5th col once again This time we get it in time struct. Thus we are
      loosing fractioanl part. Thus the state has to be 01S07 and
      SQL_SUCCESS_WITH_INFO returned */
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   {
     SQL_TIME_STRUCT timestruct;
 
-    FAIL_IF(SQLGetData(Stmt, 5, SQL_C_TYPE_TIME, &timestruct,
-                            sizeof(timestruct), &len) != SQL_SUCCESS_WITH_INFO, 
-                            "SUCCESS_WITH_INFO expected");
+    EXPECT_STMT(Stmt, SQLGetData(Stmt, 5, SQL_C_TYPE_TIME, &timestruct,
+      sizeof(timestruct), &len), SQL_SUCCESS_WITH_INFO);
 
     CHECK_SQLSTATE(Stmt, "01S07");
   }
 
-  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
+  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L), SQL_NO_DATA);
 
   return OK;
 }
@@ -1154,56 +1153,247 @@ ODBC_TEST(t_bug60648)
 
 ODBC_TEST(t_b13975271)
 {
-  if (0) //!mysql_min_version(Connection, "5.6.", 4))
-  {
-    skip("Necessary feature added in MySQL 5.6.*");
-  }
-  else
-  {
-    SQLCHAR ts[27];
-    SQLLEN len;
+  SQLCHAR ts[27];
+  SQLLEN len;
 
-    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_b13975271");
-    OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_b13975271 (ts TIMESTAMP(6), dt DATETIME(6),\
-                    t TIME(6))");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_b13975271");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_b13975271 (ts TIMESTAMP(6), dt DATETIME(6),\
+                  t TIME(6))");
 
-    strcpy((char *)ts, "2012-04-25 10:20:49.0194");
+  strcpy((char *)ts, "2012-04-25 10:20:49.0194");
 
-    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR,
-                                    SQL_TIMESTAMP,0, 0, ts, sizeof(ts), NULL));
-    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
-                                    SQL_CHAR,0, 0, ts, sizeof(ts), NULL));
-    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR,
-                                    SQL_CHAR,0, 0, ts, sizeof(ts), NULL));
-    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_b13975271(ts,dt,t) \
-                                      VALUES (?,?,?)",
-                              SQL_NTS));
-    CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                  SQL_TIMESTAMP,0, 0, ts, sizeof(ts), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                  SQL_CHAR,0, 0, ts, sizeof(ts), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                  SQL_CHAR,0, 0, ts, sizeof(ts), NULL));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_b13975271(ts,dt,t) \
+                                    VALUES (?,?,?)",
+                            SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-    /* now fetch and verify the results .. */
-    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_b13975271");
+  /* now fetch and verify the results .. */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_b13975271");
 
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, ts, sizeof(ts), &len));
-    IS_STR(ts, "2012-04-25 10:20:49.019400", 26);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, ts, sizeof(ts), &len));
+  IS_STR(ts, "2012-04-25 10:20:49.019400", 26);
 
-    /*To make sure that for next test we compare not the data from prev call */
-    ts[0]='\0';
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, ts, sizeof(ts), &len));
-    IS_STR(ts, "2012-04-25 10:20:49.0194", 24);
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_CHAR, ts, sizeof(ts), &len));
-    IS_STR(ts, "10:20:49.0194", 13);
+  /*To make sure that for next test we compare not the data from prev call */
+  ts[0]='\0';
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, ts, sizeof(ts), &len));
+  IS_STR(ts, "2012-04-25 10:20:49.0194", 24);
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_CHAR, ts, sizeof(ts), &len));
+  IS_STR(ts, "10:20:49.0194", 13);
 
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_b13975271");
-  }
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_b13975271");
 
   return OK;
 }
 
+
+ODBC_TEST(t_odbc82)
+{
+  SQL_TIME_STRUCT ts, ts2;
+  SQLLEN  ind, ind2;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT '24:00:00', '00:00:00'");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_TYPE_TIME, &ts2,
+    sizeof(ts2), &ind2));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_TYPE_TIME, &ts,
+    sizeof(ts), &ind));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+
+  CHECK_SQLSTATE(Stmt, "22007")
+
+  is_num(ts.hour, 0);
+  is_num(ts.minute, 0);
+  is_num(ts.second, 0);
+  FAIL_IF(ind==SQL_NULL_DATA, "00:00:00 is valid time, indicator shouldn't be SQL_NULL_DATA");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
+ODBC_TEST(t_odbc70)
+{
+  SQL_TIMESTAMP_STRUCT ts= { 0 }, ts1= { 0 }, ts2= { 0 };
+
+  ts.year= 1970;
+  ts.month= 1;
+  ts.day= 2;
+
+  ts1.year= ts1.month= ts1.day= 1;
+  ts2.year= ts2.month= ts2.day= 1;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc70");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc70 (ts TIMESTAMP, dt DATETIME, d DATE)");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TIMESTAMP,
+    0, 0, &ts, sizeof(ts), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIMESTAMP,
+    SQL_TIMESTAMP, 0, 0, &ts1, sizeof(ts1), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_TIMESTAMP,
+    SQL_TYPE_DATE, 0, 0, &ts2, sizeof(ts2), NULL));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_odbc70(ts, dt, d) \
+                                        VALUES (?, ?, ?)", SQL_NTS));
+  /* First valid values */
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  ts2.year= ts2.month= ts2.day= 0;
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22007");
+
+  ts1.year= ts1.month= ts1.day= 0;
+  ts2.year= ts2.month= ts2.day= 1;
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22007");
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22007");
+
+  ts1.year= ts1.month= ts1.day= 0;
+  ts.year= ts.month= ts.day= 0;
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22007");
+
+  return OK;
+}
+
+
+ODBC_TEST(t_17613161)
+{
+  SQL_TIME_STRUCT ts, result;
+  SQL_INTERVAL_STRUCT h2s, interval;
+
+  h2s.intval.day_second.hour=   ts.hour  = 100;
+  h2s.intval.day_second.minute= ts.minute= 20;
+  h2s.intval.day_second.second= ts.second= 45;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_17613161");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_17613161(col1 time)");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_17613161 "
+    "(col1) VALUES (?)", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIME,
+    SQL_TIME, 0, 0, &ts, sizeof(ts), NULL));
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  is_num(check_sqlstate(Stmt, "22007"), OK);
+
+  /* Such conversion is not supported */
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIME,
+    SQL_INTERVAL_HOUR_TO_SECOND, 0, 0, &ts, sizeof(ts), NULL));
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  is_num(check_sqlstate(Stmt, "07006"), OK);
+
+  /* For interval types big hours should work fine */
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_INTERVAL_HOUR_TO_SECOND,
+    SQL_INTERVAL_HOUR_TO_SECOND, 0, 0, &h2s, sizeof(h2s), NULL));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_17613161");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_TYPE_TIME, &result, 0,
+    NULL), SQL_ERROR);
+  is_num(check_sqlstate(Stmt, "22007"), OK);
+
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_MINUTE, &interval, 0,
+    NULL), SQL_SUCCESS_WITH_INFO);
+  CHECK_SQLSTATE(Stmt, "01S07");
+  is_num(interval.intval.day_second.second, 0);
+  is_num(interval.intval.day_second.minute, 20);
+  is_num(interval.intval.day_second.hour, 100);
+
+  memset(&interval, 0, sizeof(interval));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_SECOND, &interval, 0,
+    NULL));
+  is_num(interval.intval.day_second.second, 45);
+  is_num(interval.intval.day_second.minute, 20);
+  is_num(interval.intval.day_second.hour, 100);
+
+  memset(&interval, 0, sizeof(interval));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_MINUTE, &interval, 0, NULL));
+  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_SUCCESS_WITH_INFO);
+  CHECK_SQLSTATE(Stmt, "01S07");
+  is_num(interval.intval.day_second.second, 0);
+  is_num(interval.intval.day_second.minute, 20);
+  is_num(interval.intval.day_second.hour, 100);
+
+  memset(&interval, 0, sizeof(interval));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_SECOND, &interval, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
+  is_num(interval.intval.day_second.second, 45);
+  is_num(interval.intval.day_second.minute, 20);
+  is_num(interval.intval.day_second.hour, 100);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_17613161");
+
+  return OK;
+}
+
+
+ODBC_TEST(t_bug67793)
+{
+  SQL_INTERVAL_STRUCT h2s;
+  SQLLEN outlen= 0;
+
+  /* check situations with sec and min overflow */
+  OK_SIMPLE_STMT(Stmt, "SELECT '123456789:45:07', '99999:42:09', CAST('-800:12:17' AS TIME)");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen), SQL_ERROR);
+  /* leading precision is 5, i.e. hours max value is 99999 */
+  CHECK_SQLSTATE(Stmt, "22015")
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
+  is_num(outlen, sizeof(h2s));
+  is_num(h2s.intval.day_second.hour, 99999);
+  is_num(h2s.intval.day_second.minute, 42);
+  is_num(h2s.intval.day_second.second, 9);
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
+  is_num(outlen, sizeof(h2s));
+  is_num(h2s.intval.day_second.hour, 800);
+  is_num(h2s.intval.day_second.minute, 12);
+  is_num(h2s.intval.day_second.second, 17);
+  is_num(h2s.interval_sign, SQL_TRUE);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
+
+  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22015");
+
+  is_num(outlen, sizeof(h2s));
+  is_num(h2s.intval.day_second.hour, 99999);
+  is_num(h2s.intval.day_second.minute, 42);
+  is_num(h2s.intval.day_second.second, 9);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
 
 
 MA_ODBC_TESTS my_tests[]=
@@ -1226,6 +1416,10 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug60646,    "t_bug60646",  NORMAL},
   {t_bug60648,    "t_bug60648",  NORMAL},
   {t_b13975271,   "t_b13975271", NORMAL},
+  {t_odbc82,      "t_odbc82_zero_time_vals", NORMAL},
+  {t_odbc70,      "t_odbc70_zero_datetime_vals", NORMAL},
+  {t_17613161,    "t_17613161",  NORMAL},
+  {t_bug67793,    "t_bug67793",  NORMAL},
 
   {NULL, NULL}
 };

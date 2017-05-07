@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -145,13 +145,14 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
     return TRUE;
   }
 
+  /* We use only columns, that have been bound, and are not IGNORED */
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    SQLINTEGER *IndicatorPtr= NULL;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
-    if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLINTEGER *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0,
-                                                sizeof(SQLLEN)/*Record->OctetLength*/);
+    if (!Record->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Record) == TRUE)
+    {
+      continue;
+    }
 
     if ((NeedComma) && 
         (MADB_DynstrAppend(DynString, ",") || MADB_DynstrAppend(&ColVals, ",")))
@@ -262,7 +263,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
       }
       else
       { 
-        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, NULL, 0, &StrLength)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, NULL, 0, &StrLength, TRUE)))
         {
           MADB_FREE(Column);
           return TRUE;
@@ -275,11 +276,13 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
         else
         {
           Column= MADB_CALLOC(StrLength + 1);
-          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL);
+          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL, TRUE);
           if (MADB_DynstrAppend(DynString, "= '") ||
-                 MADB_DynstrAppend(DynString, Column) ||
-                 MADB_DynstrAppend(DynString, "'"))
-          goto memerror;
+            MADB_DynstrAppend(DynString, Column) ||
+            MADB_DynstrAppend(DynString, "'"))
+          {
+            goto memerror;
+          }
           MADB_FREE(Column);
           Column= NULL;
         }
@@ -425,9 +428,28 @@ my_bool MADB_ValidateStmt(char *StmtStr)
 }
 
 
+char *MADB_ToLower(const char *src, char *buff, size_t buff_size)
+{
+  size_t i= 0;
+
+  if (buff_size > 0)
+  {
+    while (*src && i < buff_size)
+    {
+      buff[i++]= tolower(*src++);
+    }
+
+    buff[i == buff_size ? i - 1 : i]= '\0';
+  }
+  return buff;
+}
+
+
 int InitClientCharset(Client_Charset *cc, const char * name)
 {
-  cc->cs_info= mariadb_get_charset_by_name(name);
+  /* There is no legal charset names longer than 31 chars */
+  char lowered[32];
+  cc->cs_info= mariadb_get_charset_by_name(MADB_ToLower(name, lowered, sizeof(lowered)));
 
   if (cc->cs_info == NULL)
   {
@@ -480,7 +502,7 @@ SQLLEN MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
     {
       while (inChars > 0 || inChars < 0 && *str)
       {
-        result+= cs->mb_charlen(*str);
+        result+= cs->mb_charlen(0 + *str);
         --inChars;
         str+= cs->mb_charlen(*str);
       }

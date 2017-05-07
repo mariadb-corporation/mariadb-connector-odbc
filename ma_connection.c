@@ -425,13 +425,13 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
   InitializeCriticalSection(&Connection->cs);
   /* Not sure that critical section is really needed here - this init routine is called when
      no one has the handle yet */
-  EnterCriticalSection(&Connection->cs);
+  EnterCriticalSection(&Connection->Environment->cs);
 
   /* Save connection in Environment list */
   Connection->ListItem.data= (void *)Connection;
   Connection->Environment->Dbcs= MADB_ListAdd(Connection->Environment->Dbcs, &Connection->ListItem);
 
-  LeaveCriticalSection(&Connection->cs);
+  LeaveCriticalSection(&Connection->Environment->cs);
 
   MADB_PutErrorPrefix(NULL, &Connection->Error);
 
@@ -462,7 +462,10 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
            more fingers movements
     LOCK_MARIADB(Dbc);*/
   if (Connection->mariadb)
+  {
     mysql_close(Connection->mariadb);
+    Connection->mariadb= NULL;
+  }
   /*UNLOCK_MARIADB(Dbc);*/
 
   /* todo: delete all descriptors */
@@ -502,7 +505,8 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
     goto end;
   }
   
-  ret= Stmt->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size);
+  ret= Stmt->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size, TRUE);
+
  /* Size= (SQLINTEGER)MADB_SetString(isWChar ? Connection->CodePage : 0, CurrentDB, 
                       (isWChar) ? (int)(MIN(Size + sizeof(SQLWCHAR), CurrentDBLength) / sizeof(SQLWCHAR)) : 
                       (int)(MIN(Size + 1, CurrentDBLength)),
@@ -931,6 +935,9 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_CONVERT_CHAR:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
     break;
+  case SQL_CONVERT_WCHAR:
+    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
+    break;
 #ifdef SQL_CONVERT_GUID
   case SQL_CONVERT_GUID:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
@@ -963,6 +970,9 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_CONVERT_LONGVARCHAR:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
     break;
+  case SQL_CONVERT_WLONGVARCHAR:
+    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
+    break;
   case SQL_CONVERT_NUMERIC:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
     break;
@@ -985,6 +995,9 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_CONVERT_VARCHAR:
+    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
+    break;
+  case SQL_CONVERT_WVARCHAR:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, MADB_SUPPORTED_CONVERSIONS, StringLengthPtr);
     break;
   case SQL_CONVERT_FUNCTIONS:
@@ -1390,9 +1403,6 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
-  case SQL_POS_OPERATIONS:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
-    break;
   case SQL_QUOTED_IDENTIFIER_CASE:  
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_IC_SENSITIVE, StringLengthPtr);
     break;
@@ -1579,7 +1589,21 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "N", SQL_NTS, &Dbc->Error);
     break;
-  default:
+  /* 2.0 types */
+  case SQL_POS_OPERATIONS:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_POS_POSITION | SQL_POS_REFRESH | SQL_POS_UPDATE | SQL_POS_DELETE | SQL_POS_ADD,
+                     StringLengthPtr);
+    break;
+  case SQL_STATIC_SENSITIVITY:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SS_DELETIONS | SQL_SS_UPDATES, StringLengthPtr);
+    break;
+  case SQL_LOCK_TYPES:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_LCK_NO_CHANGE, StringLengthPtr);
+    break;
+  case SQL_SCROLL_CONCURRENCY:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES, StringLengthPtr);
+    break;
+default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY096, NULL, 0);
     return Dbc->Error.ReturnValue;
   }

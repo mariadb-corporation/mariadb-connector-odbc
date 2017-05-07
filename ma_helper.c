@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013, 2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,6 +19,7 @@
 #include <ma_odbc.h>
 #include <stdint.h>
 
+#define MADB_FIELD_IS_BINARY(_field) ((_field).charsetnr == BINARY_CHARSETNR)
 
 void CloseMultiStatements(MADB_Stmt *Stmt)
 {
@@ -55,64 +56,91 @@ BOOL QueryIsPossiblyMultistmt(char *queryStr)
   return FALSE;
 }
 
+#define STRING_OR_COMMENT() (quote[0] || quote[1] || comment)
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Length)
 {
-  char *p, *last, *prev= NULL;
+  char *p, *prev= NULL, wait_char= 0;
   unsigned int statements= 1;
   int quote[2]= {0,0}, comment= 0;
   char *end;
   MYSQL_STMT *stmt;
   char *StmtCopy= NULL;
 
+  /* mysql_stmt_init requires locking as well */
+  LOCK_MARIADB(Stmt->Connection);
   stmt= mysql_stmt_init(Stmt->Connection->mariadb);
 
   /* if the entire stmt string passes, we don't have multistatement */
   if (stmt && !mysql_stmt_prepare(stmt, StmtStr, Length))
   {
     mysql_stmt_close(stmt);
+    UNLOCK_MARIADB(Stmt->Connection);
     return 1;
   }
   mysql_stmt_close(stmt);
+
   /* make sure we don't have trailing whitespace or semicolon */
   if (Length)
   {
     end= StmtStr + Length - 1;
     while (end > StmtStr && (isspace(*end) || *end == ';'))
-      end--;
+      --end;
     Length= (SQLINTEGER)(end - StmtStr);
   }
-  p= last= StmtCopy= _strdup(StmtStr);
+  p= StmtCopy= _strdup(StmtStr);
   
   while (p < StmtCopy + Length)
   {
-    switch (*p) {
-    case ';':
-      if (!quote[0] && !quote[1] && !comment)
+    if (wait_char)
+    {
+      if (*p == wait_char && *prev != '\\') /* What if that is escaped backslash? */
       {
-        statements++;
-        last= p + 1;
-        *p= '\0';
+        wait_char= 0;
       }
-      break;
-    case '/':
-      if (!comment && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '*')
-        comment= 1;
-      else if (comment && (p > StmtCopy) && (char)*(p-1) == '*')
-        comment= 0;
-      break;
-    case '\"':
-      if (prev && *prev != '\\')
-        quote[0] = !quote[0];
-      break;
-    case 39:
-      if (prev && *prev != '\\')
-        quote[1] = !quote[1];
-      break;
-    default:
-      break;
     }
+    else
+    {
+      switch (*p) {
+      case '-':
+        if (!STRING_OR_COMMENT() && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '-')
+        {
+          wait_char= '\n';
+        }
+        break;
+      case '#':
+        if (!STRING_OR_COMMENT())
+        {
+          wait_char= '\n';
+        }
+        break;
+      case ';':
+        if (!STRING_OR_COMMENT())
+        {
+          statements++;
+          *p= '\0';
+        }
+        break;
+      case '/':
+        if (!STRING_OR_COMMENT() && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '*')
+          comment= 1;
+        else if (comment && (p > StmtCopy) && (char)*(prev) == '*')
+          comment= 0;
+        break;
+      case '"':
+        if (prev && *prev != '\\')
+          quote[0] = !STRING_OR_COMMENT();
+        break;
+      case '\'':
+        if (prev && *prev != '\\')
+          quote[1] = !STRING_OR_COMMENT();
+        break;
+      default:
+        break;
+      }
+    }
+
     prev= p;
-    p++;
+    ++p;
   }
 
   if (statements > 1)
@@ -129,14 +157,19 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
     {
       /* Need to be incremented before CloseMultiStatements() */
       ++Stmt->MultiStmtCount;
-      Stmt->MultiStmts[i]= mysql_stmt_init(Stmt->Connection->mariadb);
+      Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : mysql_stmt_init(Stmt->Connection->mariadb);
       MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
+
       if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
       {
         MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
         CloseMultiStatements(Stmt);
         if (StmtCopy)
+        {
           free(StmtCopy);
+        }
+        UNLOCK_MARIADB(Stmt->Connection);
+
         return 0;
       }
       if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
@@ -144,6 +177,8 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
       p+= strlen(p) + 1;
       ++i;
     }
+    UNLOCK_MARIADB(Stmt->Connection);
+
     if (MaxParams)
       Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
   }
@@ -152,6 +187,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
 
   return statements;
 }
+#undef STRING_OR_COMMENT
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen)
 {
@@ -287,6 +323,20 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
   case SQL_C_TIME:
   case SQL_C_TIMESTAMP:
     return SQL_DATETIME;
+  case SQL_C_INTERVAL_YEAR:
+  case SQL_C_INTERVAL_YEAR_TO_MONTH:
+  case SQL_C_INTERVAL_MONTH:
+  case SQL_C_INTERVAL_DAY:
+  case SQL_C_INTERVAL_DAY_TO_HOUR:
+  case SQL_C_INTERVAL_DAY_TO_MINUTE:
+  case SQL_C_INTERVAL_DAY_TO_SECOND:
+  case SQL_C_INTERVAL_HOUR:
+  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+  case SQL_C_INTERVAL_HOUR_TO_SECOND:
+  case SQL_C_INTERVAL_MINUTE:
+  case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+  case SQL_C_INTERVAL_SECOND:
+      return SQL_INTERVAL;
   default:
     return ConciseType;
   }
@@ -330,7 +380,7 @@ char *MADB_GetTypeName(MYSQL_FIELD Field)
     return "date";
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    return (Field.flags & BINARY_FLAG) ? "varbinary" : "varchar";
+    return MADB_FIELD_IS_BINARY(Field) ? "varbinary" : "varchar";
   case MYSQL_TYPE_BIT:
     return "bit";
   case MYSQL_TYPE_ENUM:
@@ -338,15 +388,15 @@ char *MADB_GetTypeName(MYSQL_FIELD Field)
   case MYSQL_TYPE_SET:
     return "set";
   case MYSQL_TYPE_TINY_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "tinyblob" : "tinytext";
+    return MADB_FIELD_IS_BINARY(Field) ? "tinyblob" : "tinytext";
   case MYSQL_TYPE_MEDIUM_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "mediumblob" : "mediumtext";
+    return MADB_FIELD_IS_BINARY(Field) ? "mediumblob" : "mediumtext";
   case MYSQL_TYPE_LONG_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "longblob" : "longtext";
+    return MADB_FIELD_IS_BINARY(Field) ? "longblob" : "longtext";
   case MYSQL_TYPE_BLOB:
-    return (Field.flags & BINARY_FLAG) ? "blob" : "text";
+    return MADB_FIELD_IS_BINARY(Field) ? "blob" : "text";
   case MYSQL_TYPE_STRING:
-    return (Field.flags & BINARY_FLAG) ? "binary" : "char";
+    return MADB_FIELD_IS_BINARY(Field) ? "binary" : "char";
   case MYSQL_TYPE_GEOMETRY:
     return "geometry";
   default:
@@ -370,10 +420,18 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
 
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
+    MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
+
+    if (!Rec->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == TRUE)
+    {
+      continue;
+    }
     if (MADB_DynstrAppend(&DynStr, i > 0 ? ",'" : "'") ||
-        MADB_DynstrAppend(&DynStr, fields[i].org_name) ||
-        MADB_DynstrAppend(&DynStr, "'"))
+      MADB_DynstrAppend(&DynStr, fields[i].org_name) ||
+      MADB_DynstrAppend(&DynStr, "'"))
+    {
       goto error;
+    }
   }
   if (MADB_DynstrAppend(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
     goto error;
@@ -393,7 +451,7 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
 {
   MYSQL_ROW row;
 
-  if (!res->row_count)
+  if (res == NULL || !res->row_count)
     return NULL;
   mysql_data_seek(res, 0);
   while ((row= mysql_fetch_row(res)))
@@ -434,8 +492,7 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, MARIADB_CHAR
     return Field.length;
   default:
     {
-      if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR
-        || charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+      if (MADB_FIELD_IS_BINARY(Field) || charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
       {
         return Field.length;
       }
@@ -493,7 +550,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset)
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
   {
-    if (Field.flags & BINARY_FLAG || Field.charsetnr == BINARY_CHARSETNR)
+    if (MADB_FIELD_IS_BINARY(Field))
     {
       return Field.length*2; /* ODBC specs says we should give 2 characters per byte to display binaray data in hex form */
     }
@@ -655,13 +712,13 @@ SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field)
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
-      return field->flags & BINARY_FLAG ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
+      return MADB_FIELD_IS_BINARY(*field) ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
     case MYSQL_TYPE_LONGLONG:
       return SQL_BIGINT;
-     case MYSQL_TYPE_STRING:
-      return field->flags & BINARY_FLAG ? SQL_BINARY : SQL_CHAR;
+    case MYSQL_TYPE_STRING:
+      return MADB_FIELD_IS_BINARY(*field) ? SQL_BINARY : SQL_CHAR;
     case MYSQL_TYPE_VAR_STRING:
-      return field->flags & BINARY_FLAG ? SQL_VARBINARY : SQL_VARCHAR;
+      return MADB_FIELD_IS_BINARY(*field) ? SQL_VARBINARY : SQL_VARCHAR;
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_ENUM:
       return SQL_CHAR;
@@ -781,7 +838,7 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
 }
 /* }}} */
 
-void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
 {
   void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
 
@@ -816,15 +873,17 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
     }
     break;
     case SQL_C_TIME:
-    case SQL_TYPE_TIME:
+    case SQL_C_TYPE_TIME:
     {
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
+
+      if (tm->hour > 23 || tm->minute > 59 || tm->second > 59)
+      {
+        return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+      }
       ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
-       if (ts->hour + ts->minute + ts->second == 0)
-        if (ArdRecord->IndicatorPtr)
-          *ArdRecord->IndicatorPtr= SQL_NULL_DATA;
     }
     break;
     case SQL_C_DATE:
@@ -840,6 +899,8 @@ void MADB_CopyMadbTimestamp(MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *Ard
     }
     break;
   }
+
+  return SQL_SUCCESS;
 }
 
 void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN RowNumber, size_t PtrSize)
@@ -858,6 +919,25 @@ void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN
   else
     BindOffset+= Desc->Header.BindType * RowNumber;
   return (char *)Ptr + BindOffset;
+}
+
+/* Checking if column ignored in all bound rows. Should hel*/
+BOOL MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec)
+{
+  SQLULEN row;
+  SQLLEN *IndicatorPtr;
+
+  for (row= 0; row < Desc->Header.ArraySize; ++row)
+  {
+    IndicatorPtr= (SQLLEN *)GetBindOffset(Desc, Rec, Rec->IndicatorPtr, row, sizeof(SQLLEN));
+
+    if (IndicatorPtr == NULL || *IndicatorPtr != SQL_COLUMN_IGNORE)
+    {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
 }
 
 

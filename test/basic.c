@@ -508,12 +508,11 @@ ODBC_TEST(charset_utf8)
   
   if (str_size == 30)
   {
-    FAIL_IF(GetIntVal(hstmt1, 8) != 30, "Comparison failed");
     FAIL_IF(GetIntVal(hstmt1, 16) != 30, "Comparison failed");
   }
   else
   {
-    FAIL_IF(GetIntVal(hstmt1, 8) != 40, "Comparison failed");
+    FAIL_IF(str_size != 40, "Comparison failed");
     FAIL_IF(GetIntVal(hstmt1, 16) != 40, "Comparison failed");
   }
 
@@ -1325,7 +1324,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
 }
 
 
-ODBC_TEST(t_odbc_32)
+ODBC_TEST(t_odbc32)
 {
   HDBC        hdbc1;
   SQLCHAR     conn[512];
@@ -1375,7 +1374,7 @@ ODBC_TEST(t_gh_issue3)
 }
 
 
-ODBC_TEST(t_odbc_48)
+ODBC_TEST(t_odbc48)
 {
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS test_odbc_48");
   OK_SIMPLE_STMT(Stmt,
@@ -1390,6 +1389,28 @@ ODBC_TEST(t_odbc_48)
   return OK;
 }
 
+/* Verifying that charset names are case insensitive */
+ODBC_TEST(t_odbc69)
+{
+  HDBC hdbc1;
+  SQLCHAR   conn[512], conn_out[1024];
+  SQLSMALLINT conn_out_len;
+
+  /* Testing also that key names are case insensitve. Supposing, that there is no mariadb/mysql on 3310 port with same login credentials */
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=3310;DATABASE=%s;OPTION=%lu;SERVER=%s;PoRt=%s;charset=UTF8",
+    my_dsn, my_uid, my_pwd, my_schema, my_options, my_servername, ma_strport);
+
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
+
+  /* If everything is right, right port value will override the wrong one, and connect will be successful */
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn),
+    conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+    SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  return OK;
+}
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1425,9 +1446,10 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug48603,     "t_bug48603",     NORMAL},
   {t_bug45378,     "t_bug45378",     NORMAL},
   {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
-  {t_odbc_32,      "SQL_ATTR_PACKET_SIZE_option", NORMAL},
+  {t_odbc32,      "odbc32_SQL_ATTR_PACKET_SIZE_option", NORMAL},
   {t_gh_issue3,    "leading_space_gh_issue3",     NORMAL},
-  { t_odbc_48,     "iso_call_format", NORMAL },
+  {t_odbc48,     "odbc48_iso_call_format", NORMAL},
+  {t_odbc69,      "odbc69_ci_connstring", NORMAL},
   {NULL, NULL, 0}
 };
 

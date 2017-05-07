@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -488,12 +488,172 @@ ODBC_TEST(test_need_long_data_len)
 
 /* https://jira.mariadb.org/browse/ODBC-61
 Request of SQL_FILE_USAGE info crashes connector */
-ODBC_TEST(bug_odbc61)
+ODBC_TEST(t_odbc61)
 {
   SQLUSMALLINT info= 0xef;
 
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_FILE_USAGE, &info,
     0, NULL));
+
+  return OK;
+}
+
+/*
+Bug ODBC-84 and ODBC-62. For ODBC-84 we only tested, that SQLGetTypeInfo returns something for WCHAR types
+For ODBC-62 we need to check CREATE_PARAMS
+*/
+ODBC_TEST(t_odbc84_62)
+{
+  SQLHANDLE henv1;
+  SQLHANDLE Connection1;
+  SQLHANDLE Stmt1;
+  SQLCHAR conn[512], params[64];
+  SQLLEN ind;
+  /* odbc 3 */
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WVARCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_WLONGVARCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, params, sizeof(params), &ind));
+  is_num(ind, SQL_NULL_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_INTEGER));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, params, sizeof(params), &ind));
+  is_num(ind, SQL_NULL_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_CHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_VARCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_LONGVARCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, params, sizeof(params), &ind));
+  is_num(ind, SQL_NULL_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_DECIMAL));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "precision,scale", sizeof("precision,scale"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_FLOAT));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "precision,scale", sizeof("precision,scale"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_DOUBLE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, params, 6), "precision,scale", sizeof("precision,scale"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* odbc 2 */
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
+    my_drivername, my_servername, my_uid, my_pwd, my_port);
+
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
+  CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
+    (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+    NULL, SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_WCHAR));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_WVARCHAR));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_WLONGVARCHAR));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 6, SQL_C_CHAR, params, sizeof(params), &ind));
+  is_num(ind, SQL_NULL_DATA);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_INTEGER));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 6, SQL_C_CHAR, params, sizeof(params), &ind));
+  is_num(ind, SQL_NULL_DATA);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_CHAR));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_VARCHAR));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "length", sizeof("length"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_LONGVARCHAR));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 6, SQL_C_CHAR, params, sizeof(params), &ind));
+  is_num(ind, SQL_NULL_DATA);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_DECIMAL));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "precision,scale", sizeof("precision,scale"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_FLOAT));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "precision,scale", sizeof("precision,scale"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_DOUBLE));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR(my_fetch_str(Stmt1, params, 6), "precision,scale", sizeof("precision,scale"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLFreeHandle(SQL_HANDLE_STMT, Stmt1));
+  CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
+  CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));
+  CHECK_ENV_RC(henv1, SQLFreeHandle(SQL_HANDLE_ENV, henv1));
+
+  return OK;
+}
+
+/* Test for part of problems causing ODBC-71. Other part is tested in desc.c:t_set_explicit_copy*/
+ODBC_TEST(t_odbc71)
+{
+  SQLINTEGER Info;
+
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_POS_OPERATIONS, &Info, 0, NULL));
+  is_num(Info, SQL_POS_POSITION | SQL_POS_REFRESH | SQL_POS_UPDATE | SQL_POS_DELETE | SQL_POS_ADD);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_STATIC_SENSITIVITY, &Info, 0, NULL));
+  is_num(Info, SQL_SS_DELETIONS | SQL_SS_UPDATES);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_LOCK_TYPES, &Info, 0, NULL));
+  is_num(Info, SQL_LCK_NO_CHANGE);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_SCROLL_CONCURRENCY, &Info, 0, NULL));
+  is_num(Info, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES);
+
+  /* This part is more for ODBC-62. Just checking that we return smth for these info types */
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_CONVERT_WCHAR, &Info, 0, NULL));
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_CONVERT_WVARCHAR, &Info, 0, NULL));
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_CONVERT_WLONGVARCHAR, &Info, 0, NULL));
 
   return OK;
 }
@@ -512,10 +672,12 @@ MA_ODBC_TESTS my_tests[]=
   { t_bug30626, "t_bug30626", NORMAL },
   { t_bug43855, "t_bug43855", NORMAL },
   { t_bug46910, "t_bug46910", NORMAL },
-  { t_bug11749093, "t_bug11749093", TO_FIX },
+  { t_bug11749093, "t_bug11749093", NORMAL },
   { bug_odbc15, "odbc15", NORMAL },
   { test_need_long_data_len, "test_need_long_data_len", NORMAL },
-  { bug_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
+  { t_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
+  { t_odbc84_62, "odbc84_WCHAR_types_odbc62_CREATE_PARAMS", NORMAL },
+  { t_odbc71, "odbc71_some_odbc2_types", NORMAL },
   { NULL, NULL }
 };
 

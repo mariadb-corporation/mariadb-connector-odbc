@@ -280,11 +280,11 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
 
-
-enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3 };
+enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3};
 
 #define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State > MADB_SS_EMULATED)
 #define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ? MADB_SS_PREPARED : MADB_SS_INITED
+
 
 typedef struct {
   MADB_DynArray tokens;
@@ -410,7 +410,6 @@ struct st_ma_odbc_connection
   HWND QuietMode;
   SQLUINTEGER Trace;
   char *TraceFile;
-  char *TranslateLib;
   SQLINTEGER TxnIsolation;
   SQLINTEGER CursorCount;
   char ServerCapabilities;
@@ -490,13 +489,6 @@ SQLRETURN MA_SQLGetConnectAttr(SQLHDBC ConnectionHandle,
     SQLINTEGER BufferLength,
     SQLINTEGER *StringLengthPtr);
 
-SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
-    SQLUSMALLINT Col_or_Param_Num,
-    SQLSMALLINT TargetType,
-    SQLPOINTER TargetValuePtr,
-    SQLLEN BufferLength,
-    SQLLEN *StrLen_or_IndPtr);
-
 SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
     SQLCHAR *StatementText,
     SQLINTEGER TextLength);
@@ -530,6 +522,12 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
 
 SQLRETURN MA_SQLAllocConnect(SQLHANDLE InputHandle,
                              SQLHANDLE *OutputHandlePtr);
+
+SQLRETURN MADB_GetBookmark(MADB_Stmt  *StatementHandle,
+                           SQLSMALLINT TargetType,
+                           SQLPOINTER  TargetValuePtr,
+                           SQLLEN      BufferLength,
+                           SQLLEN     *StrLen_or_IndPtr);
 
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);

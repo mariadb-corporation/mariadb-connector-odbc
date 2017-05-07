@@ -27,7 +27,11 @@ enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the que
                             MADB_QUERY_DELETE= SQL_DELETE,
                             MADB_QUERY_SELECT,
                             MADB_QUERY_SHOW,
-                            MADB_QUERY_CALL
+                            MADB_QUERY_CALL,
+                            MADB_QUERY_ANALYZE,
+                            MADB_QUERY_EXPLAIN,
+                            MADB_QUERY_CHECK,
+                            MADB_QUERY_EXECUTE
                           };
 
 #define QUERY_DOESNT_RETURN_RESULT(query_type) ((query_type) < MADB_QUERY_SELECT)

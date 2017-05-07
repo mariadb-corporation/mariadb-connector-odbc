@@ -81,14 +81,14 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   Desc->DescType= DescType;
   MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
-  if (MADB_InitDynamicArray(&Desc->Records, sizeof(MADB_DescRecord), 0, 0))
+  if (MADB_InitDynamicArray(&Desc->Records, sizeof(MADB_DescRecord), 0, MADB_DESC_INIT_REC_NUM))
   {
     MADB_FREE(Desc);
     return NULL;
   }
   if (isExternal)
   {
-    if (MADB_InitDynamicArray(&Desc->Stmts, sizeof(MADB_Stmt**), 0, 0))
+    if (MADB_InitDynamicArray(&Desc->Stmts, sizeof(MADB_Stmt**), 0, MADB_DESC_INIT_STMT_NUM))
     {
       MADB_DescFree(Desc, FALSE);
       return NULL;
@@ -915,6 +915,10 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
     case SQL_DESC_CONCISE_TYPE:
       DescRecord->ConciseType= (SQLSMALLINT)(SQLLEN)ValuePtr;
       DescRecord->Type= MADB_GetTypeFromConciseType(DescRecord->ConciseType);
+      if (DescRecord->Type == SQL_INTERVAL)
+      {
+        DescRecord->DateTimeIntervalCode= DescRecord->ConciseType - 100;
+      }
       break;
     case SQL_DESC_DATA_PTR:
       DescRecord->DataPtr= ValuePtr;
@@ -989,7 +993,7 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY016, NULL, 0);
     return SQL_ERROR;
   }
-  if (!SrcDesc->Header.Count)
+  if (SrcDesc->DescType == MADB_DESC_IRD && !SrcDesc->Header.Count)
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY007, NULL, 0);
     return SQL_ERROR;
@@ -997,23 +1001,39 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
   /* make sure there aren't old records */
   MADB_DeleteDynamic(&DestDesc->Records);
   if (MADB_InitDynamicArray(&DestDesc->Records, sizeof(MADB_DescRecord),
-                            SrcDesc->Records.elements, SrcDesc->Records.alloc_increment))
+                            SrcDesc->Records.max_element, SrcDesc->Records.alloc_increment))
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY001, NULL, 0);
     return SQL_ERROR;
   }
 
   memcpy(&DestDesc->Header, &SrcDesc->Header, sizeof(MADB_Header));
-  DestDesc->AppType= SrcDesc->AppType;
+  
+  /* We don't copy AppType from Src to Dest. If we copy internal descriptor to the explicit/external, it stays explicit/external */
+
   DestDesc->DescType= SrcDesc->DescType;
   memcpy(&DestDesc->Error, &SrcDesc->Error, sizeof(MADB_Error));
 
   /* Since we never allocate pointers we can just copy content */
   memcpy(DestDesc->Records.buffer, SrcDesc->Records.buffer,
          SrcDesc->Records.size_of_element * SrcDesc->Records.max_element);
-  /* todo: internal buffer needs to be clearead or we need to move it outside of
-           record structure 
-  */
+  DestDesc->Records.elements= SrcDesc->Records.elements;
+
+  /* internal buffer needs to be clearead or we will get it freed twice with all nice subsequences */
+  {
+    unsigned int i;
+
+    for (i= 0; i < DestDesc->Records.elements; ++i)
+    {
+      MADB_DescRecord *Rec= MADB_DescGetInternalRecord(DestDesc, i, MADB_DESC_READ);
+
+      if (Rec != NULL)
+      {
+        Rec->InternalBuffer= NULL;
+      }
+    }
+  }
+
   return SQL_SUCCESS;
 }
 /* }}} */

@@ -1738,19 +1738,6 @@ SQLRETURN SQL_API SQLGetCursorNameW(
 /* }}} */
 
 /* {{{ SQLGetData */
-SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
-    SQLUSMALLINT Col_or_Param_Num,
-    SQLSMALLINT TargetType,
-    SQLPOINTER TargetValuePtr,
-    SQLLEN BufferLength,
-    SQLLEN *StrLen_or_IndPtr)
-{
-  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
-  return Stmt->Methods->GetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
-}
-
 SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
     SQLUSMALLINT Col_or_Param_Num,
     SQLSMALLINT TargetType,
@@ -1758,11 +1745,53 @@ SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
     SQLLEN BufferLength,
     SQLLEN *StrLen_or_IndPtr)
 {
+  MADB_Stmt *Stmt= (MADB_Stmt*)StatementHandle;
+  unsigned int i;
+  MADB_DescRecord *IrdRec;
+
   if (StatementHandle== SQL_NULL_HSTMT)
     return SQL_INVALID_HANDLE;
-  MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
+  MADB_CLEAR_ERROR(&Stmt->Error);
 
-  return MA_SQLGetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
+  /* In case we don't have DM(it check for that) */
+  if (TargetValuePtr == NULL)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
+  }
+
+  /* Bookmark */
+  if (Col_or_Param_Num == 0)
+  {
+    return MADB_GetBookmark(Stmt, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
+  }
+
+  /* We don't need this to be checked in case of "internal" use of the GetData, i.e. for internal needs we should always get the data */
+  if ( Stmt->CharOffset[Col_or_Param_Num - 1] > 0
+    && Stmt->CharOffset[Col_or_Param_Num - 1] >= Stmt->Lengths[Col_or_Param_Num - 1])
+  {
+    return SQL_NO_DATA;
+  }
+
+  if (BufferLength < 0)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
+  }
+
+  /* reset offsets for other columns. Doing that here since "internal" calls should not do that */
+  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  {
+    if (i != Col_or_Param_Num - 1)
+    {
+      IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
+      if (IrdRec)
+      {
+        MADB_FREE(IrdRec->InternalBuffer);
+      }
+      Stmt->CharOffset[i]= 0;
+    }
+  }
+
+  return Stmt->Methods->GetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr, FALSE);
 }
 /* }}} */
 

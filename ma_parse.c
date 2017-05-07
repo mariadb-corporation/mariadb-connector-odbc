@@ -57,8 +57,10 @@ MADB_QUERY *MADB_Tokenize(const char *Stmt)
 
 void MADB_FreeTokens(MADB_QUERY *Query)
 {
-  if (!Query)
+  if (Query == NULL)
+  {
     return;
+  }
   MADB_DeleteDynamic(&Query->tokens);
   MADB_FREE(Query);
 }
@@ -167,6 +169,22 @@ enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt)
   if (_strnicmp(p, "SHOW", 4) == 0)
   {
     return MADB_QUERY_SHOW;
+  }
+  if (_strnicmp(p, "ANALYZE", 7) == 0)
+  {
+    return MADB_QUERY_ANALYZE;
+  }
+  if (_strnicmp(p, "EXPLAIN", 7) == 0)
+  {
+    return MADB_QUERY_EXPLAIN;
+  }
+  if (_strnicmp(p, "CHECK", 5) == 0)
+  {
+    return MADB_QUERY_CHECK;
+  }
+  if (_strnicmp(p, "EXECUTE", 7) == 0)
+  {
+    return MADB_QUERY_EXECUTE;
   }
 
   return MADB_QUERY_NO_RESULT;
