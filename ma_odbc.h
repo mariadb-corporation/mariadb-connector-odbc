@@ -310,7 +310,6 @@ struct st_ma_odbc_stmt
   MADB_QUERY                *Tokens;
   SQLINTEGER                ParamCount;
   my_bool                   isMultiQuery;
-  unsigned int              FetchType;
   enum MADB_DaeType         DataExecutionType;
   MYSQL_RES                 *DefaultsResult;
   int                       ArrayOffset;
@@ -480,8 +479,6 @@ SQLRETURN MA_SQLExecDirect(MADB_Stmt *Stmt,
 
 SQLRETURN MA_SQLExecute(MADB_Stmt *Stmt);
 
-SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
-
 SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
     SQLUSMALLINT Option);
 
@@ -537,8 +534,6 @@ SQLRETURN MADB_GetBookmark(MADB_Stmt  *StatementHandle,
 
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);
-
-SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle);
 
 SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttributePtr,
              SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, SQLLEN *NumericAttributePtr, my_bool IsWchar);

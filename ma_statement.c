@@ -792,7 +792,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt)
       return Stmt->Error.ReturnValue;
     }
     if (Stmt->PositionedCommand == SQL_DELETE)
-      Stmt->PositionedCursor->Cursor.Position= -1;
+      MADB_STMT_RESET_CURSOR(Stmt->PositionedCursor);
       
   }
   //MADB_FREE(DataPtr);
@@ -1393,7 +1393,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
       return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     }
 
-    Stmt->Cursor.Position= -1;
+    MADB_STMT_RESET_CURSOR(Stmt);
     
     /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
@@ -2005,7 +2005,7 @@ if      (_row_num == 0)                  _accumulated_rc= _cur_row_rc;\
 else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
 
 /* {{{ MADB_StmtFetch */
-SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
+SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
   unsigned int j, rc;
   SQLULEN      ArraySize=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
@@ -2029,8 +2029,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   /* We don't know if any of the ARD parameter changed, so we need to rebind */
   //MADB_FREE(Stmt->result);
-  if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
-      SaveCursor= Stmt->stmt->result_cursor;
 
   if (Stmt->Ird->Header.ArrayStatusPtr)
   {
@@ -2045,16 +2043,23 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
     return Stmt->Error.ReturnValue;
   }
 
-
   if (Stmt->Ird->Header.RowsProcessedPtr)
   {
     ProcessedPtr= Stmt->Ird->Header.RowsProcessedPtr;
   }
 
   if (Stmt->Ird->Header.ArrayStatusPtr)
+  {
     MADB_InitStatusPtr(Stmt->Ird->Header.ArrayStatusPtr, ArraySize, SQL_ROW_NOROW);
+  }
 
   *ProcessedPtr= 0;
+
+
+  if (ArraySize > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
+  {
+    SaveCursor= Stmt->stmt->result_cursor;
+  }
 
   for (j=0; j < ArraySize; ++j)
   {
@@ -2083,6 +2088,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
     {
       Stmt->Cursor.Position= 0;
     }
+
     switch(rc) {
     case 1:
       RowResult= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
@@ -2158,9 +2164,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
 
   ResetDescIntBuffers(Stmt->Ird);
 
-  if (KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY && SaveCursor)
+  if (SaveCursor != NULL)
   {
     Stmt->stmt->result_cursor= SaveCursor;
+    //Stmt->stmt->bind
   }
 
   return Result;
@@ -4557,7 +4564,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
 
   if (Position < 0)
   {
-    Stmt->Cursor.Position= -1;
+    MADB_STMT_RESET_CURSOR(Stmt);
   }
   else
   {
@@ -4570,9 +4577,13 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   
   ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
   if (ret == SQL_SUCCESS)
-    ret= Stmt->Methods->Fetch(Stmt, TRUE);
+  {
+    ret= Stmt->Methods->Fetch(Stmt);
+  }
   if (ret == SQL_NO_DATA_FOUND && Stmt->LastRowFetched > 0)
+  {
     ret= SQL_SUCCESS;
+  }
   return ret;
 }
 

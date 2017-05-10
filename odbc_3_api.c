@@ -257,7 +257,6 @@ SQLRETURN SQL_API SQLBulkOperations(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
-  Stmt->FetchType= MADB_FETCH_TYPE_BULK;
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLBulkOperations");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -1403,26 +1402,13 @@ SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ SQLFetch */
-SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle)
-{
-  MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLRETURN ret;
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
-  Stmt->FetchType= MADB_FETCH_TYPE_FETCH;
-  MDBUG_C_ENTER(Stmt->Connection, "SQLFetch");
-  ret= Stmt->Methods->Fetch(Stmt, FALSE);
-
-  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-}
-
 SQLRETURN SQL_API SQLFetch(SQLHSTMT StatementHandle)
 {
   if (StatementHandle == SQL_NULL_HSTMT)
     return SQL_INVALID_HANDLE;
-  MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
-
-  return MA_SQLFetch(StatementHandle);
+  MDBUG_C_ENTER(((MADB_Stmt *)StatementHandle)->Connection, "SQLFetch");
+  /* SQLFetch is equivalent of SQLFetchScroll(SQL_FETCH_NEXT), 3rd parameter is ignored for SQL_FETCH_NEXT */
+  return MA_SQLFetchScroll(StatementHandle, SQL_FETCH_NEXT, 1);
 }
 /* }}} */
 
@@ -2875,7 +2861,6 @@ SQLRETURN SQL_API SQLSetPos(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, Operation, u);
   MDBUG_C_DUMP(Stmt->Connection, LockType, d);
 
-  Stmt->FetchType= MADB_FETCH_TYPE_SETPOS;
   ret= Stmt->Methods->SetPos(Stmt, RowNumber, Operation, LockType, 0);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);

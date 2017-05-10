@@ -695,6 +695,7 @@ void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
   }
   if (Connection != NULL)
   {
+    SQLDisconnect(Connection);
     SQLFreeHandle(SQL_HANDLE_DBC, Connection);
   }
   if ( Env!= NULL)

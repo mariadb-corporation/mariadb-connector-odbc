@@ -3313,6 +3313,7 @@ ODBC_TEST(t_bug41946)
 	return OK;
 }
 
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_positioned_cursor, "my_positioned_cursor",     NORMAL},

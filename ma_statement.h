@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013, 2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -28,7 +28,7 @@ struct st_ma_stmt_methods
 {
   SQLRETURN (*Prepare)(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength);
   SQLRETURN (*Execute)(MADB_Stmt *Stmt);
-  SQLRETURN (*Fetch)(MADB_Stmt *Stmt, my_bool KeepPosition);
+  SQLRETURN (*Fetch)(MADB_Stmt *Stmt);
   SQLRETURN (*BindColumn)(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
                      SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN *StrLen_or_Ind);
   SQLRETURN (*BindParam)(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber, SQLSMALLINT InputOutputType, SQLSMALLINT ValueType,
@@ -111,8 +111,9 @@ MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
   if (!(a) || !(a)->b)\
     return SQL_INVALID_HANDLE
 
-#define MADB_STMT_COLUMN_COUNT(aStmt) aStmt->Ird->Header.Count
-#define MADB_STMT_PARAM_COUNT(aStmt)  aStmt->ParamCount
+#define MADB_STMT_COLUMN_COUNT(aStmt) (aStmt)->Ird->Header.Count
+#define MADB_STMT_PARAM_COUNT(aStmt)  (aStmt)->ParamCount
+#define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= -1; 
 
 #define MADB_TRANSFER_OCTET_LENGTH\
   "CAST(CASE @dt"\

@@ -229,7 +229,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
       Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
       Stmt->Methods->Execute(Stmt) == SQL_ERROR ||
-      Stmt->Methods->Fetch(Stmt, FALSE) == SQL_ERROR)
+      Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
       goto end;
   KeyStmt= (MADB_Stmt *)Stmt;
   for (i=0; i < mysql_stmt_field_count(KeyStmt->stmt); i++)
