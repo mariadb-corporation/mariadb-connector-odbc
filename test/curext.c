@@ -338,13 +338,52 @@ ODBC_TEST(my_empty_string)
 }
 
 
+ODBC_TEST(t_fetch_array)
+{
+  SQLINTEGER id[3];
+  SQLINTEGER i= 0, j;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_fetch_array");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_fetch_array (id INT NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_fetch_array VALUES(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id FROM t_fetch_array");
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)(sizeof(id)/sizeof(SQLINTEGER)), 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_TYPE,
+    (SQLPOINTER)SQL_BIND_BY_COLUMN, 0));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, NULL));
+
+  for (i= 0; i < 12 /(sizeof(id)/sizeof(SQLINTEGER)); ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+    for (j= 0; j < sizeof(id)/sizeof(SQLINTEGER); ++j)
+    {
+      is_num(id[j], i*sizeof(id)/sizeof(SQLINTEGER) + j + 1);
+    }
+    /* Not gonna fix this in 2.0. Not a big problem anyway */
+    /* is_num(my_fetch_int(Stmt, 1), i*sizeof(id)/sizeof(SQLINTEGER) + 1); */
+  }
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_fetch_array");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {my_pcbvalue, "my_pcbvalue"},
+  {my_pcbvalue,     "my_pcbvalue"},
   {my_pcbvalue_add, "my_pcbvalue_add"},
-  {my_columnspace, "my_columnspace"},
+  {my_columnspace,  "my_columnspace"},
   {my_empty_string, "my_empty_string"},
+  {t_fetch_array,   "t_fetch_array"},
   {NULL, NULL}
 };
 

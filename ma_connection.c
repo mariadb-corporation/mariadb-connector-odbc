@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -499,7 +499,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   if (!SQL_SUCCEEDED(ret))
     return ret;
   if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-      !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt, FALSE)))
+      !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt)))
   {
     MADB_CopyError(&Connection->Error, &Stmt->Error);
     goto end;
@@ -1061,14 +1061,13 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_DBMS_VER:
     {
-      char Version[11];
+      char Version[13];
       unsigned long ServerVersion= 0L;
-      unsigned int Major=0, Minor=0, Patch= 0;
       
       if (Dbc->mariadb)
       {
         ServerVersion= mysql_get_server_version(Dbc->mariadb);
-        _snprintf(Version, 11, "%02u.%02u.%06u", ServerVersion / 10000,
+        _snprintf(Version, sizeof(Version), "%02u.%02u.%06u", ServerVersion / 10000,
                     (ServerVersion % 10000) / 100, ServerVersion % 100);
       }
       else

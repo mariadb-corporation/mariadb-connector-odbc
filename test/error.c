@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -604,7 +604,35 @@ ODBC_TEST(t_bug49466)
 }
 
 
+ODBC_TEST(t_odbc94)
+{
+  SQLHANDLE   henv1;
+  SQLHANDLE   Connection1;
+  SQLHANDLE   Stmt1;
+  SQLCHAR     conn[512];
+  SQLCHAR     message[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLCHAR     sqlstate[SQL_SQLSTATE_SIZE + 1];
+  SQLINTEGER  error;
+  SQLSMALLINT len;
 
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s%s;",
+    my_drivername, my_servername, my_uid, my_pwd, my_schema, ma_strport);
+
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
+  CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
+    (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+    NULL, SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
+
+  EXPECT_STMT(Stmt1, SQLExecDirect(Stmt1, "GRANT ALL PRIVILEGES on odbc94 to public", SQL_NTS), SQL_ERROR);
+
+  CHECK_STMT_RC(Stmt, SQLGetDiagRec(SQL_HANDLE_STMT, Stmt1, 1, sqlstate, &error,
+    message, sizeof(message), &len));
+
+  return OK;
+}
 
 
 MA_ODBC_TESTS my_tests[]=
@@ -625,6 +653,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug13542600, "t_bug13542600"},
   {t_bug14285620, "t_bug14285620"},
   {t_bug49466, "t_bug49466"},
+  {t_odbc94,   "t_odbc94"},
   {NULL, NULL}
 };
 

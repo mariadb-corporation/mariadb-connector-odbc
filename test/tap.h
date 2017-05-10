@@ -697,6 +697,7 @@ void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
   }
   if (Connection != NULL)
   {
+    SQLDisconnect(Connection);
     SQLFreeHandle(SQL_HANDLE_DBC, Connection);
   }
   if ( Env!= NULL)
@@ -1119,4 +1120,21 @@ char* hide_pwd(char *connstr)
   return connstr;
 }
 
+
+BOOL ServerNewerThan(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
+{
+  unsigned int ServerMajor= 0, ServerMinor= 0, ServerPatch= 0;
+  SQLCHAR ServerVersion[32];
+
+  SQLGetInfo(Conn, SQL_DBMS_VER, ServerVersion, sizeof(ServerVersion), NULL);
+
+  sscanf(ServerVersion, "%u.%u.%u", &ServerMajor, &ServerMinor, &ServerPatch);
+
+  if (ServerMajor < major || ServerMajor == major && (ServerMinor < minor || ServerMinor == minor && ServerPatch < patch))
+  {
+    return FALSE;
+  }
+
+  return TRUE;
+}
 #endif      /* #ifndef _tap_h_ */

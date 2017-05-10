@@ -313,7 +313,6 @@ struct st_ma_odbc_stmt
   MADB_QUERY                *Tokens;
   SQLSMALLINT               ParamCount;
   my_bool                   isMultiQuery;
-  unsigned int              FetchType;
   enum MADB_DaeType         DataExecutionType;
   MYSQL_RES                 *DefaultsResult;
   int                       ArrayOffset;

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013, 2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -28,7 +28,7 @@ struct st_ma_stmt_methods
 {
   SQLRETURN (*Prepare)(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect);
   SQLRETURN (*Execute)(MADB_Stmt *Stmt, BOOL ExecDirect);
-  SQLRETURN (*Fetch)(MADB_Stmt *Stmt, my_bool KeepPosition);
+  SQLRETURN (*Fetch)(MADB_Stmt *Stmt);
   SQLRETURN (*BindColumn)(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
                      SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN *StrLen_or_Ind);
   SQLRETURN (*BindParam)(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber, SQLSMALLINT InputOutputType, SQLSMALLINT ValueType,
@@ -116,6 +116,7 @@ MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
 #define MADB_POSITIONED_COMMAND(aStmt) ((aStmt)->PositionedCommand && (aStmt)->PositionedCursor)
 /* So far we always use all fields for index. Once that is changed, this should be changed as well */
 #define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor)
+#define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= -1; 
 
 #define MADB_TRANSFER_OCTET_LENGTH\
   "CAST(CASE @dt"\

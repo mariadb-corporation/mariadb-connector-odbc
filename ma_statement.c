@@ -841,7 +841,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       return Stmt->Error.ReturnValue;
     }
     if (Stmt->PositionedCommand == SQL_DELETE)
-      Stmt->PositionedCursor->Cursor.Position= -1;
+      MADB_STMT_RESET_CURSOR(Stmt->PositionedCursor);
       
   }
   //MADB_FREE(DataPtr);
@@ -1464,7 +1464,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     }
 
-    Stmt->Cursor.Position= -1;
+    MADB_STMT_RESET_CURSOR(Stmt);
     
     /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
@@ -2076,7 +2076,7 @@ if      (_row_num == 0)                  _accumulated_rc= _cur_row_rc;\
 else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
 
 /* {{{ MADB_StmtFetch */
-SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
+SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
   unsigned int      row_num, j, rc;
   SQLULEN           Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
@@ -2125,6 +2125,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   {
     MADB_InitStatusPtr(Stmt->Ard->Header.ArrayStatusPtr, Stmt->Ard->Header.ArraySize, SQL_NO_DATA);
   }
+
   if (Stmt->Ird->Header.RowsProcessedPtr)
   {
     ProcessedPtr= Stmt->Ird->Header.RowsProcessedPtr;
@@ -2137,7 +2138,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt, my_bool KeepPosition)
   *ProcessedPtr= 0;
 
   /* We need to return to 1st row in the rowset only if there are >1 rows in it. Otherwise we stay on it anyway */
-  if (Rows2Fetch > 1 && KeepPosition && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
+  if (Rows2Fetch > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
   {
     SaveCursor= mysql_stmt_row_tell(Stmt->stmt);
     /* Skipping current row for for reading now, it will be read when the Cursor is returned to it */
@@ -4605,7 +4606,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
 
   if (Position < 0)
   {
-    Stmt->Cursor.Position= -1;
+    MADB_STMT_RESET_CURSOR(Stmt);
   }
   else
   {
@@ -4618,9 +4619,13 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   
   ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
   if (ret == SQL_SUCCESS)
-    ret= Stmt->Methods->Fetch(Stmt, TRUE);
+  {
+    ret= Stmt->Methods->Fetch(Stmt);
+  }
   if (ret == SQL_NO_DATA_FOUND && Stmt->LastRowFetched > 0)
+  {
     ret= SQL_SUCCESS;
+  }
   return ret;
 }
 
