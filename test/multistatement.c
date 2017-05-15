@@ -196,7 +196,7 @@ ODBC_TEST(test_semicolon)
 }
 
 /* Double quote inside single quotes caused error in parsing while*/
-ODBC_TEST(t_odbc_74)
+ODBC_TEST(t_odbc74)
 {
   SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end", "one", "two"}, val[4];
   unsigned int i;
@@ -229,6 +229,15 @@ ODBC_TEST(t_odbc_74)
   return OK;
 }
 
+ODBC_TEST(t_odbc95)
+{
+  EXPECT_STMT(Stmt, SQLPrepare(Stmt, "SELECT 1;INSERT INTO non_existing VALUES(2)", SQL_NTS), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  Stmt= NULL;
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -237,7 +246,8 @@ MA_ODBC_TESTS my_tests[]=
   {test_params, "test_params"},
   {t_odbc_16, "test_odbc_16"},
   {test_semicolon, "test_semicolon_in_string"},
-  {t_odbc_74, "test_odbc_74"},
+  {t_odbc74, "t_odbc74"},
+  {t_odbc95, "t_odbc95" },
   {NULL, NULL}
 };
 

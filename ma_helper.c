@@ -32,6 +32,7 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
   }
   MADB_FREE(Stmt->MultiStmts);
   Stmt->MultiStmtCount= 0;
+  Stmt->stmt= NULL;
 }
 
 
