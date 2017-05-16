@@ -195,11 +195,14 @@ ODBC_TEST(test_semicolon)
   return OK;
 }
 
-/* Double quote inside single quotes caused error in parsing while*/
+/* Double quote inside single quotes caused error in parsing while
+   Also tests ODBC-97*/
 ODBC_TEST(t_odbc74)
 {
-  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end", "one", "two"}, val[4];
+  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[8];
   unsigned int i;
+  SQLHDBC     hdbc1;
+  SQLHSTMT    Stmt1;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc74; CREATE TABLE odbc74(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\
                         val VARCHAR(64) NOT NULL)");
@@ -212,8 +215,8 @@ ODBC_TEST(t_odbc74)
                         # ;Unhappy comment at the end ");
   OK_SIMPLE_STMT(Stmt, "-- comment ;1 \n\
                         # comment ;2 \n\
-                        INSERT INTO odbc74 (val) VALUES('one');\
-                        INSERT INTO odbc74 (val) VALUES(\"two\");");
+                        INSERT INTO odbc74 (val) VALUES('one\\\\');\
+                        INSERT INTO odbc74 (val) VALUES(\"two\\\\\");");
   OK_SIMPLE_STMT(Stmt, "SELECT val FROM odbc74 ORDER BY id");
 
   for (i= 0; i < sizeof(ref)/sizeof(ref[0]); ++i)
@@ -223,6 +226,30 @@ ODBC_TEST(t_odbc74)
   }
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "TRUNCATE TABLE odbc74");
+
+  AllocEnvConn(&Env, &hdbc1);
+  Stmt1= DoConnect(&hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
+
+  OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='NO_BACKSLASH_ESCAPES'");
+
+  OK_SIMPLE_STMT(Stmt1, "INSERT INTO odbc74 (val) VALUES('one\\');\
+                        INSERT INTO odbc74 (val) VALUES(\"two\\\");");
+  OK_SIMPLE_STMT(Stmt1, "SELECT val FROM odbc74 ORDER BY id");
+
+  /* We only have to last rows */
+  for (i= sizeof(ref)/sizeof(ref[0]) - 2; i < sizeof(ref)/sizeof(ref[0]); ++i)
+  {
+    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+    IS_STR(my_fetch_str(Stmt1, val, 1), ref[i], sizeof(ref[i]));
+  }
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc74");
 
@@ -246,7 +273,7 @@ MA_ODBC_TESTS my_tests[]=
   {test_params, "test_params"},
   {t_odbc_16, "test_odbc_16"},
   {test_semicolon, "test_semicolon_in_string"},
-  {t_odbc74, "t_odbc74"},
+  {t_odbc74, "t_odbc74and_odbc97"},
   {t_odbc95, "t_odbc95" },
   {NULL, NULL}
 };

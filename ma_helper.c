@@ -85,16 +85,24 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
   {
     end= StmtStr + Length - 1;
     while (end > StmtStr && (isspace(*end) || *end == ';'))
+    {
       --end;
-    Length= (SQLINTEGER)(end - StmtStr);
+      --Length;
+    }
   }
-  p= StmtCopy= my_strdup(StmtStr, MYF(0));
+  /* We can have here not NULL-terminated string as a source, thus we need to allocate, copy meaningful characters and
+     add NULL */
+  p= StmtCopy= MADB_ALLOC(Length + 1);
+  strncpy(StmtCopy, StmtStr, Length);
+  StmtCopy[Length]= '\0';
+
+  end= StmtCopy + Length;
   
-  while (p < StmtCopy + Length)
+  while (p < end)
   {
     if (wait_char)
     {
-      if (*p == wait_char && *prev != '\\') /* What if that is escaped backslash? */
+      if (*p == wait_char && *prev != '\\')
       {
         wait_char= 0;
       }
@@ -103,7 +111,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
     {
       switch (*p) {
       case '-':
-        if (!STRING_OR_COMMENT() && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '-')
+        if (!STRING_OR_COMMENT() && (p < end - 1) && (char)*(p+1) ==  '-')
         {
           wait_char= '\n';
         }
@@ -122,19 +130,26 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
         }
         break;
       case '/':
-        if (!STRING_OR_COMMENT() && (p < StmtCopy + Length + 1) && (char)*(p+1) ==  '*')
+        if (!STRING_OR_COMMENT() && (p < end - 1) && (char)*(p+1) ==  '*')
           comment= 1;
         else if (comment && (p > StmtCopy) && (char)*(prev) == '*')
           comment= 0;
         break;
       case '"':
-        if (prev && *prev != '\\')
-          quote[0] = !STRING_OR_COMMENT();
+        quote[0] = !STRING_OR_COMMENT();
         break;
       case '\'':
-        if (prev && *prev != '\\')
-          quote[1] = !STRING_OR_COMMENT();
+        quote[1] = !STRING_OR_COMMENT();
         break;
+      case '\\':
+        /* *end is \0, so we are safe here to increment by 2 bytes */
+        if ((Stmt->Connection->mariadb->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES) == 0  && p < end - 1)
+        {
+          /* Skipping escaped character and resetting prev */
+          p+= 2;
+          prev= 0;
+          continue;
+        }
       default:
         break;
       }
