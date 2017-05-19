@@ -832,7 +832,10 @@ int run_tests(MA_ODBC_TESTS *tests)
 
     buff_pos= buff_before_test;
     *buff_pos= 0;
-    SQLFreeStmt(Stmt, SQL_DROP);
+    if (Stmt != NULL)
+    {
+      SQLFreeStmt(Stmt, SQL_DROP);
+    }
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
     fflush(stdout);
