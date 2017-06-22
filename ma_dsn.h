@@ -16,7 +16,7 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#ifndef _na_dsn_h_
+#ifndef _ma_dsn_h_
 #define _ma_dsn_h_
 
 #include <odbcinst.h>
