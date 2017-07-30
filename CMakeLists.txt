@@ -48,7 +48,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_server.c
                           ma_legacy_helpers.c
                           ma_typeconv.c
-                          ma_bulk.h)
+                          ma_bulk.c)
 
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
@@ -89,7 +89,7 @@ IF(WIN32)
                           ma_server.h
                           ma_legacy_helpers.h
                           ma_typeconv.h
-                          ma_bulk.c)
+                          ma_bulk.h)
   SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                           ma_platform_win32.c)
 
