@@ -1119,7 +1119,7 @@ ODBC_TEST(t_bug29402)
     /* Because of this
        http://msdn.microsoft.com/en-us/library/ms716540%28v=vs.85%29.aspx
        test can fail. Rather test problem.
-       Hopefully the test is fixed, but keeping this message so far */
+       Upd: Hopefully the test is fixed, but keeping this message so far */
     diag("%s != %s(%#x!=%#x) - this test may fail on some "
                  "platforms - TODO", wbuf, "\x80""100", wbuf[0], expected[0]);
     return FAIL;

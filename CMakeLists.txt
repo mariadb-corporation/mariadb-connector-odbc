@@ -46,7 +46,9 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_result.c
                           ma_common.c
                           ma_server.c
-                          ma_legacy_helpers.c)
+                          ma_legacy_helpers.c
+                          ma_typeconv.c
+                          ma_bulk.h)
 
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
@@ -85,12 +87,14 @@ IF(WIN32)
                           ma_odbc_version.h
                           ma_result.h
                           ma_server.h
-                          ma_legacy_helpers.h)
+                          ma_legacy_helpers.h
+                          ma_typeconv.h
+                          ma_bulk.c)
   SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                           ma_platform_win32.c)
 
   SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
-  SET(PLATFORM_DEPENDENCIES ws2_32)
+  SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
     IF (MSVC_VERSION EQUAL 1900)

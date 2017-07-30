@@ -247,7 +247,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   p+= _snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
     Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
-    Stmt->Methods->Fetch(Stmt, FALSE) == SQL_ERROR)
+    Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
   {
     goto end;
   }
@@ -793,8 +793,8 @@ size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length)
 }
 /* }}} */
 
-/* {{{ MADB_GetTypeAndLength */
-int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length)
+/* {{{ MADB_GetMaDBTypeAndLength */
+int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length)
 {
   *Unsigned= 0;
   switch(SqlDataType)
@@ -848,6 +848,10 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
   case SQL_C_TIMESTAMP:
     *Length= sizeof(SQL_TIMESTAMP_STRUCT);
     return MYSQL_TYPE_TIMESTAMP;
+  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+  case SQL_C_INTERVAL_HOUR_TO_SECOND:
+    *Length= sizeof(SQL_INTERVAL_STRUCT);
+    return MYSQL_TYPE_TIME;
   case SQL_C_CHAR:
     return MYSQL_TYPE_STRING;
   default:
@@ -1107,85 +1111,6 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
   } 
   return ret;
 }
-
-/* {{{ MADB_SqlNumericToChar */
-size_t MADB_SqlNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode)
-{
-  long long Numerator= 0;
-  long long Denominator= 1;
-  unsigned long long Left= 0, Right= 0;
-  int Scale= 0;
-  int ppos= 0;
-  long ByteDenominator= 1;
-  int i;
-  char *p;
-  my_bool hasDot= FALSE;
-
-  Buffer[0]= 0;
-  *ErrorCode= 0;
-
-  Scale+= (Numeric->scale < 0) ? -Numeric->scale : Numeric->scale;
-      
-  for (i=0; i < SQL_MAX_NUMERIC_LEN; ++i)
-  {
-    Numerator+= Numeric->val[i] * ByteDenominator;
-    ByteDenominator<<= 8;
-  }
-  if (!Numeric->sign)
-    Numerator= -Numerator;
-  Denominator= (long long)pow(10, Scale);
-  Left= Numerator / Denominator;
-  //_i64toa_s(Numerator, Buffer, 38, 10);
-  if (Numeric->scale > 0)
-  {
-    char tmp[38];
-    _snprintf(tmp,38, "%%%d.%df", Numeric->precision, Numeric->scale);
-    _snprintf(Buffer, 38, tmp, Numerator / pow(10, Scale));
-  }
-  else
-  {
-    _snprintf(Buffer, 38, "%lld", Numerator);
-    while (strlen(Buffer) < (size_t)(Numeric->precision - Numeric->scale))
-      strcat(Buffer, "0");
-  }
-  
-  
-  if (Buffer[0] == '-')
-    Buffer++;
- 
- /* Truncation checks:
-     1st ensure, that the digits before decimal point will fit */
-  if ((p= strchr(Buffer, '.')))
-  {
-    if (p - Buffer - 1 > Numeric->precision)
-    {
-      *ErrorCode= MADB_ERR_22003;
-      Buffer[Numeric->precision]= 0;
-      goto end;
-    }
-    if (Numeric->scale > 0 && Left > 0 && (p - Buffer) + strlen(p) > Numeric->precision)
-    {
-      *ErrorCode= MADB_ERR_01S07;
-      Buffer[Numeric->precision + 1]= 0;
-      goto end;
-    }
-  }
-  while (Numeric->scale < 0 && strlen(Buffer) < (size_t)(Numeric->precision - Numeric->scale))
-    strcat(Buffer, "0");
-    
-
-  if (strlen(Buffer) > (size_t)(Numeric->precision + Scale) && Numeric->scale > 0)
-    *ErrorCode= MADB_ERR_01S07;
-
-end:
-    /* check if last char is decimal point */
-  if (strlen(Buffer) && Buffer[strlen(Buffer)-1] == '.')
-    Buffer[strlen(Buffer)-1] = 0;
-  if (!Numeric->sign)
-    Buffer--;
-  return strlen(Buffer);
-}
-/* }}} */
 
 /* {{{ MADB_GetHexString */
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,

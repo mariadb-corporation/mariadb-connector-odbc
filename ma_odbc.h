@@ -102,6 +102,7 @@ typedef struct
   SQLULEN      *BindOffsetPtr;
   SQLULEN       BindType;
   SQLSMALLINT   Count;
+  /* TODO: In IPD this is SQLUINTEGER* field */
   SQLULEN      *RowsProcessedPtr;
   /* Header end */
 } MADB_Header;
@@ -225,29 +226,6 @@ struct st_ma_desc_fldid
 
 struct st_ma_stmt_methods;
 
-struct st_bind_column
-{
-  SQLUINTEGER TargetType;
-  SQLPOINTER TargetValuePtr;
-  SQLLEN BufferLength;
-  SQLLEN Utf8BufferLength;
-  SQLLEN *StrLen_or_Ind;
-  void *InternalBuffer;
-};
-
-struct st_bind_param
-{
-  SQLSMALLINT InputOutputType;
-  SQLSMALLINT ValueType;
-  SQLSMALLINT ParameterType;
-  SQLULEN ColumnSize;
-  SQLSMALLINT DecimalDigits; 
-  SQLPOINTER ParameterValuePtr;
-  SQLLEN BufferLength;
-  SQLLEN *StrLen_or_IndPtr;
-  void *InternalBuffer;
-};
-
 typedef struct 
 {
  	SQLLEN MaxRows;
@@ -280,7 +258,7 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
 
-enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3};
+enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3, MADB_SS_OUTPARAMSFETCHED= 4};
 
 #define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State > MADB_SS_EMULATED)
 #define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ? MADB_SS_PREPARED : MADB_SS_INITED
@@ -300,6 +278,13 @@ typedef struct
 
 } MADB_ShortTypeInfo;
 
+typedef struct
+{
+  unsigned int  ArraySize;
+  SQLUINTEGER   Index;
+
+} MADB_BulkOperationInfo;
+
 struct st_ma_odbc_stmt
 {
   MADB_Dbc                  *Connection;
@@ -309,7 +294,7 @@ struct st_ma_odbc_stmt
   MADB_Cursor               Cursor;
   MYSQL_STMT                *stmt;
   MYSQL_RES                 *metadata;
-  MADB_List                      ListItem;
+  MADB_List                 ListItem;
   MADB_QUERY                *Tokens;
   SQLSMALLINT               ParamCount;
   my_bool                   isMultiQuery;
@@ -330,8 +315,6 @@ struct st_ma_odbc_stmt
   unsigned int              MultiStmtNr;
   unsigned int              MultiStmtMaxParam;
   SQLLEN                    LastRowFetched;
-  struct st_bind_column     *bind_columns; /* ARD */
-  struct st_bind_param      *bind_params;
   MYSQL_BIND                *result;
   MYSQL_BIND                *params;
   int                       PutParam;
@@ -342,9 +325,8 @@ struct st_ma_odbc_stmt
   unsigned long             *Lengths;
   char                      *TableName;
   char                      *CatalogName;
-  char                      TmpBuf[1]; /* for null bindings */
-  MYSQL_FIELD               *BulkFields;
   MADB_ShortTypeInfo        *ColsTypeFixArr;
+  MADB_BulkOperationInfo    Bulk;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;
@@ -460,6 +442,8 @@ void            CloseClientCharset(Client_Charset *cc);
 #include <ma_driver.h>
 #include <ma_helper.h>
 #include <ma_server.h>
+#include <ma_typeconv.h>
+#include <ma_bulk.h>
 
 /* SQLFunction calls inside MariaDB Connector/ODBC needs to be mapped,
  * on non Windows platforms these function calls will call the driver

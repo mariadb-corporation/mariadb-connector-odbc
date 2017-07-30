@@ -37,7 +37,7 @@ BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
 size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset);
-int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
+int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
@@ -56,11 +56,11 @@ MYSQL_RES *   MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
 char *        MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);
 
 /* SQL_NUMERIC stuff */
-int           MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, unsigned long RowNumber);
-size_t        MADB_SqlNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode);
-void          MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
-unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt);
-int           MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber);
+int           MADB_CharToSQLNumeric (char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, unsigned long RowNumber);
+void          MADB_NumericInit      (SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
+
+unsigned long MADB_StmtDataTell         (MADB_Stmt *Stmt);
+int           MADB_FindNextDaeParam     (MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber);
 
 /* for dummy binding */
 extern my_bool DummyError;

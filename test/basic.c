@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -204,8 +204,8 @@ ODBC_TEST(select1000)
 
 ODBC_TEST(simple_2)
 {
-  SQLINTEGER nRowCount= 0, nInData= 1, nOutData;
-  SQLCHAR szOutData[31];
+  SQLINTEGER nRowCount= 0, nInData= 1, nOutData= 0;
+  SQLCHAR szOutData[31]= {'\0'};
   SQLRETURN rc;
 
   OK_SIMPLE_STMTW(Stmt, CW("DROP TABLE IF EXISTS t_myodbc"));
@@ -750,7 +750,7 @@ ODBC_TEST(t_driverconnect_outstring)
 
   connw= CW(conna);
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
-                                        sizeof(connw_out), &conn_out_len,
+                                        sizeof(connw_out)/sizeof(SQLWCHAR), &conn_out_len,
                                         SQL_DRIVER_NOPROMPT));
   is_num(conn_out_len, strlen(conna));
   IS_WSTR(connw_out, connw, strlen(conna));

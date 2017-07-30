@@ -87,12 +87,15 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 
   if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
   {
+    Stmt->State= MADB_SS_OUTPARAMSFETCHED;
     ret= Stmt->Methods->GetOutParams(Stmt, 0);
   }
   else
   {
     if (Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
+    {
       mysql_stmt_store_result(Stmt->stmt);
+    }
   }
   UNLOCK_MARIADB(Stmt->Connection);
 

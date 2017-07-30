@@ -105,6 +105,7 @@ struct st_ma_stmt_methods
 SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt);
 SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier);
 MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
+SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect);
 
 #define MADB_MAX_CURSOR_NAME 64 * 3 + 1
 #define MADB_CHECK_STMT_HANDLE(a,b)\

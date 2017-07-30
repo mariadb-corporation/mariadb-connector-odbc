@@ -584,20 +584,40 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
 }
 
 
-/* Length in SQLWCHAR units*/
-SQLINTEGER SqlwcsLen(SQLWCHAR *str)
+/* Length in SQLWCHAR units
+   @buff_length[in] - size of the str buffer or negative number  */
+SQLLEN SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length)
 {
   SQLINTEGER result= 0;
 
   if (str)
   {
-    while (*str)
+    /* If buff_length is negative - we will never hit 1st condition, otherwise we hit it after last character
+       of the buffer is processed */
+    while ((--buff_length) != -1 && *str)
     {
       ++result;
-      /* str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR)); */
       ++str;
     }
   }
   return result;
 }
 
+/* Length of a string with respect to specified buffer size
+@buff_length[in] - size of the str buffer or negative number  */
+SQLLEN SafeStrlen(SQLCHAR *str, SQLLEN buff_length)
+{
+  SQLINTEGER result= 0;
+
+  if (str)
+  {
+    /* If buff_length is negative - we will never hit 1st condition, otherwise we hit it after last character
+    of the buffer is processed */
+    while ((--buff_length) != -1 && *str)
+    {
+      ++result;
+      ++str;
+    }
+  }
+  return result;
+}

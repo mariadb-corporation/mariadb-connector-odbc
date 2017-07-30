@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2016 MariaDB Corporation AB
+   Copyright (C) 2016, 2017 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -22,17 +22,30 @@
 #include <ma_odbc.h>
 
 unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT}};
+unsigned long ExtCapabilitiesMap[][2]= {{MARIADB_CLIENT_STMT_BULK_OPERATIONS >> 32, MADB_CAPABLE_PARAM_ARRAYS}};
 
 /* {{{  */
 void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion)
 {
   int i;
+  unsigned long ServerExtCapabilities;
 
   for (i= 0; i < sizeof(VersionCapabilityMap)/sizeof(VersionCapabilityMap[0]); ++i)
   {
     if (ServerVersion >= VersionCapabilityMap[i][0])
     {
       Dbc->ServerCapabilities |= VersionCapabilityMap[i][1];
+    }
+  }
+
+  mariadb_get_info(Dbc->mariadb, MARIADB_CONNECTION_EXTENDED_SERVER_CAPABILITIES, (void*)&ServerExtCapabilities);
+
+  for (i= 0; i < sizeof(ExtCapabilitiesMap)/sizeof(ExtCapabilitiesMap[0]); ++i)
+  {
+    if (!(Dbc->mariadb->server_capabilities & CLIENT_MYSQL)
+      && (ServerExtCapabilities & ExtCapabilitiesMap[i][0]))
+    {
+      Dbc->ServerCapabilities |= ExtCapabilitiesMap[i][1];
     }
   }
 }

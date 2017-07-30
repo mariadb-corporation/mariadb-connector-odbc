@@ -1124,7 +1124,7 @@ char* hide_pwd(char *connstr)
 }
 
 
-BOOL ServerNewerThan(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
+BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
 {
   unsigned int ServerMajor= 0, ServerMinor= 0, ServerPatch= 0;
   SQLCHAR ServerVersion[32];
