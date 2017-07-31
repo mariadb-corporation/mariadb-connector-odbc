@@ -3556,6 +3556,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   init_dynamic_string(&StmtStr, "", 8192, 1024);
  
   MADB_CLEAR_ERROR(&Stmt->Error);
+
   if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNSp1))
     goto dynerror;
   if (dynstr_append(&StmtStr, (Stmt->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ? MADB_SQL_DATATYPE_ODBC3 : MADB_SQL_DATATYPE_ODBC2)))
