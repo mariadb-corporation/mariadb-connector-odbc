@@ -22,6 +22,7 @@
 
 #define MADB_CAPABLE_EXEC_DIRECT  1
 #define MADB_CAPABLE_PARAM_ARRAYS 2
+#define MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES 4
 
 void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion);
 BOOL MADB_ServerSupports (MADB_Dbc *Dbc, char Capability);

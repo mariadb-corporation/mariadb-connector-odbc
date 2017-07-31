@@ -21,7 +21,8 @@
 
 #include <ma_odbc.h>
 
-unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT}};
+unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT},
+                                          {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES}};
 unsigned long ExtCapabilitiesMap[][2]= {{MARIADB_CLIENT_STMT_BULK_OPERATIONS >> 32, MADB_CAPABLE_PARAM_ARRAYS}};
 
 /* {{{  */

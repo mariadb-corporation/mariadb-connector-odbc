@@ -3379,7 +3379,15 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
  
   MADB_CLEAR_ERROR(&Stmt->Error);
-  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNS(Stmt)))
+  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp1))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, (Stmt->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ? MADB_SQL_DATATYPE_ODBC3 : MADB_SQL_DATATYPE_ODBC2)))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp3))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, MADB_DEFAULT_COLUMN(Stmt->Connection)))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp4))
     goto dynerror;
 
   ADJUST_LENGTH(CatalogName, NameLength1);
