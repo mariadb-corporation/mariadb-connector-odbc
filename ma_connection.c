@@ -715,6 +715,8 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       }
     }
 
+  MADB_SetCapabilities(Connection, mysql_get_server_version(Connection->mariadb));
+
   goto end;
 
 err:

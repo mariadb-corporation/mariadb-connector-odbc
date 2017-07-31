@@ -408,6 +408,7 @@ struct st_ma_odbc_connection
   char *TraceFile;
   SQLINTEGER TxnIsolation;
   SQLINTEGER CursorCount;
+  char ServerCapabilities;
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
@@ -454,6 +455,7 @@ void            CloseClientCharset (Client_Charset *cc);
 #include <ma_result.h>
 #include <ma_driver.h>
 #include <ma_helper.h>
+#include <ma_server.h>
 
 /* SQLFunction calls inside MariaDB Connector/ODBC needs to be mapped,
  * on non Windows platforms these function calls will call the driver

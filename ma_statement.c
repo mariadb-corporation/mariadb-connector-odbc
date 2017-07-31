@@ -988,7 +988,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
           }
 
           if (ApdRecord->IndicatorPtr)
-            IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Apd,ApdRecord, ApdRecord->IndicatorPtr, j, sizeof(SQLLEN));
+            IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Apd,ApdRecord, ApdRecord->IndicatorPtr, j - Start, sizeof(SQLLEN));
           
           if (ApdRecord->OctetLengthPtr)
           {
@@ -3252,7 +3252,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= mysql_stmt_field_count(Stmt->stmt);
     break;
   default:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY091/*C00*/, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
   /* We need to return the number of bytes, not characters! */
@@ -3551,7 +3551,15 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   init_dynamic_string(&StmtStr, "", 8192, 1024);
  
   MADB_CLEAR_ERROR(&Stmt->Error);
-  if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNS(Stmt)))
+  if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNSp1))
+    goto dynerror;
+  if (dynstr_append(&StmtStr, (Stmt->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ? MADB_SQL_DATATYPE_ODBC3 : MADB_SQL_DATATYPE_ODBC2)))
+    goto dynerror;
+  if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNSp3))
+    goto dynerror;
+  if (dynstr_append(&StmtStr, MADB_DEFAULT_COLUMN(Stmt->Connection)))
+    goto dynerror;
+  if (dynstr_append(&StmtStr, MADB_CATALOG_COLUMNSp4))
     goto dynerror;
 
   ADJUST_LENGTH(CatalogName, NameLength1);
