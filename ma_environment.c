@@ -99,9 +99,9 @@ MADB_Env *MADB_EnvInit()
   /* This is probably is better todo with thread_once */
   if (utf16 == NULL)
   {
-    utf16= mysql_find_charset_name(little_endian() ? "utf16le" : "utf16");
+    utf16= mariadb_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
   }
-  utf8.cs_info= ma_charset_utf8_general_ci;
+  utf8.cs_info= mariadb_get_charset_by_name("utf8");
   GetDefaultLogDir();
 
 cleanup:

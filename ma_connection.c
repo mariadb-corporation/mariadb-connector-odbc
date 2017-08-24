@@ -593,10 +593,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     }
     else if (Connection->IsAnsi)
     {
-      cs_name= madb_get_os_character_set();
+      MARIADB_CHARSET_INFO *cs= mariadb_get_charset_by_name("auto");
+      cs_name= cs->csname;
     }
 
-    if (InitClientCharset(&Connection->charset, cs_name != NULL && *cs_name != 0 ? cs_name : "utf8"))
+    if (InitClientCharset(&Connection->charset, MADB_IS_EMPTY(cs_name) ? "utf8" : cs_name))
     {
       /* Memory allocation error */
       MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
@@ -1329,7 +1330,11 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_MAX_STATEMENT_LEN:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, max_allowed_packet, StringLengthPtr);
+    {
+      size_t max_packet_size;
+      mariadb_get_infov(Dbc->mariadb, MARIADB_MAX_ALLOWED_PACKET, &max_packet_size);
+      MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, max_packet_size, StringLengthPtr);
+    }
     break;
   case SQL_MAX_TABLE_NAME_LEN:
      MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, NAME_CHAR_LEN * SYSTEM_MB_MAX_CHAR_LENGTH, StringLengthPtr);

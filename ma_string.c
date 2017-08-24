@@ -464,7 +464,8 @@ int InitClientCharset(Client_Charset *cc, const char * name)
 
 Client_Charset* GetDefaultOsCharset(Client_Charset *cc)
 {
-  if (InitClientCharset(cc, madb_get_os_character_set()))
+  MARIADB_CHARSET_INFO *cs= mariadb_get_charset_by_name("auto");
+  if (InitClientCharset(cc, cs->csname))
   {
     return NULL;
   }

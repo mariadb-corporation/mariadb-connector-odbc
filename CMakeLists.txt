@@ -58,7 +58,7 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_common.c)
 
-#Debug log is controlled by conenction option solely
+#Debug log is controlled by connection option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
@@ -93,7 +93,11 @@ IF(WIN32)
   SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                           ma_platform_win32.c)
 
-  SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
+  IF(MARIADB_LINK_DYNAMIC)
+    SET(MARIADB_CLIENT_FILENAME libmariadb.lib)
+  ELSE()
+    SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
+  ENDIF()
   SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
@@ -106,7 +110,11 @@ ELSE()
   SEARCH_LIBRARY(LIB_MATH floor m)
   SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES} ma_platform_posix.c)
-  SET(MARIADB_CLIENT_FILENAME libmariadbclient.a)
+  IF(MARIADB_LINK_DYNAMIC)
+    SET(MARIADB_CLIENT_FILENAME libmariadb.so.3)
+  ELSE()
+    SET(MARIADB_CLIENT_FILENAME libmariadbclient.a)
+  ENDIF()
   SET(ODBC_LIBS odbc)
   SET(ODBC_INSTLIBS odbcinst)
 ENDIF()
