@@ -447,7 +447,7 @@ int InitClientCharset(Client_Charset *cc, const char * name)
     return 1;
   }
 
-  cc->CodePage= cc->cs_info->codepage;/*madb_get_windows_cp(name);*/
+  cc->CodePage= cc->cs_info->codepage;
 
   return 0;
 }

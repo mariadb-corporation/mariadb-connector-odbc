@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1212,6 +1212,27 @@ ODBC_TEST(t_absolute_2)
   return OK;
 }
 
+/*{{{ t_unbind_before_fetch */
+/**
+  ODBC-110: Unbinding columns before fetching new result causes crash in the connector whilie fetching the row
+  Crash would occur also if ordinary SQLFetch was used. But it had been SQLFetchScroll, when the bug was observed for the 1st time
+  Affectts Microsoft ODBC test tool
+*/
+ODBC_TEST(t_unbind_before_fetch)
+{
+  SQLUINTEGER dummy;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 1");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_ULONG, &dummy, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
+
+  return OK;
+}
+/*}}}*/
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1221,6 +1242,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_array_relative_2, "t_array_relative_2"},
   {t_absolute_1,"t_absolute_1"},
   {t_absolute_2, "t_absolute_2"},
+  {t_unbind_before_fetch, "t_odbc_110_unbind_before_fetch"},
   {NULL, NULL}
 };
 
