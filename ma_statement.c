@@ -207,8 +207,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     break;
   case SQL_UNBIND:
     MADB_FREE(Stmt->result);
-    MADB_FREE(Stmt->CharOffset);
-    MADB_FREE(Stmt->Lengths);
     ResetMetadata(&Stmt->metadata, NULL);
     MADB_DescFree(Stmt->Ard, TRUE);
     break;
