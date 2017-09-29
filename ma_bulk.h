@@ -24,8 +24,6 @@
 #define _ma_bulk_h
 
 #define MADB_DOING_BULK_OPER(_stmt) ((_stmt)->Bulk.ArraySize > 1)
-/* Assumes we are inside bulk operation(does not check that) */
-#define MADB_BULK_OPER_HAS2SKIP_ROWS(_stmt) ((_stmt)->Bulk.ArraySize < (_stmt)->Apd->Header.ArraySize)
 
 /* Couple defined to make "switch"s look at least shorter, if not nicer */
 #define CHAR_BINARY_TYPES SQL_C_CHAR:\
@@ -46,7 +44,7 @@ BOOL          MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType);
 void          MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset);
 SQLRETURN     MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void *DataPtr, SQLLEN *OctetLengthPtr,
                                       SQLLEN *IndicatorPtr, SQLSMALLINT SqlType, MYSQL_BIND *MaBind);
-SQLRETURN     MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, SQLLEN OdbcIndicator);
+SQLRETURN     MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int row, SQLLEN OdbcIndicator);
 
 SQLRETURN     MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset);
 

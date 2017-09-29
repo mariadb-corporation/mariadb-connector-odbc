@@ -669,7 +669,7 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 
   *Stmt= DoConnect(Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
-  if (Stmt == NULL)
+  if (*Stmt == NULL)
   {
     return FAIL;
   }

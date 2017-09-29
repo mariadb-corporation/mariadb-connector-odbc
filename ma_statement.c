@@ -304,14 +304,15 @@ BOOL MADB_CheckIfExecDirectPossible(MADB_Stmt *Stmt)
 
 /* {{{ MADB_CheckIfExecDirectPossible
        Checking if we can deploy mariadb_stmt_execute_direct */
-BOOL MADB_CheckIBulkInsertPossible(MADB_Stmt *Stmt)
+BOOL MADB_BulkInsertPossible(MADB_Stmt *Stmt)
 {
   return MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS)
       && (Stmt->Apd->Header.ArraySize > 1)
       && (Stmt->Apd->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)        /* First we support column-wise binding */
+      && (Stmt->QueryType == MADB_QUERY_INSERT || Stmt->QueryType == MADB_QUERY_UPDATE)
       && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;        /* TODO: should be not very hard ot optimize to use bulk in this
                                                                          case for chunks of the array, delimitered by param rows with DAE
-                                                                         In particular, MADB_FindNextDaeParam should consider Stmt->ArrayOffset*/
+                                                                         In particular, MADB_FindNextDaeParam should consider Stmt->ArrayOffset */
 }
 /* }}} */
 /* {{{ MADB_StmtExecDirect */
@@ -425,6 +426,8 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     Stmt->Ird->Header.Count= 0;
 
   case MADB_SS_EMULATED:
+    Stmt->PositionedCommand= 0;
+    Stmt->QueryType= MADB_QUERY_NO_RESULT;
     MADB_FREE(Stmt->NativeSql);
     MADB_FREE(Stmt->StmtString);
     Stmt->State= MADB_SS_INITED;
@@ -497,10 +500,9 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 /* {{{ MADB_StmtPrepare */
 SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect)
 {
-  char                      *CursorName= NULL;
-  char                      *p;
-  unsigned int              WhereOffset;
-  enum enum_madb_query_type QueryType;
+  char          *CursorName= NULL;
+  char          *p;
+  unsigned int  WhereOffset;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtPrepare", "\t->");
 
@@ -545,7 +547,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   MADB_FreeTokens(Stmt->Tokens);
   Stmt->Tokens= MADB_Tokenize(Stmt->StmtString);
 
-  QueryType= MADB_GetQueryType(Stmt);
+  Stmt->QueryType= MADB_GetQueryType(Stmt);
   /* Transform WHERE CURRENT OF [cursorname]:
      Append WHERE with Parameter Markers
      In StmtExecute we will call SQLSetPos with update or delete:
@@ -559,9 +561,9 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     /* Make sure we have a delete or update statement
        MADB_QUERY_DELETE and MADB_QUERY_UPDATE defined in the enum to have the same value
        as SQL_UPDATE and SQL_DELETE, respectively */
-    if (QueryType == MADB_QUERY_DELETE || QueryType == MADB_QUERY_UPDATE)
+    if (Stmt->QueryType == MADB_QUERY_DELETE || Stmt->QueryType == MADB_QUERY_UPDATE)
     {
-      Stmt->PositionedCommand= QueryType;
+      Stmt->PositionedCommand= 1;
     }
     else
     {
@@ -590,7 +592,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     _snprintf(p, 40, " LIMIT %d", Stmt->Options.MaxRows);
   }
 
-  if (QUERY_DOESNT_RETURN_RESULT(QueryType) && MADB_FindParamPlaceholder(Stmt) == 0
+  if (QUERY_DOESNT_RETURN_RESULT(Stmt->QueryType) && MADB_FindParamPlaceholder(Stmt) == 0
    && !QueryIsPossiblyMultistmt(Stmt->StmtString))
   {
     Stmt->State= MADB_SS_EMULATED;
@@ -851,7 +853,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       MADB_CopyError(&Stmt->Error, &Stmt->PositionedCursor->Error);
       return Stmt->Error.ReturnValue;
     }
-    if (Stmt->PositionedCommand == SQL_DELETE)
+    if (Stmt->QueryType == SQL_DELETE)
       MADB_STMT_RESET_CURSOR(Stmt->PositionedCursor);
       
   }
@@ -995,7 +997,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   unsigned int ParamOffset=   0; /* for multi statements */
   unsigned int Iterations=    1,
     /* Will use it for STMT_ATTR_ARRAY_SIZE and as indicator if we are deploying MariaDB bulk insert feature */
-    MariadbArrSize= MADB_CheckIBulkInsertPossible(Stmt) != FALSE ? MADB_UsedParamSets(Stmt) : 0;
+    MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? Stmt->Apd->Header.ArraySize : 0;
   SQLULEN      j, Start=      0;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
@@ -1050,12 +1052,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       //MADB_CleanBulkOperationData(Stmt);
     }
     Stmt->Bulk.ArraySize=  MariadbArrSize;
+    Stmt->Bulk.HasRowsToSkip= 0;
   }
 
   for (StatementNr=0; StatementNr < Iterations; StatementNr++)
   {
-    Stmt->Bulk.Index= 0; /* We might need it if we have ignored paramsets */
-
     if (Stmt->MultiStmts)
     {
       Stmt->stmt= Stmt->MultiStmts[StatementNr];

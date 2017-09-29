@@ -539,11 +539,11 @@ ODBC_TEST(t_bulk_delete)
                                 (SQLPOINTER)2, 0));
   OK_SIMPLE_STMT(Stmt, "DELETE FROM t_bulk_delete WHERE id=?");
 
-  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_bulk_insert");
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_bulk_delete");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 2);
-  IS_STR(my_fetch_str(Stmt, val, 1), "second", 7);
+  IS_STR(my_fetch_str(Stmt, val, 2), "second", 7);
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
 

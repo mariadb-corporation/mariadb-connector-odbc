@@ -187,7 +187,7 @@ ODBC_TEST(t_bug39878)
 
   // We re-connect to drop the table (as connection might be broken)
   ODBC_Disconnect(Env, Connection, Stmt);
-  ODBC_Connect(&Env, &Connection, &Stmt);
+  IS(ODBC_Connect(&Env, &Connection, &Stmt) == OK);
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug39878");
 
   return OK;

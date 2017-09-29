@@ -283,9 +283,12 @@ typedef struct
 typedef struct
 {
   unsigned int  ArraySize;
-  SQLUINTEGER   Index;
+  my_bool       HasRowsToSkip;
 
 } MADB_BulkOperationInfo;
+
+/* Stmt struct needs enum definition from my_parse.h, and it in its turn needs MADB_QUERY*/
+#include <ma_parse.h>
 
 struct st_ma_odbc_stmt
 {
@@ -310,7 +313,7 @@ struct st_ma_odbc_stmt
   char                      *StmtString;
   char                      *NativeSql;
   MADB_Stmt                 *PositionedCursor;
-  unsigned int              PositionedCommand;
+  my_bool                   PositionedCommand;
   enum MADB_StmtState       State;
   unsigned int              MultiStmtCount;
   MYSQL_STMT                **MultiStmts;
@@ -329,6 +332,7 @@ struct st_ma_odbc_stmt
   char                      *CatalogName;
   MADB_ShortTypeInfo        *ColsTypeFixArr;
   MADB_BulkOperationInfo    Bulk;
+  enum enum_madb_query_type QueryType;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;
@@ -432,7 +436,6 @@ void            CloseClientCharset(Client_Charset *cc);
 } while(0)
 
 #include <ma_error.h>
-#include <ma_parse.h>
 #include <ma_info.h>
 #include <ma_environment.h>
 #include <ma_connection.h>

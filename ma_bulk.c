@@ -30,29 +30,12 @@ char MADB_MapIndicatorValue(SQLLEN OdbcInd)
   case SQL_NTS:           return STMT_INDICATOR_NTS;
   case SQL_COLUMN_IGNORE: return STMT_INDICATOR_IGNORE;
   case SQL_NULL_DATA:     return STMT_INDICATOR_NULL;
+  case SQL_PARAM_IGNORE:  return STMT_INDICATOR_IGNORE_ROW;
     /*STMT_INDICATOR_DEFAULT*/
   }
   return '\0';
 }
 
-
-/* Returns number of "active" paramsets, i.e. that do not have SQL_PARAM_IGNORE in status array */
-unsigned int MADB_UsedParamSets(MADB_Stmt *Stmt)
-{
-  SQLULEN i, result= Stmt->Apd->Header.ArraySize;
-
-  if (Stmt->Apd->Header.ArrayStatusPtr != NULL)
-  {
-    for (i= 0; i < Stmt->Apd->Header.ArraySize; ++i)
-    {
-      if (Stmt->Apd->Header.ArrayStatusPtr[i] == SQL_PARAM_IGNORE)
-      {
-        --result;
-      }
-    }
-  }
-  return result;
-}
 
 BOOL MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType)
 {
@@ -121,21 +104,7 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
       }
     }
     Stmt->Bulk.ArraySize= 0;
-    Stmt->Bulk.Index=     0;
-  }
-}
-
-void MADB_CopyArrayForBulkOper(MADB_Stmt *Stmt, char *Src, char *Dst, size_t ElementSize)
-{
-  unsigned int i;
-  for (i= 0; i < Stmt->Apd->Header.ArraySize; ++i)
-  {
-    if (Stmt->Apd->Header.ArrayStatusPtr[i] != SQL_PARAM_IGNORE)
-    {
-      memcpy(Dst, Src, ElementSize);
-      Dst+= ElementSize;
-    }
-    Src+= ElementSize;
+    Stmt->Bulk.HasRowsToSkip= 0;
   }
 }
 
@@ -158,7 +127,7 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
                                     void *DataPtr, MYSQL_BIND *MaBind)
 {
   /* Leaving it so far here commented, but it comlicates things w/out much gains */
-  /*if (sizeof(SQLLEN) == sizeof(long) && !MADB_BULK_OPER_HAS2SKIP_ROWS(Stmt) && MADB_AppBufferCanBeUsed())
+  /*if (sizeof(SQLLEN) == sizeof(long) && MADB_AppBufferCanBeUsed())
   {
     if (OctetLengthPtr)
     {
@@ -167,32 +136,35 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
   }
   else
   {*/
+  unsigned int row;
+
   MaBind->length= MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long));
   if (MaBind->length == NULL)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);;
   }
-  unsigned int i;
-  Stmt->Bulk.Index= -1;
-  for (i= 0; i < Stmt->Apd->Header.ArraySize; ++i, DataPtr= (char*)DataPtr + CRec->OctetLength)
+
+  for (row= 0; row < Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
   {
-    if (Stmt->Apd->Header.ArrayStatusPtr == NULL || Stmt->Apd->Header.ArrayStatusPtr[i] != SQL_PARAM_IGNORE)
+    if (Stmt->Apd->Header.ArrayStatusPtr != NULL && Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
     {
-      ++Stmt->Bulk.Index;
-      if (OctetLengthPtr != NULL && OctetLengthPtr[i] == SQL_NULL_DATA
-        || IndicatorPtr != NULL && IndicatorPtr[i] != SQL_NULL_DATA)
-      {
-        RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, SQL_NULL_DATA));
-        continue;
-      }
-      if (OctetLengthPtr != NULL && OctetLengthPtr[i] == SQL_COLUMN_IGNORE
-        || IndicatorPtr != NULL && IndicatorPtr[i] != SQL_COLUMN_IGNORE)
-      {
-        RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, SQL_COLUMN_IGNORE));
-        continue;
-      }
-      MaBind->length[Stmt->Bulk.Index]= MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[i] : NULL, CRec, DataPtr);
+      Stmt->Bulk.HasRowsToSkip= 1;
+      continue;
     }
+
+    if (OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_NULL_DATA
+      || IndicatorPtr != NULL && IndicatorPtr[row] != SQL_NULL_DATA)
+    {
+      RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_NULL_DATA));
+      continue;
+    }
+    if (OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_COLUMN_IGNORE
+      || IndicatorPtr != NULL && IndicatorPtr[row] != SQL_COLUMN_IGNORE)
+    {
+      RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_COLUMN_IGNORE));
+      continue;
+    }
+    MaBind->length[row]= MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[row] : NULL, CRec, DataPtr);
   }
 
   return SQL_SUCCESS;
@@ -236,16 +208,7 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
       MaBind->buffer_length= sizeof(char*);
     }
 
-    if (MADB_BULK_OPER_HAS2SKIP_ROWS(Stmt))
-    {
-
-      CRec->InternalBuffer= MADB_ALLOC(Stmt->Bulk.ArraySize*sizeof(MaBind->buffer_length));
-      MADB_CopyArrayForBulkOper(Stmt, DataPtr, CRec->InternalBuffer, MaBind->buffer_length);
-    }
-    else
-    {
-      MaBind->buffer= DataPtr;
-    }
+    MaBind->buffer= DataPtr;
   }
   if (MaBind->buffer != DataPtr)
   {
@@ -264,14 +227,14 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
 /* }}} */
 
 /* {{{ MADB_SetIndicatorValue */
-SQLRETURN MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, SQLLEN OdbcIndicator)
+SQLRETURN MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int row, SQLLEN OdbcIndicator)
 {
   if (MaBind->u.indicator == NULL)
   {
     RETURN_ERROR_OR_CONTINUE(MADB_InitIndicatorArray(Stmt, MaBind, STMT_INDICATOR_NONE));
   }
 
-  MaBind->u.indicator[Stmt->Bulk.Index]= MADB_MapIndicatorValue(OdbcIndicator);
+  MaBind->u.indicator[row]= MADB_MapIndicatorValue(OdbcIndicator);
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -281,7 +244,7 @@ SQLRETURN MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, SQLLEN Odb
 and we can't have DAE here */
 SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
-  unsigned int i;
+  unsigned int i, IndIdx= -1;
 
   for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
   {
@@ -290,7 +253,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
     SQLLEN          *OctetLengthPtr= NULL;
     void            *DataPtr= NULL;
     MYSQL_BIND      *MaBind= &Stmt->params[i - ParamOffset];
-    SQLULEN         j, Start=      0;
+    SQLULEN         row, Start= Stmt->ArrayOffset;
 
     if ((CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
       (SqlRec= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
@@ -325,7 +288,31 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
         continue;
       }
 
+      /* Sets Stmt->Bulk.HasRowsToSkip if needed, since it traverses and checks status array anyway */
       RETURN_ERROR_OR_CONTINUE(MADB_InitBulkOperBuffers(Stmt, CRec, DataPtr, OctetLengthPtr, IndicatorPtr, SqlRec->ConciseType, MaBind));
+
+      if (MaBind->u.indicator != NULL && IndIdx == (unsigned int)-1)
+      {
+        IndIdx= i - ParamOffset;
+      }
+
+      /* Doing it on last parameter - just to do do this once, and to use already allocated indicator array.
+         Little stupid optimization. But it's actually even a bit simpler this way */
+      if (i == ParamOffset + MADB_STMT_PARAM_COUNT(Stmt) - 1 && Stmt->Bulk.HasRowsToSkip)
+      {
+        if (IndIdx == (unsigned int)-1)
+        {
+          IndIdx= 0;
+        }
+
+        for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+        {
+          if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+          {
+            MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], row, SQL_PARAM_IGNORE);
+          }
+        }       
+      }
 
       if (MADB_AppBufferCanBeUsed(CRec->ConciseType, SqlRec->ConciseType))
       {
@@ -333,22 +320,18 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
         continue;
       }
 
-      Start+= Stmt->ArrayOffset;
-      Stmt->Bulk.Index= 0;
-
       /* We either have skipped rows, an*/
-      for (j= Start; j < Start + Stmt->Apd->Header.ArraySize; ++j, DataPtr= (char*)DataPtr + CRec->OctetLength)
+      for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
       {
-        void *Buffer= (char*)MaBind->buffer + Stmt->Bulk.Index*MaBind->buffer_length;
+        void *Buffer= (char*)MaBind->buffer + row*MaBind->buffer_length;
         void **BufferPtr= (void**)Buffer; /* For the case when Buffer points to the pointer already */
 
-        if (Stmt->Apd->Header.ArrayStatusPtr != NULL && Stmt->Apd->Header.ArrayStatusPtr[j] == SQL_PARAM_IGNORE)
+        if (Stmt->Apd->Header.ArrayStatusPtr != NULL && Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
         {
           continue;
         }
-        if (MaBind->u.indicator && MaBind->u.indicator[Stmt->Bulk.Index] > STMT_INDICATOR_NONE)
+        if (MaBind->u.indicator && MaBind->u.indicator[row] > STMT_INDICATOR_NONE)
         {
-          ++Stmt->Bulk.Index;
           continue;
         }
 
@@ -370,15 +353,14 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
           BufferPtr= &Buffer;
         }
 
-        if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, MaBind->length[Stmt->Bulk.Index],
-          SqlRec, MaBind, BufferPtr, MaBind->length + Stmt->Bulk.Index)))
+        if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, MaBind->length[row],
+          SqlRec, MaBind, BufferPtr, MaBind->length + row)))
         {
           /* Perhaps it's better to move to Clean function */
           CRec->InternalBuffer= NULL;
           return Stmt->Error.ReturnValue;
         }
         CRec->InternalBuffer= NULL;
-        ++Stmt->Bulk.Index;
       }
     }
   }

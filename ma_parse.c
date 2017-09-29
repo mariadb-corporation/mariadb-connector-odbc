@@ -154,6 +154,10 @@ enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt)
   {
     return MADB_QUERY_SELECT;
   }
+  if (_strnicmp(p, "INSERT", 6) == 0)
+  {
+    return MADB_QUERY_INSERT;
+  }
   if (_strnicmp(p, "UPDATE", 6) == 0)
   {
     return MADB_QUERY_UPDATE;
