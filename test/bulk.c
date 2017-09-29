@@ -514,6 +514,49 @@ ODBC_TEST(t_odbc90)
 }
 #undef MAODBC_ROWS
 
+/* This is test of DELETE statemten with param array. The primary goal is to test MariaDB bulk operation,
+   thus putting it into "bulk". ODBC-117 is corresponding bug report */
+ODBC_TEST(t_bulk_delete)
+{
+  SQLINTEGER a[3]= {1, 3, 2};
+  SQLCHAR val[7], insert_val[][7]= {"first", "third", "second"};
+  SQLLEN val_indicator[]= {SQL_NTS, SQL_NTS, SQL_NTS}, id_ind[]= {4, 4, 4};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_delete");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_delete (id INT unsigned not null primary key, val VARCHAR(20) not null)");
+  /*OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bulk_delete VALUES(1, 'first'), (2, 'second'), (3, 'third')");*/
+         
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+    (SQLPOINTER)3, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, id_ind));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, insert_val, 7, val_indicator));
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bulk_delete VALUES(?, ?)");
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+                                (SQLPOINTER)2, 0));
+  OK_SIMPLE_STMT(Stmt, "DELETE FROM t_bulk_delete WHERE id=?");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_bulk_insert");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 2);
+  IS_STR(my_fetch_str(Stmt, val, 1), "second", 7);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+                                (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_delete");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -524,6 +567,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bulk_insert_indicator, "t_bulk_insert_indicator"},
   {t_bulk_insert_rows, "t_bulk_insert_rows"},
   {t_odbc90, "odbc90_insert_with_ts_col"},
+  {t_bulk_delete, "t_bulk_delete"},
   {NULL, NULL}
 };
 
