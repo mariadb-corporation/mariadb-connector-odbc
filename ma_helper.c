@@ -834,7 +834,7 @@ int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigne
     *Length =sizeof(SQLFLOAT);
     return MYSQL_TYPE_FLOAT;
   case SQL_C_NUMERIC:
-    *Length= sizeof(SQL_NUMERIC_STRUCT);
+    /**Length= sizeof(SQL_NUMERIC_STRUCT);*/
     return MYSQL_TYPE_DECIMAL;
   case SQL_C_TYPE_TIME:
   case SQL_C_TIME:

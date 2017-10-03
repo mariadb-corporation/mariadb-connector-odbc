@@ -124,7 +124,7 @@ SQLRETURN MADB_InitIndicatorArray(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, char Init
 
 
 SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLLEN *OctetLengthPtr, SQLLEN *IndicatorPtr,
-                                    void *DataPtr, MYSQL_BIND *MaBind)
+                                    void *DataPtr, MYSQL_BIND *MaBind, BOOL VariableLengthMadbType)
 {
   /* Leaving it so far here commented, but it comlicates things w/out much gains */
   /*if (sizeof(SQLLEN) == sizeof(long) && MADB_AppBufferCanBeUsed())
@@ -138,10 +138,13 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
   {*/
   unsigned int row;
 
-  MaBind->length= MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long));
-  if (MaBind->length == NULL)
+  if (VariableLengthMadbType)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);;
+    MaBind->length= MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long));
+    if (MaBind->length == NULL)
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);;
+    }
   }
 
   for (row= 0; row < Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
@@ -164,7 +167,11 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
       RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_COLUMN_IGNORE));
       continue;
     }
-    MaBind->length[row]= MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[row] : NULL, CRec, DataPtr);
+
+    if (VariableLengthMadbType)
+    {
+      MaBind->length[row]= MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[row] : NULL, CRec, DataPtr);
+    }
   }
 
   return SQL_SUCCESS;
@@ -175,6 +182,16 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
 SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void *DataPtr, SQLLEN *OctetLengthPtr,
                                    SQLLEN *IndicatorPtr, SQLSMALLINT SqlType, MYSQL_BIND *MaBind)
 {
+  BOOL VariableLengthMadbType= TRUE;
+
+  MaBind->buffer_length= 0;
+  MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
+
+  /* For fixed length types MADB_GetMaDBTypeAndLength has set buffer_length */
+  if (MaBind->buffer_length != 0)
+  {
+    VariableLengthMadbType= FALSE;
+  }
   switch (CRec->ConciseType)
   {
   case CHAR_BINARY_TYPES:
@@ -201,15 +218,13 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
     MaBind->buffer_length= sizeof(MYSQL_TIME);
     break;
   default:
-    MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
-
+    MaBind->buffer= DataPtr;
     if (MaBind->buffer_length == 0)
     {
       MaBind->buffer_length= sizeof(char*);
     }
-
-    MaBind->buffer= DataPtr;
   }
+
   if (MaBind->buffer != DataPtr)
   {
     MaBind->buffer= CRec->InternalBuffer;
@@ -220,9 +235,7 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
     CRec->InternalBuffer= NULL; /* Need to reset this pointer, so the memory won't be freed (accidentally) */
   }
 
-  RETURN_ERROR_OR_CONTINUE(MADB_SetBulkOperLengthArr(Stmt, CRec, OctetLengthPtr, IndicatorPtr, DataPtr, MaBind));
-
-  return SQL_SUCCESS;
+  return MADB_SetBulkOperLengthArr(Stmt, CRec, OctetLengthPtr, IndicatorPtr, DataPtr, MaBind, VariableLengthMadbType);
 }
 /* }}} */
 

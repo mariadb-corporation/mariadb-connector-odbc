@@ -1499,9 +1499,10 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       break;
     case SQL_C_NUMERIC:
       MADB_FREE(ArdRec->InternalBuffer);
-      ArdRec->InternalBuffer=       (char *)MADB_CALLOC(MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/);
+      Stmt->result[i].buffer_length= MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
+      ArdRec->InternalBuffer=       (char *)MADB_CALLOC(Stmt->result[i].buffer_length);
       Stmt->result[i].buffer=        ArdRec->InternalBuffer;
-      Stmt->result[i].buffer_length= MADB_DEFAULT_PRECISION + 2;
+      
       Stmt->result[i].buffer_type=   MYSQL_TYPE_STRING;
       break;
     case SQL_TYPE_TIMESTAMP:
