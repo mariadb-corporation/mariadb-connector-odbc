@@ -63,6 +63,9 @@ unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt);
 BOOL MADB_IsNumericType(SQLSMALLINT ConciseType);
 BOOL MADB_IsIntType(SQLSMALLINT ConciseType);
 
+BOOL          MADB_IsNumericType(SQLSMALLINT ConciseType);
+BOOL          MADB_IsIntType    (SQLSMALLINT ConciseType);
+
 /* for dummy binding */
 extern my_bool DummyError;
 

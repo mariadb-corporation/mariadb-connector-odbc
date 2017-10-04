@@ -438,7 +438,9 @@ ODBC_TEST(t_bug13542600)
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
 
-  return check_sqlstate(Stmt, "22002");
+  CHECK_SQLSTATE(Stmt, "22002");
+
+  return OK;
 }
 
 

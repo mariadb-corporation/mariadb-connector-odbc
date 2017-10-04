@@ -1290,6 +1290,7 @@ end:
 
 }
 
+
 BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
 {
   switch (ConciseType)
@@ -1313,6 +1314,7 @@ BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
   }
   return FALSE;
 }
+
 
 BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
 {
