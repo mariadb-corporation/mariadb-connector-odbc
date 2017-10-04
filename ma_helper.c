@@ -1220,6 +1220,7 @@ end:
 
 }
 
+
 int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber)
 {
   int             i;
@@ -1243,3 +1244,51 @@ int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumb
 
   return MADB_NOPARAM;
 }
+
+
+BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
+{
+  switch (ConciseType)
+  {
+    case SQL_C_TINYINT:
+    case SQL_C_STINYINT:
+    case SQL_C_UTINYINT:
+    case SQL_C_SHORT:
+    case SQL_C_SSHORT:
+    case SQL_C_USHORT:
+    case SQL_C_LONG:
+    case SQL_C_SLONG:
+    case SQL_C_ULONG:
+    case SQL_C_UBIGINT:
+    case SQL_C_SBIGINT:
+    case SQL_BIGINT:
+    case SQL_C_DOUBLE:
+    case SQL_C_FLOAT:
+    case SQL_DECIMAL:
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
+{
+  switch (ConciseType)
+  {
+  case SQL_C_TINYINT:
+  case SQL_C_STINYINT:
+  case SQL_C_UTINYINT:
+  case SQL_C_SHORT:
+  case SQL_C_SSHORT:
+  case SQL_C_USHORT:
+  case SQL_C_LONG:
+  case SQL_C_SLONG:
+  case SQL_C_ULONG:
+  case SQL_C_UBIGINT:
+  case SQL_C_SBIGINT:
+  case SQL_BIGINT:
+    return TRUE;
+  }
+  return FALSE;
+}
+

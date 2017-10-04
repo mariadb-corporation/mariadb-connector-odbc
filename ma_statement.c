@@ -1482,7 +1482,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
     /* We can't use application's buffer directly, as it has/can have different size, than C/C needs */
     Stmt->result[i].length= &Stmt->result[i].length_value;
 
-    switch(ArdRec->Type) {
+    switch(ArdRec->ConciseType) {
     case SQL_C_WCHAR:
       /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
           For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
@@ -1636,7 +1636,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
       }
       else
       {
-        switch (ArdRec->Type)
+        switch (ArdRec->ConciseType)
         {
         case SQL_C_BIT:
         {
@@ -1840,7 +1840,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
   unsigned int      row_num, j, rc;
   SQLULEN           Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
-  MADB_Desc         *ArdDesc=    Stmt->Ard;
   MYSQL_ROW_OFFSET  SaveCursor= NULL;
   SQLRETURN         Result= SQL_SUCCESS, RowResult;
 
@@ -1968,7 +1967,13 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
         if (Stmt->stmt->bind[col].error && *Stmt->stmt->bind[col].error > 0 &&
             !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
         {
-          RowResult= MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+          MADB_DescRecord *ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
+                          *IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
+          /* For numeric types we return either 22003 or 01S07, 01004 for the rest.
+             if ird type is not fractional - we return 22003. But as a matter of fact, it's possible that we have 22003 if converting
+             from fractional types */
+          RowResult= MADB_SetError(&Stmt->Error, ArdRec != NULL && MADB_IsNumericType(ArdRec->ConciseType) ?
+                    (MADB_IsIntType(IrdRec->ConciseType) ? MADB_ERR_22003 : MADB_ERR_01S07) : MADB_ERR_01004, NULL, 0);
           /* One found such column is enough */
           break;
         }
