@@ -1,9 +1,10 @@
 # MariaDB Connector/ODBC 2.0
 <p align="center">
   <a href="http://mariadb.org/">
-    <img height="129" width="413" src="http://badges.mariadb.org/logo/Mariadb-seal-shaded-browntext.png">
+    <img src="https://mariadb.com/themes/custom/mariadb/logo.svg">
   </a>
 </p>
+
 
 ## Status
 [![License (LGPL version 2.1)](https://img.shields.io/badge/license-GNU%20LGPL%20version%202.1-green.svg?style=flat-square)](http://opensource.org/licenses/LGPL-2.1)

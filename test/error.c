@@ -436,7 +436,7 @@ ODBC_TEST(t_bug13542600)
   OK_SIMPLE_STMT(Stmt, "select 1 as i , null as j ");
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, &i, 0, NULL));
 
-  FAIL_IF(SQLFetch(Stmt)!= SQL_ERROR, "error expected");
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
 
   return check_sqlstate(Stmt, "22002");
 }
@@ -625,6 +625,45 @@ ODBC_TEST(t_odbc94)
 }
 
 
+ODBC_TEST(t_odbc115)
+{
+  SQLINTEGER Big;
+  SQLCHAR Str[8];
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "select 9223372036854809");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &Big, 0, NULL));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+
+  CHECK_SQLSTATE(Stmt, "22003");
+
+  /* Now testing 01004 for strings */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "select '123456789'");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, &Str, sizeof(Str), NULL));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS_WITH_INFO);
+
+  CHECK_SQLSTATE(Stmt, "01004");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Now testing 01S07 for fractional truncation */
+  OK_SIMPLE_STMT(Stmt, "select 1.02");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &Big, 0, NULL));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS_WITH_INFO);
+
+  CHECK_SQLSTATE(Stmt, "01S07");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_odbc3_error, "t_odbc3_error"},
@@ -644,6 +683,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug14285620, "t_bug14285620"},
   {t_bug49466, "t_bug49466"},
   {t_odbc94,   "t_odbc94"},
+  {t_odbc115, "t_odbc115"},
   {NULL, NULL}
 };
 

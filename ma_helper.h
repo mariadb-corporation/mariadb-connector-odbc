@@ -60,6 +60,8 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
 size_t MADB_SqlNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode);
 void MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
 unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt);
+BOOL MADB_IsNumericType(SQLSMALLINT ConciseType);
+BOOL MADB_IsIntType(SQLSMALLINT ConciseType);
 
 /* for dummy binding */
 extern my_bool DummyError;
