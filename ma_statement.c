@@ -222,7 +222,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
     MADB_FREE(Stmt->StmtString);
-    MADB_FREE(Stmt->NativeSql);
     MADB_FREE(Stmt->CatalogName);
     MADB_FREE(Stmt->TableName);
     ResetMetadata(&Stmt->metadata);
@@ -310,7 +309,6 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
     else
     {
       MADB_FREE(Stmt->StmtString);
-      MADB_FREE(Stmt->NativeSql);
       return ret;
     }
   }
@@ -396,7 +394,12 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     Stmt->Ird->Header.Count= 0;
 
   case MADB_SS_EMULATED:
-    MADB_FREE(Stmt->NativeSql);
+  /* We can have the case, then query did not succeed, and in case of direct execution we wouldn't
+     have ane state set, but some of stuff still needs to be cleaned. Perhaps we could introduce a state
+     for such case, smth like DIREXEC_PREPARED. Would be more proper, but yet overkill */
+  default:
+    Stmt->PositionedCommand= 0;
+    /*Stmt->QueryType= MADB_QUERY_NO_RESULT;*/
     MADB_FREE(Stmt->StmtString);
     Stmt->State= MADB_SS_INITED;
     MADB_CLEAR_ERROR(&Stmt->Error);
