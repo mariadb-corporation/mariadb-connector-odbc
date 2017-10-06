@@ -311,7 +311,6 @@ struct st_ma_odbc_stmt
   MADB_DescRecord           *PutDataRec;
   MADB_Stmt                 *DaeStmt;
   char                      *StmtString;
-  char                      *NativeSql;
   MADB_Stmt                 *PositionedCursor;
   my_bool                   PositionedCommand;
   enum MADB_StmtState       State;
