@@ -743,8 +743,6 @@ ODBC_TEST(t_bug10562)
   int result= OK;
   memset(blob, 'X', bsize);
 
-  skip("updatable cursor not supported");
-
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug10562");
   OK_SIMPLE_STMT(Stmt, "create table t_bug10562 ( id int not null primary key DEFAULT 0, mb longblob )");
   OK_SIMPLE_STMT(Stmt, "insert into t_bug10562 (mb) values ('zzzzzzzzzz')");
