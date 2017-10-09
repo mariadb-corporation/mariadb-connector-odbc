@@ -2708,12 +2708,20 @@ SQLRETURN SQL_API SQLSetCursorNameW(SQLHSTMT StatementHandle,
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   char *CpName= NULL;
   SQLULEN Length;
+  SQLRETURN rc;
+
   if (!Stmt)
+  {
     return SQL_INVALID_HANDLE;
+  }
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   CpName= MADB_ConvertFromWChar(CursorName, NameLength, &Length, &Stmt->Connection->charset, NULL);
-  return Stmt->Methods->SetCursorName(Stmt, (char *)CpName, (SQLINTEGER)Length);
+  rc= Stmt->Methods->SetCursorName(Stmt, (char *)CpName, (SQLINTEGER)Length);
+
+  MADB_FREE(CpName);
+
+  return rc;
 }
 /* }}} */
 

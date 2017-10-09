@@ -2578,6 +2578,8 @@ ODBC_TEST(t_update_type)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_no_strlen");
 
+  free(val);
+
   return OK;
 }
 

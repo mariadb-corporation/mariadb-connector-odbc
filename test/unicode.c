@@ -352,9 +352,6 @@ ODBC_TEST(sqlsetcursorname)
   SQLLEN  nRowCount;
   SQLCHAR data[10];
 
-  diag("where current of not supported");
-  return SKIP;
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_demo_cursor");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE my_demo_cursor (id INT, name VARCHAR(20))");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_demo_cursor VALUES (0,'MySQL0'),(1,'MySQL1'),"

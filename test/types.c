@@ -954,6 +954,8 @@ ODBC_TEST(t_bindsqlnum_basic)
   is_num(sqlnum->precision, 5);
   is_num(sqlnum->scale, 3);
 
+  free(sqlnum);
+
   return OK;
 }
 
