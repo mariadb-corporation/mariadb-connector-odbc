@@ -56,6 +56,7 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_common.c)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
 
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
@@ -269,6 +270,41 @@ ENDIF()
 # Tests. Checking if we have them. May be not the case if we are building from source package
 IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
   ADD_SUBDIRECTORY(test)
+  IF(NOT WIN32)
+    # Configuring ini files for testing with UnixODBC
+    SET_VALUE(TEST_DRIVER "maodbc_test")
+    SET_VALUE(TEST_DSN "maodbc_test")
+    SET_VALUE(TEST_PORT "3306")
+    SET_VALUE(TEST_SERVER "localhost")
+    SET_VALUE(TEST_SOCKET "")
+    SET_VALUE(TEST_SCHEMA "test")
+    SET_VALUE(TEST_UID "root")
+    SET_VALUE(TEST_PASSWORD "")
+
+    MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
+
+    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
+                                    -DTEST_DRIVER=${TEST_DRIVER}
+                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbcinst.ini
+                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                       )
+
+    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
+                                    -DTEST_DSN=${TEST_DSN}
+                                    -DTEST_PORT=${TEST_PORT}
+                                    -DTEST_SERVER=${TEST_SERVER}
+                                    -DTEST_SOCKET=${TEST_SOCKET}
+                                    -DTEST_SCHEMA=${TEST_SCHEMA}
+                                    -DTEST_UID=${TEST_UID}
+                                    -DTEST_PASSWORD=${TEST_PASSWORD}
+                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbc.ini
+                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                       )
+  ENDIF()
 ENDIF()
 
 # Packaging
