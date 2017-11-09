@@ -89,26 +89,32 @@ int CreateTestDsn(MADB_Dsn *dsn)
   return FAIL;
 }
 
+int PopDSN()
+{
+  if (SQLRemoveDSNFromIni(CreatedDSN[CreatedDsnCount - 1]) != FALSE)
+  {
+    --CreatedDsnCount;
+    CreatedDSN[CreatedDsnCount][0]= 0;
+
+    return 0;
+  }
+  return 1;
+}
 
 int CleanUp()
 {
   int i, ret= OK;
 
-  for (i=0; i < CreatedDsnCount; ++i)
+  for (i= CreatedDsnCount; i > 0; --i)
   {
-    if (SQLRemoveDSNFromIni(CreatedDSN[i]) == FALSE)
+    if (PopDSN())
     {
-      diag("Failed to remove DSN %s", CreatedDSN[i]);
+      diag("Failed to remove DSN %s", CreatedDSN[i - 1]);
       ret= FAIL;
-    }
-    else
-    {
-      --CreatedDsnCount;
-      CreatedDSN[i][0]= 0;
     }
   }
 
-  return OK;
+  return ret;
 }
 
 /****************************** Tests ********************************/
@@ -167,31 +173,37 @@ ODBC_TEST(connstring_test)
 
 ODBC_TEST(options_test)
 {
+  const char LocalDSName[]= "madb_connstr_options_test";
+  char LocalConnStr[sizeof(LocalDSName)+7];
   char connstr4dsn[512];
-  unsigned int bit= 0;
-
-  FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
+  unsigned int bit= 0, i= 0;
 
   while(1)
   {
-    _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;OPTIONS=%u", DsnConnStr, bit);
+    ++i;
+    /* We need new DSN each time, otherwise buggy UnixODBC ini caching will return us wrong data
+       (Seems like that will be fixed in 2.3.5) */
+    _snprintf(LocalConnStr, sizeof(LocalConnStr), "DSN=%s%u", LocalDSName, i);
+    _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;DRIVER=%s;OPTIONS=%u", LocalConnStr, my_drivername, bit);
 
+    diag("%s:::%s", LocalConnStr, connstr4dsn);
     IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
     VERIFY_OPTIONS(Dsn, bit);
 
-    IS(MADB_SaveDSN(Dsn));
-    IS(MADB_DSN_Exists(DsnName));
+    IS(CreateTestDsn(Dsn));
 
     RESET_DSN(Dsn);
 
-    IS(MADB_ReadDSN(Dsn, DsnConnStr, TRUE));
+    IS(MADB_ReadDSN(Dsn, LocalConnStr, TRUE));
 
     VERIFY_OPTIONS(Dsn, bit);
 
     if (bit == 0x80000000)
       break;
     bit= bit != 0 ? bit << 1 : 1;
+
+    FAIL_IF(PopDSN(), "Could not remove DSN");
   }
 
   return OK;
@@ -287,6 +299,8 @@ ODBC_TEST(all_other_fields_test)
 
 ODBC_TEST(aliases_tests)
 {
+  const char *LocalDSName=  "madb_connstr_aliases_test";
+  const char *LocalConnStr= "DSN=madb_connstr_aliases_test";
   char connstr4dsn[512];
   unsigned int options= 0xf0f0f0f0;
   unsigned int option= ~options;
@@ -295,14 +309,14 @@ ODBC_TEST(aliases_tests)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DATABASE=%s;OPTIONS=%u", DsnName,
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DATABASE=%s;OPTIONS=%u", LocalDSName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, options);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
-  IS(MADB_SaveDSN(Dsn));
+  IS(CreateTestDsn(Dsn));
 
   RESET_DSN(Dsn);
-  IS(MADB_ReadConnString(Dsn, DsnConnStr, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, TRUE));
 
   FAIL_IF(Dsn->UserName == NULL || strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly")
   FAIL_IF(Dsn->Password == NULL || strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly")
@@ -312,7 +326,7 @@ ODBC_TEST(aliases_tests)
   is_num(Dsn->Options,    options);
 
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;USER=user;PASSWORD=password;SERVERNAME=servername;DB=randomdbname;OPTION=%u", DsnName, option);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;USER=user;PASSWORD=password;SERVERNAME=servername;DB=randomdbname;OPTION=%u", LocalDSName, option);
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
 
@@ -322,38 +336,44 @@ ODBC_TEST(aliases_tests)
   IS_STR(Dsn->Catalog,    "randomdbname", sizeof("randomdbname"));
   is_num(Dsn->Options,    option);
 
+  FAIL_IF(PopDSN(), "Could not remove DSN");
+
   return OK;
 }
 
 
 ODBC_TEST(dependent_fields)
 {
+  const char *LocalDSName=  "madb_connstr_dependent_fields";
+  const char *LocalConnStr= "DSN=madb_connstr_dependent_fields";
   char connstr4dsn[512];
 
   FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DB=%s;OPTIONS=%u;TCPIP=1", DsnName,
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DB=%s;OPTIONS=%u;TCPIP=1", LocalDSName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, MADB_OPT_FLAG_NAMED_PIPE);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
-  IS(MADB_SaveDSN(Dsn));
+  IS(CreateTestDsn(Dsn));
 
   RESET_DSN(Dsn);
-  IS(MADB_ReadConnString(Dsn, DsnConnStr, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, TRUE));
 
   is_num(Dsn->IsTcpIp,     1);
   is_num(Dsn->IsNamedPipe, 0);
   is_num(Dsn->Options,     0);
 
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;NamedPipe=1", DsnName);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;NamedPipe=1", LocalDSName);
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
   is_num(Dsn->IsTcpIp,     0);
   is_num(Dsn->IsNamedPipe, 1);
   is_num(Dsn->Options,     MADB_OPT_FLAG_NAMED_PIPE);
+
+  FAIL_IF(PopDSN(), "Could not remove DSN");
 
   return OK;
 }
