@@ -81,6 +81,7 @@ ODBC_TEST(simple_test)
   SQLGetData(Stmt, 2, SQL_CHAR, buffer, 20, NULL);
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "Eof expected");
 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMTW(Stmt, CW("DROP TABLE IF EXISTS smpltest"));
   OK_SIMPLE_STMTW(Stmt, CW("CREATE TABLE smpltest (a int, b varchar(25))"));

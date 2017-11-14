@@ -211,6 +211,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(9 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH ONLY FK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -221,6 +223,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey1", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(0 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH ONLY FK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -233,6 +237,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(15 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH ONLY FK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -243,6 +249,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey2", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(3 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH ONLY PK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -255,6 +263,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(11 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH ONLY PK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -265,6 +275,8 @@ ODBC_TEST(my_foreign_keys)
                         NULL, SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(0 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH ONLY PK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -277,6 +289,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(2 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH ONLY PK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -287,6 +301,8 @@ ODBC_TEST(my_foreign_keys)
                         NULL, SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(9 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH ONLY FK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -299,6 +315,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(4 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH BOTH PK and FK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -309,6 +327,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey3", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(3 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH BOTH PK and FK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -321,6 +341,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(11 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH BOTH PK and FK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -331,6 +353,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey2", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(3 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH BOTH PK and FK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -343,6 +367,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(0 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH BOTH PK and FK OPTION");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -353,6 +379,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey1", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(0 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH BOTH PK and FK OPTION");
     rc = SQLForeignKeys(Stmt,
@@ -365,6 +393,8 @@ ODBC_TEST(my_foreign_keys)
     CHECK_STMT_RC(Stmt,rc);
     IS(0 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
     diag("\n WITH ACTUAL LENGTH INSTEAD OF SQL_NTS");
     rc = SQLForeignKeys(Stmt,
                         dbc, SQL_NTS,
@@ -375,7 +405,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey2",10);
     CHECK_STMT_RC(Stmt,rc);
     IS(3 == myrowcount(Stmt));
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH NON-EXISTANT TABLES");
     rc = SQLForeignKeys(Stmt,
@@ -387,7 +418,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey_junk", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(0 == myrowcount(Stmt));
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     diag("\n WITH COMMENT FIELD");
     rc = SQLForeignKeys(Stmt,
@@ -399,6 +431,8 @@ ODBC_TEST(my_foreign_keys)
                         (SQLCHAR *)"test_fkey_comment_f", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
     IS(1 == myrowcount(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     {
         char buff[255];
