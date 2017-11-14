@@ -257,6 +257,7 @@ ODBC_TEST(my_param_delete)
 
     IS(8 == myrowcount(Stmt));
 
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
     /* drop the table */
     OK_SIMPLE_STMT(Stmt,"DROP TABLE my_demo_param");
 

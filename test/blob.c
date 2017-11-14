@@ -893,6 +893,8 @@ ODBC_TEST(t_odbc_26)
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug_odbc26");
 
   return OK;
@@ -934,6 +936,8 @@ ODBC_TEST(t_blob_reading_in_chunks)
   }
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS blob_reading");
 

@@ -266,31 +266,57 @@ ODBC_TEST(t_bug50195)
   SQLCHAR     priv[12];
   SQLLEN      len;
 
-  (void)SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@127.0.0.1", SQL_NTS);
-  (void)SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@localhost", SQL_NTS);
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
-  OK_SIMPLE_STMT(Stmt, "grant all on *.* to bug50195@127.0.0.1 IDENTIFIED BY 'a'");
-  OK_SIMPLE_STMT(Stmt, "grant all on *.* to bug50195@localhost IDENTIFIED BY 'a'");
+  if (Travis)
+  {
+    diag("Test is run in Travis");
+    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@'%'", SQL_NTS);
+    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@'%' IDENTIFIED BY 'a'");
 
-  OK_SIMPLE_STMT(Stmt, "revoke select on *.* from bug50195@127.0.0.1");
-  OK_SIMPLE_STMT(Stmt, "revoke select on *.* from bug50195@localhost");
+    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'%'");
+    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@'%'");
+  }
+  else
+  {
+    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@127.0.0.1", SQL_NTS);
+    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@localhost", SQL_NTS);
 
-  /* revoking "global" select is enough, but revoking smth from mysql.tables_priv
-     to have not empty result of SQLTablePrivileges */
-  OK_SIMPLE_STMT(Stmt, "grant all on mysql.tables_priv to bug50195@127.0.0.1");
-  OK_SIMPLE_STMT(Stmt, "grant all on mysql.tables_priv to bug50195@localhost");
-  OK_SIMPLE_STMT(Stmt, "revoke select on mysql.tables_priv from bug50195@127.0.0.1");
-  OK_SIMPLE_STMT(Stmt, "revoke select on mysql.tables_priv from bug50195@localhost");
+    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@127.0.0.1 IDENTIFIED BY 'a'");
+    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@localhost IDENTIFIED BY 'a'");
+
+    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'127.0.0.1'");
+    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'localhost'");
+
+    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@127.0.0.1");
+    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@localhost");
+  }
 
   OK_SIMPLE_STMT(Stmt, "FLUSH PRIVILEGES");
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLConnect(hdbc1, my_dsn, SQL_NTS, "bug50195", SQL_NTS, "a", SQL_NTS));
+  hstmt1= DoConnect(hdbc1, my_dsn, "bug50195", "a",  0, NULL, NULL, NULL, NULL);
 
-  CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
+  if (hstmt1 == NULL)
+  {
+    diag("Couldn't connect with new user of allocate the stmt");
 
-  CHECK_STMT_RC(hstmt1, SQLTablePrivileges(hstmt1, "mysql", SQL_NTS, 0, 0, "tables_priv", SQL_NTS));
+    if (Travis)
+    {
+      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@'%'");
+    }
+    else
+    {
+      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
+      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+    }
+    
+    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
+  }
+
+  CHECK_STMT_RC(hstmt1, SQLTablePrivileges(hstmt1, NULL, 0, 0, 0, "bug50195", SQL_NTS));
 
   /* Testing SQLTablePrivileges a bit, as we don't have separate test of it */
 
@@ -307,9 +333,18 @@ ODBC_TEST(t_bug50195)
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
-  OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
-  OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+  if (Travis)
+  {
+    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@'%'");
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
+    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+  }
   
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
+
   return OK;
 }
 

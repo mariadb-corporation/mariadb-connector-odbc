@@ -136,6 +136,8 @@ SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 unsigned int  my_port=        3306;
 char          ma_strport[12]= ";PORT=3306";
 
+int Travis= 0;
+
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
@@ -619,7 +621,7 @@ int AllocEnvConn(SQLHANDLE *Env, SQLHANDLE *Connection)
 
 
 /* Returns STMT handle for newly created connection, or NULL if connection is unsuccessful */
-SQLHANDLE DoConnect(SQLHANDLE *Connection,
+SQLHANDLE DoConnect(SQLHANDLE Connection,
                     const char *dsn, const char *uid, const char *pwd, unsigned int port, const char *schema, unsigned long *options, const char *server,
                     const char *add_parameters)
 {
@@ -638,13 +640,13 @@ SQLHANDLE DoConnect(SQLHANDLE *Connection,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
   
-  if(!SQL_SUCCEEDED(SQLDriverConnect(*Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
+  if(!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
   {
-    odbc_print_error(SQL_HANDLE_DBC, *Connection);
+    odbc_print_error(SQL_HANDLE_DBC, Connection);
     return NULL;
   }
 
-  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &stmt)))
+  if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Connection, &stmt)))
   {
     diag("Could not create Stmt handle. Connection: %x", Connection);
     return NULL;
@@ -664,7 +666,7 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 
   IS(AllocEnvConn(Env, Connection));
 
-  *Stmt= DoConnect(Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
+  *Stmt= DoConnect(*Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
   if (Stmt == NULL)
   {
@@ -711,7 +713,7 @@ SQLHANDLE ConnectWithCharset(SQLHANDLE *conn, const char *charset_name, const ch
 
   _snprintf(charset_clause, sizeof(charset_clause), "CHARSET=%s;%s", charset_name, add_parameters ? add_parameters : "");
 
-  return DoConnect(conn, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
+  return DoConnect(*conn, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
 }
 
 
@@ -794,6 +796,11 @@ int run_tests(MA_ODBC_TESTS *tests)
   wservername= str2sqlwchar_on_gbuff(my_servername, strlen(my_servername) + 1, utf8, utf16);
   wdrivername= str2sqlwchar_on_gbuff(my_drivername, strlen(my_drivername) + 1, utf8, utf16);
   wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, utf16);
+
+  if (getenv("TRAVIS") != NULL)
+  {
+    Travis= 1;
+  }
 
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {

@@ -988,6 +988,8 @@ ODBC_TEST(t_odbc41)
   /* Testing without SQLFreeStmt(Stmt, SQL_CLOSE). If it works - will work with it as well */
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc41 (id INT PRIMARY KEY auto_increment)");
 
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols_count));

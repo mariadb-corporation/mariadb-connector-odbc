@@ -435,6 +435,8 @@ ODBC_TEST(t_odbc90)
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)!=SQL_NO_DATA_FOUND, "SQL_NO_DATA_FOUND expected");
 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
   /* odbc 2. Not sure if it's really needed internaly one call is mapped to another as well. But won't hurt. */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc90");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id int not null primary key auto_increment, \
