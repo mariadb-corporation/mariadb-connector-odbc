@@ -269,7 +269,7 @@ ODBC_TEST(t_bug50195)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
-  if (Travis)
+  if (Travis != 0)
   {
     diag("Test is run in Travis");
     SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@'%'", SQL_NTS);
@@ -312,8 +312,9 @@ ODBC_TEST(t_bug50195)
       OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
       OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
     }
-    
     OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
+
+    return FAIL;
   }
 
   CHECK_STMT_RC(hstmt1, SQLTablePrivileges(hstmt1, NULL, 0, 0, 0, "bug50195", SQL_NTS));

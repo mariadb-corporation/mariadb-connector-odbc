@@ -230,7 +230,7 @@ ODBC_TEST(t_odbc74)
   OK_SIMPLE_STMT(Stmt, "TRUNCATE TABLE odbc74");
 
   AllocEnvConn(&Env, &hdbc1);
-  Stmt1= DoConnect(&hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  Stmt1= DoConnect(hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
   OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='NO_BACKSLASH_ESCAPES'");
