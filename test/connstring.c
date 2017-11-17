@@ -440,6 +440,11 @@ int main(int argc, char **argv)
 {
   int ret, tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
 
+  if (Travis)
+  {
+    diag("Skipping this testsuite in Travis");
+    return 0;
+  }
   get_options(argc, argv);
   plan(tests);
 

@@ -3089,23 +3089,25 @@ SQLRETURN SQL_API SQLTablePrivilegesW(SQLHSTMT StatementHandle,
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
   char *CpCatalog= NULL,
-       *CpSchema= NULL,
        *CpTable= NULL;
-  SQLULEN CpLength1, CpLength2, CpLength3;
+  SQLULEN CpLength1= 0, CpLength3= 0;
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, &Stmt->Connection->charset, NULL);
-  CpSchema= MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, &Stmt->Connection->charset, NULL);
-  CpTable= MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, &Stmt->Connection->charset, NULL);
+  if (CatalogName != NULL)
+  {
+    CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, &Stmt->Connection->charset, NULL);
+  }  
+  if (TableName != NULL)
+  {
+    CpTable=   MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, &Stmt->Connection->charset, NULL);
+  }
 
-  ret= Stmt->Methods->TablePrivileges(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, (SQLSMALLINT)CpLength2,
-                                      CpTable, (SQLSMALLINT)CpLength3);
+  ret= Stmt->Methods->TablePrivileges(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, NULL, 0, CpTable, (SQLSMALLINT)CpLength3);
 
   MADB_FREE(CpCatalog);
-  MADB_FREE(CpSchema);
   MADB_FREE(CpTable);
   return ret;
 }

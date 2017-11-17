@@ -772,7 +772,7 @@ ODBC_TEST(t_sqltables)
   }
 
   AllocEnvConn(&Env, &hdbc1);
-  Stmt1= DoConnect(&hdbc1, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
+  Stmt1= DoConnect(hdbc1, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "");
 
   OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t1 (a int)");
