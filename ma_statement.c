@@ -4113,15 +4113,23 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
   Stmt->LastRowFetched= LastRowFetched;
   Stmt->AffectedRows=   AffectedRows;
 
-  MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
-  if (SQL_SUCCEEDED(ret))
+  if (Stmt->Cursor.Position > 0)
   {
-    /* We need to prevent that bound variables will be overwritten
-       by fetching data again: For subsequent GetData we need to update
-       bind->row_ptr */
-    Stmt->Methods->RefreshRowPtrs(Stmt);
+    /* Looks likt this is not needed altogether. Leaving it commented out, so far */
+    /*MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+    if (SQL_SUCCEEDED(ret))
+    {*/
+      /* We need to prevent that bound variables will be overwritten
+          by fetching data again: For subsequent GetData we need to update
+          bind->row_ptr */
+      /*Stmt->Methods->RefreshRowPtrs(Stmt);
  
-    MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+      MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+    }*/
+  }
+  else
+  {
+    Stmt->Cursor.Position= 0;
   }
   return ret;
 }
@@ -4492,7 +4500,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
                                SQLLEN FetchOffset)
 {
-  SQLRETURN ret;
+  SQLRETURN ret= SQL_SUCCESS;
   SQLLEN    Position;
   SQLLEN    RowsProcessed;
 
@@ -4587,10 +4595,20 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   }
   if (Position < 0 || (my_ulonglong)Position > mysql_stmt_num_rows(Stmt->stmt) - 1)
   {
+    /* We need to put cursor before RS start, not only return error */
+    if (Position < 0)
+    {
+      MADB_StmtDataSeek(Stmt, 0);
+    }
     return SQL_NO_DATA;
   }
+
+  if (FetchOrientation != SQL_FETCH_NEXT || RowsProcessed > 1 || Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
+  {
+    ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+  }
   
-  ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+  /* Assuming, that ret before previous "if" was SQL_SUCCESS */
   if (ret == SQL_SUCCESS)
   {
     ret= Stmt->Methods->Fetch(Stmt);
