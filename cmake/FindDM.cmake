@@ -82,9 +82,20 @@ ELSE()
       DOC "Driver Manager Libraries")
   FIND_PATH(ODBC_LIB_DIR libodbc.so
       DOC "Driver Manager Libraries")
+  FIND_PATH(ODBCINST_LIB_DIR libodbcinst.so
+      HINTS ${DM_LIB_DIR}
+            ${DM_DIR}
+            ENV DM_LIB_DIR
+            ENV DM_DIR
+      PATHS ${LIB_PATHS}
+      PATH_SUFFIXES ${LIB_SUFFIX} 
+      NO_DEFAULT_PATH
+      DOC "Driver Manager Libraries")
+  FIND_PATH(ODBCINST_LIB_DIR libodbcinst.so
+      DOC "Driver Manager Libraries")
 ENDIF()
 
 IF(ODBC_LIB_DIR AND ODBC_INCLUDE_DIR)
-  MESSAGE(STATUS "Found ODBC Driver Manager libraries: ${ODBC_LIB_DIR}")
+  MESSAGE(STATUS "Found ODBC Driver Manager libraries: ${ODBC_LIB_DIR} ${ODBC_LIB_DIR}")
   SET(DM_FOUND TRUE)
 ENDIF()

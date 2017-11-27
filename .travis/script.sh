@@ -76,7 +76,9 @@ cmake --build . --config RelWithDebInfo
 echo "Running tests"
 
 cd test
-export ODBCINI=./odbc.ini
-export ODBCSYSINI=./
+
+export ODBCINI="$PWD/odbc.ini"
+export ODBCSYSINI=$PWD
 
 ctest -V
+
