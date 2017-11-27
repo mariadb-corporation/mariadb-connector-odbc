@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2016 MariaDB Corporation AB
+                2017 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -106,7 +106,7 @@ ODBC_TEST(t_bug34272)
 ODBC_TEST(t_bug49660)
 {
   SQLLEN rowsCount;
-  
+
   OK_SIMPLE_STMT(Stmt, "drop database if exists bug49660");
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660");
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660_r");

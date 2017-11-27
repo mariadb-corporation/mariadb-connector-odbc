@@ -80,9 +80,6 @@ cd test
 export ODBCINI="$PWD/odbc.ini"
 export ODBCSYSINI=$PWD
 
-export MAODBCTESTS_IN_TRAVIS=1
-
-#Just to know our env
-export
 
 ctest -V
+

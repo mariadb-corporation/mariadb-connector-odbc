@@ -134,7 +134,7 @@ ODBC_TEST(connstring_test)
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
   IS_STR(Dsn->Description, Description, strlen(Description) + 1);
 
-  CreateTestDsn(Dsn);
+  FAIL_IF(CreateTestDsn(Dsn) == FAIL, "Failed to create test DSN");
   IS(MADB_DSN_Exists(DsnName));
 
   RESET_DSN(Dsn);
@@ -145,8 +145,19 @@ ODBC_TEST(connstring_test)
   is_num(Dsn->Port, my_port);
   IS_STR(Dsn->Description, Description, sizeof(Description));
   IS_STR(Dsn->Driver, my_drivername, strlen(my_drivername) + 1);
-  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly")
-  FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly")
+
+  FAIL_IF(Dsn->UserName == NULL, "User Name should not be NULL");
+  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly");
+ 
+  if (Dsn->Password == NULL)
+  { 
+    FAIL_IF(my_pwd != NULL && *my_pwd != '\0', "Password shouldn't be NULL");
+  }
+  else
+  {
+    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+  }
+
   IS_STR(Dsn->ServerName, my_servername, strlen(my_servername) + 1);
 
   /* Checking that value in the connection string prevails over value in the dsn */
@@ -225,6 +236,13 @@ ODBC_TEST(all_other_fields_test)
   char connstr4dsn[512], *opt_value, IntValue[20], *BoolValue= "1";
   int i= 5; /* After Options. Assuming that fields before Options are tested in other test(s) */
 
+  if (Travis)
+  {
+    /* As already said - ini cache is buggy in UnixODBC, and it fails with UnixODBC version we have availabe in Travis tests.
+       It's possible to change the test to pass in similar way as we did in some other tests - by either writing and reading
+       the (new) DSN only once, or by creating new DSN for each keyword. */
+    skip("Skipping with test in Travis")
+  }
   FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
 
   while(DsnKeys[i].DsnKey != NULL)
@@ -319,7 +337,15 @@ ODBC_TEST(aliases_tests)
   IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, TRUE));
 
   FAIL_IF(Dsn->UserName == NULL || strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly")
-  FAIL_IF(Dsn->Password == NULL || strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly")
+
+  if (Dsn->Password == NULL)
+  { 
+    FAIL_IF(my_pwd != NULL && *my_pwd != '\0', "Password shouldn't be NULL");
+  }
+  else
+  {
+    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+  }
 
   IS_STR(Dsn->ServerName, my_servername, strlen(my_servername) + 1);
   IS_STR(Dsn->Catalog,    my_schema,     strlen(my_schema) + 1);
@@ -440,14 +466,8 @@ int main(int argc, char **argv)
 {
   int ret, tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
 
-  if (Travis)
-  {
-    diag("Skipping this testsuite in Travis");
-    return 0;
-  }
   get_options(argc, argv);
   plan(tests);
-
   Dsn= MADB_DSN_Init();
   Dsn->FreeMe= FALSE; /* Let tests only reset dsn struct, but do not free it */
 

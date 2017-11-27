@@ -111,36 +111,36 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 /* We need mysql for MARIADB_CHARSET_INFO type and conversion routine */
 #include <mysql.h>
 
-SQLCHAR *my_dsn=        (SQLCHAR *)"test";
-SQLCHAR *my_uid=        (SQLCHAR *)"root";
-SQLCHAR *my_pwd=        (SQLCHAR *)"";
-SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
-SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 2.0";
-SQLCHAR *my_servername= (SQLCHAR *)"localhost";
+static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
+static SQLCHAR *my_uid=        (SQLCHAR *)"root";
+static SQLCHAR *my_pwd=        (SQLCHAR *)"";
+static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
+static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 2.0";
+static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 
-SQLWCHAR *wdsn;
-SQLWCHAR *wuid;
-SQLWCHAR *wpwd;
-SQLWCHAR *wschema;
-SQLWCHAR *wdrivername;
-SQLWCHAR *wservername;
-SQLWCHAR *wstrport;
+static SQLWCHAR *wdsn;
+static SQLWCHAR *wuid;
+static SQLWCHAR *wpwd;
+static SQLWCHAR *wschema;
+static SQLWCHAR *wdrivername;
+static SQLWCHAR *wservername;
+static SQLWCHAR *wstrport;
 
-unsigned long my_options= 67108866;
+static unsigned long my_options= 67108866;
 
-SQLHANDLE     Env, Connection, Stmt;
-SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
+static SQLHANDLE     Env, Connection, Stmt;
+static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 
-unsigned int  my_port=        3306;
+static unsigned int  my_port=        3306;
 char          ma_strport[12]= ";PORT=3306";
 
-int Travis= 0;
+static int Travis= 0;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
 
-MARIADB_CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
+static MARIADB_CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -801,11 +801,10 @@ int run_tests(MA_ODBC_TESTS *tests)
   wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, utf16);
 
   /* MAODBCTESTS_IN_TRAVIS is exported by our travis script. TRAVIS and TRAVIS_JOB_ID did not work */
-  if (getenv("MAODBCTESTS_IN_TRAVIS") != NULL)
+  if (getenv("TRAVIS") != NULL)
   {
     Travis= 1;
   }
-
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
     odbc_print_error(SQL_HANDLE_DBC, Connection); 
