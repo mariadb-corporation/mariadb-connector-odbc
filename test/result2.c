@@ -1056,7 +1056,7 @@ ODBC_TEST(t_odbc77)
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (ServerNewerThan(Connection, 10, 2, 5))
+  if (ServerNotOlderThan(Connection, 10, 2, 5))
   {
     OK_SIMPLE_STMT(Stmt, "ANALYZE SELECT 1");
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
