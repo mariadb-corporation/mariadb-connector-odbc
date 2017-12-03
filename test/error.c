@@ -615,6 +615,10 @@ ODBC_TEST(t_odbc94)
   SQLINTEGER  error;
   SQLSMALLINT len;
 
+  if (ServerNotOlderThan(Connection, 5, 7, 0) == FALSE)
+  {
+    skip("The test doesn't make sense in pre-10.0 servers, as the target query won't cause in 5.5(or pre-MySQL-5.7 the error it tests");
+  }
   sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s%s;",
     my_drivername, my_servername, my_uid, my_pwd, my_schema, ma_strport);
 
