@@ -798,7 +798,7 @@ int run_tests(MA_ODBC_TESTS *tests)
   wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, utf16);
 
   /* MAODBCTESTS_IN_TRAVIS is exported by our travis script. TRAVIS and TRAVIS_JOB_ID did not work */
-  if (getenv("MAODBCTESTS_IN_TRAVIS") != NULL)
+  if (getenv("TRAVIS") != NULL)
   {
     Travis= 1;
   }

@@ -2971,7 +2971,7 @@ int t_cursor_pos(SQLHANDLE Stmt)
   OK_SIMPLE_STMT(Stmt, "create table t_cursor_pos (x int not null, "
                 "y int, primary key (x))");
   OK_SIMPLE_STMT(Stmt, "insert into t_cursor_pos values (0,0),(1,1),"
-                "(2,2),(3,3),(4,4),  (5,5),(6,6),(7,7),  (8,8)");
+                "(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)");
 
   OK_SIMPLE_STMT(Stmt, "select x,y from t_cursor_pos order by 1");
 

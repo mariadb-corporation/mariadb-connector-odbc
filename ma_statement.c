@@ -4406,7 +4406,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         MADB_SETPOS_AGG_RESULT(result, Stmt->DaeStmt->Error.ReturnValue);
 
         Stmt->DaeRowNumber++;
-        Start++;
+        ++Start;
       }                                 /* End of while (Start <= End) */
 
       Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
@@ -4473,7 +4473,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         }
         dynstr_free(&DynamicStmt);
         Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
-        Start++;
+        ++Start;
       }
       UNLOCK_MARIADB(Stmt->Connection);
 
@@ -4603,7 +4603,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
     return SQL_NO_DATA;
   }
 
-  if (FetchOrientation != SQL_FETCH_NEXT || RowsProcessed > 1 || Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
+  if (FetchOrientation != SQL_FETCH_NEXT || RowsProcessed > 1 || Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
   {
     ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
   }
