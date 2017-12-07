@@ -10,6 +10,15 @@ mysql=( mysql --protocol=tcp -ubob -h127.0.0.1 --port=3305 )
 export COMPOSE_FILE=.travis/docker-compose.yml
 
 
+if [ -n "$MAXSCALE_VERSION" ]
+then
+  mysql=( mysql --protocol=tcp -ubob -h127.0.0.1 --port=4007 )
+  export COMPOSE_FILE=.travis/maxscale-compose.yml
+  export TEST_PORT=4007
+else
+  export TEST_PORT=3305
+fi
+
 
 ###################################################################################################################
 # launch docker server and maxscale
@@ -61,7 +70,6 @@ rm build -rf
 #build odbc connector
 export TEST_DRIVER=maodbc_test
 export TEST_DSN=maodbc_test
-export TEST_PORT=3305
 export TEST_SERVER=mariadb.example.com
 export TEST_SOCKET=
 export TEST_SCHEMA=odbc_test
