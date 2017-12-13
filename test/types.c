@@ -1151,6 +1151,61 @@ ODBC_TEST(t_bug29402)
 }
 
 
+/*
+   Test that SQL_C_NUMERIC returns scale correctly when it is
+   different to the requested scale.
+ */ 
+ODBC_TEST(t_sqlnum_truncate)
+{
+  SQLHANDLE ard;
+  SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQLCHAR exp_data[SQL_MAX_NUMERIC_LEN]=
+          {0x7c, 0x62, 0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+  sqlnum->sign= sqlnum->precision= sqlnum->scale= 128;
+
+  OK_SIMPLE_STMT(Stmt, "select 25.212");
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_TYPE,
+                               (SQLPOINTER) SQL_C_NUMERIC, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
+                               (SQLPOINTER) 6, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
+                               sqlnum, SQL_IS_POINTER));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+
+  is_num(sqlnum->sign, 1);
+  is_num(sqlnum->precision, 38);
+  is_num(sqlnum->scale, 3);
+  IS(!memcmp(sqlnum->val, exp_data, SQL_MAX_NUMERIC_LEN));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "select 25.212000");
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_TYPE,
+                               (SQLPOINTER) SQL_C_NUMERIC, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
+                               (SQLPOINTER) 6, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
+                               sqlnum, SQL_IS_POINTER));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+
+  is_num(sqlnum->sign, 1);
+  is_num(sqlnum->precision, 38);
+  is_num(sqlnum->scale, 3);
+  IS(!memcmp(sqlnum->val, exp_data, SQL_MAX_NUMERIC_LEN));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  free(sqlnum);
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_longlong1,        "t_longlong1",       NORMAL},
@@ -1173,6 +1228,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_sqlnum_to_str,    "t_sqlnum_to_str",   NORMAL},
   {t_bug31220,         "t_bug31220",        NORMAL},
   {t_bug29402,         "t_bug29402",        NORMAL},
+  {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
   {NULL, NULL, NORMAL}
 };
 

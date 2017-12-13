@@ -1035,7 +1035,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       
       memcpy(digits + digits_count, dot + 1, digits_significant);
       digits_count+= digits_significant;
-
+      number->scale= digits_significant;
     } else 
     {
       char *start= p;
