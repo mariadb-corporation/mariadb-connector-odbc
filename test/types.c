@@ -960,6 +960,54 @@ ODBC_TEST(t_bindsqlnum_basic)
 }
 
 
+/*
+   Test of binding a SQL_NUMERIC_STRUCT as a query parameter
+   with more precision than is really needed
+*/
+ODBC_TEST(t_bindsqlnum_wide)
+{
+  SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQLCHAR outstr[20];
+  memset(sqlnum, 0, sizeof(SQL_NUMERIC_STRUCT));
+
+  sqlnum->sign= 1;
+  sqlnum->scale= 3;
+  sqlnum->val[0]= 0x7c;
+  sqlnum->val[1]= 0x62;
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select ?", SQL_NTS));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC,
+                                  SQL_DECIMAL, 15, 3,
+                                  sqlnum, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLExecute(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outstr, 20, NULL));
+  IS_STR(outstr, "25.212", 6);
+  is_num(sqlnum->sign, 1);
+  is_num(sqlnum->precision, 15);
+  is_num(sqlnum->scale, 3);
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  sqlnum->sign= 0;
+  sqlnum->scale= 3;
+  sqlnum->val[0]= 0x7c;
+  sqlnum->val[1]= 0x62;
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLExecute(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outstr, 20, NULL));
+  IS_STR(outstr, "-25.212", 6);
+  is_num(sqlnum->sign, 0);
+  is_num(sqlnum->precision, 15);
+  is_num(sqlnum->scale, 3);
+
+  return OK;
+}
+
+
 /**
   Internal function to test sending a SQL_NUMERIC_STRUCT value.
 
@@ -1225,6 +1273,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_sqlnum_msdn,      "t_sqlnum_msdn",     NORMAL},
   {t_sqlnum_from_str,  "t_sqlnum_from_str", NORMAL},
   {t_bindsqlnum_basic, "t_bindsqlnum_basic",NORMAL},
+  {t_bindsqlnum_wide,  "t_bindsqlnum_wide", NORMAL},
   {t_sqlnum_to_str,    "t_sqlnum_to_str",   NORMAL},
   {t_bug31220,         "t_bug31220",        NORMAL},
   {t_bug29402,         "t_bug29402",        NORMAL},

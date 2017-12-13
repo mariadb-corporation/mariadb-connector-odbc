@@ -98,7 +98,7 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
   if (Numeric->scale > 0)
   {
     char tmp[38];
-    _snprintf(tmp, 38, "%%%d.%df", Numeric->precision, Numeric->scale);
+    _snprintf(tmp, 38, "%%.%df", Numeric->scale);
     _snprintf(Buffer, 38, tmp, Numerator / pow(10, Scale));
   }
   else
