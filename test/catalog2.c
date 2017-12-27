@@ -1138,7 +1138,7 @@ ODBC_TEST(odbc51)
   /* Making sure there is at least one table with empty remarks */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS aaa_odbc51");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE aaa_odbc51 (a int not null)");
-  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR *)my_schema, strlen(my_schema), NULL, 0, NULL, 0, NULL, 0));
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR *)my_schema, (SQLSMALLINT)strlen(my_schema), NULL, 0, NULL, 0, NULL, 0));
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_WCHAR, remark, sizeof(remark), &len));
 

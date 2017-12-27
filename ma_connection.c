@@ -1333,7 +1333,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     {
       size_t max_packet_size;
       mariadb_get_infov(Dbc->mariadb, MARIADB_MAX_ALLOWED_PACKET, &max_packet_size);
-      MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, max_packet_size, StringLengthPtr);
+      MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, (SQLUINTEGER)max_packet_size, StringLengthPtr);
     }
     break;
   case SQL_MAX_TABLE_NAME_LEN:

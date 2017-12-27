@@ -459,7 +459,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
   LOCK_MARIADB(Stmt->Connection);
   MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt, Stmt->StmtString);
-  if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, strlen(Stmt->StmtString)))
+  if (mysql_stmt_prepare(Stmt->stmt, Stmt->StmtString, (unsigned long)strlen(Stmt->StmtString)))
   {
     /* Need to save error first */
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
@@ -998,7 +998,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   unsigned int ParamOffset=   0; /* for multi statements */
   unsigned int Iterations=    1,
     /* Will use it for STMT_ATTR_ARRAY_SIZE and as indicator if we are deploying MariaDB bulk insert feature */
-    MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? Stmt->Apd->Header.ArraySize : 0;
+    MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? (unsigned int)Stmt->Apd->Header.ArraySize : 0;
   SQLULEN      j, Start=      0;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
@@ -1077,7 +1077,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       {
         /* Doing just the same thing as we would do in general case */
         MADB_CleanBulkOperData(Stmt, ParamOffset);
-        ErrorCount= Stmt->Apd->Header.ArraySize;
+        ErrorCount= (unsigned int)Stmt->Apd->Header.ArraySize;
         MADB_SetStatusArray(Stmt, SQL_PARAM_DIAG_UNAVAILABLE);
         goto end;
       }
@@ -1087,7 +1087,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       }
       /* Suboptimal, but more reliable and simple */
       MADB_CleanBulkOperData(Stmt, ParamOffset);
-      Stmt->ArrayOffset+= Stmt->Apd->Header.ArraySize;
+      Stmt->ArrayOffset+= (int)Stmt->Apd->Header.ArraySize;
       if (Stmt->Ipd->Header.RowsProcessedPtr)
       {
         *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + Stmt->Apd->Header.ArraySize;
@@ -1851,7 +1851,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
   }
 
-  if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType != SQL_C_VARBOOKMARK) ||
+  if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType == SQL_C_BOOKMARK) ||
       (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && Stmt->Options.BookmarkType == SQL_C_VARBOOKMARK))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
@@ -1930,7 +1930,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     /************************ Bind! ********************************/  
     mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
 
-    if (Stmt->Options.UseBookmarks)
+    if (Stmt->Options.UseBookmarks && Stmt->Options.BookmarkPtr != NULL)
     {
       /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
       long *p= (long *)Stmt->Options.BookmarkPtr;
@@ -2059,7 +2059,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= Stmt->Apd->Header.BindOffsetPtr;
     break;
   case SQL_ATTR_PARAM_BIND_TYPE:
-    *(SQLINTEGER *)ValuePtr= Stmt->Apd->Header.BindType;
+    *(SQLULEN *)ValuePtr= Stmt->Apd->Header.BindType;
     break;
   case SQL_ATTR_PARAM_OPERATION_PTR:
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Apd->Header.ArrayStatusPtr;
@@ -2084,7 +2084,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ard->Header.BindOffsetPtr;
     break;
   case SQL_ATTR_ROW_BIND_TYPE:
-    *(SQLINTEGER *)ValuePtr= Stmt->Ard->Header.BindType;
+    *(SQLULEN *)ValuePtr= Stmt->Ard->Header.BindType;
     break;
   case SQL_ATTR_ROW_OPERATION_PTR:
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ard->Header.ArrayStatusPtr;
@@ -2667,7 +2667,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
           if (!Stmt->CharOffset[Offset])
           {
-            Stmt->Lengths[Offset]= CharLength*sizeof(SQLWCHAR);
+            Stmt->Lengths[Offset]= (unsigned long)(CharLength*sizeof(SQLWCHAR));
           }
         }
       }
@@ -2703,7 +2703,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if (CharLength >= BufferLength / sizeof(SQLWCHAR))
       {
         /* Calculate new offset and substract 1 byte for null termination */
-        Stmt->CharOffset[Offset]+= BufferLength - sizeof(SQLWCHAR);
+        Stmt->CharOffset[Offset]+= (unsigned long)BufferLength - sizeof(SQLWCHAR);
         MADB_FREE(ClientValue);
 
         return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);

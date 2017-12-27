@@ -578,7 +578,7 @@ SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPt
     MaBind->buffer_type=   0;
     MaBind->is_unsigned=   0;
 
-    *LengthPtr= Length;
+    *LengthPtr= (unsigned long)Length;
     MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType,
       &MaBind->is_unsigned, &MaBind->buffer_length);
 

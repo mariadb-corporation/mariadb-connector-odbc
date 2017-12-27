@@ -170,7 +170,7 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
 
     if (VariableLengthMadbType)
     {
-      MaBind->length[row]= MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[row] : NULL, CRec, DataPtr);
+      MaBind->length[row]= (unsigned long)MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[row] : NULL, CRec, DataPtr);
     }
   }
 
@@ -322,7 +322,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
         {
           if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
           {
-            MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], row, SQL_PARAM_IGNORE);
+            MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], (unsigned int)row, SQL_PARAM_IGNORE);
           }
         }       
       }
