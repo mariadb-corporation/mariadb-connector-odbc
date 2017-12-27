@@ -736,7 +736,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)Desc->Header.BindOffsetPtr;
     break;
   case SQL_DESC_BIND_TYPE:
-    *((SQLINTEGER *)ValuePtr)= Desc->Header.BindType;
+    *((SQLULEN *)ValuePtr)= Desc->Header.BindType;
     break;
   case SQL_DESC_COUNT:
     *(SQLSMALLINT *)ValuePtr= Desc->Header.Count;

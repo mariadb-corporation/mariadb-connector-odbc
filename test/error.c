@@ -669,6 +669,18 @@ ODBC_TEST(t_odbc115)
   return OK;
 }
 
+/* ODBC-123 Crash in LibreOffice Base. It sets SQL_ATTR_USE_BOOKMARKS, but does not use them. Connector did not care about such case*/
+ODBC_TEST(t_odbc123)
+{
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_USE_BOOKMARKS, (SQLPOINTER)SQL_UB_VARIABLE, 0));
+  OK_SIMPLE_STMT(Stmt, "SELECT 1");
+  /* We used to return error on this, and then crash */
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -690,6 +702,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug49466, "t_bug49466"},
   {t_odbc94,   "t_odbc94"},
   {t_odbc115, "t_odbc115"},
+  { t_odbc123, "t_odbc123" },
   {NULL, NULL}
 };
 
