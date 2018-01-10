@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,7 +19,9 @@
  #ifndef _ma_result_h_
  #define _ma_result_h_
 
-SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset);
-SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt);
+
+void      MADB_StmtResetResultStructures(MADB_Stmt *Stmt);
+SQLRETURN MADB_StmtDataSeek             (MADB_Stmt *Stmt, my_ulonglong FetchOffset);
+SQLRETURN MADB_StmtMoreResults          (MADB_Stmt *Stmt);
 
  #endif /* _ma_result_h_ */

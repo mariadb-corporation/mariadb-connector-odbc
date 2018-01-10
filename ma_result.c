@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -17,6 +17,21 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
  #include <ma_odbc.h>
+
+
+/* {{{ MADB_StmtResetResultStructures */
+void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
+{
+  Stmt->CharOffset= (unsigned long *)MADB_REALLOC((char *)Stmt->CharOffset,
+    sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+  memset(Stmt->CharOffset, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+  Stmt->Lengths= (unsigned long *)MADB_REALLOC((char *)Stmt->Lengths,
+    sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+  memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+
+  MADB_STMT_RESET_CURSOR(Stmt);
+}
+/* }}} */
 
 /* {{{ MADB_StmtDataSeek */
 SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
@@ -46,11 +61,14 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   if (Stmt->MultiStmts)
   {
     if (Stmt->MultiStmtNr == Stmt->MultiStmtCount - 1)
+    {
       return SQL_NO_DATA;
+    }
 
-    Stmt->MultiStmtNr++;
-    Stmt->stmt= Stmt->MultiStmts[Stmt->MultiStmtNr];
-    Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
+    ++Stmt->MultiStmtNr;
+
+    MADB_InstallStmt(Stmt);
+
     return SQL_SUCCESS;
   }
 
@@ -81,7 +99,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     return SQL_NO_DATA;
   }
 
-  MADB_STMT_RESET_CURSOR(Stmt);
+  MADB_StmtResetResultStructures(Stmt);
 
   MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
 

@@ -308,8 +308,7 @@ struct st_ma_odbc_stmt
   MYSQL_RES                 *metadata;
   LIST                      ListItem;
   MADB_QUERY                *Tokens;
-  SQLINTEGER                ParamCount;
-  my_bool                   isMultiQuery;
+  SQLSMALLINT               ParamCount;
   enum MADB_DaeType         DataExecutionType;
   MYSQL_RES                 *DefaultsResult;
   int                       ArrayOffset;

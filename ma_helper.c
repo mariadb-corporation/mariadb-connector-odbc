@@ -1336,3 +1336,19 @@ BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
   }
   return FALSE;
 }
+
+
+void MADB_InstallStmt(MADB_Stmt *Stmt)
+{
+  Stmt->stmt= Stmt->MultiStmts[Stmt->MultiStmtNr];
+
+  if (mysql_stmt_field_count(Stmt->stmt) == 0)
+  {
+    Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
+  }
+  else
+  {
+    MADB_StmtResetResultStructures(Stmt);
+    MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
+  }
+}

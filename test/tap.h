@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -366,14 +366,15 @@ size_t madbtest_convert_string(CHARSET_INFO *from_cs, const char *from, size_t *
 
 #define MAX_COLUMNS 1000
 
-#define mystmt_rows(hstmt,r, row)  \
+#define mystmt_rows(hstmt, r, row)  \
 	do { \
-	if (!SQL_SUCCEEDED(r)) \
-	  return row; \
+	if (!SQL_SUCCEEDED(r)) {\
+    odbc_print_error(SQL_HANDLE_STMT, (hstmt));\
+	  return row; }\
 	} while (0)
 
 
-int my_print_non_format_result(SQLHSTMT Stmt)
+int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
 {
     SQLRETURN   rc;
     SQLUINTEGER nRowCount=0;
@@ -383,9 +384,9 @@ int my_print_non_format_result(SQLHSTMT Stmt)
     SQLSMALLINT nIndex,ncol= 0,pfSqlType, pcbScale, pfNullable;
     SQLLEN      ind_strlen;
 
-    rc = SQLNumResultCols(Stmt,&ncol);
+    rc = SQLNumResultCols(Stmt, &ncol);
     
-    mystmt_rows(Stmt,rc,-1);
+    mystmt_rows(Stmt, rc, -1);
 
     for (nIndex = 1; nIndex <= ncol; ++nIndex)
     {
@@ -397,12 +398,12 @@ int my_print_non_format_result(SQLHSTMT Stmt)
 
         fprintf(stdout, "%s\t", szColName);
 
-        rc = SQLBindCol(Stmt,nIndex, SQL_C_CHAR, szData[nIndex-1],
-                        MAX_ROW_DATA_LEN+1,&ind_strlen);
-        mystmt_rows(Stmt,rc,-nIndex);
+        rc = SQLBindCol(Stmt, nIndex, SQL_C_CHAR, szData[nIndex-1],
+                        MAX_ROW_DATA_LEN+1, &ind_strlen);
+        mystmt_rows(Stmt, rc, -nIndex);
     }
 
-    fprintf(stdout,"\n");
+    fprintf(stdout, "\n");
 
     rc = SQLFetch(Stmt);
     while (SQL_SUCCEEDED(rc))
@@ -415,12 +416,22 @@ int my_print_non_format_result(SQLHSTMT Stmt)
         rc = SQLFetch(Stmt);
     }
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+    SQLFreeStmt(Stmt, SQL_UNBIND);
+
+    if (CloseCursor)
+    {
+      SQLFreeStmt(Stmt, SQL_CLOSE);
+    }
 
     fprintf(stdout, "# Total rows fetched: %d\n", (int)nRowCount);
 
     return nRowCount;
+}
+
+
+int my_print_non_format_result(SQLHSTMT Stmt)
+{
+  return my_print_non_format_result_ex(Stmt, TRUE);
 }
 
 

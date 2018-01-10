@@ -535,7 +535,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
   }
 
-  if ((Stmt->ParamCount= mysql_stmt_param_count(Stmt->stmt)))
+  if ((Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt)))
   {
     if (Stmt->params)
       MADB_FREE(Stmt->params);
@@ -945,7 +945,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
     Iterations= Stmt->MultiStmtCount;    
   }
 
-  for (StatementNr=0; StatementNr < Iterations; StatementNr++)
+  for (StatementNr= 0; StatementNr < Iterations; ++StatementNr)
   {
     if (Stmt->MultiStmts)
     {
@@ -1367,20 +1367,14 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   /* All rows processed, so we can unset ArrayOffset */
   Stmt->ArrayOffset= 0;
 
-  if (Stmt->MultiStmts && !mysql_stmt_field_count(Stmt->stmt))
+  if (Stmt->MultiStmts)
   {
-    Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
     Stmt->MultiStmtNr= 0;
+    MADB_InstallStmt(Stmt);
   }
-
-  if (!Stmt->MultiStmts && mysql_stmt_field_count(Stmt->stmt) > 0)
+  else if (mysql_stmt_field_count(Stmt->stmt) > 0)
   {
-    Stmt->CharOffset= (unsigned long *)my_realloc((gptr)Stmt->CharOffset, 
-                                                    sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
-                                                    MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
-    Stmt->Lengths= (unsigned long *)my_realloc((gptr)Stmt->Lengths, 
-                                                   sizeof(long) * mysql_stmt_field_count(Stmt->stmt),
-                                                    MYF(MY_ZEROFILL) | MYF(MY_ALLOW_ZERO_PTR));
+    MADB_StmtResetResultStructures(Stmt);
 
     /* Todo: for SQL_CURSOR_FORWARD_ONLY we should use cursor and prefetch rows */
     /*************************** mysql_stmt_store_result ******************************/
@@ -1393,8 +1387,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
       return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     }
-
-    MADB_STMT_RESET_CURSOR(Stmt);
     
     /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
