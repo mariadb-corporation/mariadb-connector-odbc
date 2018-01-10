@@ -1056,7 +1056,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     Stmt->Bulk.HasRowsToSkip= 0;
   }
 
-  for (StatementNr=0; StatementNr < Iterations; StatementNr++)
+  for (StatementNr= 0; StatementNr < Iterations; ++StatementNr)
   {
     if (Stmt->MultiStmts)
     {
@@ -1195,20 +1195,14 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   /* All rows processed, so we can unset ArrayOffset */
   Stmt->ArrayOffset= 0;
 
-  if (Stmt->MultiStmts && !mysql_stmt_field_count(Stmt->stmt))
+  if (Stmt->MultiStmts)
   {
-    Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
     Stmt->MultiStmtNr= 0;
+    MADB_InstallStmt(Stmt);
   }
-
-  if (!Stmt->MultiStmts && mysql_stmt_field_count(Stmt->stmt) > 0)
+  else if (mysql_stmt_field_count(Stmt->stmt) > 0)
   {
-    Stmt->CharOffset= (unsigned long *)MADB_REALLOC((char *)Stmt->CharOffset, 
-                                                    sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
-    memset(Stmt->CharOffset, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
-    Stmt->Lengths= (unsigned long *)MADB_REALLOC((char *)Stmt->Lengths,
-                                                   sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
-    memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+    MADB_StmtResetResultStructures(Stmt);
 
     /* Todo: for SQL_CURSOR_FORWARD_ONLY we should use cursor and prefetch rows */
     /*************************** mysql_stmt_store_result ******************************/
@@ -1223,8 +1217,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
       return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     }
-
-    MADB_STMT_RESET_CURSOR(Stmt);
     
     /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -265,16 +265,66 @@ ODBC_TEST(t_odbc95)
   return OK;
 }
 
+ODBC_TEST(t_odbc126)
+{
+  SQLCHAR Query[][24]={ "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
+  unsigned int i, ExpectedRows[]= {3, 3, 1, 1};
+  SQLRETURN rc, Expected= SQL_SUCCESS;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc126");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc126_1");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc126_2");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc126(col1 INT, col2 INT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE odbc126_1()\
+                        BEGIN\
+                          SELECT col1, col2 FROM odbc126;\
+                          SELECT col1 FROM odbc126;\
+                        END");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE odbc126_2()\
+                        BEGIN\
+                          SELECT col1 FROM odbc126;\
+                          SELECT col1, col2 FROM odbc126;\
+                        END");
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO odbc126 VALUES(1, 2), (3, 4), (5, 6)");
+
+  for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, Query[i]);
+
+    do {
+      is_num(my_print_non_format_result_ex(Stmt, FALSE), ExpectedRows[i]);
+
+      rc= SQLMoreResults(Stmt);
+      is_num(rc, Expected);
+
+      Expected= SQL_NO_DATA;
+
+    } while (rc != SQL_NO_DATA);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    Expected= SQL_SUCCESS;
+  }
+  
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc126");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc126_1");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc126_2");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
   {test_multi_on_off, "test_multi_on_off"},
-//  {test_noparams, "test_noparams"},
   {test_params, "test_params"},
   {t_odbc_16, "test_odbc_16"},
   {test_semicolon, "test_semicolon_in_string"},
   {t_odbc74, "t_odbc74and_odbc97"},
-  {t_odbc95, "t_odbc95" },
+  {t_odbc95, "t_odbc95"},
+  {t_odbc126, "t_odbc126"},
   {NULL, NULL}
 };
 

@@ -1057,7 +1057,6 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR *numdata, SQLCHAR prec,
   is_num(sqlnum->scale, scale);
   is_num(sqlnum->sign, sign);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, obuf, sizeof(obuf), NULL));
-  diag("compare %s - %s", obuf, outstr);
   IS_STR(obuf, outstr, strlen(outstr));
   FAIL_IF(memcmp(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN), "memcmp failed");
 
