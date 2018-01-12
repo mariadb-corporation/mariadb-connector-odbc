@@ -887,7 +887,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_CATALOG_LOCATION:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_CL_START, StringLengthPtr);
+    MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_CL_START, StringLengthPtr);
     break;
   case SQL_CATALOG_NAME:
     /* Todo: MyODBC Driver has a DSN configuration for diabling catalog usage:

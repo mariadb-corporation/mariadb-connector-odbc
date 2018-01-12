@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -659,6 +659,19 @@ ODBC_TEST(t_odbc71)
 }
 
 
+/* Test for SQL_CATALOG_LOCATION info type. The connector incorrectly wrote to the buffer SQLUINTEGER,
+   while it has to be SQLUSMALLINT */
+ODBC_TEST(t_odbc123)
+{
+  SQLUSMALLINT Info;
+
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_CATALOG_LOCATION, &Info, 0, NULL));
+  is_num(Info, SQL_CL_START);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -678,6 +691,7 @@ MA_ODBC_TESTS my_tests[]=
   { t_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
   { t_odbc84_62, "odbc84_WCHAR_types_odbc62_CREATE_PARAMS", NORMAL },
   { t_odbc71, "odbc71_some_odbc2_types", NORMAL },
+  { t_odbc123, "odbc123_catalog_start", NORMAL },
   { NULL, NULL }
 };
 
