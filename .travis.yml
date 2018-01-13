@@ -24,6 +24,6 @@ env:
   - DB=mariadb:10.1
   - DB=mariadb:10.2
   - DB=mariadb:10.3
-  - DB=mariadb:10.2 PACKET=8M MAXSCALE_VERSION=2.1.8
+  #- DB=mariadb:10.2 PACKET=8M MAXSCALE_VERSION=2.1.8
 
 script: .travis/script.sh
