@@ -417,12 +417,12 @@ ODBC_TEST(t_sqlprocedurecolumns)
     /*cat    schem  proc_name                  col_name     col_type         data_type  type_name */
     {my_schema, 0,     "procedure_columns_test1", "re_param6", SQL_PARAM_INPUT, SQL_REAL,  "float",
     /*size buf_len  dec radix  nullable      rem def sql_data_type sub octet pos nullable*/
-      7,   4,       2,  0,     SQL_NULLABLE, "", 0,  SQL_REAL,     0,  0,    6,  "YES"},
+      7,   4,       2,  10,     SQL_NULLABLE, "", 0,  SQL_REAL,     0,  0,    6,  "YES"},
 
     /*cat    schem  proc_name                  col_name     col_type          data_type    type_name */
     {my_schema, 0,     "procedure_columns_test1", "re_param7", SQL_PARAM_OUTPUT, SQL_DOUBLE,  "double",
     /*size buf_len  dec radix  nullable      rem def sql_data_type sub octet pos nullable*/
-      15,  8,       0,  0,     SQL_NULLABLE, "", 0,  SQL_DOUBLE,   0,  0,    7,  "YES"},
+      15,  8,       0,  10,     SQL_NULLABLE, "", 0,  SQL_DOUBLE,   0,  0,    7,  "YES"},
 
     /*cat    schem  proc_name                  col_name     col_type          data_type    type_name */
     {my_schema, 0,     "procedure_columns_test1", "re_param8", SQL_PARAM_INPUT, SQL_DECIMAL,  "decimal",
