@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017 MariaDB Corporation AB
+                2017, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -26,8 +26,16 @@
 #include "tap.h"
 
 /* Columns order num for SQLColumns */
-#define DATA_TYPE 5
-
+#define DATA_TYPE          5
+#define COLUMN_SIZE        7
+#define BUFFER_LENGTH      8
+#define DECIMAL_DIGITS     9
+#define NUM_PREC_RADIX    10
+#define NULLABLE          11
+#define SQL_DATA_TYPE     14
+#define SQL_DATETIME_SUB  15
+#define CHAR_OCTET_LENGTH 16
+#define ORDINAL_POSITION  17
 /*
   Bug #37621 - SQLDescribeCol returns incorrect values of SQLTables data
 */
@@ -1100,7 +1108,7 @@ ODBC_TEST(t_bug14555713)
 /* Bug ODBC-38. It's impossible in MS Access to insert/update record in table containing date, time or timestamp field.
    The reason is that MS Access is ODBCv2 application, and SQLColumns returned for such fields SQL type for ODBCv3
  */
-ODBC_TEST(t_odbc38)
+ODBC_TEST(odbc38)
 {
   unsigned int i;
   SQLSMALLINT  expected[][4]= {{SQL_DATE,      SQL_TIME,      SQL_TIMESTAMP     , SQL_TIMESTAMP},       /* ODBCv2 */
@@ -1159,6 +1167,85 @@ ODBC_TEST(odbc51)
 }
 
 
+/* Bug ODBC-131 regression with MS Access - error on linking a table.
+   The reason is that MS Access expects and reads size of data even for fixed
+   size types(that is kinda strange according to ODBC specs), and freaks out
+   when that size is different from what it expects
+   In fact Access reads columns DATA_TYPE, COLUMN_SIZE, DECIMAL_DIGITS, NULLABLE
+   Being ODBC2 application, it naturally doesn't know about many of fields we test
+*/
+ODBC_TEST(odbc131)
+{
+  unsigned int i;
+  SQLULEN     StrLen;
+  SQLSMALLINT ShortData,
+              SmallintFields[]= {DATA_TYPE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, SQL_DATA_TYPE, SQL_DATETIME_SUB},
+              IntFields[]= {COLUMN_SIZE, BUFFER_LENGTH/*, CHAR_OCTET_LENGTH, ORDINAL_POSITION*/};
+  SQLINTEGER  IntData;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc131");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc131 (i int, b bit(1), f float,\
+                       d date not null, t time not null, dt datetime not null,\
+                       ts timestamp not null, c varchar(20))");
+
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR *)"t_odbc131", SQL_NTS, NULL, 0));
+
+  while (SQLFetch(Stmt) != SQL_NO_DATA)
+  {
+    for (i= 0; i < sizeof(SmallintFields)/sizeof(SQLSMALLINT); ++i)
+    {
+      CHECK_STMT_RC(Stmt, SQLGetData(Stmt, SmallintFields[i], SQL_C_DEFAULT, &ShortData, 2, &StrLen));
+      if (StrLen != SQL_NULL_DATA)
+      {
+        is_num(StrLen, 2);
+      }
+    }
+    for (i= 0; i < sizeof(IntFields)/sizeof(SQLSMALLINT); ++i)
+    {
+      CHECK_STMT_RC(Stmt, SQLGetData(Stmt, IntFields[i], SQL_C_DEFAULT, &IntData, 4, &StrLen));
+      if (StrLen != SQL_NULL_DATA)
+      {
+        is_num(StrLen, 4);
+      }
+    }
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Now once again with explicit types */
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR *)"t_odbc131", SQL_NTS, NULL, 0));
+
+  while (SQLFetch(Stmt) != SQL_NO_DATA)
+  {
+    for (i= 0; i < sizeof(SmallintFields)/sizeof(SQLSMALLINT); ++i)
+    {
+      CHECK_STMT_RC(Stmt, SQLGetData(Stmt, SmallintFields[i], SQL_C_SHORT, &ShortData, 2, &StrLen));
+      if (StrLen != SQL_NULL_DATA)
+      {
+        is_num(StrLen, 2);
+      }
+    }
+    for (i= 0; i < sizeof(IntFields)/sizeof(SQLSMALLINT); ++i)
+    {
+      CHECK_STMT_RC(Stmt, SQLGetData(Stmt, IntFields[i], SQL_C_LONG, &IntData, 4, &StrLen));
+      if (StrLen != SQL_NULL_DATA)
+      {
+        is_num(StrLen, 4);
+      }
+    }
+  }
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc131");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1177,8 +1264,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug14085211_part1,       "t_bug14085211_part1",       NORMAL},
   {t_sqlcolumns_after_select, "t_sqlcolumns_after_select", NORMAL},
   {t_bug14555713,             "t_bug14555713",             NORMAL},
-  {t_odbc38,                  "odbc2_odbc3_data_types",    NORMAL},
-  { odbc51,    "odbc51_wchar_emptystring", NORMAL },
+  {odbc38,  "odbc32_odbc2_odbc3_data_types", NORMAL},
+  {odbc51,  "odbc51_wchar_emptystring",      NORMAL},
+  {odbc131, "odbc131_columns_data_len",      NORMAL},
   {NULL, NULL}
 };
 

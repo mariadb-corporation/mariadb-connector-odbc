@@ -190,8 +190,8 @@ SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect);
 
 /************** SQLColumns       *************/
 #define MADB_COLUMN_SIZE\
-    "CASE" \
-    "  WHEN DATA_TYPE = 'bit' THEN @ColSize:=CAST(((NUMERIC_PRECISION + 7) / 8) AS SIGNED) "\
+    "CAST(CASE" \
+    "  WHEN DATA_TYPE = 'bit' THEN @ColSize:=((NUMERIC_PRECISION + 7) / 8) "\
     "  WHEN DATA_TYPE in ('tinyint', 'smallint', 'year', 'mediumint', 'int',"\
                          "'bigint', 'decimal', 'double') THEN @ColSize:=NUMERIC_PRECISION "\
     "  WHEN DATA_TYPE = 'float' THEN @ColSize:=7"\
@@ -199,7 +199,7 @@ SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect);
     "  WHEN DATA_TYPE='time' THEN @ColSize:=8"\
     "  WHEN DATA_TYPE in ('timestamp', 'datetime') THEN @ColSize:=19 "\
     "  ELSE @ColSize:=CHARACTER_MAXIMUM_LENGTH "\
-  "END "
+  "END AS SIGNED)"
 
 #define MADB_CATALOG_COLUMNSp1 "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, "
 #define MADB_CATALOG_COLUMNSp3  ", UCASE(IF(COLUMN_TYPE LIKE '%%(%%)%%',  CONCAT(SUBSTRING(COLUMN_TYPE,1, LOCATE('(',COLUMN_TYPE) - 1 ), SUBSTRING(COLUMN_TYPE,1+locate(')',COLUMN_TYPE))), COLUMN_TYPE )) AS TYPE_NAME, "\

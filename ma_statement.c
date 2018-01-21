@@ -2449,8 +2449,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
          (Access uses default types on getting catalog functions results, and not quite happy when it gets something unexpected. Seemingly it cares about returned data lenghts even for types,
          for which standard says application should not care about */
       OdbcType= IrdRec->ConciseType;
-      /*OdbcType= Stmt->Connection->IsAnsi || (Col_or_Param_Num == 10 && BufferLength == 2) ?
-                IrdRec->ConciseType : MADB_GetWCharType(IrdRec->ConciseType);*/
     }
     break;
   default:
@@ -2777,7 +2775,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       /* Dirty temporary hack before we know what is going on. Yes, there is nothing more eternal, than temporary
          It's not that bad, after all */
       if ((long)*Bind.length == -1)
+      {
         *Bind.length= 0;
+      }
       /* end of dirty hack */
 
       if (!InternalUse && !Stmt->CharOffset[Offset])
@@ -2829,6 +2829,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         Bind.buffer_length= (unsigned long)BufferLength;
       }
       mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+
       if (StrLen_or_IndPtr != NULL)
       {
         if (Bind.length_value != 0 && (long)Bind.length_value != -1)
@@ -2839,13 +2840,22 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         {
           *StrLen_or_IndPtr= Bind.buffer_length;
         }
-        else/* if (TargetType == SQL_C_DEFAULT)*/
+        else
+        {
+          *StrLen_or_IndPtr= IrdRec->OctetLength;
+        }
+        /* We get here only for fixed data types. Thus this data sanity check makes sense. But we do this
+           for catalog functions and MS Access in first turn. The thing is that for some columns in catalog functions result,
+           we fix column type manually, since we can't make field of desired type in the query to I_S. Mostly that is for SQLSMALLINT
+           fields, and we can cast only to int, not to short. MSAccess in its turn like to to get lenght for fixed length types, and
+           throws error if the length is not what it expected (ODBC-131)
+           Probably it makes sense to do this only for SQL_C_DEFAULT type, which MS Access uses. But atm it looks like this should
+           not hurt if done for other types, too */
+        if (*StrLen_or_IndPtr > IrdRec->OctetLength)
         {
           *StrLen_or_IndPtr= IrdRec->OctetLength;
         }
       }
-      /* Bind.fetch_result(&Bind, &Stmt->stmt->fields[Offset], &Stmt->stmt->bind[Offset].row_ptr); */
-      //Stmt->stmt->bind[Offset].row_ptr= SavePtr;
     }
   }             /* End of switch(OdbcType) */
 
