@@ -1209,7 +1209,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   }
   case SQL_GROUP_BY:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_GB_NO_RELATION, StringLengthPtr);
+    MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_GB_NO_RELATION, StringLengthPtr);
     break;
   case SQL_IDENTIFIER_CASE:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_IC_MIXED, StringLengthPtr);
