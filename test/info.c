@@ -659,14 +659,18 @@ ODBC_TEST(t_odbc71)
 }
 
 
-/* Test for SQL_CATALOG_LOCATION info type. The connector incorrectly wrote to the buffer SQLUINTEGER,
-   while it has to be SQLUSMALLINT */
+/* ODBC-123 Test for SQL_CATALOG_LOCATION info type. The connector incorrectly wrote to the buffer SQLUINTEGER,
+   while it has to be SQLUSMALLINT,
+   Also testing SQL_GROUP_BY, which has the same problem */
 ODBC_TEST(t_odbc123)
 {
   SQLUSMALLINT Info;
 
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_CATALOG_LOCATION, &Info, 0, NULL));
   is_num(Info, SQL_CL_START);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_GROUP_BY, &Info, 0, NULL));
+  is_num(Info, SQL_GB_NO_RELATION);
+
 
   return OK;
 }

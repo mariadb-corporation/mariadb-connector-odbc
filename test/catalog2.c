@@ -268,12 +268,20 @@ ODBC_TEST(t_bug50195)
 {
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
-  const char  expected_privs[][12]= {"ALTER", "CREATE", "CREATE VIEW", "DELETE", "DROP", "INDEX",
-                                    "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE"};
-  int         i;
-  SQLCHAR     priv[12];
+  const char  expected_privs[][24]={ "ALTER", "CREATE", "CREATE VIEW", "DELETE", "DROP", "INDEX",
+                                    "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE" },
+              expected_103[][24]={ "ALTER", "CREATE", "CREATE VIEW", "DELETE", "DELETE VERSIONING ROWS",
+                         "DROP", "INDEX", "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE" },
+              *expected= expected_privs[0];
+  int         i, privs_count= sizeof(expected_privs)/sizeof(expected_privs[0]);
+  SQLCHAR     priv[24];
   SQLLEN      len;
 
+  if (ServerNotOlderThan(Connection, 10, 3, 4))
+  {
+    expected= expected_103[0];
+    privs_count= sizeof(expected_103)/sizeof(expected_103[0]);
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
@@ -329,11 +337,12 @@ ODBC_TEST(t_bug50195)
 
   /* Testing SQLTablePrivileges a bit, as we don't have separate test of it */
 
-  for(i= 0; i < 11; ++i)
+  for(i= 0; i < privs_count; ++i)
   {
     CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
     CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 6, SQL_C_CHAR, priv, sizeof(priv), &len));
-    IS_STR(priv, expected_privs[i], len);
+    IS_STR(priv, expected, len);
+    expected+= sizeof(expected_privs[0]);
   }
   
   FAIL_IF(SQLFetch(hstmt1) != 100, "No data expected");
@@ -1246,6 +1255,57 @@ ODBC_TEST(odbc131)
 }
 
 
+ODBC_TEST(odbc119)
+{
+  SQLCHAR StrValue[32];
+  SQLLEN  RowCount;
+
+  OK_SIMPLE_STMT(Stmt, "drop table if exists t_odbc119");
+  OK_SIMPLE_STMT(Stmt, "create table t_odbc119(id int not null primary key auto_increment, "
+    "ui_p1 INT NOT NULL, iu_p2 INT NOT NULL, a varchar(100) not null, KEY `INDEX` (`a`), UNIQUE KEY `UNIQUE` (ui_p1, iu_p2)) ENGINE=InnoDB");
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
+    "t_odbc119", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 4);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(my_fetch_str(Stmt, StrValue, 6), "PRIMARY", 6);
+  IS_STR(my_fetch_str(Stmt, StrValue, 9), "id", 3);
+  is_num(my_fetch_int(Stmt, 4), 0);
+  is_num(my_fetch_int(Stmt, 8), 1);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(my_fetch_str(Stmt, StrValue, 6), "UNIQUE", 7);
+  IS_STR(my_fetch_str(Stmt, StrValue, 9), "ui_p1", 6);
+  is_num(my_fetch_int(Stmt, 4), 0);
+  is_num(my_fetch_int(Stmt, 8), 1);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(my_fetch_str(Stmt, StrValue, 6), "UNIQUE", 7);
+  IS_STR(my_fetch_str(Stmt, StrValue, 9), "iu_p2", 6);
+  is_num(my_fetch_int(Stmt, 4), 0);
+  is_num(my_fetch_int(Stmt, 8), 2);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(my_fetch_str(Stmt, StrValue, 6), "INDEX", 6);
+  IS_STR(my_fetch_str(Stmt, StrValue, 9), "a", 2);
+  is_num(my_fetch_int(Stmt, 4), 1);
+  is_num(my_fetch_int(Stmt, 8), 1);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc119");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1267,8 +1327,10 @@ MA_ODBC_TESTS my_tests[]=
   {odbc38,  "odbc32_odbc2_odbc3_data_types", NORMAL},
   {odbc51,  "odbc51_wchar_emptystring",      NORMAL},
   {odbc131, "odbc131_columns_data_len",      NORMAL},
+  {odbc119, "odbc119_sqlstats_orderby",      NORMAL},
   {NULL, NULL}
 };
+
 
 int main(int argc, char **argv)
 {

@@ -3523,8 +3523,7 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   if (Unique == SQL_INDEX_UNIQUE)
     p+= my_snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
 
-  my_snprintf(p, 1023 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME");
-
+  my_snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
 
   ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
   if (SQL_SUCCEEDED(ret))
