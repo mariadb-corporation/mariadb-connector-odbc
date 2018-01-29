@@ -1204,16 +1204,33 @@ OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug8860, `t_bug8860_a'b`");
 */
 ODBC_TEST(t_bug26934)
 {
-  SQLHENV Env1;
-  SQLHDBC Connection1;
-  SQLHSTMT Stmt1;
+  SQLHENV    Env1;
+  SQLHDBC    Connection1;
+  SQLHSTMT   Stmt1;
+  SQLINTEGER ConnectionId;
+  char       Kill[64];
 
   ODBC_Connect(&Env1, &Connection1, &Stmt1);
 
-  OK_SIMPLE_STMT(Stmt1, "SET @@wait_timeout = 1");
-  Sleep(5000);
-  FAIL_IF(SQLTables(Stmt1, (SQLCHAR *)"%", 1, NULL, SQL_NTS,
-                                NULL, SQL_NTS, NULL, SQL_NTS) != SQL_ERROR, "error expected");
+  if (Travis)
+  {
+    OK_SIMPLE_STMT(Stmt1, "SELECT connection_id()");
+    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+    ConnectionId= my_fetch_int(Stmt1, 1);
+    CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+    /* From another connection, kill the connection created above */
+    sprintf(Kill, "KILL %d", ConnectionId);
+    OK_SIMPLE_STMT(Stmt, Kill);
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Stmt1, "SET @@wait_timeout = 1");
+    Sleep(3000);
+  }
+  
+  EXPECT_STMT(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"%", 1, NULL, SQL_NTS,
+                                NULL, SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
   CHECK_SQLSTATE(Stmt1, "08S01");
 
   ODBC_Disconnect(Env1, Connection1, Stmt1);
