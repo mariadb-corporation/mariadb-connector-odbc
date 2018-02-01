@@ -1612,9 +1612,13 @@ default:
     return Dbc->Error.ReturnValue;
   }
   if (isWChar && SLen)
+  {
     SLen*= sizeof(SQLWCHAR);
-  if (StringLengthPtr && SLen)
+  }
+  if (IsString_GetInfo_Type(InfoType) && StringLengthPtr)
+  {
     *StringLengthPtr= SLen;
+  }
   
   return SQL_SUCCESS;
 }
