@@ -488,7 +488,7 @@ ODBC_TEST(test_need_long_data_len)
 
 /* https://jira.mariadb.org/browse/ODBC-61
 Request of SQL_FILE_USAGE info crashes connector */
-ODBC_TEST(t_odbc61)
+ODBC_TEST(odbc61)
 {
   SQLUSMALLINT info= 0xef;
 
@@ -502,7 +502,7 @@ ODBC_TEST(t_odbc61)
 Bug ODBC-84 and ODBC-62. For ODBC-84 we only tested, that SQLGetTypeInfo returns something for WCHAR types
 For ODBC-62 we need to check CREATE_PARAMS
 */
-ODBC_TEST(t_odbc84_62)
+ODBC_TEST(odbc84_62)
 {
   SQLHANDLE henv1;
   SQLHANDLE Connection1;
@@ -637,7 +637,7 @@ ODBC_TEST(t_odbc84_62)
 }
 
 /* Test for part of problems causing ODBC-71. Other part is tested in desc.c:t_set_explicit_copy*/
-ODBC_TEST(t_odbc71)
+ODBC_TEST(odbc71)
 {
   SQLINTEGER Info;
 
@@ -662,7 +662,7 @@ ODBC_TEST(t_odbc71)
 /* ODBC-123 Test for SQL_CATALOG_LOCATION info type. The connector incorrectly wrote to the buffer SQLUINTEGER,
    while it has to be SQLUSMALLINT,
    Also testing SQL_GROUP_BY, which has the same problem */
-ODBC_TEST(t_odbc123)
+ODBC_TEST(odbc123)
 {
   SQLUSMALLINT Info;
 
@@ -672,6 +672,43 @@ ODBC_TEST(t_odbc123)
   is_num(Info, SQL_GB_NO_RELATION);
 
 
+  return OK;
+}
+
+
+/* ODBC-109 It's not clear atm if that is the reason behind the report, but it was found during work on this bug.
+   For the info type SQL_SCHEMA_TERM/SQL_OWNER_TERM the connector returned wrong length. Or more exactly - did not
+   write anything into application's length buffer */
+ODBC_TEST(odbc109)
+{
+  SQLCHAR     tn;
+  SQLSMALLINT StrLen;
+  SQLHANDLE henv1;
+  SQLHANDLE Connection1;
+  SQLCHAR   conn[512];
+
+  /* SQL_OWNER_TERM is the same as SQL_SCHEMA_TERM */
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_OWNER_TERM, NULL, 0, &StrLen));
+  is_num(StrLen, 0);
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_OWNER_TERM, &tn, 1, NULL));
+  is_num(tn, 0);
+
+  /* odbc 2 */
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
+    my_drivername, my_servername, my_uid, my_pwd, my_port);
+
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
+  CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
+    (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
+  CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+    NULL, SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(Connection1, SQLGetInfo(Connection1, SQL_OWNER_TERM, NULL, 0, &StrLen));
+  is_num(StrLen, 0);
+  CHECK_DBC_RC(Connection1, SQLGetInfo(Connection1, SQL_OWNER_TERM, &tn, 1, NULL));
+  is_num(tn, 0);
+  
   return OK;
 }
 
@@ -692,10 +729,11 @@ MA_ODBC_TESTS my_tests[]=
   { t_bug11749093, "t_bug11749093", NORMAL },
   { bug_odbc15, "odbc15", NORMAL },
   { test_need_long_data_len, "test_need_long_data_len", NORMAL },
-  { t_odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
-  { t_odbc84_62, "odbc84_WCHAR_types_odbc62_CREATE_PARAMS", NORMAL },
-  { t_odbc71, "odbc71_some_odbc2_types", NORMAL },
-  { t_odbc123, "odbc123_catalog_start", NORMAL },
+  { odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
+  { odbc84_62, "odbc84_WCHAR_types_odbc62_CREATE_PARAMS", NORMAL },
+  { odbc71, "odbc71_some_odbc2_types", NORMAL },
+  { odbc123, "odbc123_catalog_start", NORMAL },
+  { odbc109, "odbc109_shema_owner_term", NORMAL },
   { NULL, NULL }
 };
 
