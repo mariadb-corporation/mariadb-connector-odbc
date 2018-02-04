@@ -1140,6 +1140,22 @@ ODBC_TEST(t_odbc73)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc134)
+{
+  SQLHANDLE Ard;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT NULL");
+
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &Ard, 0, NULL));
+  CHECK_DESC_RC(Ard, SQLSetDescField(Ard, 1, SQL_DESC_TYPE, (SQLPOINTER)SQL_NUMERIC, 0));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1164,6 +1180,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc77, "t_odbc-77-analyze_table"},
   {t_odbc78, "t_odbc-78-sql_no_data"},
   {t_odbc73, "t_odbc-73-bin_collation"},
+  {t_odbc134, "t_odbc-134-fetch_unbound_null"},
   {NULL, NULL}
 };
 
