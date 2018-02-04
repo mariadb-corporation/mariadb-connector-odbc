@@ -975,7 +975,9 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
       break;
     }
   
-    if (DescRecord)
+    /* inUse is only used to check if column/parameter was bound or not. Thus we do not set it for each field, but only for those,
+       that make column/parameter "bound" */
+    if (DescRecord && (DescRecord->DataPtr != NULL || DescRecord->OctetLengthPtr != NULL || DescRecord->IndicatorPtr != NULL))
       DescRecord->inUse= 1;
   }
   return ret;
