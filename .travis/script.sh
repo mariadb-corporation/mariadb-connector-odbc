@@ -58,7 +58,7 @@ DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y -
 time git clone -b master --depth 1 "https://github.com/MariaDB/mariadb-connector-c.git" build
 cd build
 #git fetch --all --tags --prune
-#git checkout tags/${CONNECTOR_C_VERSION} -b branch_odbc
+#git checkout tags/${CONNECTOR_C_VERSION} -b odbc_travis_build
 
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DWITH_OPENSSL=ON
 #-DCMAKE_INSTALL_PREFIX= ../connector_c .
