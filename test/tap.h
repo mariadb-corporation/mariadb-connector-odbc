@@ -1154,4 +1154,14 @@ BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, un
 
   return TRUE;
 }
+
+
+BOOL UnixOdbc(HENV Env)
+{
+#ifdef SQL_ATTR_UNIXODBC_VERSION
+  return TRUE;
+#endif
+  return FALSE;
+ }
+
 #endif      /* #ifndef _tap_h_ */

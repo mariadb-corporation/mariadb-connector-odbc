@@ -315,7 +315,8 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
   case SQL_ATTR_CURRENT_CATALOG:
   {
     SQLSMALLINT StrLen;
-    SQLRETURN ret;
+    SQLRETURN   ret;
+
     ret= MADB_Dbc_GetCurrentDB(Dbc, ValuePtr, BufferLength, &StrLen, isWChar);
     /* if we weren't able to determine the current db, we will return the cached catalog name */
     if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
