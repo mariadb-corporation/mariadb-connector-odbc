@@ -1398,8 +1398,8 @@ ODBC_TEST(t_odbc69)
   SQLSMALLINT conn_out_len;
 
   /* Testing also that key names are case insensitve. Supposing, that there is no mariadb/mysql on 3310 port with same login credentials */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=3310;DATABASE=%s;OPTION=%lu;SERVER=%s;PoRt=%s;charset=UTF8",
-    my_dsn, my_uid, my_pwd, my_schema, my_options, my_servername, ma_strport);
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=3310;DATABASE=%s;OPTION=%lu;SERVER=%s;PoRt=%u;charset=UTF8",
+    my_dsn, my_uid, my_pwd, my_schema, my_options, my_servername, my_port);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
@@ -1410,8 +1410,102 @@ ODBC_TEST(t_odbc69)
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
+  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
+
   return OK;
 }
+
+/* If connection handle re-used, it would try to select database used in previous connection */
+ODBC_TEST(t_odbc91)
+{
+  HDBC      hdbc;
+  HSTMT     hstmt;
+  SQLCHAR   conn[512], conn_out[1024], buffer[32];
+  SQLSMALLINT conn_out_len;
+
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS t_odbc91");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
+
+  /* Connecting to newly created tatabase */
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=%lu;SERVER=%s%s",
+    my_dsn, my_uid, my_pwd, "t_odbc91", my_options, my_servername, ma_strport);
+
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc));
+
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+    conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+    SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE t_odbc91");
+
+  /* Now we do not specify any database */
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;DATABASE=%s%s",
+    my_dsn, my_uid, my_pwd, my_options, my_servername, my_schema, ma_strport);
+
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+    conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+    SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+
+  /* Now testing scenario, there default database is set via connetion attribute, and connection handler is re-used
+     after disconnect. This doesn't work with UnixODBC, because smart UnixODBC implicicitly deallocates connection handle
+     when SQLDisconnect is called */
+  if (UnixOdbc(Env))
+  {
+    diag("UnixODBC detected - Skipping part of the test");
+    return OK;
+  }
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
+  CHECK_DBC_RC(hdbc, SQLSetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"t_odbc91", SQL_NTS));
+
+  sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s%s",
+    my_drivername, my_uid, my_pwd, my_options, my_servername, ma_strport);
+
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+    conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+    SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)buffer, sizeof(buffer), NULL));
+
+  IS_STR(buffer, "t_odbc91", sizeof("t_odbc91"));
+  buffer[0]= '\0';
+
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
+
+  OK_SIMPLE_STMT(hstmt, "SELECT DATABASE()");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  IS_STR(my_fetch_str(hstmt, buffer, 1), "t_odbc91", sizeof("t_odbc91"));
+
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+
+  buffer[0]= '\0';
+
+  /* Checking that attribute value is preserved */
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, "t_odbc91", sizeof("t_odbc91"));
+
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+    conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+    SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
+
+  OK_SIMPLE_STMT(hstmt, "SELECT DATABASE()");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  IS_STR(my_fetch_str(hstmt, buffer, 1), "t_odbc91", sizeof("t_odbc91"));
+ 
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
+
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeHandle(SQL_HANDLE_DBC, hdbc));
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE t_odbc91");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1448,9 +1542,11 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug45378,     "t_bug45378",     NORMAL},
   {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
   {t_odbc32,      "odbc32_SQL_ATTR_PACKET_SIZE_option", NORMAL},
-  {t_gh_issue3,    "leading_space_gh_issue3",     NORMAL},
-  {t_odbc48,     "odbc48_iso_call_format", NORMAL},
-  {t_odbc69,      "odbc69_ci_connstring", NORMAL},
+  {t_gh_issue3,   "leading_space_gh_issue3",  NORMAL},
+  {t_odbc48,      "odbc48_iso_call_format",   NORMAL},
+  {t_odbc69,      "odbc69_ci_connstring",     NORMAL},
+  {t_odbc91,      "odbc91_hdbc_reuse",        NORMAL},
+
   {NULL, NULL, 0}
 };
 

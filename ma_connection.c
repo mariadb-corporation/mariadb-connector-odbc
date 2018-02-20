@@ -315,7 +315,8 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
   case SQL_ATTR_CURRENT_CATALOG:
   {
     SQLSMALLINT StrLen;
-    SQLRETURN ret;
+    SQLRETURN   ret;
+
     ret= MADB_Dbc_GetCurrentDB(Dbc, ValuePtr, BufferLength, &StrLen, isWChar);
     /* if we weren't able to determine the current db, we will return the cached catalog name */
     if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
@@ -691,9 +692,6 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     if (mysql_select_db(Connection->mariadb, Connection->CatalogName))
       goto err;
   }
-
-  if (!Connection->CatalogName && Dsn->Catalog)
-    Connection->CatalogName= _strdup(Dsn->Catalog);
 
   /* Turn sql_auto_is_null behavior off.
      For more details see: http://bugs.mysql.com/bug.php?id=47005 */
