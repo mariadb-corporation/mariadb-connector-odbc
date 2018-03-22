@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -453,13 +453,10 @@ int InitClientCharset(Client_Charset *cc, const char * name)
 }
 
 
-Client_Charset* GetDefaultOsCharset(Client_Charset *cc)
+void CopyClientCharset(Client_Charset * Src, Client_Charset * Dst)
 {
-  if (InitClientCharset(cc, madb_get_os_character_set()))
-  {
-    return NULL;
-  }
-  return cc;
+  Dst->CodePage= Src->CodePage;
+  Dst->cs_info= Src->cs_info;
 }
 
 

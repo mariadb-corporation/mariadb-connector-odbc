@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2105 MariaDB Corporation AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20,6 +20,7 @@
 
 extern Client_Charset utf8;
 extern CHARSET_INFO*  utf16;
+Client_Charset SourceAnsiCs= {0, 0}; /* Basically it should be initialized with 0 anyway */
 
 CHARSET_INFO * mysql_find_charset_name(const char *name);
 
@@ -54,6 +55,7 @@ SQLRETURN MADB_EnvFree(MADB_Env *Env)
 /* }}} */
 
 const char* GetDefaultLogDir();
+int         GetSourceAnsiCs(Client_Charset *cc);
 
 /* {{{ MADB_EnvInit */
 MADB_Env *MADB_EnvInit()
@@ -103,6 +105,7 @@ MADB_Env *MADB_EnvInit()
   }
   utf8.cs_info= my_charset_utf8_general_ci;
   GetDefaultLogDir();
+  GetSourceAnsiCs(&SourceAnsiCs);
 
 cleanup:
 #ifdef _WIN32  

@@ -1156,6 +1156,42 @@ ODBC_TEST(t_odbc134)
 }
 
 
+ODBC_TEST(t_odbc133)
+{
+  SQL_NUMERIC_STRUCT Numeric;
+  SQLHANDLE Ard;
+  //SQLDOUBLE AsNumber;
+  SQLCHAR AsStr[20];
+
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST(1 as decimal(19,4))");
+ 
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_NUMERIC, &Numeric, sizeof(Numeric), NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &Ard, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_PRECISION,
+    (SQLPOINTER)19, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_SCALE,
+    (SQLPOINTER)4, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_DATA_PTR,
+    &Numeric, SQL_IS_POINTER));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+
+  is_num(Numeric.sign, 1);
+  IS(!memcmp(Numeric.val, "\1\0\x0\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
+  is_num(Numeric.scale, 0);
+
+  /*CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DOUBLE, &AsNumber,
+    sizeof(AsNumber), NULL));
+  IS(AsNumber==1);*/
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, &AsStr,
+    sizeof(AsStr), NULL));
+  IS_STR(AsStr, "1.0000", sizeof("1.0000"));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1181,6 +1217,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc78, "t_odbc-78-sql_no_data"},
   {t_odbc73, "t_odbc-73-bin_collation"},
   {t_odbc134, "t_odbc-134-fetch_unbound_null"},
+  {t_odbc133, "t_odbc-133-numeric"},
   {NULL, NULL}
 };
 

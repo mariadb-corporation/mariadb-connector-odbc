@@ -1506,6 +1506,82 @@ ODBC_TEST(t_odbc91)
 }
 
 
+ODBC_TEST(t_odbc137)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+  char     buffer[16];
+
+  skip("This is not fixed yet");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc137`");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc137` (\
+    `val` char(50) DEFAULT NULL\
+    ) ENGINE=InnoDB DEFAULT CHARSET=latin1");
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+  Hstmt= ConnectWithCharset(&Hdbc, "latin1", NULL);
+  FAIL_IF(Hstmt == NULL, "");
+
+  OK_SIMPLE_STMT(Hstmt, "INSERT INTO t_odbc137(val)  VALUES('\xe5\xe4\xf6\xc5\xc4\xd6')");//åäöÅÄÖ
+
+  /* 0xE5E4F6C5C4D6 is hex for åäöÅÄÖ in latin1 - we are checkin that a correct sting was stored in the table*/
+  OK_SIMPLE_STMT(Hstmt, "SELECT * FROM t_odbc137 WHERE val=0xE5E4F6C5C4D6");
+
+  FAIL_IF(SQLFetch(Hstmt) == SQL_NO_DATA, "Wrong data has been stored in the table");
+  /* We still need to make sure that the string has been delivered correctly */
+  IS_STR(my_fetch_str(Hstmt, buffer, 1), "\xe5\xe4\xf6\xc5\xc4\xd6", sizeof("\xe5\xe4\xf6\xc5\xc4\xd6"));// "åäöÅÄÖ", sizeof("åäöÅÄÖ"));
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+
+#ifdef _WIN32
+DWORD WINAPI FireQueryInThread(LPVOID arg)
+{
+  HSTMT hStmt= (HSTMT)arg;
+
+  SQLExecDirect(hStmt, "SELECT 1", SQL_NTS);
+
+  return 0;
+}
+
+
+ODBC_TEST(t_odbc139)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+  unsigned long Compression= 2048;
+  HANDLE Thread;
+  DWORD WaitRc;
+
+  if (ServerNotOlderThan(Connection, 10, 2, 0))
+  {
+    skip("Waiting for the fix in Connector/C for servers > 10.2.0");
+  }
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"test", 4));
+  Hstmt= DoConnect(Hdbc, NULL, NULL, NULL, 0, NULL, &Compression, NULL, NULL);
+
+
+  Thread= CreateThread(NULL, 0, FireQueryInThread, Hstmt, 0, NULL);
+  WaitRc= WaitForSingleObject(Thread, 1500);
+  FAIL_IF(WaitRc == WAIT_TIMEOUT, "Direct Execution has taken too long time");
+
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+#endif
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1546,7 +1622,10 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc48,      "odbc48_iso_call_format",   NORMAL},
   {t_odbc69,      "odbc69_ci_connstring",     NORMAL},
   {t_odbc91,      "odbc91_hdbc_reuse",        NORMAL},
-
+  {t_odbc137,     "odbc137_ansi",             NORMAL},
+#ifdef _WIN32
+  {t_odbc139,     "odbc139_compression",       NORMAL},
+#endif
   {NULL, NULL, 0}
 };
 

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -153,7 +153,16 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
 #if (ODBCVER >= 0x0351)
   case SQL_ATTR_ANSI_APP:
-    Dbc->IsAnsi= (my_bool)(ValuePtr != NULL);
+    if (ValuePtr != NULL)
+    {
+      Dbc->IsAnsi= 1;
+      Dbc->ConnOrSrcCharset= &SourceAnsiCs;
+      CopyClientCharset(&SourceAnsiCs, &Dbc->Charset);
+    }
+    else
+    {
+      Dbc->IsAnsi= 0;
+    }
     break;
 #endif
   case SQL_ATTR_ASYNC_ENABLE:
@@ -190,7 +199,10 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     {
       MADB_FREE(Dbc->CatalogName);
       if (isWChar)
-        Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, NULL, &Dbc->charset, NULL);
+      {
+        /* IsAnsi will be set before this, even if it is set before connection */
+        Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, NULL, Dbc->ConnOrSrcCharset, NULL);
+      }
       else
         Dbc->CatalogName= my_strdup((char *)ValuePtr, MYF(0));
 
@@ -322,7 +334,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
     {
       MADB_CLEAR_ERROR(&Dbc->Error);
-      StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : 0, ValuePtr, BufferLength, 
+      StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : 0, ValuePtr, BufferLength, 
                                           Dbc->CatalogName, strlen(Dbc->CatalogName), &Dbc->Error);
       ret= SQL_SUCCESS;
     }
@@ -422,6 +434,7 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
   Connection->AutoCommit= 4;
   Connection->Environment= Env;
   Connection->Methods= &MADB_Dbc_Methods;
+  //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
   InitializeCriticalSection(&Connection->cs);
   /* Not sure that critical section is really needed here - this init routine is called when
      no one has the handle yet */
@@ -475,7 +488,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
   LeaveCriticalSection(&Env->cs);
 
   MADB_FREE(Connection->CatalogName);
-  CloseClientCharset(&Connection->charset);
+  CloseClientCharset(&Connection->Charset);
   MADB_FREE(Connection->DataBase);
   MADB_DSN_Free(Connection->Dsn);
   DeleteCriticalSection(&Connection->cs);
@@ -506,11 +519,8 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   }
   
   ret= Stmt->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size, TRUE);
- /* Size= (SQLINTEGER)MADB_SetString(isWChar ? Connection->CodePage : 0, CurrentDB, 
-                      (isWChar) ? (int)(MIN(Size + sizeof(SQLWCHAR), CurrentDBLength) / sizeof(SQLWCHAR)) : 
-                      (int)(MIN(Size + 1, CurrentDBLength)),
-                       Buffer, SQL_NTS, &Connection->Error); */
-  Size= (SQLSMALLINT)MADB_SetString(isWChar ? & Connection->charset : 0, 
+
+  Size= (SQLSMALLINT)MADB_SetString(isWChar ? & Connection->Charset : 0, 
                                      (void *)CurrentDB, BUFFER_CHAR_LEN(CurrentDBLength, isWChar), Buffer,
                                      SQL_NTS, &Connection->Error);
   if (StringLengthPtr)
@@ -586,7 +596,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   {
     const char* cs_name= NULL;
 
-    if (Dsn->CharacterSet && Dsn->CharacterSet[0])
+    if (!MADB_IS_EMPTY(Dsn->CharacterSet))
     {
      cs_name= Dsn->CharacterSet;
     }
@@ -595,16 +605,22 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       cs_name= madb_get_os_character_set();
     }
 
-    if (InitClientCharset(&Connection->charset, cs_name != NULL && *cs_name != 0 ? cs_name : "utf8"))
+    if (InitClientCharset(&Connection->Charset, MADB_IS_EMPTY(cs_name) ? "utf8" : cs_name))
     {
       /* Memory allocation error */
       MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
       goto end;
     }
+
+    if (1) /* Turning new functionality off, so far //!Connection->IsAnsi) */
+    {
+      /* If application is not ansi, we should convert wchar into connection string */
+      Connection->ConnOrSrcCharset= &Connection->Charset;
+    }
   }
 
   /* todo: error handling */
-  mysql_options(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->charset.cs_info->csname);
+  mysql_options(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->Charset.cs_info->csname);
 
   if (Dsn->InitCommand && Dsn->InitCommand[0])
     mysql_options(Connection->mariadb, MYSQL_INIT_COMMAND, Dsn->InitCommand);
@@ -838,11 +854,11 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   MADB_CLEAR_ERROR(&Dbc->Error);
   switch(InfoType) {
   case SQL_ACCESSIBLE_PROCEDURES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "N", SQL_NTS, &Dbc->Error);
     break;
   case SQL_ACCESSIBLE_TABLES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "N", SQL_NTS, &Dbc->Error);
     break;
   case SQL_ACTIVE_ENVIRONMENTS:
@@ -890,16 +906,16 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_CATALOG_NAME:
     /* Todo: MyODBC Driver has a DSN configuration for diabling catalog usage:
        but it's not implemented in MAODBC */
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_CATALOG_NAME_SEPARATOR:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), ".", SQL_NTS, &Dbc->Error);
     break;
   case SQL_CATALOG_TERM:
     /* todo: See comment for SQL_CATALOG_NAME */
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "database", SQL_NTS, &Dbc->Error);
     break;
   case SQL_CATALOG_USAGE:
@@ -911,12 +927,12 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                       StringLengthPtr);
     break;
   case SQL_COLLATION_SEQ:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      Dbc->mariadb->charset->name, SQL_NTS, &Dbc->Error);
     break;
   case SQL_COLUMN_ALIAS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                            (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_CONCAT_NULL_BEHAVIOR:
@@ -1043,7 +1059,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_UNSPECIFIED, StringLengthPtr);
     break;
   case SQL_DATA_SOURCE_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      Dbc->Dsn ? Dbc->Dsn->DSNName : "", SQL_NTS, &Dbc->Error);
     break;
   case SQL_DATABASE_NAME:
@@ -1054,7 +1070,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                                 SQL_DL_SQL92_TIMESTAMP, StringLengthPtr);
     break;
   case SQL_DBMS_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      Dbc->mariadb ? (char *)mysql_get_server_name(Dbc->mariadb) : "MariaDB",
                                      SQL_NTS, &Dbc->Error);
     break;
@@ -1082,7 +1098,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_DESCRIBE_PARAMETER:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Dbc->Error);
     break;
     /*
@@ -1106,22 +1122,22 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_DRIVER_HSTMT:
     break;
   case SQL_DRIVER_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      MADB_DRIVER_NAME, SQL_NTS, &Dbc->Error);
     break;
   case SQL_DRIVER_ODBC_VER:
     {
       char *OdbcVersion = "03.51";
-      /* DM requests this info before Dbc->charset initialized. Thus checking if it is, and use utf8 by default
+      /* DM requests this info before Dbc->Charset initialized. Thus checking if it is, and use utf8 by default
          The other way would be to use utf8 when Dbc initialized */
-      SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Dbc->charset.cs_info ? &Dbc->charset : &utf8 ): NULL,
+      SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Dbc->Charset.cs_info ? &Dbc->Charset : &utf8 ): NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      OdbcVersion, SQL_NTS, &Dbc->Error);
     }
     break;
   case SQL_DRIVER_VER:
-     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL,
+     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      MARIADB_ODBC_VERSION, SQL_NTS, &Dbc->Error);
     break;
@@ -1177,7 +1193,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                                 SQL_CA2_SIMULATE_TRY_UNIQUE, StringLengthPtr);
     break;
   case SQL_EXPRESSIONS_IN_ORDERBY:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_FILE_USAGE:
@@ -1216,7 +1232,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_IC_MIXED, StringLengthPtr);
     break;
   case SQL_IDENTIFIER_QUOTE_CHAR:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "`", SQL_NTS, &Dbc->Error);
     break;
   case SQL_INDEX_KEYWORDS:
@@ -1234,7 +1250,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                                 SQL_IS_SELECT_INTO, StringLengthPtr);
     break;
   case SQL_INTEGRITY:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Dbc->Error);
     break;
   case SQL_KEYSET_CURSOR_ATTRIBUTES1:
@@ -1244,7 +1260,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_KEYWORDS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "ACCESSIBLE,ANALYZE,ASENSITIVE,BEFORE,BIGINT,BINARY,BLOB,CALL,"
                                      "CHANGE,CONDITION,DATABASE,DATABASES,DAY_HOUR,DAY_MICROSECOND,"
                                      "DAY_MINUTE,DAY_SECOND,DELAYED,DETERMINISTIC,DISTINCTROW,DIV,"
@@ -1266,7 +1282,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                      "SLOW", SQL_NTS, &Dbc->Error);
     break;
   case SQL_LIKE_ESCAPE_CLAUSE:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_MAX_ASYNC_CONCURRENT_STATEMENTS:
@@ -1321,7 +1337,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_MAX_SCHEMA_NAME_LEN:
@@ -1340,15 +1356,15 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
      MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, USERNAME_LENGTH, StringLengthPtr);
     break;
   case SQL_MULT_RESULT_SETS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_MULTIPLE_ACTIVE_TXN:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_NEED_LONG_DATA_LEN:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Dbc->Error);
     break;
   case SQL_NON_NULLABLE_COLUMNS:
@@ -1384,7 +1400,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                                 SQL_OJ_NESTED | SQL_OJ_INNER, StringLengthPtr);
     break;
   case SQL_ORDER_BY_COLUMNS_IN_SELECT:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Dbc->Error);
     break;
   case SQL_PARAM_ARRAY_ROW_COUNTS:
@@ -1394,23 +1410,23 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_PAS_NO_BATCH, StringLengthPtr);
     break;
   case SQL_PROCEDURE_TERM:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "stored procedure", SQL_NTS, &Dbc->Error);
     break;
   case SQL_PROCEDURES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Dbc->Error);
     break;
   case SQL_QUOTED_IDENTIFIER_CASE:  
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_IC_SENSITIVE, StringLengthPtr);
     break;
   case SQL_ROW_UPDATES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, 
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "N", SQL_NTS, &Dbc->Error);
     break;
   case SQL_SCHEMA_TERM:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "", SQL_NTS, &Dbc->Error);
     break;
@@ -1428,17 +1444,17 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     }
     break;
   case SQL_SEARCH_PATTERN_ESCAPE:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "\\", SQL_NTS, &Dbc->Error);
     break;
   case SQL_SERVER_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, 
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      !(Dbc->mariadb) ? "" : Dbc->mariadb->host_info, SQL_NTS, &Dbc->Error);
     break;
   case SQL_SPECIAL_CHARACTERS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, 
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "\"\\/", SQL_NTS, &Dbc->Error);
     break;
@@ -1538,7 +1554,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                                 SQL_FN_SYS_USERNAME, StringLengthPtr);
     break;
   case SQL_TABLE_TERM:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                       BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "table", SQL_NTS, &Dbc->Error);
     break;
@@ -1573,17 +1589,17 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_U_UNION | SQL_U_UNION_ALL, StringLengthPtr);
     break;
   case SQL_USER_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      (Dbc->mariadb) ? Dbc->mariadb->user : "", SQL_NTS, &Dbc->Error);
     break;
   case SQL_XOPEN_CLI_YEAR:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "1992", SQL_NTS, &Dbc->Error);
     break;
   case SQL_DATA_SOURCE_READ_ONLY:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "N", SQL_NTS, &Dbc->Error);
     break;
