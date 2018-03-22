@@ -462,14 +462,10 @@ int InitClientCharset(Client_Charset *cc, const char * name)
 }
 
 
-Client_Charset* GetDefaultOsCharset(Client_Charset *cc)
+void CopyClientCharset(Client_Charset * Src, Client_Charset * Dst)
 {
-  MARIADB_CHARSET_INFO *cs= mariadb_get_charset_by_name("auto");
-  if (InitClientCharset(cc, cs->csname))
-  {
-    return NULL;
-  }
-  return cc;
+  Dst->CodePage= Src->CodePage;
+  Dst->cs_info= Src->cs_info;
 }
 
 

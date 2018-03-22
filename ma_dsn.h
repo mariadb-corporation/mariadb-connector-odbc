@@ -166,8 +166,4 @@ void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
     memcpy((dsn)->item, (value),(len));\
   }
 
-#define MADB_DSN_GET_UTF8(dsn, item, len) \
-  ((dsn)->item) ? MADB_ConvertFromWChar((dsn)->item, wcslen((dsn)->item)+1, (len)) : NULL
-
-
 #endif /* _ma_dsn_h_ */

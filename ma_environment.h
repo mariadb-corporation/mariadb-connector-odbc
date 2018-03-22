@@ -26,4 +26,6 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
 SQLRETURN MADB_EnvGetAttr(MADB_Env *Env, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength,
                           SQLINTEGER *StringLengthPtr);
 
+extern Client_Charset SourceAnsiCs;
+
 #endif /* _ma_environment_h_ */

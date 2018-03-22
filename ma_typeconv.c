@@ -243,8 +243,9 @@ SQLRETURN MADB_Wchar2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, 
 
   MADB_FREE(CRec->InternalBuffer);
 
+  /* conn cs ? */
   CRec->InternalBuffer= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, (SQLINTEGER)(Length / sizeof(SQLWCHAR)),
-    &mbLength, &Stmt->Connection->charset, NULL);
+    &mbLength, &Stmt->Connection->Charset, NULL);
 
   if (CRec->InternalBuffer == NULL)
   {

@@ -771,7 +771,7 @@ ODBC_TEST(t_sqltables)
     skip("Test user has no rights to drop/create databases");
   }
 
-  AllocEnvConn(&Env, &hdbc1);
+  IS(AllocEnvConn(&Env, &hdbc1));
   Stmt1= DoConnect(hdbc1, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "");
 

@@ -377,3 +377,10 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 }
 /* }}} */
 
+
+/* Stub - needed on windows only */
+int GetSourceAnsiCs(Client_Charset *cc)
+{
+
+  return 0;
+}

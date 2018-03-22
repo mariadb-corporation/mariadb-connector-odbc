@@ -371,7 +371,11 @@ struct st_ma_odbc_connection
   MADB_Dsn *Dsn;
   struct st_ma_connection_methods *Methods;
   MADB_Error Error;
-  Client_Charset charset;
+
+  Client_Charset Charset;
+  Client_Charset *ConnOrSrcCharset; /* "Source" here stands for which charset Windows DM was using as source, when converted to unicode.
+                                  We have to use same charset to recode from unicode to get same string as application sent it.
+                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system codepage */
   char *DataBase;
   MADB_List ListItem;
   MADB_List *Stmts;
@@ -411,8 +415,8 @@ typedef struct
 SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName, MADB_Dbc *Dbc);
 int       DSNPrompt_Free  (MADB_Prompt *prompt);
 
-Client_Charset* GetDefaultOsCharset(Client_Charset *cc);
 int             InitClientCharset  (Client_Charset *cc, const char * name);
+void            CopyClientCharset(Client_Charset * Src, Client_Charset * Dst);
 void            CloseClientCharset(Client_Charset *cc);
 
 /* Default precision of SQL_NUMERIC */

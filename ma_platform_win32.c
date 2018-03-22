@@ -28,7 +28,6 @@
 extern Client_Charset utf8;
 char LogFile[256];
 
-
 char *strndup(const char *s, size_t n)
 {
   size_t len= MIN(strlen(s), n);
@@ -273,4 +272,12 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
     MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, 1, Error);
     return Length;
   }
+}
+
+
+int GetSourceAnsiCs(Client_Charset *cc)
+{
+  cc->CodePage= GetConsoleWindow() ? GetConsoleCP() : GetACP();
+  /* We don't need cs_info for this */
+  return cc->CodePage;
 }
