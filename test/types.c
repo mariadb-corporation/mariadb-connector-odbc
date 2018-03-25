@@ -966,43 +966,43 @@ ODBC_TEST(t_bindsqlnum_basic)
 */
 ODBC_TEST(t_bindsqlnum_wide)
 {
-  SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQL_NUMERIC_STRUCT sqlnum;
   SQLCHAR outstr[20];
-  memset(sqlnum, 0, sizeof(SQL_NUMERIC_STRUCT));
+  memset(sqlnum.val, 0, SQL_MAX_NUMERIC_LEN);
 
-  sqlnum->sign= 1;
-  sqlnum->scale= 3;
-  sqlnum->val[0]= 0x7c;
-  sqlnum->val[1]= 0x62;
+  sqlnum.sign= 1;
+  sqlnum.scale= 3;
+  sqlnum.val[0]= 0x7c;
+  sqlnum.val[1]= 0x62;
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select ?", SQL_NTS));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC,
                                   SQL_DECIMAL, 15, 3,
-                                  sqlnum, 0, NULL));
+                                  &sqlnum, 0, NULL));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLExecute(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outstr, 20, NULL));
   IS_STR(outstr, "25.212", 6);
-  is_num(sqlnum->sign, 1);
-  is_num(sqlnum->precision, 15);
-  is_num(sqlnum->scale, 3);
+  is_num(sqlnum.sign, 1);
+  is_num(sqlnum.precision, 15);
+  is_num(sqlnum.scale, 3);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  sqlnum->sign= 0;
-  sqlnum->scale= 3;
-  sqlnum->val[0]= 0x7c;
-  sqlnum->val[1]= 0x62;
+  sqlnum.sign= 0;
+  sqlnum.scale= 3;
+  sqlnum.val[0]= 0x7c;
+  sqlnum.val[1]= 0x62;
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLExecute(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, outstr, 20, NULL));
   IS_STR(outstr, "-25.212", 6);
-  is_num(sqlnum->sign, 0);
-  is_num(sqlnum->precision, 15);
-  is_num(sqlnum->scale, 3);
+  is_num(sqlnum.sign, 0);
+  is_num(sqlnum.precision, 15);
+  is_num(sqlnum.scale, 3);
 
   return OK;
 }
@@ -1201,15 +1201,17 @@ ODBC_TEST(t_bug29402)
 /*
    Test that SQL_C_NUMERIC returns scale correctly when it is
    different to the requested scale.
+   NB: We now always return numeric with requested scale. Thus the testcase is rather redundant.
+       But I am leaving it in place, with according changes.
  */ 
 ODBC_TEST(t_sqlnum_truncate)
 {
   SQLHANDLE ard;
-  SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQL_NUMERIC_STRUCT sqlnum;
   SQLCHAR exp_data[SQL_MAX_NUMERIC_LEN]=
-          {0x7c, 0x62, 0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+          {0x60, 0xb4, 0x80, 1,0,0,0,0,0,0,0,0,0,0,0,0};
 
-  sqlnum->sign= sqlnum->precision= sqlnum->scale= 128;
+  sqlnum.sign= sqlnum.precision= sqlnum.scale= 128;
 
   OK_SIMPLE_STMT(Stmt, "select 25.212");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
@@ -1219,14 +1221,14 @@ ODBC_TEST(t_sqlnum_truncate)
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
                                (SQLPOINTER) 6, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
-                               sqlnum, SQL_IS_POINTER));
+                               &sqlnum, SQL_IS_POINTER));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  is_num(sqlnum->sign, 1);
-  is_num(sqlnum->precision, 38);
-  is_num(sqlnum->scale, 3);
-  IS(!memcmp(sqlnum->val, exp_data, SQL_MAX_NUMERIC_LEN));
+  is_num(sqlnum.sign, 1);
+  is_num(sqlnum.precision, 38);
+  is_num(sqlnum.scale, 6);
+  IS(!memcmp(sqlnum.val, exp_data, SQL_MAX_NUMERIC_LEN));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1238,17 +1240,17 @@ ODBC_TEST(t_sqlnum_truncate)
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
                                (SQLPOINTER) 6, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
-                               sqlnum, SQL_IS_POINTER));
+                               &sqlnum, SQL_IS_POINTER));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  is_num(sqlnum->sign, 1);
-  is_num(sqlnum->precision, 38);
-  is_num(sqlnum->scale, 3);
-  IS(!memcmp(sqlnum->val, exp_data, SQL_MAX_NUMERIC_LEN));
+  is_num(sqlnum.sign, 1);
+  is_num(sqlnum.precision, 38);
+  is_num(sqlnum.scale, 6);
+  IS(!memcmp(sqlnum.val, exp_data, SQL_MAX_NUMERIC_LEN));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  free(sqlnum);
+
   return OK;
 }
 

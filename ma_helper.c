@@ -984,9 +984,11 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
   {
     number->precision= MADB_DEFAULT_PRECISION;
   }
-   
+
   while (*p=='0')
+  {
     p++;
+  }
   if (*p)
   {
     int i;
@@ -1016,12 +1018,13 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
         digits_total++;
         /* ignore trailing zeros */
         if (*p != '0')
+        {
           digits_significant= digits_total;
+        }
         p++;
       }
-      /* check possible overflow */
-      digits_significant= MIN(digits_significant,number->scale);
-      if (digits_count + digits_significant > number->precision)
+
+      if (digits_count + number->scale > number->precision)
       {
         int i;
         /* if digits are zero there is no overflow */
@@ -1034,9 +1037,17 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       }
       
       memcpy(digits + digits_count, dot + 1, digits_significant);
+      if (number->scale > digits_significant)
+      {
+        for (i= digits_count + digits_significant; i < number->precision && i < digits_count +number->scale; ++i)
+        {
+          digits[i]= '0';
+        }
+        digits_significant= number->scale;
+      }
       digits_count+= digits_significant;
-      number->scale= (SQLSCHAR)digits_significant;
-    } else 
+    }
+    else 
     {
       char *start= p;
       while (*p && isdigit(*p))
@@ -1050,8 +1061,8 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       memcpy(digits, start, digits_count);
       number->scale= ArdRecord->Scale ? ArdRecord->Scale : 0;
     }
+
     /* Rounding */
-    
     if (number->scale < 0)
     {
       int64_t OldVal, Val;
@@ -1069,7 +1080,8 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       if (digits_count > number->precision)
         return MADB_ERR_22003;
     }
-    digits_count= MIN(digits_count, 38);
+
+    digits_count= MIN(digits_count, MADB_DEFAULT_PRECISION);
     for (hval = 0, bit = 1L, sta = 0, olen = 0; sta < digits_count;)
     {
       for (dig = 0, i = sta; i < digits_count; i++)
@@ -1097,7 +1109,9 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       } 
     }
     if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
+    {
       number->val[olen++] = hval;
+    }
   } 
   return ret;
 }
