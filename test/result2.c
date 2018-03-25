@@ -1158,14 +1158,13 @@ ODBC_TEST(t_odbc134)
 
 ODBC_TEST(t_odbc133)
 {
-  SQL_NUMERIC_STRUCT Numeric;
+  SQL_NUMERIC_STRUCT  F1, F2;
   SQLHANDLE Ard;
-  //SQLDOUBLE AsNumber;
-  SQLCHAR AsStr[20];
 
-  OK_SIMPLE_STMT(Stmt, "SELECT CAST(1 as decimal(19,4))");
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST(1 AS DECIMAL(19,4)), CAST(1.00203 AS DECIMAL(19,5))");
  
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_NUMERIC, &Numeric, sizeof(Numeric), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_NUMERIC, &F1, sizeof(F1), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_NUMERIC, &F2, sizeof(F2), NULL));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &Ard, 0, NULL));
 
@@ -1174,21 +1173,63 @@ ODBC_TEST(t_odbc133)
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_SCALE,
     (SQLPOINTER)4, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_DATA_PTR,
-    &Numeric, SQL_IS_POINTER));
+    &F1, SQL_IS_POINTER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 2, SQL_DESC_PRECISION,
+    (SQLPOINTER)19, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 2, SQL_DESC_SCALE,
+    (SQLPOINTER)5, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 2, SQL_DESC_DATA_PTR,
+    &F2, SQL_IS_POINTER));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  is_num(Numeric.sign, 1);
-  IS(!memcmp(Numeric.val, "\1\0\x0\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
-  is_num(Numeric.scale, 0);
+  is_num(F1.sign, 1);
+  /* 0x2710 = 10000 */
+  IS(!memcmp(F1.val, "\x10\x27\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
+  is_num(F1.scale, 4);
 
-  /*CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DOUBLE, &AsNumber,
-    sizeof(AsNumber), NULL));
-  IS(AsNumber==1);*/
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, &AsStr,
-    sizeof(AsStr), NULL));
-  IS_STR(AsStr, "1.0000", sizeof("1.0000"));
+  is_num(F2.sign, 1);
+  /* 0x1876b = 100203 */
+  IS(!memcmp(F2.val, "\x6b\x87\x01\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
+  is_num(F2.scale, 5);
+
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
+  /* Trying to insert numeric 99.0 into DECIMAL(19,4), as in the 2nd part of report */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc133");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc133(num DECIMAL(19,4) NOT NULL)");
+
+  /* 0xf1b30 = 990000 */
+  memcpy(F1.val, "\x30\x1b\x0f\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN);
+  /* SQLBindParameter should override this */
+  F1.scale= 1;
+  
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC, SQL_DECIMAL, 19, 4, &F1, sizeof(SQL_NUMERIC_STRUCT), NULL));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc133 values(?)");
+
+  memset(F1.val, 0, SQL_MAX_NUMERIC_LEN);
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT num FROM t_odbc133 where num= 99");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_NUMERIC, &F1, sizeof(F1), NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &Ard, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_PRECISION,
+    (SQLPOINTER)19, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_SCALE,
+    (SQLPOINTER)4, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_DATA_PTR,
+    &F1, SQL_IS_POINTER));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+
+  is_num(F1.sign, 1);
+  /* 0xf1b30 = 990000 */
+  IS(!memcmp(F1.val, "\x30\x1b\x0f\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
+  is_num(F1.scale, 4);
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   return OK;
 }
 
