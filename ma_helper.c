@@ -84,7 +84,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Lengt
   if (Length)
   {
     end= StmtStr + Length - 1;
-    while (end > StmtStr && (isspace(*end) || *end == ';'))
+    while (end > StmtStr && (isspace(0x000000ff & *end) || *end == ';'))
     {
       --end;
       --Length;
@@ -1013,7 +1013,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       while (*p)
       {
         /* ignore non numbers */
-        if (!isdigit(*p))
+        if (!isdigit(0x000000ff & *p))
           break;
         digits_total++;
         /* ignore trailing zeros */
@@ -1050,7 +1050,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
     else 
     {
       char *start= p;
-      while (*p && isdigit(*p))
+      while (*p && isdigit(0x000000ff & *p))
         p++;
       /* check overflow */
       if (p - start > number->precision)

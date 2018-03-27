@@ -1396,6 +1396,30 @@ ODBC_TEST(t_bug67793)
 }
 
 
+ODBC_TEST(t_odbc138)
+{
+  SQL_TIMESTAMP_STRUCT ts= { 0 };
+  SQLLEN ind;
+  unsigned int i;
+
+  for (i= 0; i < 100; ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, "SELECT DATE_ADD('2018-02-01', INTERVAL -188 DAY)");
+
+    CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_TIMESTAMP, &ts, 0, &ind));
+
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+    is_num(ts.year, 2017);
+    is_num(ts.month, 7);
+    is_num(ts.day, 28);
+    CHECK_STMT_RC(Stmt, SQLCloseCursor(Stmt));
+  }
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_ts,         "my_ts",       NORMAL},
@@ -1420,6 +1444,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc70,      "t_odbc70_zero_datetime_vals", NORMAL},
   {t_17613161,    "t_17613161",  NORMAL},
   {t_bug67793,    "t_bug67793",  NORMAL},
+  {t_odbc138,     "t_odbc138_dateadd_negative", NORMAL },
 
   {NULL, NULL}
 };

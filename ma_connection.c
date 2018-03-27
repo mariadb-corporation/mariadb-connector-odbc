@@ -612,7 +612,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       goto end;
     }
 
-    if (1) /* Turning new functionality off, so far //!Connection->IsAnsi) */
+    if (!Connection->IsAnsi)
     {
       /* If application is not ansi, we should convert wchar into connection string */
       Connection->ConnOrSrcCharset= &Connection->Charset;
@@ -698,9 +698,6 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     if (mysql_query(Connection->mariadb, StmtStr))
       goto err;*/
   }
-
-  if (!Connection->CatalogName && Dsn->Catalog)
-    Connection->CatalogName= my_strdup(Dsn->Catalog, MYF(0));
 
   /* set default catalog */
   if (Connection->CatalogName && Connection->CatalogName[0])
