@@ -1212,22 +1212,14 @@ ODBC_TEST(t_bug26934)
 
   ODBC_Connect(&Env1, &Connection1, &Stmt1);
 
-  if (Travis)
-  {
-    OK_SIMPLE_STMT(Stmt1, "SELECT connection_id()");
-    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
-    ConnectionId= my_fetch_int(Stmt1, 1);
-    CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt1, "SELECT connection_id()");
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  ConnectionId= my_fetch_int(Stmt1, 1);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-    /* From another connection, kill the connection created above */
-    sprintf(Kill, "KILL %d", ConnectionId);
-    OK_SIMPLE_STMT(Stmt, Kill);
-  }
-  else
-  {
-    OK_SIMPLE_STMT(Stmt1, "SET @@wait_timeout = 1");
-    Sleep(3000);
-  }
+  /* From another connection, kill the connection created above */
+  sprintf(Kill, "KILL %d", ConnectionId);
+  OK_SIMPLE_STMT(Stmt, Kill);
   
   EXPECT_STMT(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"%", 1, NULL, SQL_NTS,
                                 NULL, SQL_NTS, NULL, SQL_NTS), SQL_ERROR);

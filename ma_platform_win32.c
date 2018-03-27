@@ -277,7 +277,8 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 
 int GetSourceAnsiCs(Client_Charset *cc)
 {
-  cc->CodePage= GetConsoleWindow() ? GetConsoleCP() : GetACP();
+  cc->CodePage= GetACP();
+
   /* We don't need cs_info for this */
   return cc->CodePage;
 }

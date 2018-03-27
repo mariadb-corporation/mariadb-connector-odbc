@@ -614,7 +614,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       goto end;
     }
 
-    if (1) /* Turning new functionality off, so far //!Connection->IsAnsi) */
+    if (!Connection->IsAnsi)
     {
       /* If application is not ansi, we should convert wchar into connection string */
       Connection->ConnOrSrcCharset= &Connection->Charset;

@@ -1508,32 +1508,71 @@ ODBC_TEST(t_odbc91)
 
 ODBC_TEST(t_odbc137)
 {
-  SQLHDBC  Hdbc;
-  SQLHSTMT Hstmt;
-  char     buffer[16];
-
-  skip("This is not fixed yet");
+  SQLHDBC    Hdbc;
+  SQLHSTMT   Hstmt;
+  char       buffer[256], AllAnsiChars[258], AllAnsiHex[512];
+  const char Charset[][16]= {"latin1", "cp850", "cp1251", "cp866", "cp852", "cp1250", "latin2", "latin5" ,"latin7",
+                             "cp1256", "cp1257", "geostd8", "greek", "koi8u", "koi8r", "hebrew", "macce", "macroman",
+                             "dec8", "hp8", "armscii8", "ascii", "swe7", "tis620", "keybcs2"};
+                        /* åäöÅÄÖ in latin1(cp= 1252),  åäöÅÄÖ in cp850(cp= 437_,  () in win1251 */
+  /*const char TestStr[][8]={ "\xe5\xe4\xf6\xc5\xc4\xd6", "\x86\x84\x94\x8f\x8e\x99", "\xb4\xa2\xfa\xa5\xa1\xda" },
+    HexStr[][16]={ "0xE5E4F6C5C4D6", "0x8684948F8E99", "0xB4A2FAA5A1DA" };*/
+  const char CreateStmtTpl[]= "CREATE TABLE `t_odbc137` (\
+                          `val` TEXT DEFAULT NULL\
+                          ) ENGINE=InnoDB DEFAULT CHARSET=%s";
+  char       CreateStmt[sizeof(CreateStmtTpl) + sizeof(Charset[0])];
+  const char InsertStmtTpl[]= "INSERT INTO t_odbc137(val)  VALUES('%s')";
+  char       InsertStmt[sizeof(InsertStmtTpl) + sizeof(AllAnsiChars)];// TestStr[0])];
+  const char SelectStmtTpl[]= "SELECT * FROM t_odbc137 WHERE val = 0x%s";
+  char       SelectStmt[sizeof(SelectStmtTpl) + sizeof(AllAnsiHex)];// HexStr[0])];
+  unsigned int i, j, Escapes= 0;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc137`");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc137` (\
-    `val` char(50) DEFAULT NULL\
-    ) ENGINE=InnoDB DEFAULT CHARSET=latin1");
-
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
-  Hstmt= ConnectWithCharset(&Hdbc, "latin1", NULL);
-  FAIL_IF(Hstmt == NULL, "");
 
-  OK_SIMPLE_STMT(Hstmt, "INSERT INTO t_odbc137(val)  VALUES('\xe5\xe4\xf6\xc5\xc4\xd6')");//åäöÅÄÖ
+  for (i= 1; i < 256; ++i)
+  {
+    if (i == '\'' || i == '\\')
+    {
+      AllAnsiChars[i-1 + Escapes]= '\\';
+      ++Escapes;
+    }
 
-  /* 0xE5E4F6C5C4D6 is hex for åäöÅÄÖ in latin1 - we are checkin that a correct sting was stored in the table*/
-  OK_SIMPLE_STMT(Hstmt, "SELECT * FROM t_odbc137 WHERE val=0xE5E4F6C5C4D6");
+    AllAnsiChars[i-1 + Escapes]= i;
+    sprintf(AllAnsiHex + (i-1)*2, "%02x", i);
+  }
 
-  FAIL_IF(SQLFetch(Hstmt) == SQL_NO_DATA, "Wrong data has been stored in the table");
-  /* We still need to make sure that the string has been delivered correctly */
-  IS_STR(my_fetch_str(Hstmt, buffer, 1), "\xe5\xe4\xf6\xc5\xc4\xd6", sizeof("\xe5\xe4\xf6\xc5\xc4\xd6"));// "åäöÅÄÖ", sizeof("åäöÅÄÖ"));
+  AllAnsiChars[255 + Escapes]= AllAnsiHex[511]= '\0';
+  
+  for (i= 0; i < sizeof(Charset)/sizeof(Charset[0]); ++i)
+  {
+    diag("Charset: %s", Charset[i]);
+    
+    Hstmt= ConnectWithCharset(&Hdbc, Charset[i], NULL);
+    FAIL_IF(Hstmt == NULL, "");
 
-  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
-  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+    sprintf(CreateStmt, CreateStmtTpl, Charset[i]);
+    OK_SIMPLE_STMT(Hstmt, CreateStmt);
+
+    sprintf(InsertStmt, InsertStmtTpl, AllAnsiChars);// TestStr[i]);
+    OK_SIMPLE_STMT(Hstmt, InsertStmt);
+
+    sprintf(SelectStmt, SelectStmtTpl, AllAnsiHex);// HexStr[i]);
+    OK_SIMPLE_STMT(Hstmt, SelectStmt);
+
+    FAIL_IF(SQLFetch(Hstmt) == SQL_NO_DATA, "Wrong data has been stored in the table");
+    /* We still need to make sure that the string has been delivered correctly */
+    my_fetch_str(Hstmt, buffer, 1);
+    /* AllAnsiChars is escaped, so we cannot compare result string against it */
+    for (j= 1; j < 256; ++j)
+    {
+      is_num((unsigned char)buffer[j - 1], j);
+    }
+    CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+    OK_SIMPLE_STMT(Stmt, "DROP TABLE `t_odbc137`");
+    CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  }
+
   CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
 
   return OK;
