@@ -344,6 +344,7 @@ SET(CPACK_SOURCE_IGNORE_FILES
 test/
 .git/
 .gitignore
+.gitmodules
 .gitattributes
 CMakeCache.txt
 cmake_dist.cmake
@@ -359,7 +360,8 @@ CPackConfig.cmake
 .*gz$
 .*zip$
 .*so$
-.*so.*$
+.*so.2
+.*so.3
 .*dll$
 .*a$
 .*pdb$
@@ -370,6 +372,11 @@ CPackConfig.cmake
 /_CPack_Packages/
 Makefile$
 /autom4te.cache/
+libmariadb/win
+libmariadb/client
+libmariadb/examples
+.travis/
+.travis.yml
 )
 
 # Build source packages

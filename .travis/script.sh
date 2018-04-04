@@ -55,17 +55,17 @@ ls -lrt ${SSLCERT}
 #build C connector
 DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc-dev
 #mkdir ./connector_c
-time git clone -b master --depth 1 "https://github.com/MariaDB/mariadb-connector-c.git" build
-cd build
+#time git clone -b master --depth 1 "https://github.com/MariaDB/mariadb-connector-c.git" build
+#cd build
 #git fetch --all --tags --prune
 #git checkout tags/${CONNECTOR_C_VERSION} -b odbc_travis_build
 
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DWITH_OPENSSL=ON
+#cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DWITH_OPENSSL=ON
 #-DCMAKE_INSTALL_PREFIX= ../connector_c .
-make
-sudo make install
-cd ..
-rm build -rf
+#make
+#sudo make install
+#cd ..
+#rm build -rf
 
 #build odbc connector
 export TEST_DRIVER=maodbc_test
@@ -76,7 +76,10 @@ export TEST_SCHEMA=odbc_test
 export TEST_UID=bob
 export TEST_PASSWORD= 
 
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DMARIADB_DIR=./connector_c .
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON
+#-DMARIADB_DIR=./connector_c .
+# In Travis we are interested in tests with latest C/C version, while for release we must use only latest release tag
+#git submodule update --remote
 cmake --build . --config RelWithDebInfo 
 
 ###################################################################################################################
