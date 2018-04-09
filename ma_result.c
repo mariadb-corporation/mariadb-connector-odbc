@@ -28,6 +28,7 @@ void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
   Stmt->Lengths= (unsigned long *)MADB_REALLOC((char *)Stmt->Lengths,
     sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
   memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+  MADB_FREE(Stmt->result);
 
   MADB_STMT_RESET_CURSOR(Stmt);
 }
