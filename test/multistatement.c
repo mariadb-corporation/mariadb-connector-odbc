@@ -314,6 +314,59 @@ ODBC_TEST(t_odbc126)
   return OK;
 }
 
+ODBC_TEST(diff_column_binding)
+{
+  char bindc1[64];
+  int bind1, bind2, bind3;
+  SQLBIGINT bindb1;
+  SQLRETURN rc, Expected= SQL_SUCCESS;
+  SQLLEN indicator = 0, indicator2 = 0, indicator3 = 0, indicator4 = 0;
+  SQLLEN indicatorc = SQL_NTS;
+  
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS diff_column_binding");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS diff_column_binding_1");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE diff_column_binding(col1 INT, col2 VARCHAR(64), col3 BIGINT unsigned)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE diff_column_binding_1()\
+                        BEGIN\
+                          SELECT 1017, 1370;\
+                          SELECT * FROM diff_column_binding;\
+                        END");
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO diff_column_binding VALUES(1370, \"abcd\", 12345), (1417, \"abcdef\", 2390), (1475, \"@1475\", 0)");
+  OK_SIMPLE_STMT(Stmt, "CALL diff_column_binding_1");
+
+  // bind first result set
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind1, sizeof(int), &indicator);
+  SQLBindCol(Stmt, 2, SQL_C_LONG, &bind2, sizeof(int), &indicator2);
+  SQLFetch(Stmt);
+  is_num(bind1, 1017);
+  is_num(bind2, 1370);
+
+  SQLMoreResults(Stmt);
+
+  // bind second result set
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind3, sizeof(int), &indicator3);
+  SQLBindCol(Stmt, 2, SQL_C_CHAR, bindc1, sizeof(bindc1), &indicatorc);
+  SQLBindCol(Stmt, 3, SQL_C_SBIGINT, &bindb1, sizeof(SQLBIGINT), &indicator4);
+  SQLFetch(Stmt);
+  is_num(bind3, 1370);
+  is_num(strcmp(bindc1, "abcd"), 0);
+  is_num(bindb1, 12345);
+  SQLFetch(Stmt);
+  is_num(bind3, 1417);
+  is_num(strcmp(bindc1, "abcdef"), 0);
+  is_num(bindb1, 2390);
+  SQLFetch(Stmt);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE diff_column_binding");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE diff_column_binding_1");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -325,6 +378,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc74, "t_odbc74and_odbc97"},
   {t_odbc95, "t_odbc95"},
   {t_odbc126, "t_odbc126"},
+  {diff_column_binding, "diff_column_binding"},
   {NULL, NULL}
 };
 

@@ -100,6 +100,9 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   }
 
   MADB_StmtResetResultStructures(Stmt);
+  /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
+     Thus we free-ing bind structs on move to new result only */
+  MADB_FREE(Stmt->result);
 
   MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
 
