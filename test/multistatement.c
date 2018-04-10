@@ -352,8 +352,8 @@ ODBC_TEST(diff_column_binding)
   SQLFetch(Stmt);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE diff_column");
-  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE diff_column_1");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE diff_column_binding");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE diff_column_binding_1");
 
   return OK;
 }
