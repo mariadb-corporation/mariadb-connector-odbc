@@ -316,12 +316,11 @@ ODBC_TEST(t_odbc126)
 
 ODBC_TEST(diff_column_binding)
 {
-  SQLCHAR Query[][100] = {"CALL diff_column_1"};
-  unsigned int i, j, ExpectedRows[]= {1, 3}, bind1, bind2, bind3;
   char bindc1[64];
+  int bind1, bind2, bind3;
   __int64 bindb1;
   SQLRETURN rc, Expected= SQL_SUCCESS;
-  SQLLEN indicator = 0;
+  SQLLEN indicator = 0, indicator2 = 0, indicator3 = 0, indicator4 = 0;
   SQLLEN indicatorc = SQL_NTS;
   
 
@@ -332,7 +331,7 @@ ODBC_TEST(diff_column_binding)
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE diff_column_binding_1()\
                         BEGIN\
                           SELECT 1017, 1370;\
-                          SELECT * FROM diff_column;\
+                          SELECT * FROM diff_column_binding;\
                         END");
 
   OK_SIMPLE_STMT(Stmt, "INSERT INTO diff_column_binding VALUES(1370, \"abcd\", 12345), (1417, \"abcdef\", 2390), (1475, \"@1475\", 0)");
@@ -340,7 +339,7 @@ ODBC_TEST(diff_column_binding)
 
   // bind first result set
   SQLBindCol(Stmt, 1, SQL_C_LONG, &bind1, sizeof(int), &indicator);
-  SQLBindCol(Stmt, 2, SQL_C_LONG, &bind2, sizeof(int), &indicator);
+  SQLBindCol(Stmt, 2, SQL_C_LONG, &bind2, sizeof(int), &indicator2);
   SQLFetch(Stmt);
   is_num(bind1, 1017);
   is_num(bind2, 1370);
@@ -348,9 +347,9 @@ ODBC_TEST(diff_column_binding)
   SQLMoreResults(Stmt);
 
   // bind second result set
-  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind3, sizeof(int), &indicator);
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind3, sizeof(int), &indicator3);
   SQLBindCol(Stmt, 2, SQL_C_CHAR, bindc1, sizeof(bindc1), &indicatorc);
-  SQLBindCol(Stmt, 3, SQL_C_SBIGINT, &bindb1, sizeof(bindb1), &indicator);
+  SQLBindCol(Stmt, 3, SQL_C_SBIGINT, &bindb1, sizeof(__int64), &indicator4);
   SQLFetch(Stmt);
   is_num(bind3, 1370);
   is_num(strcmp(bindc1, "abcd"), 0);
