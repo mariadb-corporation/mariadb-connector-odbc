@@ -317,7 +317,7 @@ ODBC_TEST(t_odbc126)
 ODBC_TEST(diff_column_binding)
 {
   SQLCHAR Query[][100] = {"CALL diff_column_1"};
-  unsigned int i, j, ExpectedRows[]= {1, 3}, bind1, bind2;
+  unsigned int i, j, ExpectedRows[]= {1, 3}, bind1, bind2, bind3;
   char bindc1[64];
   __int64 bindb1;
   SQLRETURN rc, Expected= SQL_SUCCESS;
@@ -342,14 +342,25 @@ ODBC_TEST(diff_column_binding)
   SQLBindCol(Stmt, 1, SQL_C_LONG, &bind1, sizeof(int), &indicator);
   SQLBindCol(Stmt, 2, SQL_C_LONG, &bind2, sizeof(int), &indicator);
   SQLFetch(Stmt);
+  is_num(bind1, 1017);
+  is_num(bind2, 1370);
 
   SQLMoreResults(Stmt);
 
   // bind second result set
-  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind1, sizeof(int), &indicator);
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind3, sizeof(int), &indicator);
   SQLBindCol(Stmt, 2, SQL_C_CHAR, bindc1, sizeof(bindc1), &indicatorc);
   SQLBindCol(Stmt, 3, SQL_C_SBIGINT, &bindb1, sizeof(bindb1), &indicator);
   SQLFetch(Stmt);
+  is_num(bind3, 1370);
+  is_num(strcmp(bindc1, "abcd"), 0);
+  is_num(bindb1, 12345);
+  SQLFetch(Stmt);
+  is_num(bind3, 1417);
+  is_num(strcmp(bindc1, "abcdef"), 0);
+  is_num(bindb1, 2390);
+  SQLFetch(Stmt);
+
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE diff_column_binding");
