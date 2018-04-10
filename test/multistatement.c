@@ -321,8 +321,8 @@ ODBC_TEST(diff_column_binding)
   char bindc1[64];
   __int64 bindb1;
   SQLRETURN rc, Expected= SQL_SUCCESS;
-  SQLINTEGER indicator = 0;
-  SQLINTEGER indicatorc = SQL_NTS;
+  SQLLEN indicator = 0;
+  SQLLEN indicatorc = SQL_NTS;
   
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS diff_column_binding");
