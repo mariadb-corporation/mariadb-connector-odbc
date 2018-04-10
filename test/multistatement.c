@@ -314,6 +314,49 @@ ODBC_TEST(t_odbc126)
   return OK;
 }
 
+ODBC_TEST(diff_column_binding)
+{
+  SQLCHAR Query[][100] = {"CALL diff_column_1"};
+  unsigned int i, j, ExpectedRows[]= {1, 3}, bind1, bind2;
+  char bindc1[64];
+  __int64 bindb1;
+  SQLRETURN rc, Expected= SQL_SUCCESS;
+  SQLINTEGER indicator = 0;
+  SQLINTEGER indicatorc = SQL_NTS;
+  
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS diff_column_binding");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS diff_column_binding_1");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE diff_column_binding(col1 INT, col2 VARCHAR(64), col3 BIGINT unsigned)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE diff_column_binding_1()\
+                        BEGIN\
+                          SELECT 1017, 1370;\
+                          SELECT * FROM diff_column;\
+                        END");
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO diff_column_binding VALUES(1370, \"abcd\", 12345), (1417, \"abcdef\", 2390), (1475, \"@1475\", 0)");
+  OK_SIMPLE_STMT(Stmt, "CALL diff_column_binding_1");
+
+  // bind first result set
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind1, sizeof(int), &indicator);
+  SQLBindCol(Stmt, 2, SQL_C_LONG, &bind2, sizeof(int), &indicator);
+  SQLFetch(Stmt);
+
+  SQLMoreResults(Stmt);
+
+  // bind second result set
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &bind1, sizeof(int), &indicator);
+  SQLBindCol(Stmt, 2, SQL_C_CHAR, bindc1, sizeof(bindc1), &indicatorc);
+  SQLBindCol(Stmt, 3, SQL_C_SBIGINT, &bindb1, sizeof(bindb1), &indicator);
+  SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE diff_column");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE diff_column_1");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -325,6 +368,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc74, "t_odbc74and_odbc97"},
   {t_odbc95, "t_odbc95"},
   {t_odbc126, "t_odbc126"},
+  {diff_column_binding, "diff_column_binding"},
   {NULL, NULL}
 };
 
