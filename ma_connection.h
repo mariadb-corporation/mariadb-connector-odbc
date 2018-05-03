@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2015 MariaDB Corporation AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -23,6 +23,9 @@
 #define MADB_CONN_OPT_BEFORE        1
 #define MADB_CONN_OPT_AFTER         2
 #define MADB_CONN_OPT_BOTH          3
+
+/* sql_mode's identifiers */
+enum enum_madb_sql_mode {MADB_NO_BACKSLASH_ESCAPES, MADB_ANSI_QUOTES };
 
 struct st_ma_connection_methods;
 
@@ -52,6 +55,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
 MADB_Dbc * MADB_DbcInit(MADB_Env *Env);
 SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar);
+BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);
 
 #define MADB_SUPPORTED_CONVERSIONS  SQL_CVT_BIGINT | SQL_CVT_BIT | SQL_CVT_CHAR | SQL_CVT_DATE |\
                                     SQL_CVT_DECIMAL | SQL_CVT_DOUBLE | SQL_CVT_FLOAT |\

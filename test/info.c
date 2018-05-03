@@ -713,6 +713,34 @@ ODBC_TEST(odbc109)
 }
 
 
+ODBC_TEST(odbc143)
+{
+  SQLCHAR Info[2];
+  SQLWCHAR wInfo[2];
+  SQLHANDLE Hdbc1, Stmt1;
+
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_IDENTIFIER_QUOTE_CHAR, &Info, sizeof(Info), NULL));
+  IS_STR(Info, "`", 2);
+  /* Checking W function as well */
+  CHECK_DBC_RC(Connection, SQLGetInfoW(Connection, SQL_IDENTIFIER_QUOTE_CHAR, &wInfo, sizeof(wInfo), NULL));
+  is_num(wInfo[0], '`');
+  is_num(wInfo[1], 0);
+
+  AllocEnvConn(&Env, &Hdbc1);
+  Stmt1= DoConnect(Hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
+
+  OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI_QUOTES'");
+  CHECK_DBC_RC(Hdbc1, SQLGetInfo(Hdbc1, SQL_IDENTIFIER_QUOTE_CHAR, &Info, sizeof(wInfo), NULL));
+  IS_STR(Info, "\"", 2);
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(Hdbc1, SQLDisconnect(Hdbc1));
+  CHECK_DBC_RC(Hdbc1, SQLFreeConnect(Hdbc1));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -734,6 +762,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc71, "odbc71_some_odbc2_types", NORMAL },
   { odbc123, "odbc123_catalog_start", NORMAL },
   { odbc109, "odbc109_shema_owner_term", NORMAL },
+  { odbc143, "odbc143_ANSI_QUOTES", NORMAL },
   { NULL, NULL }
 };
 
