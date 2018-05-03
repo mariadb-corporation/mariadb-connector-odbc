@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2017 MariaDB Corporation AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -530,6 +530,17 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
 end:
   MA_SQLFreeStmt(Stmt, SQL_DROP);
   return Connection->Error.ReturnValue;
+}
+BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
+{
+  switch (SqlMode)
+  {
+  case MADB_NO_BACKSLASH_ESCAPES:
+    return Connection->mariadb->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES;
+  case MADB_ANSI_QUOTES:
+    return Connection->mariadb->server_status & SERVER_STATUS_ANSI_QUOTES;
+  }
+  return FALSE;
 }
 /* }}} */
 
@@ -1232,7 +1243,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_IDENTIFIER_QUOTE_CHAR:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
-                                     "`", SQL_NTS, &Dbc->Error);
+      MADB_SqlMode(Dbc, MADB_ANSI_QUOTES) ? "\"" : "`", SQL_NTS, &Dbc->Error);
     break;
   case SQL_INDEX_KEYWORDS:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_IK_ALL, StringLengthPtr);
