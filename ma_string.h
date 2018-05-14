@@ -20,7 +20,7 @@
 #define _ma_string_h_
 
 char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed);
-int MADB_ConvertAnsi2Unicode(Client_Charset* cc, char *AnsiString, SQLLEN AnsiLength, 
+int MADB_ConvertAnsi2Unicode(Client_Charset* cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error);
 char*     MADB_GetInsertStatement(MADB_Stmt *Stmt);
@@ -34,9 +34,8 @@ my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
 my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
 SQLWCHAR* MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
 SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
-                      char *Src, SQLLEN SrcLength, MADB_Error *Error);
-my_bool   MADB_ValidateStmt(char *StmtStr);
-my_bool   MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2);
+                      const char *Src, SQLLEN SrcLength, MADB_Error *Error);
+my_bool   MADB_ValidateStmt(MADB_QUERY *Query);
 
 SQLLEN     MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
 SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);

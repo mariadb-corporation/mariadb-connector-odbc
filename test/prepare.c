@@ -1177,7 +1177,7 @@ ODBC_TEST(t_bug67702)
 ODBC-57: MS Access adds parenthesis around each "SELECT" in a "UNION" query. Connector had problems preparing it.
 But in general any (returning result) query in parenthesis caused the same problem
 */
-ODBC_TEST(odbc_57)
+ODBC_TEST(t_odbc57)
 {
   int value= 0;
 
@@ -1189,6 +1189,36 @@ ODBC_TEST(odbc_57)
   is_num(value, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
+
+
+ODBC_TEST(t_odbc141)
+{
+  SQLCHAR SQLState[6];
+  SQLINTEGER NativeError;
+  SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
+  SQLSMALLINT TextLengthPtr;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc141");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc141(id int not null)");
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "LOAD DATA INFILE '/nonexistent/non_existent' INTO TABLE odbc141\
+                                        CHARACTER SET latin1 FIELDS TERMINATED BY ';'\
+                                        ENCLOSED BY '\"' LINES TERMINATED BY '\n'", SQL_NTS));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+
+  SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
+  diag("%s(%d) %s", SQLState, NativeError, SQLMessage);
+#ifdef _WIN32
+  is_num(NativeError, 29); /* File not found */
+#else
+  is_num(NativeError, 13); /* Can't stat... */
+#endif
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
   return OK;
 }
 
@@ -1211,7 +1241,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29871, "t_bug29871"},
   {t_bug67340, "t_bug67340"},
   {t_bug67702, "t_bug67702"},
-  {odbc_57, "odbc-57-query_in_parenthesis" },
+  {t_odbc57, "odbc-57-query_in_parenthesis" },
+  {t_odbc141, "odbc-141-load_data_infile" },
   {NULL, NULL}
 };
 

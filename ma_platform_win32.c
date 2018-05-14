@@ -160,7 +160,7 @@ char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Len
 /* }}} */
 
 /* Required Length without or with TN(if IsNull is TRUE, or AnsiLength == -1 or SQL_NTS) is put to LenghtIndicator*/
-int MADB_ConvertAnsi2Unicode(Client_Charset *cc, char *AnsiString, SQLLEN AnsiLength, 
+int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
 {
@@ -224,7 +224,7 @@ end:
    then simply SrcLength is returned. 
    If Dest is not NULL, and DestLenth is 0, then error*/
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
-                      char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
+                      const char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
   char  *p= (char *)Dest;
   SQLLEN Length= 0;

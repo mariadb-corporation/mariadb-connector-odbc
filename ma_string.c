@@ -375,47 +375,10 @@ error:
   return NULL;
 }
 
-void StripComments(char *s) {
-  char *a, *b,
-       *ca= "/*",
-       *cb="*/";
-  size_t len = strlen(s) + 1;
- 
-  while ((a = strstr(s, ca)) != NULL)
-  {
-	  b = strstr(a+2, cb);
-	  if (b == NULL)
-	    break;
-	  b += 2;
-	  memmove(a, b, strlen(b)+1);
-  }
-}
 
-my_bool MADB_IsStatementSupported(char *StmtStr, char *token1, char *token2)
+my_bool MADB_ValidateStmt(MADB_QUERY *Query)
 {
-  my_bool ret= TRUE;
-  char *Copy= _strdup(StmtStr);
-  char *p;
-#ifndef _WIN32
-  char *r;
-#endif
-
-  StripComments(Copy);
-  p= strtok_r(Copy, " \t", &r);
-  if (p && strcasecmp(p, token1) != 0)
-    goto end;
-
-  p= strtok_r(NULL, " \t=", &r);
-  if (p && strcasecmp(p, token2) == 0)
-    ret= FALSE;
-end:
-  MADB_FREE(Copy);
-  return ret;
-}
-
-my_bool MADB_ValidateStmt(char *StmtStr)
-{
-  return MADB_IsStatementSupported(StmtStr, "SET", "NAMES");
+  return Query->QueryType != MADB_QUERY_SET_NAMES;
 }
 
 

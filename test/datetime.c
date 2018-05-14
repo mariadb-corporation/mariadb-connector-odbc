@@ -1360,18 +1360,20 @@ ODBC_TEST(t_bug67793)
   SQLLEN outlen= 0;
 
   /* check situations with sec and min overflow */
-  OK_SIMPLE_STMT(Stmt, "SELECT '123456789:45:07', '99999:42:09', CAST('-800:12:17' AS TIME)");
+  OK_SIMPLE_STMT(Stmt, "SELECT '123456789:45:07', CAST('838:59:58' AS TIME), CAST('-800:12:17' AS TIME)");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
+#ifdef WE_HAVE_OLD_STR2TIME_CONVERSION
   EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen), SQL_ERROR);
   /* leading precision is 5, i.e. hours max value is 99999 */
   CHECK_SQLSTATE(Stmt, "22015")
+#endif
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
   is_num(outlen, sizeof(h2s));
-  is_num(h2s.intval.day_second.hour, 99999);
-  is_num(h2s.intval.day_second.minute, 42);
-  is_num(h2s.intval.day_second.second, 9);
+  is_num(h2s.intval.day_second.hour, 838);
+  is_num(h2s.intval.day_second.minute, 59);
+  is_num(h2s.intval.day_second.second, 58);
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
   is_num(outlen, sizeof(h2s));
@@ -1383,13 +1385,16 @@ ODBC_TEST(t_bug67793)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
 
+#ifdef WE_HAVE_OLD_STR2TIME_CONVERSION
   EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22015");
-
+#else
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
+#endif
   is_num(outlen, sizeof(h2s));
-  is_num(h2s.intval.day_second.hour, 99999);
-  is_num(h2s.intval.day_second.minute, 42);
-  is_num(h2s.intval.day_second.second, 9);
+  is_num(h2s.intval.day_second.hour, 838);
+  is_num(h2s.intval.day_second.minute, 59);
+  is_num(h2s.intval.day_second.second, 58);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   return OK;
@@ -1410,9 +1415,19 @@ ODBC_TEST(t_odbc138)
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    is_num(ts.year, 2017);
-    is_num(ts.month, 7);
-    is_num(ts.day, 28);
+    if (ts.year != 2017)
+    {
+      diag("Failure of the Iteration #%d: Year %hd != 2017", i, ts.year);
+    }
+    if (ts.month != 7)
+    {
+      diag("Failure of the Iteration #%d: Month %hd != 7", i, ts.month);
+
+    }
+    if (ts.day != 28)
+    {
+      diag("Failure of the Iteration #%d: Day %hd != 28", i, ts.day);
+    }
     CHECK_STMT_RC(Stmt, SQLCloseCursor(Stmt));
   }
 

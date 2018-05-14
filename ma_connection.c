@@ -535,9 +535,9 @@ BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
   switch (SqlMode)
   {
   case MADB_NO_BACKSLASH_ESCAPES:
-    return Connection->mariadb->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES;
+    return test(Connection->mariadb->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
   case MADB_ANSI_QUOTES:
-    return Connection->mariadb->server_status & SERVER_STATUS_ANSI_QUOTES;
+    return test(Connection->mariadb->server_status & SERVER_STATUS_ANSI_QUOTES);
   }
   return FALSE;
 }
