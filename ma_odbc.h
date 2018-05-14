@@ -265,11 +265,6 @@ enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2
   (Stmt_Hndl->State == MADB_SS_EMULATED ? MADB_SS_EMULATED : MADB_SS_PREPARED) :\
   MADB_SS_INITED
 
-
-typedef struct {
-  MADB_DynArray tokens;
-} MADB_QUERY;
-
 /* Struct used to define column type when driver has to fix it (in catalog functions + SQLGetTypeInfo) */
 typedef struct
 {
@@ -287,8 +282,10 @@ typedef struct
 
 } MADB_BulkOperationInfo;
 
-/* Stmt struct needs enum definition from my_parse.h, and it in its turn needs MADB_QUERY*/
+/* Stmt struct needs definitions from my_parse.h */
 #include <ma_parse.h>
+
+#define STMT_STRING(STMT) (STMT)->Query.Original
 
 struct st_ma_odbc_stmt
 {
@@ -300,7 +297,7 @@ struct st_ma_odbc_stmt
   MYSQL_STMT                *stmt;
   MYSQL_RES                 *metadata;
   MADB_List                 ListItem;
-  MADB_QUERY                *Tokens;
+  MADB_QUERY                Query;
   SQLSMALLINT               ParamCount;
   enum MADB_DaeType         DataExecutionType;
   MYSQL_RES                 *DefaultsResult;
@@ -309,11 +306,9 @@ struct st_ma_odbc_stmt
   int                       Status;
   MADB_DescRecord           *PutDataRec;
   MADB_Stmt                 *DaeStmt;
-  char                      *StmtString;
   MADB_Stmt                 *PositionedCursor;
   my_bool                   PositionedCommand;
   enum MADB_StmtState       State;
-  unsigned int              MultiStmtCount;
   MYSQL_STMT                **MultiStmts;
   unsigned int              MultiStmtNr;
   unsigned int              MultiStmtMaxParam;
@@ -330,7 +325,6 @@ struct st_ma_odbc_stmt
   char                      *CatalogName;
   MADB_ShortTypeInfo        *ColsTypeFixArr;
   MADB_BulkOperationInfo    Bulk;
-  enum enum_madb_query_type QueryType;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;

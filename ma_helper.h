@@ -20,8 +20,9 @@
 #define _ma_helper_h_
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
-BOOL QueryIsPossiblyMultistmt(char *queryStr);
-unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Length);
+BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
+int  SqlRtrim(char *StmtStr, int Length);
+unsigned int GetMultiStatements(MADB_Stmt *Stmt);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
@@ -46,7 +47,10 @@ size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
 size_t  MADB_GetDisplaySize(MYSQL_FIELD field, MARIADB_CHARSET_INFO *charset);
 size_t  MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
 char *  MADB_GetTypeName(MYSQL_FIELD Field);
+
+char *  ltrim(char *Str);
 char *  trim(char *Str);
+
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
 void *  GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
 BOOL    MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);

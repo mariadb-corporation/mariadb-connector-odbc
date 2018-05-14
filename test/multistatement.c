@@ -129,12 +129,12 @@ ODBC_TEST(t_odbc_16)
     OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2)");
 
     SQLRowCount(Stmt, &num_inserted);
-    FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
+    is_num(num_inserted, 1);
   
     rc= SQLMoreResults(Stmt);
     num_inserted= 0;
     rc= SQLRowCount(Stmt, &num_inserted);
-    FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
+    is_num(num_inserted, 1);
 
     rc= SQLMoreResults(Stmt);
     FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
@@ -239,7 +239,7 @@ ODBC_TEST(t_odbc74)
                         INSERT INTO odbc74 (val) VALUES(\"two\\\");");
   OK_SIMPLE_STMT(Stmt1, "SELECT val FROM odbc74 ORDER BY id");
 
-  /* We only have to last rows */
+  /* We only have 2 last rows */
   for (i= sizeof(ref)/sizeof(ref[0]) - 2; i < sizeof(ref)/sizeof(ref[0]); ++i)
   {
     CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));

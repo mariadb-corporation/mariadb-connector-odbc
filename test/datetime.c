@@ -1410,9 +1410,19 @@ ODBC_TEST(t_odbc138)
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    is_num(ts.year, 2017);
-    is_num(ts.month, 7);
-    is_num(ts.day, 28);
+    if (ts.year != 2017)
+    {
+      diag("Failure of the Iteration #%d: Year %hd != 2017", i, ts.year);
+    }
+    if (ts.month != 7)
+    {
+      diag("Failure of the Iteration #%d: Month %hd != 7", i, ts.month);
+
+    }
+    if (ts.day != 28)
+    {
+      diag("Failure of the Iteration #%d: Day %hd != 28", i, ts.day);
+    }
     CHECK_STMT_RC(Stmt, SQLCloseCursor(Stmt));
   }
 

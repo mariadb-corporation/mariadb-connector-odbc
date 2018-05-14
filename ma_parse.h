@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -21,10 +21,16 @@
 
 #include <sqlext.h>
 
+
 enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the query types we are not interested in */ 
                             MADB_QUERY_INSERT,
                             MADB_QUERY_UPDATE= SQL_UPDATE,
                             MADB_QUERY_DELETE= SQL_DELETE,
+                            MADB_QUERY_CREATE_PROC,
+                            MADB_QUERY_CREATE_FUNC,
+                            MADB_QUERY_CREATE_DEFINER,
+                            MADB_QUERY_SET,
+                            MADB_QUERY_SET_NAMES,
                             MADB_QUERY_SELECT,
                             MADB_QUERY_SHOW,
                             MADB_QUERY_CALL,
@@ -32,17 +38,44 @@ enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the que
                             MADB_QUERY_EXPLAIN,
                             MADB_QUERY_CHECK,
                             MADB_QUERY_EXECUTE
-                          };
+};
+
+typedef struct {
+  char        * Original;
+  char        * allocated; /* Pointer to the allocated area. The refined query may go to the right */
+  char        * RefinedText;
+  size_t        RefinedLength;
+  MADB_DynArray Tokens;
+  unsigned int  MultiStmtCount;
+  /* So far only falg whether we have any parameters */
+  my_bool       HasParameters;
+  /* This is more for multistatements for optimization - if none of queries returns result,
+     we can send them via text protocol */
+  my_bool       ReturnsResult;
+  enum enum_madb_query_type QueryType;
+
+  my_bool       BatchAllowed;
+  my_bool       AnsiQuotes;
+  my_bool       NoBackslashEscape;
+
+} MADB_QUERY;
+
+#define PQUERY_UPDATE_LEN(PARSED_QUERY_PTR) (PARSED_QUERY_PTR)->RefinedLength= strlen((PARSED_QUERY_PTR)->RefinedLength)
+
+int  MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLength);
+void MADB_DeleteQuery(MADB_QUERY *Query);
+int  MADB_ParseQuery(MADB_QUERY *Query);
 
 #define QUERY_DOESNT_RETURN_RESULT(query_type) ((query_type) < MADB_QUERY_SELECT)
 
-MADB_QUERY * MADB_Tokenize(const char *Stmt);
-char *       MADB_ParseCursorName(MADB_Stmt *Stmt, unsigned int *Offset);
-unsigned int MADB_FindToken(MADB_Stmt *Stmt, char *Compare);
-void         MADB_FreeTokens(MADB_QUERY *Query);
+char *       MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset);
+unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare);
 
-enum enum_madb_query_type MADB_GetQueryType(MADB_Stmt *Stmt);
+enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Token2);
 
 const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt);
-char *       FixIsoFormat(char * StmtString);
+char *       FixIsoFormat(char * StmtString, size_t *Length);
+int          ParseQuery(MADB_QUERY *Query);
+char *       StripLeadingComments(char *s, size_t *Length, BOOL OverWrite);
+
 #endif /* _ma_parse_h_ */

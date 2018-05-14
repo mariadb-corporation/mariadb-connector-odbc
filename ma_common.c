@@ -25,14 +25,23 @@
 MARIADB_CHARSET_INFO*  utf16= NULL;
 Client_Charset utf8=  {CP_UTF8, NULL};
 
-
-/* {{{ trim */
-char *trim(char *Str)
+/* {{{ ltrim */
+char* ltrim(char *Str)
 {
-  char *end;
   /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
   while (Str && iswspace(Str[0]))
-    Str++;
+    ++Str;
+  return Str;
+}
+/* }}} */
+
+/* {{{ trim */
+char* trim(char *Str)
+{
+  char *end;
+  
+  Str= ltrim(Str);
+
   end= Str + strlen(Str) - 1;
   while (iswspace(*end))
     *end--= 0;

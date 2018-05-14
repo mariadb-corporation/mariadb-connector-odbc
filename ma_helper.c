@@ -25,185 +25,100 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 {
   unsigned int i;
 
-  for (i=0; i < Stmt->MultiStmtCount; ++i)
+  for (i=0; i < Stmt->Query.MultiStmtCount; ++i)
   {
     MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->MultiStmts[i]);
-    mysql_stmt_close(Stmt->MultiStmts[i]);
+    if (Stmt->MultiStmts[i] != NULL)
+    {
+      mysql_stmt_close(Stmt->MultiStmts[i]);
+    }
   }
   MADB_FREE(Stmt->MultiStmts);
-  Stmt->MultiStmtCount= 0;
+  Stmt->Query.MultiStmtCount= 0;
   Stmt->stmt= NULL;
 }
 
 
 /* Required, but not sufficient condition */
-BOOL QueryIsPossiblyMultistmt(char *queryStr)
+BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query)
 {
-  char *semicolon_pos= strchr(queryStr, ';');
-  /* String supposed to come here trimmed. Checking that semicolon is not last char in the string */
-  if (semicolon_pos != NULL && semicolon_pos < queryStr + strlen(queryStr) - 1)
-  {
-    /* CREATE PROCEDURE uses semicolons but is not supported in prepared statement
-        protocol */
-    if (!MADB_IsStatementSupported(queryStr, "CREATE", "PROCEDURE"))
-      return FALSE;
-    if (!MADB_IsStatementSupported(queryStr, "CREATE", "FUNCTION"))
-      return FALSE;
-    if (!MADB_IsStatementSupported(queryStr, "CREATE", "DEFINER"))
-      return FALSE;
-    return TRUE;
-  }
-
-  return FALSE;
+  return Query->QueryType != MADB_QUERY_CREATE_PROC && Query->QueryType != MADB_QUERY_CREATE_FUNC &&
+         Query->QueryType != MADB_QUERY_CREATE_DEFINER;
 }
 
-#define STRING_OR_COMMENT() (quote[0] || quote[1] || comment)
-unsigned int GetMultiStatements(MADB_Stmt *Stmt, char *StmtStr, SQLINTEGER Length)
+
+/* Trims spaces and/or ';' at the end of query */
+int SqlRtrim(char *StmtStr, int Length)
 {
-  char *p, *prev= NULL, wait_char= 0;
-  unsigned int statements= 1;
-  int quote[2]= {0,0}, comment= 0;
-  char *end;
-  MYSQL_STMT *stmt;
-  char *StmtCopy= NULL;
-
-  /* mysql_stmt_init requires locking as well */
-  LOCK_MARIADB(Stmt->Connection);
-  stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-
-  /* if the entire stmt string passes, we don't have multistatement */
-  if (stmt && !mysql_stmt_prepare(stmt, StmtStr, Length))
+  if (Length > 0)
   {
-    mysql_stmt_close(stmt);
-    UNLOCK_MARIADB(Stmt->Connection);
-    return 1;
-  }
-  mysql_stmt_close(stmt);
-
-  /* make sure we don't have trailing whitespace or semicolon */
-  if (Length)
-  {
-    end= StmtStr + Length - 1;
+    char *end= StmtStr + Length - 1;
     while (end > StmtStr && (isspace(0x000000ff & *end) || *end == ';'))
     {
+      *end= '\0';
       --end;
       --Length;
     }
   }
-  /* We can have here not NULL-terminated string as a source, thus we need to allocate, copy meaningful characters and
-     add NULL */
-  p= StmtCopy= MADB_ALLOC(Length + 1);
-  strncpy(StmtCopy, StmtStr, Length);
-  StmtCopy[Length]= '\0';
 
-  end= StmtCopy + Length;
-  
-  while (p < end)
-  {
-    if (wait_char)
-    {
-      if (*p == wait_char && *prev != '\\')
-      {
-        wait_char= 0;
-      }
-    }
-    else
-    {
-      switch (*p) {
-      case '-':
-        if (!STRING_OR_COMMENT() && (p < end - 1) && (char)*(p+1) ==  '-')
-        {
-          wait_char= '\n';
-        }
-        break;
-      case '#':
-        if (!STRING_OR_COMMENT())
-        {
-          wait_char= '\n';
-        }
-        break;
-      case ';':
-        if (!STRING_OR_COMMENT())
-        {
-          statements++;
-          *p= '\0';
-        }
-        break;
-      case '/':
-        if (!STRING_OR_COMMENT() && (p < end - 1) && (char)*(p+1) ==  '*')
-          comment= 1;
-        else if (comment && (p > StmtCopy) && (char)*(prev) == '*')
-          comment= 0;
-        break;
-      case '"':
-        quote[0] = !STRING_OR_COMMENT();
-        break;
-      case '\'':
-        quote[1] = !STRING_OR_COMMENT();
-        break;
-      case '\\':
-        /* *end is \0, so we are safe here to increment by 2 bytes */
-        if ((Stmt->Connection->mariadb->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES) == 0  && p < end - 1)
-        {
-          /* Skipping escaped character and resetting prev */
-          p+= 2;
-          prev= 0;
-          continue;
-        }
-      default:
-        break;
-      }
-    }
-
-    prev= p;
-    ++p;
-  }
-
-  if (statements > 1)
-  {
-    int i=0;
-    unsigned int MaxParams= 0;
-
-    p= StmtCopy;
-    Stmt->MultiStmtCount= 0;
-    Stmt->MultiStmtNr= 0;
-    Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * statements);
-
-    while (p < StmtCopy + Length)
-    {
-      /* Need to be incremented before CloseMultiStatements() */
-      ++Stmt->MultiStmtCount;
-      Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : mysql_stmt_init(Stmt->Connection->mariadb);
-      MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
-
-      if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
-      {
-        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
-        CloseMultiStatements(Stmt);
-        if (StmtCopy)
-        {
-          free(StmtCopy);
-        }
-        UNLOCK_MARIADB(Stmt->Connection);
-
-        return 0;
-      }
-      if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
-        MaxParams= mysql_stmt_param_count(Stmt->MultiStmts[i]);
-      p+= strlen(p) + 1;
-      ++i;
-    }
-    UNLOCK_MARIADB(Stmt->Connection);
-
-    if (MaxParams)
-      Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
-  }
-  if (StmtCopy)
-    free(StmtCopy);
-
-  return statements;
+  return Length;
 }
-#undef STRING_OR_COMMENT
+
+
+unsigned int GetMultiStatements(MADB_Stmt *Stmt)
+{
+  int          i= 0;
+  unsigned int MaxParams= 0;
+  char        *p= Stmt->Query.RefinedText;
+
+  Stmt->MultiStmtNr= 0;
+  Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * Stmt->Query.MultiStmtCount);
+
+  while (p < Stmt->Query.RefinedText + Stmt->Query.RefinedLength)
+  {
+    Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : mysql_stmt_init(Stmt->Connection->mariadb);
+    MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
+
+    if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
+    {
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
+      CloseMultiStatements(Stmt);
+
+      /* Last paranoid attempt make sure that we did not have a parsing error.
+         More to preserve "backward-compatimility" - we did this before, but before trying to
+         prepare "multi-statement". */
+      if (i == 0 && Stmt->Error.NativeError !=1295 /*ER_UNSUPPORTED_PS*/)
+      {
+        Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+        if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
+        {
+          mysql_stmt_close(Stmt->stmt);
+          Stmt->stmt= NULL;
+        }
+        else
+        {
+          Stmt->Query.MultiStmtCount= 1;
+          return 0;
+        }
+      }
+      return 1;
+    }
+    if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
+    {
+      MaxParams= mysql_stmt_param_count(Stmt->MultiStmts[i]);
+    }
+    p+= strlen(p) + 1;
+    ++i;
+  }
+
+  if (MaxParams)
+  {
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
+  }
+
+  return 0;
+}
+
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen)
 {

@@ -389,5 +389,3 @@ void MADB_FreezeSizeDynamic(MADB_DynArray *array)
     array->max_element=elements;
   }
 }
-
-
