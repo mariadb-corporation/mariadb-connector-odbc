@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2018 MariaDB Corporation A
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -124,28 +124,30 @@ ODBC_TEST(my_resultset)
 ODBC_TEST(t_convert_type)
 {
   SQLRETURN   rc;
-  SQLSMALLINT SqlType, DateType;
+  SQLSMALLINT SqlType, DateType, Length;
   SQLCHAR     ColName[MAX_NAME_LEN];
   SQLCHAR     DbVersion[MAX_NAME_LEN];
   SQLINTEGER  OdbcVersion;
 
-    rc = SQLGetEnvAttr(Env,SQL_ATTR_ODBC_VERSION,&OdbcVersion,0,NULL);
-    CHECK_ENV_RC(Env,rc);
+  rc = SQLGetEnvAttr(Env,SQL_ATTR_ODBC_VERSION,&OdbcVersion,0,NULL);
+  CHECK_ENV_RC(Env,rc);
 
-    fprintf(stdout,"# odbc version:");
-    if (OdbcVersion == SQL_OV_ODBC2)
-    {
-      fprintf(stdout," SQL_OV_ODBC2\n");
-      DateType= SQL_DATE;
-    }
-    else
-    {
-      fprintf(stdout," SQL_OV_ODBC3\n");
-      DateType= SQL_TYPE_DATE;
-    }
+  fprintf(stdout,"# odbc version:");
+  if (OdbcVersion == SQL_OV_ODBC2)
+  {
+    fprintf(stdout," SQL_OV_ODBC2\n");
+    DateType= SQL_DATE;
+  }
+  else
+  {
+    fprintf(stdout," SQL_OV_ODBC3\n");
+    DateType= SQL_TYPE_DATE;
+  }
 
-    rc = SQLGetInfo(Connection,SQL_DBMS_VER,DbVersion,MAX_NAME_LEN,NULL);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLGetInfo(Connection,SQL_DBMS_VER,DbVersion,MAX_NAME_LEN, &Length);
+  CHECK_DBC_RC(Connection,rc);
+  diag("SQL_DBMS_VER: %s", DbVersion);
+  is_num(Length, strlen(DbVersion));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_convert");
 
