@@ -1211,11 +1211,7 @@ ODBC_TEST(t_odbc141)
 
   SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
   diag("%s(%d) %s", SQLState, NativeError, SQLMessage);
-#ifdef _WIN32
-  is_num(NativeError, 29); /* File not found */
-#else
-  is_num(NativeError, 13); /* Can't stat... */
-#endif
+  FAIL_IF(NativeError!=29 && NativeError != 13, "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

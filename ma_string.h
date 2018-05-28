@@ -37,8 +37,8 @@ SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                       const char *Src, SQLLEN SrcLength, MADB_Error *Error);
 my_bool   MADB_ValidateStmt(MADB_QUERY *Query);
 
-SQLLEN     MbstrOctetLen(char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
-SQLLEN     MbstrCharLen(char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
+SQLLEN     MbstrOctetLen(const char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
+SQLLEN     MbstrCharLen(const char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLINTEGER SqlwcsLen(SQLWCHAR *str);
 
