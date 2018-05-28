@@ -223,7 +223,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
-    MADB_DeleteQuery(&Stmt->Query);
     MADB_FREE(Stmt->CatalogName);
     MADB_FREE(Stmt->TableName);
     ResetMetadata(&Stmt->metadata, NULL);
