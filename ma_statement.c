@@ -1872,7 +1872,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROWS *Save
             return Stmt->Error.ReturnValue;
           }
 
-          if ((rc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Stmt->Ard, ArdRec, RowNumber)))
+          if ((rc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Stmt->Ard, ArdRec, NULL, RowNumber)))
             MADB_SetError(&Stmt->Error, rc, NULL, 0);
           if (Stmt->Ard->Header.ArrayStatusPtr)
             Stmt->Ard->Header.ArrayStatusPtr[RowNumber]= Stmt->Error.ReturnValue;
@@ -2987,6 +2987,47 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
     }
     break;
+  case SQL_NUMERIC:
+  {
+    SQLRETURN rc;
+    char *tmp;
+    MADB_DescRecord *Ard= MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
+
+    Bind.buffer_length= MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
+    tmp=                (char *)MADB_CALLOC(Bind.buffer_length);
+    Bind.buffer=        tmp;
+
+    Bind.buffer_type=   MadbType;
+
+    mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+
+    MADB_CLEAR_ERROR(&Stmt->Error);
+
+    if (Bind.buffer_length < Stmt->stmt->fields[Offset].max_length)
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
+      MADB_FREE(tmp);
+      return Stmt->Error.ReturnValue;
+    }
+
+    rc= MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, TargetValuePtr, 0);
+
+    /* Ugly */
+    if (rc != SQL_SUCCESS)
+    {
+      MADB_SetError(&Stmt->Error, rc, NULL, 0);
+      if (rc == SQL_ERROR)
+      {
+        return SQL_ERROR;
+      }
+    }
+
+    if (StrLen_or_IndPtr != NULL)
+    {
+      *StrLen_or_IndPtr= sizeof(SQL_NUMERIC_STRUCT);
+    }
+    break;
+  }
   default:
     {
        /* Set the conversion function */

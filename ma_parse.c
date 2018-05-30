@@ -96,7 +96,7 @@ void MADB_DeleteQuery(MADB_QUERY *Query)
 int MADB_ParseQuery(MADB_QUERY * Query)
 {
   /* make sure we don't have trailing whitespace or semicolon */
-  Query->RefinedLength= SqlRtrim(Query->RefinedText, Query->RefinedLength);
+  Query->RefinedLength= SqlRtrim(Query->RefinedText, (int)Query->RefinedLength);
   Query->RefinedText=  ltrim(Query->RefinedText);
   Query->RefinedText=  FixIsoFormat(Query->RefinedText, &Query->RefinedLength);
   Query->RefinedLength-= Query->RefinedText - Query->allocated;

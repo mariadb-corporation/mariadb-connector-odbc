@@ -879,10 +879,11 @@ void MADB_NumericInit(SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard)
 }
 
 /* {{{ MADB_CharToSQLNumeric */
-int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, unsigned long RowNumber)
+int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, SQL_NUMERIC_STRUCT *dst_buffer, unsigned long RowNumber)
 {
   char *p;
-  SQL_NUMERIC_STRUCT *number= (SQL_NUMERIC_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
+  SQL_NUMERIC_STRUCT *number= dst_buffer != NULL ? dst_buffer :
+    (SQL_NUMERIC_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
   int ret= 0;
 
   if (!buffer || !number)
