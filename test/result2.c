@@ -405,7 +405,7 @@ ODBC_TEST(t_bug32684)
   {
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_WCHAR, wbuf,
                               20 * sizeof(SQLWCHAR), &wlen));
-    wprintf(L"# data= %s, len=%d\n\n", wbuf, wlen);
+    wprintf(L"# data= %s, len=%d\n\n", wbuf, (int)wlen);
   } while(wlen > 20 * sizeof(SQLWCHAR));
 
   return OK;
@@ -1233,6 +1233,53 @@ ODBC_TEST(t_odbc133)
   return OK;
 }
 
+/* ODBC-146 - boils down to incorrect coonversion into SQL_NUMERIC in case of SQLGetData,
+   and with binding it worked well */
+ODBC_TEST(t_odbc146)
+{
+  SQL_NUMERIC_STRUCT  F1, F2;
+  SQLLEN Len= 0;
+  SQLHANDLE Ard;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST(123.45 AS DECIMAL(20,4)), CAST(987.65 AS DECIMAL(19,2))");
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &Ard, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_PRECISION,
+    (SQLPOINTER)20, 0));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_SCALE,
+    (SQLPOINTER)4, 0));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 1, SQL_DESC_TYPE,
+    (SQLPOINTER)SQL_NUMERIC, 0));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 2, SQL_DESC_PRECISION,
+    (SQLPOINTER)19, 0));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 2, SQL_DESC_SCALE,
+    (SQLPOINTER)2, 0));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, Ard, SQLSetDescField(Ard, 2, SQL_DESC_TYPE,
+    (SQLPOINTER)SQL_NUMERIC, 0));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+
+  /* VB uses SQL_ARD_TYPE */
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_ARD_TYPE, &F1, sizeof(SQL_NUMERIC_STRUCT), &Len));
+
+  is_num(F1.sign, 1);
+  /* 0x12d644 = 1234500 */
+  IS(!memcmp(F1.val, "\x44\xd6\x12\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
+  is_num(F1.scale, 4);
+
+  /* Testing also directly SQL_NUMERIC */
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_NUMERIC, &F2, sizeof(SQL_NUMERIC_STRUCT), &Len));
+  is_num(F2.sign, 1);
+  /* 0x12d644 = 1234500 */
+  IS(!memcmp(F2.val, "\xcd\x81\x1\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN));
+  is_num(F2.scale, 2);
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1259,6 +1306,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc73, "t_odbc-73-bin_collation"},
   {t_odbc134, "t_odbc-134-fetch_unbound_null"},
   {t_odbc133, "t_odbc-133-numeric"},
+  {t_odbc146, "t_odbc146_numeric_getdata"},
   {NULL, NULL}
 };
 
