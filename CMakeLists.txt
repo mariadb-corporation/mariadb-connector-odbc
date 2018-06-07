@@ -77,8 +77,21 @@ IF(WIN32)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
 
+# DIRTY HACK, before this is fixed in C/C
+IF(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+  FILE(WRITE "${CMAKE_SOURCE_DIR}/libmariadb/win/packaging/CMakeLists.txt" "")
+ENDIF()
+
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 
+IF(WITH_SIGNCODE)
+  IF(WIN32 AND NOT SIGN_OPTIONS)
+    SET(SIGN_OPTIONS /a /t http://timestamp.verisign.com/scripts/timstamp.dll)
+  ELSE()
+    SEPARATE_ARGUMENTS(SIGN_OPTIONS)
+  ENDIF()
+  MARK_AS_ADVANCED(SIGN_OPTIONS)
+ENDIF()
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
@@ -86,6 +99,7 @@ INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/libmariadb/include)
 
 IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)
