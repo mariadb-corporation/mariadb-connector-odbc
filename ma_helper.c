@@ -795,9 +795,14 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
       ts->minute= tm->minute;
       ts->second= tm->second;
       ts->fraction= tm->second_part * 1000;
-      if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
-        if (ArdRecord->IndicatorPtr)
-          *ArdRecord->IndicatorPtr= SQL_NULL_DATA;
+
+	  if (ArdRecord->IndicatorPtr)
+	  {
+		  if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+			*ArdRecord->IndicatorPtr = SQL_NULL_DATA;
+		  else
+			*ArdRecord->IndicatorPtr = sizeof(SQL_TIMESTAMP_STRUCT);
+	  }
     }
     break;
     case SQL_C_TIME:
@@ -812,6 +817,9 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
       ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
+
+	  if (ArdRecord->IndicatorPtr)
+		  *ArdRecord->IndicatorPtr = sizeof(SQL_TIME_STRUCT);
     }
     break;
     case SQL_C_DATE:
@@ -821,9 +829,14 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
       ts->year= tm->year;
       ts->month= tm->month;
       ts->day= tm->day;
-      if (ts->year + ts->month + ts->day == 0)
-        if (ArdRecord->IndicatorPtr)
-          *ArdRecord->IndicatorPtr= SQL_NULL_DATA;
+
+	  if (ArdRecord->IndicatorPtr)
+	  {
+		  if (ts->year + ts->month + ts->day == 0)
+			  *ArdRecord->IndicatorPtr = SQL_NULL_DATA;
+		  else
+			  *ArdRecord->IndicatorPtr = sizeof(SQL_DATE_STRUCT);
+	  }
     }
     break;
   }
