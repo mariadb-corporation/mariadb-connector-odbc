@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2017 MariaDB Corporation AB
+   Copyright (C) 2013, 2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -769,40 +769,29 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
 SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
 {
   void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
+  SQLLEN Dummy, *Length= ArdRecord->OctetLengthPtr ? ArdRecord->OctetLengthPtr : &Dummy,
+                *Ind= ArdRecord->IndicatorPtr ? ArdRecord->IndicatorPtr :&Dummy;
 
-  switch(Type) {
-  case SQL_C_TIMESTAMP:
-  case SQL_C_TYPE_TIMESTAMP:
+  switch(Type)
+  {
+    case SQL_C_TIMESTAMP:
+    case SQL_C_TYPE_TIMESTAMP:
     {
       SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
-      /* if (!tm->year)
-      {
-        time_t sec_time;
-        struct tm * cur_tm;
-        sec_time= time(NULL);
-        cur_tm= localtime(&sec_time);
-        ts->year= 1900 + cur_tm->tm_year;
-        ts->month= cur_tm->tm_mon + 1;
-        ts->day= cur_tm->tm_mday;
-      }
-      else */
-      {
-        ts->year= tm->year;
-        ts->month= tm->month;
-        ts->day= tm->day;
-      }
+
+      ts->year= tm->year;
+      ts->month= tm->month;
+      ts->day= tm->day;
       ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
       ts->fraction= tm->second_part * 1000;
+      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
 
-	  if (ArdRecord->IndicatorPtr)
-	  {
-		  if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
-			*ArdRecord->IndicatorPtr = SQL_NULL_DATA;
-		  else
-			*ArdRecord->IndicatorPtr = sizeof(SQL_TIMESTAMP_STRUCT);
-	  }
+      if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+      {
+        *Ind= SQL_NULL_DATA;
+	    }
     }
     break;
     case SQL_C_TIME:
@@ -817,9 +806,7 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
       ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
-
-	  if (ArdRecord->IndicatorPtr)
-		  *ArdRecord->IndicatorPtr = sizeof(SQL_TIME_STRUCT);
+      *Length= sizeof(SQL_TIME_STRUCT);
     }
     break;
     case SQL_C_DATE:
@@ -829,18 +816,16 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
       ts->year= tm->year;
       ts->month= tm->month;
       ts->day= tm->day;
+      *Length= sizeof(SQL_DATE_STRUCT);
 
-	  if (ArdRecord->IndicatorPtr)
-	  {
-		  if (ts->year + ts->month + ts->day == 0)
-			  *ArdRecord->IndicatorPtr = SQL_NULL_DATA;
-		  else
-			  *ArdRecord->IndicatorPtr = sizeof(SQL_DATE_STRUCT);
-	  }
+      if (ts->year + ts->month + ts->day == 0)
+      {
+        *Ind= SQL_NULL_DATA;
+      }
     }
     break;
   }
-
+    
   return SQL_SUCCESS;
 }
 

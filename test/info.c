@@ -719,10 +719,10 @@ ODBC_TEST(odbc143)
   SQLWCHAR wInfo[2];
   SQLHANDLE Hdbc1, Stmt1;
 
-  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_IDENTIFIER_QUOTE_CHAR, &Info, sizeof(Info), NULL));
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_IDENTIFIER_QUOTE_CHAR, Info, sizeof(Info), NULL));
   IS_STR(Info, "`", 2);
   /* Checking W function as well */
-  CHECK_DBC_RC(Connection, SQLGetInfoW(Connection, SQL_IDENTIFIER_QUOTE_CHAR, &wInfo, sizeof(wInfo), NULL));
+  CHECK_DBC_RC(Connection, SQLGetInfoW(Connection, SQL_IDENTIFIER_QUOTE_CHAR, wInfo, sizeof(wInfo), NULL));
   is_num(wInfo[0], '`');
   is_num(wInfo[1], 0);
 
@@ -731,7 +731,7 @@ ODBC_TEST(odbc143)
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
   OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI_QUOTES'");
-  CHECK_DBC_RC(Hdbc1, SQLGetInfo(Hdbc1, SQL_IDENTIFIER_QUOTE_CHAR, &Info, sizeof(wInfo), NULL));
+  CHECK_DBC_RC(Hdbc1, SQLGetInfo(Hdbc1, SQL_IDENTIFIER_QUOTE_CHAR, Info, sizeof(Info), NULL));
   IS_STR(Info, "\"", 2);
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));

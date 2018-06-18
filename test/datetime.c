@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -85,6 +85,7 @@ ODBC_TEST(my_ts)
   is_num(ts.hour,  10);
   is_num(ts.minute,20);
   is_num(ts.second,49);
+  is_num(len, sizeof(SQL_TIMESTAMP_STRUCT));
   diag("# row1 using SQL_C_TIMESTAMP: %d-%d-%d %d:%d:%d.%d (%ld)\n",
          ts.year, ts.month,ts.day, ts.hour, ts.minute, ts.second, ts.fraction,
          len);
@@ -310,10 +311,12 @@ ODBC_TEST(t_bug25846)
   is_num(my_time_ts.hour,   2);
   is_num(my_time_ts.minute, 56);
   is_num(my_time_ts.second, 30);
+  is_num(my_time_cb, sizeof(SQL_TIMESTAMP_STRUCT));
 
   is_num(my_date_ts.year,   1969);
   is_num(my_date_ts.month,  7);
   is_num(my_date_ts.day,    21);
+  is_num(my_date_cb, sizeof(SQL_TIMESTAMP_STRUCT));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1429,6 +1432,71 @@ ODBC_TEST(t_odbc138)
   return OK;
 }
 
+/* ODBC- 148 DATE and DATETIME values are NULL in Crystal Reports.
+   Connector didn't set length of returned data in the length buffer for those types */
+ODBC_TEST(t_odbc148)
+{
+  SQL_TIMESTAMP_STRUCT ts= { 0 };
+  SQL_DATE_STRUCT      d=  { 0 };
+  SQL_TIME_STRUCT      t=  { 0 };
+  SQLLEN tsLen, dLen, tLen;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST('2018-06-17 23:45:01' AS DATETIME), CAST('2018-07-18' AS DATE), CAST('11:30:27' AS TIME)");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_TIMESTAMP, &ts, 0, &tsLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_DATE,      &d,  0, &dLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_TIME,      &t,  0, &tLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(ts.year, 2018);
+  is_num(ts.month, 6);
+  is_num(ts.day, 17);
+  is_num(ts.hour, 23);
+  is_num(ts.minute, 45);
+  is_num(ts.second, 1);
+  is_num(ts.fraction, 0);
+  is_num(tsLen, sizeof(SQL_TIMESTAMP_STRUCT));
+  is_num(d.year, 2018);
+  is_num(d.month, 7);
+  is_num(d.day, 18);
+  is_num(dLen, sizeof(SQL_DATE_STRUCT));
+  is_num(t.hour, 11);
+  is_num(t.minute, 30);
+  is_num(t.second, 27);
+  is_num(tLen, sizeof(SQL_TIME_STRUCT));
+
+  tsLen= dLen= tLen= 0;
+  memset(&ts, 0, sizeof(ts));
+  memset(&d, 0, sizeof(d));
+  memset(&t, 0, sizeof(t));
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, 0, &tsLen));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_DATE,      &d,  0, &dLen));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TIME,      &t,  0, &tLen));
+
+  is_num(ts.year, 2018);
+  is_num(ts.month, 6);
+  is_num(ts.day, 17);
+  is_num(ts.hour, 23);
+  is_num(ts.minute, 45);
+  is_num(ts.second, 1);
+  is_num(ts.fraction, 0);
+  is_num(tsLen, sizeof(SQL_TIMESTAMP_STRUCT));
+  is_num(d.year, 2018);
+  is_num(d.month, 7);
+  is_num(d.day, 18);
+  is_num(dLen, sizeof(SQL_DATE_STRUCT));
+  is_num(t.hour, 11);
+  is_num(t.minute, 30);
+  is_num(t.second, 27);
+  is_num(tLen, sizeof(SQL_TIME_STRUCT));
+
+  CHECK_STMT_RC(Stmt, SQLCloseCursor(Stmt));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1454,8 +1522,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc70,      "t_odbc70_zero_datetime_vals", NORMAL},
   {t_17613161,    "t_17613161",  NORMAL},
   {t_bug67793,    "t_bug67793",  NORMAL},
-  {t_odbc138,     "t_odbc138_dateadd_negative", NORMAL },
-
+  {t_odbc138,     "t_odbc138_dateadd_negative", NORMAL},
+  {t_odbc148,     "t_odbc148_datatypes_values_len", NORMAL},
   {NULL, NULL}
 };
 
