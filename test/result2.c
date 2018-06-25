@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1047,6 +1047,7 @@ ODBC_TEST(t_odbc58)
 }
 
 
+/* Also contains test for ODBC-150(same problem with DESCRIBE statement) */
 ODBC_TEST(t_odbc77)
 {
   OK_SIMPLE_STMT(Stmt, "ANALYZE TABLE non_existent");
@@ -1079,7 +1080,13 @@ ODBC_TEST(t_odbc77)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc77");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc77(id INT NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "TRUNCATE TABLE odbc77");
+  OK_SIMPLE_STMT(Stmt, "DESC odbc77");
+  /* odbc-150*/
+  my_print_non_format_result(Stmt);
+  OK_SIMPLE_STMT(Stmt, "DESCRIBE odbc77");
+  my_print_non_format_result(Stmt);
   OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc77");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "SELECT 1");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1301,7 +1308,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc29, "t_odbc-29"},
   {t_odbc41, "t_odbc-41-nors_after_rs"},
   {t_odbc58, "t_odbc-58-numeric_after_blob"},
-  {t_odbc77, "t_odbc-77-analyze_table"},
+  {t_odbc77, "t_odbc-77_150-analyze_table_desc_table"},
   {t_odbc78, "t_odbc-78-sql_no_data"},
   {t_odbc73, "t_odbc-73-bin_collation"},
   {t_odbc134, "t_odbc-134-fetch_unbound_null"},
