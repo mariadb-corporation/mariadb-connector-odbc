@@ -252,6 +252,10 @@ enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Toke
       return MADB_QUERY_SET;
     }
   }
+  if (_strnicmp(Token1, "DESC", 4) == 0)
+  {
+    return MADB_QUERY_DESCRIBE;
+  }
   return MADB_QUERY_NO_RESULT;
 }
 
