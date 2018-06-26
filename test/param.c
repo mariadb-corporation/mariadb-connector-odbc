@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1522,6 +1522,31 @@ ODBC_TEST(odbc45)
 }
 
 
+ODBC_TEST(odbc151)
+{
+  SQLINTEGER  Val;
+  SQLLEN      Len= 2, OctetLength= 0;
+  SQLHANDLE   Apd;
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC, &Apd, SQL_IS_POINTER, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &Val, Len, &Len));
+  CHECK_DESC_RC(Apd, SQLGetDescField(Apd, 1, SQL_DESC_OCTET_LENGTH,   &OctetLength, SQL_IS_INTEGER, NULL));
+  is_num(OctetLength, sizeof(SQLINTEGER));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &Val, Len, NULL));
+  CHECK_DESC_RC(Apd, SQLGetDescField(Apd, 1, SQL_DESC_OCTET_LENGTH, &OctetLength, SQL_IS_INTEGER, NULL));
+  is_num(OctetLength, sizeof(SQLINTEGER));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &Val, 0, &Len));
+  CHECK_DESC_RC(Apd, SQLGetDescField(Apd, 1, SQL_DESC_OCTET_LENGTH, &OctetLength, SQL_IS_INTEGER, NULL));
+  is_num(OctetLength, sizeof(SQLINTEGER));
+ 
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {unbuffered_result, "unbuffered_result"},
@@ -1545,8 +1570,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug14560916, "t_bug14560916"},
   {t_bug14586094, "t_bug14586094"},
   {t_longtextoutparam, "t_longtextoutparam"},
-  { insert_fetched_null, "insert_fetched_null" },
-  { odbc45, "odbc-45-binding2bit" },
+  {insert_fetched_null, "insert_fetched_null"},
+  {odbc45, "odbc-45-binding2bit"},
+  {odbc151, "odbc-151-buffer_length"},
   {NULL, NULL}
 };
 
