@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2017 MariaDB Corporation AB
+   Copyright (C) 2017,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -22,7 +22,15 @@
 
 #include <ma_odbc.h>
 
+#define MAODBC_DATTIME_AS_PTR_ARR 1
 
+static BOOL CanUseStructArrForDatetime(MADB_Stmt *Stmt)
+{
+#ifdef MAODBC_DATTIME_AS_PTR_ARR
+  return FALSE;
+#endif
+  return TRUE;
+}
 char MADB_MapIndicatorValue(SQLLEN OdbcInd)
 {
   switch (OdbcInd)
@@ -48,14 +56,7 @@ BOOL MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType)
     }*/
   case WCHAR_TYPES:
   case SQL_C_NUMERIC:
-  case SQL_C_TIMESTAMP:
-  case SQL_TYPE_TIMESTAMP:
-  case SQL_C_TIME:
-  case SQL_TYPE_TIME:
-  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
-  case SQL_C_INTERVAL_HOUR_TO_SECOND:
-  case SQL_C_DATE:
-  case SQL_TYPE_DATE:
+  case DATETIME_TYPES:
 
     return FALSE;
   }
@@ -83,6 +84,13 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
         {
           switch (CRec->ConciseType)
           {
+          case DATETIME_TYPES:
+            if (CanUseStructArrForDatetime(Stmt) == FALSE)
+            {
+              MADB_FREE(MaBind->buffer);
+              break;
+            }
+            /* Otherwise falling through and do the same as for others */
           case SQL_C_WCHAR:
           case SQL_C_NUMERIC:
           {
@@ -201,21 +209,18 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
       MaBind->buffer_length= 1;
       break;
     }
+  case DATETIME_TYPES:
+    if (CanUseStructArrForDatetime(Stmt) == TRUE)
+    {
+      CRec->InternalBuffer= MADB_ALLOC(Stmt->Bulk.ArraySize*sizeof(MYSQL_TIME));
+      MaBind->buffer_length= sizeof(MYSQL_TIME);
+      break;
+    }
+    /* Otherwise falling thru and allocating array of pointers */
   case WCHAR_TYPES:
   case SQL_C_NUMERIC:
-    CRec->InternalBuffer= MADB_ALLOC(Stmt->Bulk.ArraySize*sizeof(char*));
+    CRec->InternalBuffer= MADB_CALLOC(Stmt->Bulk.ArraySize*sizeof(char*));
     MaBind->buffer_length= sizeof(char*);
-    break;
-  case SQL_C_TIMESTAMP:
-  case SQL_TYPE_TIMESTAMP:
-  case SQL_C_TIME:
-  case SQL_TYPE_TIME:
-  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
-  case SQL_C_INTERVAL_HOUR_TO_SECOND:
-  case SQL_C_DATE:
-  case SQL_TYPE_DATE:
-    CRec->InternalBuffer= MADB_ALLOC(Stmt->Bulk.ArraySize*sizeof(MYSQL_TIME));
-    MaBind->buffer_length= sizeof(MYSQL_TIME);
     break;
   default:
     MaBind->buffer= DataPtr;
@@ -257,7 +262,8 @@ SQLRETURN MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned i
 and we can't have DAE here */
 SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
-  unsigned int i, IndIdx= -1;
+  unsigned int  i, IndIdx= -1;
+  SQLLEN        Dummy;
 
   for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
   {
@@ -282,7 +288,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
         return MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
       }
 
-      Stmt->params[i-ParamOffset].length= NULL;
+      MaBind->length= NULL;
       IndicatorPtr=   (SQLLEN *)GetBindOffset(Stmt->Apd, CRec, CRec->IndicatorPtr, 0, sizeof(SQLLEN));
       OctetLengthPtr= (SQLLEN *)GetBindOffset(Stmt->Apd, CRec, CRec->OctetLengthPtr, 0, sizeof(SQLLEN));
       DataPtr=        GetBindOffset(Stmt->Apd, CRec, CRec->DataPtr, 0, CRec->OctetLength);
@@ -333,7 +339,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
         continue;
       }
 
-      /* We either have skipped rows, an*/
+      /* We either have skipped rows or need to convert parameter values/convert array */
       for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
       {
         void *Buffer= (char*)MaBind->buffer + row*MaBind->buffer_length;
@@ -355,19 +361,17 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
           {
             break;
           }
-        case SQL_C_TIMESTAMP:
-        case SQL_TYPE_TIMESTAMP:
-        case SQL_C_TIME:
-        case SQL_TYPE_TIME:
-        case SQL_C_INTERVAL_HOUR_TO_MINUTE:
-        case SQL_C_INTERVAL_HOUR_TO_SECOND:
-        case SQL_C_DATE:
-        case SQL_TYPE_DATE:
-          BufferPtr= &Buffer;
+        case DATETIME_TYPES:
+          if (CanUseStructArrForDatetime(Stmt))
+          {
+            BufferPtr= &Buffer;
+          }
         }
 
-        if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, MaBind->length[row],
-          SqlRec, MaBind, BufferPtr, MaBind->length + row)))
+        /* Need &Dummy here as a length ptr, since NULL is not good here.
+           It would make MADB_ConvertC2Sql to use MaBind->buffer_length by default */
+        if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, MaBind->length != NULL ? MaBind->length[row] : 0,
+          SqlRec, MaBind, BufferPtr, MaBind->length != NULL ? MaBind->length + row : &Dummy)))
         {
           /* Perhaps it's better to move to Clean function */
           CRec->InternalBuffer= NULL;

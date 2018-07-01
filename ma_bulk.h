@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2017 MariaDB Corporation AB
+   Copyright (C) 2017,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -37,6 +37,14 @@ case SQL_LONGVARCHAR
 case SQL_WVARCHAR:\
 case SQL_WLONGVARCHAR
 
+#define DATETIME_TYPES SQL_C_TIMESTAMP:\
+case SQL_TYPE_TIMESTAMP:\
+case SQL_C_TIME:\
+case SQL_TYPE_TIME:\
+case SQL_C_INTERVAL_HOUR_TO_MINUTE:\
+case SQL_C_INTERVAL_HOUR_TO_SECOND:\
+case SQL_C_DATE:\
+case SQL_TYPE_DATE
 
 char          MADB_MapIndicatorValue(SQLLEN OdbcInd);
 unsigned int  MADB_UsedParamSets(MADB_Stmt *Stmt);
