@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -663,6 +663,29 @@ ODBC_TEST(t_set_explicit_copy)
   return OK;
 }
 
+/* (ODBC-155) SQLDescribeCol returns 0 for decimal digits for datetime types with microseconds
+   It does not directly belong to descriptors, but the value is taken from the descriptor field */
+ODBC_TEST(t_odbc155)
+{
+  SQLSMALLINT DecimalDigits;
+  int i, Expected[]= {4, 0, 6, 0, 3, 0, 6};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc155");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc155(ts timestamp(4), ts1 timestamp, dt datetime(6), dt1 datetime, t time(3), t1 time)");
+  OK_SIMPLE_STMT(Stmt, "SELECT ts, ts1, dt, dt1, t, t1, timestamp('2007-07-02 10:31:01.000001') from t_odbc155");
+
+  for (i= 0; i < sizeof(Expected)/sizeof(int); ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i + 1, NULL, 0, NULL, NULL, NULL, &DecimalDigits, NULL));
+    is_num(DecimalDigits, Expected[i]);
+  }
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc155");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -680,6 +703,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_desc_curcatalog, "t_desc_curcatalog"},
   {t_odbc14, "t_odbc14"},
   {t_set_explicit_copy, "t_set_explicit_copy_of_ard"},
+  {t_odbc155, "t_odbc155_decimaldigits"},
   {NULL, NULL}
 };
 

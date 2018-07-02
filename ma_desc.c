@@ -221,6 +221,10 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   case MYSQL_TYPE_LONGLONG:
     Record->NumPrecRadix= 10;
     break;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+    Record->Scale= Field->decimals;
   default:
     Record->NumPrecRadix= 0;
     break;
