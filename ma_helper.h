@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2017 MariaDB Corporation AB
+   Copyright (C) 2013,2018 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -37,16 +37,17 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
 BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
-size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, MARIADB_CHARSET_INFO *charset);
+SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
+                        SQLSMALLINT Precision, SQLSMALLINT Scale, const MARIADB_CHARSET_INFO *Charset);
 int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
-SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field);
+SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 
-size_t  MADB_GetDisplaySize(MYSQL_FIELD field, MARIADB_CHARSET_INFO *charset);
-size_t  MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen);
-char *  MADB_GetTypeName(MYSQL_FIELD Field);
+size_t  MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset);
+size_t  MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen);
+char *  MADB_GetTypeName(MYSQL_FIELD *Field);
 
 char *  ltrim(char *Str);
 char *  trim(char *Str);
@@ -129,5 +130,7 @@ extern my_bool DummyError;
 }
 
 #define MADB_IS_EMPTY(STR) ((STR)==NULL || *(STR)=='\0')
+
+#define MADB_FRACTIONAL_PART(_decimals) ((_decimals) > 0 ? (_decimals) + 1/*Decimal point*/ : 0)
 
 #endif
