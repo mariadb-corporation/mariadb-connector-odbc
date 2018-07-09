@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2015 MariaDB Corporation AB
+   Copyright (C) 2013, 2018 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -230,7 +230,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     break;
   }
 
-  Record->ConciseType= MADB_GetODBCType(Field);
+  Record->ConciseType= MapMariadDbToOdbcType(Field);
   /* 
       TYPE:
       For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.
@@ -259,11 +259,13 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
                        Record->ConciseType == SQL_WLONGVARCHAR ||
                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
-  Record->DisplaySize= MADB_GetDisplaySize(*Field, mysql_get_charset_by_nr(Field->charsetnr));
-  Record->OctetLength= MADB_GetOctetLength(*Field, Stmt->Connection->mariadb->charset->char_maxlen);
-  Record->Length=      MADB_GetDataSize(Record, *Field, mysql_get_charset_by_nr(Field->charsetnr));
-    
-  MADB_RESET(Record->TypeName, MADB_GetTypeName(*Field));
+  Record->DisplaySize= MADB_GetDisplaySize(Field, mariadb_get_charset_by_nr(Field->charsetnr));
+  Record->OctetLength= MADB_GetOctetLength(Field, Stmt->Connection->mariadb->charset->char_maxlen);
+  Record->Length= MADB_GetDataSize(Record->ConciseType, Field->length, Record->Unsigned == SQL_TRUE,
+                                   Record->Precision, Record->Scale, mariadb_get_charset_by_nr(Field->charsetnr));
+
+  MADB_RESET(Record->TypeName, MADB_GetTypeName(Field));
+
   switch(Field->type) {
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
@@ -337,13 +339,13 @@ void MADB_FixOctetLength(MADB_DescRecord *Record)
     Record->OctetLength= 8;
     break;
   case SQL_TYPE_DATE:
-    Record->OctetLength= SQL_DATE_LEN;
+    Record->OctetLength= sizeof(SQL_DATE_STRUCT);
     break;
   case SQL_TYPE_TIME:
-    Record->OctetLength= SQL_TIME_LEN;
+    Record->OctetLength= sizeof(SQL_TIME_STRUCT);
     break;
   case SQL_TYPE_TIMESTAMP:
-    Record->OctetLength= SQL_TIMESTAMP_LEN;
+    Record->OctetLength= sizeof(SQL_TIMESTAMP_STRUCT);
     break;
   default:
     Record->OctetLength= MIN(INT_MAX32, Record->OctetLength);
@@ -385,10 +387,10 @@ void MADB_FixDisplaySize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
     Record->DisplaySize= SQL_DATE_LEN;
     break;
   case SQL_TYPE_TIME:
-    Record->DisplaySize= SQL_TIME_LEN;
+    Record->DisplaySize= SQL_TIME_LEN + MADB_FRACTIONAL_PART(Record->Scale);
     break;
   case SQL_TYPE_TIMESTAMP:
-    Record->DisplaySize= SQL_TIMESTAMP_LEN;
+    Record->DisplaySize= SQL_TIMESTAMP_LEN + MADB_FRACTIONAL_PART(Record->Scale);
     break;
   case SQL_BINARY:
   case SQL_VARBINARY:
@@ -414,59 +416,7 @@ void MADB_FixDisplaySize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
 /* {{{ MADB_FixDataSize - aka Column size */
 void MADB_FixDataSize(MADB_DescRecord *Record, const CHARSET_INFO *charset)
 {
-  switch (Record->ConciseType) {
-  case SQL_BIT:
-    Record->Length= 1;
-    break;
-  case SQL_TINYINT:
-    Record->Length= 3;
-    break;
-  case SQL_SMALLINT:
-    Record->Length= 5;
-    break;
-  case SQL_INTEGER:
-    Record->Length= 10;
-    break;
-  case SQL_REAL:
-    Record->Length= 7;
-    break;
-  case SQL_BIGINT:
-    Record->Length= 20 - test(Record->Unsigned == SQL_TRUE);
-    break;
-  case SQL_FLOAT:
-  case SQL_DOUBLE:
-    Record->Length= 15;
-    break;
-  case SQL_DECIMAL:
-    Record->Length= Record->Precision;
-    break;
-  case SQL_TYPE_DATE:
-    Record->Length= SQL_DATE_LEN;
-    break;
-  case SQL_TYPE_TIME:
-    Record->Length= SQL_TIME_LEN;
-    break;
-  case SQL_TYPE_TIMESTAMP:
-    Record->Length= SQL_TIMESTAMP_LEN;
-    break;
-  case SQL_BINARY:
-  case SQL_VARBINARY:
-  case SQL_LONGVARBINARY:
-    Record->Length= Record->OctetLength;
-    break;
-  case SQL_GUID:
-    Record->Length= 36;
-    break;
-  default: /* Above some time are missing(like intervals), thus this 'default' can lead to errors */
-    if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
-    {
-      Record->Length=Record->OctetLength;
-    }
-    else
-    {
-      Record->Length=Record->OctetLength/charset->char_maxlen;
-    }
-  }
+  Record->Length= MADB_GetDataSize(Record->ConciseType, Record->OctetLength, Record->Unsigned == TRUE, Record->Precision, Record->Scale, charset );
 }
 /* }}} */
 

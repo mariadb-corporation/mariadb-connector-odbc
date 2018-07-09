@@ -19,7 +19,7 @@
 #include <ma_odbc.h>
 #include <stdint.h>
 
-#define MADB_FIELD_IS_BINARY(_field) ((_field).charsetnr == BINARY_CHARSETNR)
+#define MADB_FIELD_IS_BINARY(_field) ((_field)->charsetnr == BINARY_CHARSETNR)
 
 void CloseMultiStatements(MADB_Stmt *Stmt)
 {
@@ -274,16 +274,16 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
 /* }}} */
 
 /* {{{ MADB_GetTypeName */
-char *MADB_GetTypeName(MYSQL_FIELD Field)
+char *MADB_GetTypeName(MYSQL_FIELD *Field)
 {
-  switch(Field.type) {
+  switch(Field->type) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
     return "decimal";
   case MYSQL_TYPE_NULL:
     return "null";
   case MYSQL_TYPE_TINY:
-    return (Field.flags & NUM_FLAG) ? "tinyint" : "char";
+    return (Field->flags & NUM_FLAG) ? "tinyint" : "char";
   case MYSQL_TYPE_SHORT:
     return "smallint";
   case MYSQL_TYPE_LONG:
@@ -390,9 +390,11 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
   return NULL;
 }
 
-size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO *charset)
+
+SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
+                        SQLSMALLINT Precision, SQLSMALLINT Scale, const CHARSET_INFO *Charset)
 {
-  switch(Record->ConciseType)
+  switch(SqlType)
   {
   case SQL_BIT:
     return 1;
@@ -403,7 +405,7 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO
   case SQL_INTEGER:
     return 10;
   case SQL_BIGINT:
-    return 20 - test(Field.flags & UNSIGNED_FLAG);
+    return 20 - test(Unsigned != FALSE);
   case SQL_REAL:
     return 7;
   case SQL_DOUBLE:
@@ -411,45 +413,51 @@ size_t MADB_GetDataSize(MADB_DescRecord *Record, MYSQL_FIELD Field, CHARSET_INFO
     return 15;
   case SQL_DECIMAL:
   case SQL_NUMERIC:
-    return Record->Precision;
+    return Precision;
   case SQL_TYPE_DATE:
-    return 10;
+    return SQL_DATE_LEN;
   case SQL_TYPE_TIME:
-    return 8 + Field.decimals;
+    return SQL_TIME_LEN + MADB_FRACTIONAL_PART(Scale);
   case SQL_TYPE_TIMESTAMP:
-    return Field.length;
+    return SQL_TIMESTAMP_LEN + MADB_FRACTIONAL_PART(Scale);
+  case SQL_BINARY:
+  case SQL_VARBINARY:
+  case SQL_LONGVARBINARY:
+    return OctetLength;
+  case SQL_GUID:
+    return 36;;
   default:
     {
-      if (MADB_FIELD_IS_BINARY(Field) || charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+      if (Charset == NULL || Charset->char_maxlen < 2/*i.e.0||1*/)
       {
-        return Field.length;
+        return OctetLength;
       }
       else
       {
-        return Field.length/charset->char_maxlen;
+        return OctetLength/Charset->char_maxlen;
       }
     }
   }
 }
 
 /* {{{ MADB_GetDisplaySize */
-size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
+size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, CHARSET_INFO *charset)
 {
   /* Todo: check these values with output from mysql --with-columntype-info */
-  switch (Field.type) {
+  switch (Field->type) {
   case MYSQL_TYPE_NULL:
     return 1;
   case MYSQL_TYPE_BIT:
-    return (Field.length == 1) ? 1 : (Field.length + 7) / 8 * 2;
+    return (Field->length == 1) ? 1 : (Field->length + 7) / 8 * 2;
   case MYSQL_TYPE_TINY:
-    return 4 - test(Field.flags & UNSIGNED_FLAG);
+    return 4 - test(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_YEAR:
-    return 6 - test(Field.flags & UNSIGNED_FLAG);
+    return 6 - test(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_INT24:
-    return 9 - test(Field.flags & UNSIGNED_FLAG);
+    return 9 - test(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_LONG:
-    return 11 - test(Field.flags & UNSIGNED_FLAG);
+    return 11 - test(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_LONGLONG:
     return 20;
   case MYSQL_TYPE_DOUBLE:
@@ -460,13 +468,13 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
   case MYSQL_TYPE_NEWDECIMAL:
     return 10;
   case MYSQL_TYPE_DATE:
-    return 10; /* YYYY-MM-DD */
+    return SQL_DATE_LEN; /* YYYY-MM-DD */
   case MYSQL_TYPE_TIME:
-    return 8; /* HH:MM:SS */
+    return SQL_TIME_LEN + MADB_FRACTIONAL_PART(Field->decimals); /* HH:MM:SS.ffffff */
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    return 19;
+    return SQL_TIMESTAMP_LEN + MADB_FRACTIONAL_PART(Field->decimals);
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_GEOMETRY:
@@ -480,15 +488,15 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
   {
     if (MADB_FIELD_IS_BINARY(Field))
     {
-      return Field.length*2; /* ODBC specs says we should give 2 characters per byte to display binaray data in hex form */
+      return Field->length*2; /* ODBC specs says we should give 2 characters per byte to display binaray data in hex form */
     }
     else if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
     {
-      return Field.length;
+      return Field->length;
     }
     else
     {
-      return Field.length/charset->char_maxlen;
+      return Field->length/charset->char_maxlen;
     }
   }
   default:
@@ -498,15 +506,15 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD Field, CHARSET_INFO *charset)
 /* }}} */
 
 /* {{{ MADB_GetOctetLength */
-size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen)
+size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
 {
-  size_t Length= MIN(INT_MAX32,Field.length);
+  size_t Length= MIN(INT_MAX32,Field->length);
 
-  switch (Field.type) {
+  switch (Field->type) {
   case MYSQL_TYPE_NULL:
     return 1;
   case MYSQL_TYPE_BIT:
-    return (Field.length + 7) / 8;
+    return (Field->length + 7) / 8;
   case MYSQL_TYPE_TINY:
     return 1;
   case MYSQL_TYPE_YEAR:
@@ -524,15 +532,15 @@ size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen)
     return 4;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return Field.length;
+    return Field->length;
   case MYSQL_TYPE_DATE:
-    return SQL_DATE_LEN;
+    return sizeof(SQL_DATE_STRUCT);
   case MYSQL_TYPE_TIME:
-    return SQL_TIME_LEN;
+    return sizeof(SQL_TIME_STRUCT);
    case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    return SQL_TIMESTAMP_LEN;
+    return sizeof(SQL_TIMESTAMP_STRUCT);
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_GEOMETRY:
@@ -544,7 +552,7 @@ size_t MADB_GetOctetLength(MYSQL_FIELD Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    /*if (!(Field.flags & BINARY_FLAG))
+    /*if (!(Field->flags & BINARY_FLAG))
       Length *= MaxCharLen ? MaxCharLen : 1;*/
     return Length;
   default:
@@ -605,9 +613,9 @@ int MADB_GetDefaultType(int SQLDataType)
 }
 /* }}} */
 
-/* {{{ MADB_GetODBCType */
+/* {{{ MapMariadDbToOdbcType */
        /* It's not quite right to mix here C and SQL types, even though constants are sort of equal */
-SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field)
+SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field)
 {
   switch (field->type) {
     case MYSQL_TYPE_BIT:
@@ -640,13 +648,13 @@ SQLSMALLINT MADB_GetODBCType(MYSQL_FIELD *field)
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
-      return MADB_FIELD_IS_BINARY(*field) ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
+      return MADB_FIELD_IS_BINARY(field) ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
     case MYSQL_TYPE_LONGLONG:
       return SQL_BIGINT;
     case MYSQL_TYPE_STRING:
-      return MADB_FIELD_IS_BINARY(*field) ? SQL_BINARY : SQL_CHAR;
+      return MADB_FIELD_IS_BINARY(field) ? SQL_BINARY : SQL_CHAR;
     case MYSQL_TYPE_VAR_STRING:
-      return MADB_FIELD_IS_BINARY(*field) ? SQL_VARBINARY : SQL_VARCHAR;
+      return MADB_FIELD_IS_BINARY(field) ? SQL_VARBINARY : SQL_VARCHAR;
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_ENUM:
       return SQL_CHAR;

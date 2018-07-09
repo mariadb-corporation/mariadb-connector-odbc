@@ -667,6 +667,9 @@ ODBC_TEST(t_set_explicit_copy)
    It does not directly belong to descriptors, but the value is taken from the descriptor field */
 ODBC_TEST(t_odbc155)
 {
+  SQLLEN Size, ExpectedDisplaySize[]= {24, 19, 26, 19, 12, 8, 26},
+        ExpectedOctetLength[]= {sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT),
+                                sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIME_STRUCT), sizeof(SQL_TIME_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT)};
   SQLSMALLINT DecimalDigits;
   int i, Expected[]= {4, 0, 6, 0, 3, 0, 6};
 
@@ -676,8 +679,15 @@ ODBC_TEST(t_odbc155)
 
   for (i= 0; i < sizeof(Expected)/sizeof(int); ++i)
   {
+    diag("Field#%d", i + 1);
     CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i + 1, NULL, 0, NULL, NULL, NULL, &DecimalDigits, NULL));
     is_num(DecimalDigits, Expected[i]);
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+    is_num(Size, ExpectedDisplaySize[i]);
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+    is_num(Size, ExpectedDisplaySize[i]);
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+    is_num(Size, ExpectedOctetLength[i]);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -703,7 +713,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_desc_curcatalog, "t_desc_curcatalog"},
   {t_odbc14, "t_odbc14"},
   {t_set_explicit_copy, "t_set_explicit_copy_of_ard"},
-  {t_odbc155, "t_odbc155_decimaldigits"},
+  {t_odbc155, "t_odbc155and157_decimaldigits_display_size"},
   {NULL, NULL}
 };
 
