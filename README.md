@@ -1,4 +1,4 @@
-# MariaDB Connector/ODBC 2.0
+# MariaDB Connector/ODBC 3.0
 <p align="center">
   <a href="http://mariadb.org/">
     <img src="https://mariadb.com/themes/custom/mariadb/logo.svg">
