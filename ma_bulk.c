@@ -263,7 +263,7 @@ and we can't have DAE here */
 SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
   unsigned int  i, IndIdx= -1;
-  SQLLEN        Dummy;
+  unsigned long Dummy;
 
   for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
   {

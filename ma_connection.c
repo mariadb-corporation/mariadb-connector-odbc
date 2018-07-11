@@ -796,8 +796,8 @@ SQLRETURN MADB_DbcGetFunctions(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALL
 }
 /* }}} */
 
-/* {{{ IsString_GetInfo_Type */
-int IsString_GetInfo_Type(SQLSMALLINT InfoType)
+/* {{{ IsStringInfoType */
+int IsStringInfoType(SQLSMALLINT InfoType)
 {
   switch (InfoType)
   {
@@ -836,6 +836,7 @@ int IsString_GetInfo_Type(SQLSMALLINT InfoType)
     case SQL_USER_NAME:
     case SQL_XOPEN_CLI_YEAR:
     case SQL_DATA_SOURCE_READ_ONLY:
+    case SQL_IDENTIFIER_QUOTE_CHAR:
       return 1;
   }
 
@@ -856,7 +857,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   /* Prety special case - on Windows DM passes NULL instead of InfoValuePtr and own pointer instead of StringLengthPtr.
      The logic here is not quite clear - I would imagine that truncated status is more appropriate.
      But UnixODBC does not do so, and we are making connector's behavior consistent */
-  if (InfoValuePtr != NULL && BufferLength == 0 && StringLengthPtr == NULL && IsString_GetInfo_Type(InfoType))
+  if (InfoValuePtr != NULL && BufferLength == 0 && StringLengthPtr == NULL && IsStringInfoType(InfoType))
   {
     return SQL_SUCCESS;
   }
@@ -1111,12 +1112,6 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Dbc->Error);
     break;
-    /*
-  case SQL_DM_VER:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ?  &utf8 : 0, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
-                                     "ma_odbc.dll", SQL_NTS, &Dbc->Error);
-    break;
-    */
 #ifdef SQL_DRIVER_AWARE_POOLING_SUPPORTED
   case SQL_DRIVER_AWARE_POOLING_SUPPORTED:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_DRIVER_AWARE_POOLING_NOT_CAPABLE, StringLengthPtr);
@@ -1639,7 +1634,7 @@ default:
   {
     SLen*= sizeof(SQLWCHAR);
   }
-  if (IsString_GetInfo_Type(InfoType) && StringLengthPtr)
+  if (IsStringInfoType(InfoType) && StringLengthPtr)
   {
     *StringLengthPtr= SLen;
   }
