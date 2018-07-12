@@ -39,7 +39,7 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
 SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, const CHARSET_INFO *Charset);
-int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
+int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,

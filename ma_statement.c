@@ -2643,7 +2643,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       ts->month= tm.month;
       ts->day= tm.day;
       if (StrLen_or_IndPtr)
+      {
         *StrLen_or_IndPtr= sizeof(SQL_DATE_STRUCT);
+      }
     }
     break;
   case SQL_TIMESTAMP:
@@ -2677,7 +2679,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       ts->second= tm.second;
       ts->fraction= tm.second_part * 1000;
       if (StrLen_or_IndPtr)
+      {
         *StrLen_or_IndPtr= sizeof(SQL_TIMESTAMP_STRUCT);
+      }
     }
     break;
   case SQL_TIME:
@@ -2704,7 +2708,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
       }
       if (StrLen_or_IndPtr)
+      {
         *StrLen_or_IndPtr= sizeof(SQL_TIME_STRUCT);
+      }
     }
     break;
   case SQL_C_INTERVAL_HOUR_TO_MINUTE:
@@ -2744,7 +2750,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         ts->intval.day_second.second= tm.second;
       }
       if (StrLen_or_IndPtr)
+      {
         *StrLen_or_IndPtr= sizeof(SQL_INTERVAL_STRUCT);
+      }
     }
     break;
   case SQL_WCHAR:
@@ -3039,26 +3047,24 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (StrLen_or_IndPtr != NULL)
       {
-        if (Bind.length_value != 0 && (long)Bind.length_value != -1)
+        /* We get here only for fixed data types. Thus, according to the specs 
+           "this is the length of the data after conversion; that is, it is the size of the type to which the data was converted".
+           For us that is the size of the buffer in bind structure. Not the size of the field */
+
+        *StrLen_or_IndPtr= Bind.buffer_length;
+
+        /* Paranoid - it was here, so leaving it in place */
+        if ((long)Bind.length_value == -1)
         {
-          *StrLen_or_IndPtr= Bind.length_value;
+          Bind.length_value= 0;
         }
-        else if (Bind.buffer_length > 0)
-        {
-          *StrLen_or_IndPtr= Bind.buffer_length;
-        }
-        else
-        {
-          *StrLen_or_IndPtr= IrdRec->OctetLength;
-        }
-        /* We get here only for fixed data types. Thus this data sanity check makes sense. But we do this
-           for catalog functions and MS Access in first turn. The thing is that for some columns in catalog functions result,
+        /* We do this for catalog functions and MS Access in first turn. The thing is that for some columns in catalog functions result,
            we fix column type manually, since we can't make field of desired type in the query to I_S. Mostly that is for SQLSMALLINT
-           fields, and we can cast only to int, not to short. MSAccess in its turn like to to get lenght for fixed length types, and
+           fields, and we can cast only to int, not to short. MSAccess in its turn like to to get length for fixed length types, and
            throws error if the length is not what it expected (ODBC-131)
            Probably it makes sense to do this only for SQL_C_DEFAULT type, which MS Access uses. But atm it looks like this should
            not hurt if done for other types, too */
-        if (*StrLen_or_IndPtr > IrdRec->OctetLength)
+        if (*StrLen_or_IndPtr == 0 || (Bind.length_value > (unsigned long)IrdRec->OctetLength && *StrLen_or_IndPtr > IrdRec->OctetLength))
         {
           *StrLen_or_IndPtr= IrdRec->OctetLength;
         }
