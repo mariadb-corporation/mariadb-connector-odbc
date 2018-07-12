@@ -1254,6 +1254,37 @@ ODBC_TEST(t_sqlnum_truncate)
   return OK;
 }
 
+/* ODBC-158 QUery with some of aggregate functions returns error on execution. The reason is that those functions type is
+            MYSQL_TYPE_LONGLONG, Access gets them as SQL_C_LONG, and connector returned data length 8.
+            Checking also if correct length returned is the opposite case - field is smaller than the buffer */
+ODBC_TEST(t_odbc158)
+{
+  SQLINTEGER Val;
+  SQLLEN     Len;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc158");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc158(bi bigint not null, si smallint not null)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc158(bi, si) VALUES(1, 2)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT bi, si FROM t_odbc158");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_LONG, &Val, 0, &Len));
+  is_num(Len, 4);
+  is_num(Val, 1);
+
+  Len= 0;
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_LONG, &Val, 0, &Len));
+  is_num(Len, 4);
+  is_num(Val, 2);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc158");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1279,6 +1310,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug31220,         "t_bug31220",        NORMAL},
   {t_bug29402,         "t_bug29402",        NORMAL},
   {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
+  {t_odbc158,          "odbc158_bigintcolumn_as_c_long", NORMAL},
   {NULL, NULL, NORMAL}
 };
 
