@@ -1621,9 +1621,42 @@ ODBC_TEST(t_odbc139)
 }
 #endif
 
+ODBC_TEST(t_odbc162)
+{
+  SQLSMALLINT ColumnCount;
+  SQLRETURN rc;
+
+  rc= SQLExecDirect(Stmt, "with x as (select 1 as `val`\
+                                   union all\
+                                   select 2 as `val`\
+                                   union all\
+                                   select 3 as `val`)\
+                        select repeat(cast(x.val as nchar), x.val * 2) as `string`,\
+                               repeat(cast(x.val as char), x.val * 2) as `c_string`,\
+                               cast(repeat(char(x.val), x.val * 12000) as binary) as `binary`,\
+                               x.val as `index`\
+                        from x", SQL_NTS);
+
+  if (SQL_SUCCEEDED(rc))
+  {
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+
+    is_num(ColumnCount, 4);
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  else
+  {
+    /* Old server does not support it */
+    CHECK_SQLSTATE(Stmt, "42000");
+  }
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
-  {t_disconnect, "t_disconnect",      NORMAL},
+  /*{t_disconnect, "t_disconnect",      NORMAL},
   {t_describe_nulti, "t_describe_nulti", NORMAL},
   {test_CONO1,     "test_CONO1",     NORMAL},
   {test_CONO3,     "test_CONO3",     NORMAL},
@@ -1664,7 +1697,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc137,     "odbc137_ansi",             NORMAL},
 #ifdef _WIN32
   {t_odbc139,     "odbc139_compression",       NORMAL},
-#endif
+#endif*/
+  {t_odbc162,     "t_odbc162_CTE_query",      NORMAL },
   {NULL, NULL, 0}
 };
 
