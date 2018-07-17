@@ -186,7 +186,7 @@ enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Toke
   /* We need for the case when MS Access adds parenthesis around query - see ODBC-57*/
   while (*Token1 && !isalpha(*Token1))
     ++Token1;
-  if (_strnicmp(Token1, "SELECT", 6) == 0)
+  if (_strnicmp(Token1, "SELECT", 6) == 0 || _strnicmp(Token1, "WITH", 4) == 0)
   {
     return MADB_QUERY_SELECT;
   }
