@@ -115,7 +115,7 @@ static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 static SQLCHAR *my_uid=        (SQLCHAR *)"root";
 static SQLCHAR *my_pwd=        (SQLCHAR *)"";
 static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
-static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 2.0";
+static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 3.0";
 static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 
 static SQLWCHAR *wdsn;
@@ -202,6 +202,7 @@ void usage()
 {
   fprintf(stdout, "Valid options:\n");
   fprintf(stdout, "-d DSN Name\n");
+  fprintf(stdout, "-D Driver Name\n");
   fprintf(stdout, "-u Username\n");
   fprintf(stdout, "-p Password\n");
   fprintf(stdout, "-s default database (schema)\n");
@@ -282,6 +283,9 @@ void get_options(int argc, char **argv)
       break;
     case 'S':
       my_servername= (SQLCHAR*)argv[i+1];
+      break;
+    case 'D':
+      my_drivername= (SQLCHAR*)argv[i+1];
       break;
     case '?':
       usage();

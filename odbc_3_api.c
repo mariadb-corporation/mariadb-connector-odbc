@@ -973,7 +973,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
                                     SQLUSMALLINT DriverCompletion)
 {
   SQLRETURN   ret=          SQL_ERROR;
-  SQLSMALLINT Length=       0;
+  SQLULEN     Length=       0; /* Since we need bigger(in bytes) buffer for utf8 string, the length may be > max SQLSMALLINT */
   char        *InConnStrA=  NULL;
   SQLULEN     InStrAOctLen= 0;
   char        *OutConnStrA= NULL;
@@ -1008,7 +1008,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
     }
   }
 
-  ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, (SQLSMALLINT)InStrAOctLen, (SQLCHAR *)OutConnStrA,
+  ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, InStrAOctLen, (SQLCHAR *)OutConnStrA,
                                      Length, StringLength2Ptr, DriverCompletion); 
   MDBUG_C_DUMP(Dbc, ret, d);
   if (!SQL_SUCCEEDED(ret))
@@ -1016,10 +1016,10 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
 
   if (OutConnectionString)
   {
-    Length= (SQLSMALLINT)MADB_SetString(&utf8, OutConnectionString, BufferLength,
+    Length= MADB_SetString(&utf8, OutConnectionString, BufferLength,
                                         OutConnStrA, SQL_NTS, &((MADB_Dbc *)ConnectionHandle)->Error);
     if (StringLength2Ptr)
-      *StringLength2Ptr= Length;
+      *StringLength2Ptr= (SQLSMALLINT)Length;
   }
   
 end:

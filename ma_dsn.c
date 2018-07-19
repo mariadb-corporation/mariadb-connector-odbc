@@ -65,8 +65,9 @@ MADB_DsnKey DsnKeys[]=
   {"SSLCRL",         offsetof(MADB_Dsn, SslCrl),            DSN_TYPE_STRING, 0, 0},
   {"SSLCRLPATH",     offsetof(MADB_Dsn, SslCrlPath),        DSN_TYPE_STRING, 0, 0},
   {"SOCKET",         offsetof(MADB_Dsn, Socket),            DSN_TYPE_STRING, 0, 0},
+  {"SAVEFILE",       offsetof(MADB_Dsn, SaveFile),            DSN_TYPE_STRING, 0, 0}, /* 30 */
   /* Aliases. Here offset is index of aliased key */
-  {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1}, /* 30 */
+  {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},
   {"PASSWORD",       DSNKEY_PWD_INDEX,                      DSN_TYPE_STRING, 0, 1},
   {"DB",             DSNKEY_DATABASE_INDEX,                 DSN_TYPE_COMBO,  0, 1},
@@ -136,6 +137,7 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->SslCrlPath);
   MADB_FREE(Dsn->SslFp);
   MADB_FREE(Dsn->SslFpList);
+  MADB_FREE(Dsn->SaveFile);
 
   if (Dsn->FreeMe)
     MADB_FREE(Dsn); 
@@ -507,15 +509,15 @@ BOOL MADB_ReadConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char 
 /* }}} */
 
 /* {{{ MADB_DsnToString */
-SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength)
+SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
 {
-  int           i=           0;
-  SQLSMALLINT   TotalLength= 0;
-  char          *p=          OutString;
-  char          *Value=      NULL;
-  char          TmpStr[1024];
-  char          IntVal[12];
-  int           CpyLength;
+  int     i=           0;
+  SQLULEN TotalLength= 0;
+  char    *p=          OutString;
+  char    *Value=      NULL;
+  char    TmpStr[1024];
+  char    IntVal[12];
+  int     CpyLength;
 
   if (OutLength && OutString)
     OutString[0]= '\0';
@@ -524,11 +526,17 @@ SQLSMALLINT MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLeng
   {
     Value= NULL;
 
-    if (!DsnKeys[i].IsAlias) {
+    if (!DsnKeys[i].IsAlias)
+    {
       switch (DsnKeys[i].Type) {
       case DSN_TYPE_STRING:
       case DSN_TYPE_COMBO:
          Value= *GET_FIELD_PTR(Dsn, &DsnKeys[i], char*);
+         if (MADB_IS_EMPTY(Value))
+         {
+           ++i;
+           continue;
+         }
          break;
       case DSN_TYPE_INT:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], int))

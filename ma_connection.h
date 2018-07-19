@@ -44,8 +44,8 @@ struct st_ma_connection_methods
   SQLRETURN(*GetInfo)(MADB_Dbc *Dnc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                       SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, my_bool isWChar);
   SQLRETURN (*DriverConnect)(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InConnectionString,
-                             SQLSMALLINT StringLength1, SQLCHAR *OutConnectionString,
-                             SQLSMALLINT BufferLength, SQLSMALLINT *StringLength2Ptr,
+                             SQLULEN StringLength1, SQLCHAR *OutConnectionString,
+                             SQLULEN BufferLength, SQLSMALLINT *StringLength2Ptr,
                              SQLUSMALLINT DriverCompletion);
 };
 
