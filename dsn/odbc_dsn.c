@@ -206,7 +206,7 @@ my_bool GetButtonState(int Dialog, int Button)
 
 my_bool SaveDSN(HWND hDlg, MADB_Dsn *Dsn)
 {
-  if (MADB_SaveDSN(Dsn))
+  if (Dsn->SaveFile != NULL || MADB_SaveDSN(Dsn))
     return TRUE;
   MessageBox(hDlg, Dsn->ErrorMsg, "Error", MB_OK);
   return FALSE;
@@ -759,7 +759,7 @@ my_bool DSNDialog(HWND     hwndParent,
   else
   {
     /* i.e. not a prompt */
-    if (Dsn->isPrompt == MAODBC_CONFIG)
+    if (Dsn->isPrompt == MAODBC_CONFIG && Dsn->SaveFile == NULL)
     {
       if (!DsnExists)
       {

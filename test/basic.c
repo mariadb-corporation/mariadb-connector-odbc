@@ -1656,7 +1656,7 @@ ODBC_TEST(t_odbc162)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  /*{t_disconnect, "t_disconnect",      NORMAL},
+  {t_disconnect, "t_disconnect",      NORMAL},
   {t_describe_nulti, "t_describe_nulti", NORMAL},
   {test_CONO1,     "test_CONO1",     NORMAL},
   {test_CONO3,     "test_CONO3",     NORMAL},
@@ -1697,7 +1697,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc137,     "odbc137_ansi",             NORMAL},
 #ifdef _WIN32
   {t_odbc139,     "odbc139_compression",       NORMAL},
-#endif*/
+#endif
   {t_odbc162,     "t_odbc162_CTE_query",      NORMAL },
   {NULL, NULL, 0}
 };

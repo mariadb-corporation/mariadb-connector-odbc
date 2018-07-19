@@ -120,6 +120,7 @@ typedef struct st_madb_dsn
   char *SslFp;
   char *SslFpList;
   my_bool SslVerify;
+  char *SaveFile;
   /* --- Internal --- */
   int isPrompt;
   MADB_DsnKey *Keys;
@@ -143,7 +144,7 @@ my_bool     MADB_SaveDSN        (MADB_Dsn *Dsn);
 my_bool     MADB_DSN_Exists     (const char *DsnName);
 my_bool     MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
 BOOL        MADB_ReadConnString (MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
-SQLSMALLINT MADB_DsnToString    (MADB_Dsn *Dsn, char *OutString, SQLSMALLINT OutLength);
+SQLULEN     MADB_DsnToString    (MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength);
 void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
 
 /*** Helper macros ***/

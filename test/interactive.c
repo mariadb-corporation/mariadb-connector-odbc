@@ -120,6 +120,36 @@ ODBC_TEST(ti_dialogs)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc161)
+{
+  HDBC        hdbc1;
+  SQLCHAR     conn[512], conn_out[1024];
+  SQLSMALLINT conn_out_len;
+
+  sprintf((char *)conn, "SAVEFILE=odbc161;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;PORT=%u;DB=%s",
+    my_drivername, my_uid, my_pwd, my_servername, my_port, my_schema);
+
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn),
+                                       conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+                                       SQL_DRIVER_COMPLETE_REQUIRED));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  sprintf((char *)conn, "FILEDSN=odbc161;PWD=%s", my_pwd);
+
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn),
+                                       conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
+                                       SQL_DRIVER_COMPLETE_REQUIRED));
+
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+  CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
+
+  return OK;
+}
+
 #ifdef _WIN32
 #  define WE_HAVE_SETUPLIB
 #endif
@@ -129,6 +159,7 @@ MA_ODBC_TESTS my_tests[]=
 #ifdef WE_HAVE_SETUPLIB
   {ti_bug30840, "bug30840_interactive", NORMAL},
   {ti_dialogs,  "ti_dialogs",           NORMAL},
+  {t_odbc161,  "t_odbc161_file_dsn",           NORMAL},
 #endif
   {NULL, NULL, 0}
 };

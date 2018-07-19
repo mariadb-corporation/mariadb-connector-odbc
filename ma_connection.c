@@ -1656,15 +1656,15 @@ void MADB_DriverSideFree(void *ptr)
 
 /* {{{ MADB_DriverConnect */
 SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InConnectionString,
-                             SQLSMALLINT StringLength1, SQLCHAR *OutConnectionString,
-                             SQLSMALLINT BufferLength, SQLSMALLINT *StringLength2Ptr,
+                             SQLULEN StringLength1, SQLCHAR *OutConnectionString,
+                             SQLULEN BufferLength, SQLSMALLINT *StringLength2Ptr,
                              SQLUSMALLINT DriverCompletion)
 {
   MADB_Dsn   *Dsn;
   MADB_Drv   *Drv=       NULL;
   SQLRETURN   ret=       SQL_SUCCESS;
   MADB_Prompt DSNPrompt= { NULL, NULL };
-  SQLSMALLINT Length;
+  SQLULEN     Length;
 
   if (!Dbc)
     return SQL_INVALID_HANDLE;
@@ -1761,15 +1761,31 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
 
   ret= MADB_DbcConnectDB(Dbc, Dsn);
   if (!SQL_SUCCEEDED(ret))
+  {
     goto error;
+  }
+
 end:
   Dbc->Dsn= Dsn;
   /* Dialog returns bitmap - syncing corresponding properties */
   MADB_DsnUpdateOptionsFields(Dsn);
   if (Dsn->isPrompt)
   {
+    char *PreservePwd;
+
+    /* DM should do that on its own, but we still better also remove pwd from the string being saved in the file DSN */
+    if (Dsn->SaveFile != NULL)
+    {
+      PreservePwd= Dsn->Password;
+      Dsn->Password= NULL;
+    }
     /* If prompt/complete(_required), and dialog was succusefully showed - we generate string from the result DSN */
     Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);
+
+    if (Dsn->SaveFile != NULL)
+    {
+      Dsn->Password= PreservePwd;
+    }
   }
   else
   {
@@ -1785,7 +1801,7 @@ end:
     Length= StringLength1;
   }
   if (StringLength2Ptr)
-    *StringLength2Ptr= (SQLSMALLINT)Length;
+    *StringLength2Ptr= Length;
 
   if (OutConnectionString && BufferLength && Length > BufferLength)
   {
