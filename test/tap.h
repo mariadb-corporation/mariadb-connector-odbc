@@ -281,7 +281,7 @@ void get_options(int argc, char **argv)
       my_servername= (SQLCHAR*)optarg;
       break;
     case 'D':
-      my_drivername= (SQLCHAR*)argv[i+1];
+      my_drivername= (SQLCHAR*)optarg;
       break;
     case '?':
       usage();
