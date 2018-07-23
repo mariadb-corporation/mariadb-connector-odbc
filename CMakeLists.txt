@@ -81,7 +81,12 @@ IF(WIN32)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
+  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
+ELSE()
+  SET(USE_SYSTEM_INSTALLED_LIB TRUE)
+  MESSAGE(STATUS "There is no Connector/C sub-project folder, linking against libmariadb installed on the system")
+ENDIF()
 
 IF(WIN32)
   #ADD_OPTION(WITH_MSI "Build MSI installation package" OFF)
@@ -247,8 +252,12 @@ SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 
-IF(MARIADB_LINK_DYNAMIC)
-  SET(MARIADB_CLIENT_TARGET_NAME libmariadb)
+IF(MARIADB_LINK_DYNAMIC)# OR USE_SYSTEM_INSTALLED_LIB)
+  IF(USE_SYSTEM_INSTALLED_LIB)
+    SET(MARIADB_CLIENT_TARGET_NAME mariadb)
+  ELSE()
+    SET(MARIADB_CLIENT_TARGET_NAME libmariadb)
+  ENDIF()
   MESSAGE(STATUS "Linking Connector/C library dynamically(${MARIADB_CLIENT_TARGET_NAME})")
 ELSE()
   SET(MARIADB_CLIENT_TARGET_NAME mariadbclient)
@@ -363,8 +372,8 @@ SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSI
 SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
 SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation AB")
 SET(CPACK_SOURCE_IGNORE_FILES
-test/
-.git/
+/test/
+/.git/
 .gitignore
 .gitmodules
 .gitattributes
@@ -372,12 +381,11 @@ CMakeCache.txt
 cmake_dist.cmake
 CPackSourceConfig.cmake
 CPackConfig.cmake
-.build/
-/cmake_install.cmake
-/CTestTestfile.cmake
+/.build/
+cmake_install.cmake
+CTestTestfile.cmake
 /CMakeFiles/
 /version_resources/
-/_CPack_Packages/
 .*vcxproj
 .*gz$
 .*zip$
@@ -389,17 +397,14 @@ CPackConfig.cmake
 .*pdb$
 .*sln$
 .*sdf$
-/CMakeFiles/
-/version_resources/
-/_CPack_Packages/
 Makefile$
 /autom4te.cache/
-libmariadb/win
-libmariadb/client
-libmariadb/examples
-.travis/
+/.travis/
 .travis.yml
+/libmariadb/
+/_CPack_Packages/
 )
+
 
 # Build source packages
 IF(GIT_BUILD_SRCPKG)
