@@ -466,7 +466,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, CHARSET_INFO *charset)
     return 7;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return 10;
+    return Field->length;
   case MYSQL_TYPE_DATE:
     return SQL_DATE_LEN; /* YYYY-MM-DD */
   case MYSQL_TYPE_TIME:

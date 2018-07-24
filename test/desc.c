@@ -680,12 +680,16 @@ ODBC_TEST(t_odbc155)
   for (i= 0; i < sizeof(Expected)/sizeof(int); ++i)
   {
     diag("Field#%d", i + 1);
-    CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i + 1, NULL, 0, NULL, NULL, NULL, &DecimalDigits, NULL));
+    CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i + 1, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
     is_num(DecimalDigits, Expected[i]);
+    is_num(Size, ExpectedDisplaySize[i]);
+    Size= 0;
     CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
     is_num(Size, ExpectedDisplaySize[i]);
+    Size= 0;
     CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
     is_num(Size, ExpectedDisplaySize[i]);
+    Size= 0;
     CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
     is_num(Size, ExpectedOctetLength[i]);
   }
@@ -696,6 +700,52 @@ ODBC_TEST(t_odbc155)
 
   return OK;
 }
+
+
+/*  */
+ODBC_TEST(t_odbc166)
+{
+  SQLLEN Size;
+  SQLCHAR Value[23];
+  SQLSMALLINT DecimalDigits;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc166");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc166(val decimal(20,4) NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO  t_odbc166 VALUES(cast('12345.5678' as decimal(20,4))),(2064612258.11000)");
+  OK_SIMPLE_STMT(Stmt, "SELECT val FROM t_odbc166");
+
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  /* 20(precision) + sign + decimal point */
+  is_num(Size, 22);
+
+  /* Testing everything else */
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 4);
+  is_num(Size, 20);
+  Size= 0;
+
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  /* Column size is field's precision https://docs.microsoft.com/en-us/sql/odbc/reference/appendixes/column-size?view=sql-server-2017 */
+  is_num(Size, 20);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 22);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_CHAR, Value, sizeof(Value), &Size));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(Size, 10);
+  IS_STR(Value, "12345.5678", Size);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(Size, 15);
+  IS_STR(Value, "2064612258.1100", Size);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc166");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -714,6 +764,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc14, "t_odbc14"},
   {t_set_explicit_copy, "t_set_explicit_copy_of_ard"},
   {t_odbc155, "t_odbc155and157_decimaldigits_display_size"},
+  { t_odbc166, "t_odbc166_decimal_display_size"},
   {NULL, NULL}
 };
 
