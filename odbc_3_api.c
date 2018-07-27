@@ -2335,7 +2335,7 @@ SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
   SQLRETURN ret;
   if (!Stmt)
     return SQL_INVALID_HANDLE;
-  ret= Stmt->Methods->Prepare(Stmt, (char *)StatementText, TextLength);
+  ret= Stmt->Methods->Prepare(Stmt, (char *)StatementText, TextLength, FALSE);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
@@ -2392,7 +2392,7 @@ SQLRETURN SQL_API SQLPrepareW(SQLHSTMT StatementHandle,
     ret= Stmt->Error.ReturnValue;
   }
   else
-    ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)StmtLength);
+    ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)StmtLength, FALSE);
   MADB_FREE(StmtStr);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);

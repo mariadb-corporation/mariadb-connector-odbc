@@ -42,11 +42,19 @@ enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the que
 };
 
 typedef struct {
+  char *QueryText;
+  enum enum_madb_query_type QueryType;
+  DYNAMIC_ARRAY ParamPos;
+} SINGLE_QUERY;
+
+typedef struct {
   char        * Original;
   char        * allocated; /* Pointer to the allocated area. The refined query may go to the right */
   char        * RefinedText;
   size_t        RefinedLength;
+
   DYNAMIC_ARRAY Tokens;
+  DYNAMIC_ARRAY SubQuery; /* List of queries or batches of queries, that can be executed together at once */
   unsigned int  MultiStmtCount;
   /* So far only falg whether we have any parameters */
   my_bool       HasParameters;
@@ -62,8 +70,13 @@ typedef struct {
 } MADB_QUERY;
 
 #define PQUERY_UPDATE_LEN(PARSED_QUERY_PTR) (PARSED_QUERY_PTR)->RefinedLength= strlen((PARSED_QUERY_PTR)->RefinedLength)
+#define STMT_COUNT(PARSED_QUERY) ((PARSED_QUERY).SubQuery.elements/* + 1*/)
+#define QUERY_IS_MULTISTMT(PARSED_QUERY) (STMT_COUNT(PARSED_QUERY) > 1)
 
 int  MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLength);
+void MADB_DeleteSubqueries(MADB_QUERY *Query);
+void MADB_AddSubQuery(MADB_QUERY *Query, char *SubQueryText, enum enum_madb_query_type QueryType);
+
 void MADB_DeleteQuery(MADB_QUERY *Query);
 int  MADB_ParseQuery(MADB_QUERY *Query);
 

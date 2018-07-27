@@ -25,7 +25,7 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 {
   unsigned int i;
 
-  for (i=0; i < Stmt->Query.MultiStmtCount; ++i)
+  for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
   {
     MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->MultiStmts[i]);
     if (Stmt->MultiStmts[i] != NULL)
@@ -34,7 +34,6 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
     }
   }
   MADB_FREE(Stmt->MultiStmts);
-  Stmt->Query.MultiStmtCount= 0;
   Stmt->stmt= NULL;
 }
 
@@ -65,14 +64,14 @@ int SqlRtrim(char *StmtStr, int Length)
 }
 
 
-unsigned int GetMultiStatements(MADB_Stmt *Stmt)
+unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
   int          i= 0;
   unsigned int MaxParams= 0;
   char        *p= Stmt->Query.RefinedText;
 
   Stmt->MultiStmtNr= 0;
-  Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * Stmt->Query.MultiStmtCount);
+  Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * STMT_COUNT(Stmt->Query));
 
   while (p < Stmt->Query.RefinedText + Stmt->Query.RefinedLength)
   {
@@ -97,7 +96,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt)
         }
         else
         {
-          Stmt->Query.MultiStmtCount= 1;
+          MADB_DeleteSubqueries(&Stmt->Query);
           return 0;
         }
       }
@@ -159,7 +158,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
     p+= my_snprintf(p, 1024 - strlen(p), "`%s`.", Database);
   p+= my_snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
-      Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
+      Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS, FALSE) == SQL_ERROR ||
       Stmt->Methods->Execute(Stmt) == SQL_ERROR ||
       Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
       goto end;
@@ -1215,7 +1214,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS, FALSE)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);

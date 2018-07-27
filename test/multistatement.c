@@ -78,22 +78,17 @@ ODBC_TEST(test_multi_on_off)
 
 ODBC_TEST(test_params)
 {
-  SQLRETURN rc;
   int       i, j;
 
-  rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
-  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)");
 
-  rc= SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)", SQL_NTS);
-  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
 
-  rc= SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?), (?)", SQL_NTS);
-  CHECK_STMT_RC(Stmt, rc);
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?), (?)", SQL_NTS));
 
-  CHECK_STMT_RC(Stmt, SQLBindParam(Stmt, 1, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
 
-  rc= SQLBindParam(Stmt, 2, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, NULL);
-  FAIL_IF(!SQL_SUCCEEDED(rc), "unexpected error"); 
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, 0, NULL));
 
   for (i=0; i < 100; i++)
   {
@@ -319,7 +314,7 @@ ODBC_TEST(diff_column_binding)
   char bindc1[64];
   int bind1, bind2, bind3;
   SQLBIGINT bindb1;
-  SQLRETURN rc, Expected= SQL_SUCCESS;
+  SQLRETURN Expected= SQL_SUCCESS;
   SQLLEN indicator = 0, indicator2 = 0, indicator3 = 0, indicator4 = 0;
   SQLLEN indicatorc = SQL_NTS;
   
@@ -368,6 +363,22 @@ ODBC_TEST(diff_column_binding)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc159)
+{
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
+                        CREATE TEMPORARY TABLE _temp_statistics AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
+                        SELECT * FROM _temp_odbc159;");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -379,6 +390,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc95, "t_odbc95"},
   {t_odbc126, "t_odbc126"},
   {diff_column_binding, "diff_column_binding"},
+  {t_odbc159, "t_odbc159"},
   {NULL, NULL}
 };
 

@@ -174,7 +174,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     {
       if (Stmt->Ird)
         MADB_DescFree(Stmt->Ird, TRUE);
-      if (Stmt->State > MADB_SS_PREPARED && !Stmt->Query.MultiStmtCount)
+      if (Stmt->State > MADB_SS_PREPARED && !QUERY_IS_MULTISTMT(Stmt->Query))
       {
         mysql_stmt_free_result(Stmt->stmt);
         MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
@@ -182,11 +182,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         mysql_stmt_reset(Stmt->stmt);
         UNLOCK_MARIADB(Stmt->Connection);
       }
-      if (Stmt->Query.MultiStmtCount && Stmt->MultiStmts)
+      if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
       {
         unsigned int i;
         LOCK_MARIADB(Stmt->Connection);
-        for (i=0; i < Stmt->Query.MultiStmtCount; ++i)
+        for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
         {
           if (Stmt->MultiStmts[i] != NULL)
           {
@@ -221,7 +221,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     RESET_DAE_STATUS(Stmt);
     break;
   case SQL_DROP:
-    MADB_DeleteQuery(&Stmt->Query);
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
@@ -263,10 +262,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     EnterCriticalSection(&Stmt->Connection->cs);
     /* TODO: if multistatement was prepared, but not executed, we would get here Stmt->stmt leaked. Unlikely that is very probable scenario,
              thus leaving this for new version */
-    if (Stmt->Query.MultiStmtCount)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
       unsigned int i;
-      for (i= 0; i < Stmt->Query.MultiStmtCount; ++i)
+      for (i= 0; i < STMT_COUNT(Stmt->Query); ++i)
       {
         /* This dirty hack allows to avoid crash in case stmt object was not allocated
            TODO: The better place for this check would be where MultiStmts was not allocated
@@ -278,7 +277,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         }
       }
       MADB_FREE(Stmt->MultiStmts);
-      Stmt->Query.MultiStmtCount= Stmt->MultiStmtNr= 0;
+      Stmt->MultiStmtNr= 0;
+      /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
+      MADB_DeleteQuery(&Stmt->Query);
     }
     else if (Stmt->stmt != NULL)
     {
@@ -299,7 +300,7 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
 {
   SQLRETURN ret;
 
-  ret= Stmt->Methods->Prepare(Stmt, StatementText, TextLength);
+  ret= Stmt->Methods->Prepare(Stmt, StatementText, TextLength, TRUE);
   /* In case statement is not supported, we use mysql_query instead */
   if (!SQL_SUCCEEDED(ret))
   {
@@ -314,6 +315,7 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
       return ret;
     }
   }
+
 
   return Stmt->Methods->Execute(Stmt);
 }
@@ -351,10 +353,24 @@ MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+/* {{{ MADB_EDPrepare - Fake preparing called from SQLPrepare in case it is SQLExecDirect for multistatement queries */
+SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
+{
+  /* TODO: In case of positioned command it shouldn't be always*/
+  if (Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0))
+  {
+    if (Stmt->params)
+      MADB_FREE(Stmt->params);
+    /* If we have "WHERE CURRENT OF", we will need bind additionaly parameters for each field in the index */
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
+  }
+  return SQL_SUCCESS;
+}
+
 /* {{{ MADB_StmtReset - reseting Stmt handler for new use. Has to be called inside a lock */
 void MADB_StmtReset(MADB_Stmt *Stmt)
 {
-  if (Stmt->Query.MultiStmtCount < 2 || Stmt->MultiStmts == NULL)
+  if (!QUERY_IS_MULTISTMT(Stmt->Query) || Stmt->MultiStmts == NULL)
   {
     if (Stmt->State > MADB_SS_PREPARED)
     {
@@ -400,7 +416,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
      have ane state set, but some of stuff still needs to be cleaned. Perhaps we could introduce a state
      for such case, smth like DIREXEC_PREPARED. Would be more proper, but yet overkill */
 
-    if (Stmt->Query.MultiStmtCount > 1)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
       while (mysql_more_results(Stmt->Connection->mariadb))
       {
@@ -416,7 +432,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
 /* }}} */
 
 /* {{{ MADB_StmtPrepare */
-SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength)
+SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect)
 {
   char          *CursorName= NULL;
   unsigned int  WhereOffset;
@@ -433,15 +449,19 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stmt->MultiStmts */
-  if (QueryIsPossiblyMultistmt(&Stmt->Query) && Stmt->Query.MultiStmtCount > 1 &&
+  if (QueryIsPossiblyMultistmt(&Stmt->Query) && QUERY_IS_MULTISTMT(Stmt->Query) &&
     (Stmt->Query.ReturnsResult || Stmt->Query.HasParameters)) /* If neither of statements returns result,
                                                                           and does not have parameters, we will run them
                                                                           using text protocol */
   {
     if (DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
     {
+      if (ExecDirect != FALSE)
+      {
+        return MADB_EDPrepare(Stmt);
+      }
       /* We had error preparing any of statements */
-      if (GetMultiStatements(Stmt))
+      else if (GetMultiStatements(Stmt, ExecDirect))
       {
         return Stmt->Error.ReturnValue;
       }
@@ -510,7 +530,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
     /* If have multistatement query, and this is not allowed, we want to do normal prepare.
        To give it last chance. And to return correct error otherwise */
-    ! (Stmt->Query.MultiStmtCount > 1 && !DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS)))
+    ! (QUERY_IS_MULTISTMT(Stmt->Query) && !DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS)))
   {
     Stmt->State= MADB_SS_EMULATED;
     return SQL_SUCCESS;
@@ -543,7 +563,9 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   if ((Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt)))
   {
     if (Stmt->params)
+    {
       MADB_FREE(Stmt->params);
+    }
     Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
     mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
   }
@@ -900,10 +922,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   unsigned int ErrorCount=    0;
   unsigned int StatementNr;
   unsigned int ParamOffset=   0; /* for multi statements */
-  unsigned int Iterations=    1;
+  unsigned int Iterations=    STMT_COUNT(Stmt->Query);
   SQLLEN       j, Start=      0;
 
   BOOL         FetchedOutParams= FALSE;
+  /* For multistatement direct execution */
+  char        *CurQuery= Stmt->Query.RefinedText, *QueriesEnd= Stmt->Query.RefinedText + Stmt->Query.RefinedLength;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
@@ -942,9 +966,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
   Stmt->AffectedRows= 0;
   Start+= Stmt->ArrayOffset;
 
-   if (Stmt->Ipd->Header.RowsProcessedPtr)
-      *Stmt->Ipd->Header.RowsProcessedPtr= 0;
-
+  if (Stmt->Ipd->Header.RowsProcessedPtr)
+  {
+    *Stmt->Ipd->Header.RowsProcessedPtr= 0;
+  }
   /* calculate Parameter number for multi statements */
   if (Stmt->MultiStmts)
   {
@@ -953,10 +978,41 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
 
   for (StatementNr= 0; StatementNr < Iterations; ++StatementNr)
   {
-    if (Stmt->MultiStmts)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
-      Stmt->stmt= Stmt->MultiStmts[StatementNr];
-      Stmt->ParamCount= Stmt->MultiStmts[StatementNr]->param_count;
+      if (Stmt->MultiStmts && Stmt->MultiStmts[StatementNr] != NULL)
+      {
+        Stmt->stmt= Stmt->MultiStmts[StatementNr];
+      }
+      else
+      {
+        /* We have direct execution, since otherwise it'd already prepareds, and thus Stmt->MultiStmts would be set */
+        if (CurQuery >= QueriesEnd)
+        {
+          /* Something went wrong(with parsing). But we've got here, and everything worked. Giving it chance to fail later.
+             This shouldn't really happen */
+          MDBUG_C_PRINT(Stmt->Connection, "Got past end of query direct-executing %s on stmt #%u", Stmt->Query.RefinedText, StatementNr);
+          continue;
+        }
+        if (StatementNr > 0)
+        {
+          Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+        }
+        else
+        {
+          Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * STMT_COUNT(Stmt->Query));
+        }
+
+        Stmt->MultiStmts[StatementNr]= Stmt->stmt;
+
+        if (mysql_stmt_prepare(Stmt->stmt, CurQuery, (unsigned long)strlen(CurQuery)))
+        {
+          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
+        }
+        CurQuery+= strlen(CurQuery) + 1;
+      }
+      
+      Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
       Stmt->RebindParams= TRUE;
     }
     /* Convert and bind parameters */
@@ -1350,19 +1406,27 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt)
           ApdRecord->InternalLength= 0;
       }
 
-      /* todo: do we need GetBindOffset here ?! */
       if (Stmt->Ipd->Header.RowsProcessedPtr)
+      {
         *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + 1;
+      }
       if (Stmt->Ipd->Header.ArrayStatusPtr)
-        Stmt->Ipd->Header.ArrayStatusPtr[j-Start]= SQL_SUCCEEDED(ret) ? SQL_PARAM_SUCCESS : 
-                                                    (j == Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
+      {
+        Stmt->Ipd->Header.ArrayStatusPtr[j-Start]= SQL_SUCCEEDED(ret) ? SQL_PARAM_SUCCESS :
+          (j == Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
+      }
       if (!mysql_stmt_field_count(Stmt->stmt) && SQL_SUCCEEDED(ret) && !Stmt->MultiStmts)
+      {
         Stmt->AffectedRows+= mysql_stmt_affected_rows(Stmt->stmt);
+      }
       Stmt->ArrayOffset++;
       if (!SQL_SUCCEEDED(ret) && j == Start + Stmt->Apd->Header.ArraySize)
+      {
         goto end;
+      }
     }
-    if (Stmt->MultiStmts)
+
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
       ParamOffset+= Stmt->ParamCount;
       if(mysql_stmt_field_count(Stmt->stmt))
@@ -3367,7 +3431,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
    p+= my_snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
   
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr), FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   
@@ -3399,7 +3463,7 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   
   p+= my_snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
   
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr), FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   return ret;
@@ -3521,7 +3585,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
     dynstr_append(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE");
   }
   MDBUG_C_PRINT(Stmt->Connection, "SQL Statement: %s", StmtStr.str);
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   dynstr_free(&StmtStr);
@@ -3576,7 +3640,7 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
 
   my_snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
 
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
@@ -3659,7 +3723,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 
   MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
 
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
   {
     ret= Stmt->Methods->Execute(Stmt);
@@ -3709,7 +3773,7 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   if (ColumnName && ColumnName[0])
     p+= my_snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
   p+= my_snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS, FALSE);
 
   MADB_FREE(StmtStr);
 
@@ -3750,7 +3814,7 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
     p+= my_snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
    p+= my_snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
 
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
@@ -3808,7 +3872,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     p+= my_snprintf(p, 2048 - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
   p+= my_snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
 
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
 
@@ -3848,7 +3912,7 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   
   p+= my_snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
 
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   
@@ -3963,7 +4027,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   }
   dynstr_append(&StmtStr, "ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ, PKTABLE_NAME");
   
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr.str, SQL_NTS, FALSE);
 
   dynstr_free(&StmtStr);
 
@@ -4262,7 +4326,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         }
 
         Stmt->DataExecutionType= MADB_DAE_ADD;
-        ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS);
+        ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS, FALSE);
         /* Prepare(SQL_CLOSE in fact) currently resets DefaultResult. Not sure why. But this should go after Prepare so far */
         Stmt->DaeStmt->DefaultsResult= MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields);
         dynstr_free(&DynStmt);

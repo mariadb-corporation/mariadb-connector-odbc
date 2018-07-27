@@ -83,12 +83,38 @@ int MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLe
   return 0;
 }
 
+void MADB_DeleteSubqueries(MADB_QUERY * Query)
+{
+  unsigned int i;
+  SINGLE_QUERY SubQuery;
+
+  for (i= 0; i < Query->SubQuery.elements; ++i)
+  {
+    get_dynamic(&Query->SubQuery, (char *)&SubQuery, i);
+    delete_dynamic(&SubQuery.ParamPos);
+  }
+  delete_dynamic(&Query->SubQuery);
+}
+
+void MADB_AddSubQuery(MADB_QUERY * Query, char * SubQueryText, enum enum_madb_query_type QueryType)
+{
+  SINGLE_QUERY SubQuery;
+
+  SubQuery.QueryText= SubQueryText;
+  SubQuery.QueryType= QueryType;
+  init_dynamic_array(&SubQuery.ParamPos, sizeof(unsigned int), 20, 20);
+
+  insert_dynamic(&Query->SubQuery, (char*)&SubQuery);
+}
+
 
 void MADB_DeleteQuery(MADB_QUERY *Query)
 {
   MADB_FREE(Query->allocated);
   MADB_FREE(Query->Original);
   delete_dynamic(&Query->Tokens);
+
+  MADB_DeleteSubqueries(Query);
 
   memset(Query, 0, sizeof(MADB_QUERY));
 }
@@ -108,6 +134,7 @@ int MADB_ParseQuery(MADB_QUERY * Query)
   return ParseQuery(Query);
 }
 
+/*----------------- Tokens stuff ------------------*/
 
 char *MADB_Token(MADB_QUERY *Query, unsigned int Idx)
 {
@@ -171,13 +198,6 @@ char *MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
     }
   }
   return NULL;
-}
-
-
-/* Not used - rather a placeholder in case we need it */
-const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt)
-{ 
-  return STMT_STRING(Stmt);
 }
 
 
@@ -259,6 +279,13 @@ enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Toke
   return MADB_QUERY_NO_RESULT;
 }
 
+/* -------------------- Tokens - End ----------------- */
+
+/* Not used - rather a placeholder in case we need it */
+const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt)
+{
+  return STMT_STRING(Stmt);
+}
 
 /* Function assumes that query string has been trimmed */
 char* FixIsoFormat(char * StmtString, size_t *Length)
@@ -288,10 +315,11 @@ int ParseQuery(MADB_QUERY *Query)
   BOOL         ReadingToken= FALSE;
   unsigned int Offset, StmtTokensCount= 0;
   size_t       Length= Query->RefinedLength;
-  char        *end= p + Length;
+  char        *end= p + Length, *CurQuery= NULL, *LastSemicolon= NULL;
   enum enum_madb_query_type StmtType;
 
-  init_dynamic_array(&Query->Tokens, sizeof(unsigned int), 20, 20);
+  init_dynamic_array(&Query->Tokens, sizeof(unsigned int), MAX(Length/32, 20), MAX(Length/20, 40));
+  init_dynamic_array(&Query->SubQuery, sizeof(SINGLE_QUERY), MAX(Length/128, 20), MAX(Length/128, 40));
 
   while (p < end)
   {
@@ -308,7 +336,7 @@ int ParseQuery(MADB_QUERY *Query)
       /* On saving 1st statement's token, we are incrementing statements counter */
       if (StmtTokensCount == 1)
       {
-        ++Query->MultiStmtCount;
+        CurQuery= p;
       }
       /* Having 2 first tockens we can get statement type. And we need to know it for the case of multistatement -
          some statements may "legally" contain ';' */
@@ -317,6 +345,8 @@ int ParseQuery(MADB_QUERY *Query)
         /* We are currently at 2nd token of statement, and getting previous token position from Tokens array*/
         StmtType= MADB_GetQueryType(MADB_Token(Query, Query->Tokens.elements - 2), p);
         Query->ReturnsResult= Query->ReturnsResult || !QUERY_DOESNT_RETURN_RESULT(StmtType);
+        MADB_AddSubQuery(Query, CurQuery, StmtType);
+
         /* If we on first statement, setting QueryType*/
         if (Query->Tokens.elements == 2)
         {

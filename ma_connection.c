@@ -1801,7 +1801,7 @@ end:
     Length= StringLength1;
   }
   if (StringLength2Ptr)
-    *StringLength2Ptr= Length;
+    *StringLength2Ptr= (SQLSMALLINT)Length;
 
   if (OutConnectionString && BufferLength && Length > BufferLength)
   {

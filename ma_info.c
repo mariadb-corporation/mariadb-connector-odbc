@@ -188,7 +188,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
          TypeInfo[i].SqlDateTimeSub,TypeInfo[i].NumPrecRadix);
     }
   }
-  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS);
+  ret= Stmt->Methods->Prepare(Stmt, StmtStr, SQL_NTS, FALSE);
   if (SQL_SUCCEEDED(ret))
     ret= Stmt->Methods->Execute(Stmt);
   if (SQL_SUCCEEDED(ret))

@@ -26,7 +26,7 @@
 
 struct st_ma_stmt_methods
 {
-  SQLRETURN (*Prepare)(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength);
+  SQLRETURN (*Prepare)(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect);
   SQLRETURN (*Execute)(MADB_Stmt *Stmt);
   SQLRETURN (*Fetch)(MADB_Stmt *Stmt);
   SQLRETURN (*BindColumn)(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
@@ -114,6 +114,7 @@ MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
 #define MADB_STMT_COLUMN_COUNT(aStmt) (aStmt)->Ird->Header.Count
 #define MADB_STMT_PARAM_COUNT(aStmt)  (aStmt)->ParamCount
 #define MADB_POSITIONED_COMMAND(aStmt) ((aStmt)->PositionedCommand && (aStmt)->PositionedCursor)
+#define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor)
 #define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= -1; 
 
 #define MADB_TRANSFER_OCTET_LENGTH\

@@ -60,7 +60,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 
   if (Stmt->MultiStmts)
   {
-    if (Stmt->MultiStmtNr == Stmt->Query.MultiStmtCount - 1)
+    if (Stmt->MultiStmtNr == STMT_COUNT(Stmt->Query) - 1)
     {
       return SQL_NO_DATA;
     }

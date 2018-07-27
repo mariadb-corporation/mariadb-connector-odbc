@@ -22,7 +22,7 @@
 void CloseMultiStatements(MADB_Stmt *Stmt);
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
-unsigned int GetMultiStatements(MADB_Stmt *Stmt);
+unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
