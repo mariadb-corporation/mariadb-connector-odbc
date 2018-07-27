@@ -25,7 +25,7 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 {
   unsigned int i;
 
-  for (i=0; i < Stmt->Query.MultiStmtCount; ++i)
+  for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
   {
     MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->MultiStmts[i]);
     if (Stmt->MultiStmts[i] != NULL)
@@ -34,7 +34,6 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
     }
   }
   MADB_FREE(Stmt->MultiStmts);
-  Stmt->Query.MultiStmtCount= 0;
   Stmt->stmt= NULL;
 }
 
@@ -65,14 +64,14 @@ int SqlRtrim(char *StmtStr, int Length)
 }
 
 
-unsigned int GetMultiStatements(MADB_Stmt *Stmt)
+unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
   int          i= 0;
   unsigned int MaxParams= 0;
   char        *p= Stmt->Query.RefinedText;
 
   Stmt->MultiStmtNr= 0;
-  Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * Stmt->Query.MultiStmtCount);
+  Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * STMT_COUNT(Stmt->Query));
 
   while (p < Stmt->Query.RefinedText + Stmt->Query.RefinedLength)
   {
@@ -97,7 +96,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt)
         }
         else
         {
-          Stmt->Query.MultiStmtCount= 1;
+          MADB_DeleteSubqueries(&Stmt->Query);
           return 0;
         }
       }

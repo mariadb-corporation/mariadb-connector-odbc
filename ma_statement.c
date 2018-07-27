@@ -174,7 +174,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     {
       if (Stmt->Ird)
         MADB_DescFree(Stmt->Ird, TRUE);
-      if (Stmt->State > MADB_SS_PREPARED && !Stmt->Query.MultiStmtCount)
+      if (Stmt->State > MADB_SS_PREPARED && !QUERY_IS_MULTISTMT(Stmt->Query))
       {
         MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt);
         mysql_stmt_free_result(Stmt->stmt);
@@ -183,11 +183,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         mysql_stmt_reset(Stmt->stmt);
         UNLOCK_MARIADB(Stmt->Connection);
       }
-      if (Stmt->Query.MultiStmtCount && Stmt->MultiStmts)
+      if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
       {
         unsigned int i;
         LOCK_MARIADB(Stmt->Connection);
-        for (i=0; i < Stmt->Query.MultiStmtCount; ++i)
+        for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
         {
           if (Stmt->MultiStmts[i] != NULL)
           {
@@ -219,7 +219,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     RESET_DAE_STATUS(Stmt);
     break;
   case SQL_DROP:
-    MADB_DeleteQuery(&Stmt->Query);
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
@@ -261,10 +260,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     EnterCriticalSection(&Stmt->Connection->cs);
     /* TODO: if multistatement was prepared, but not executed, we would get here Stmt->stmt leaked. Unlikely that is very probable scenario,
              thus leaving this for new version */
-    if (Stmt->Query.MultiStmtCount)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
       unsigned int i;
-      for (i= 0; i < Stmt->Query.MultiStmtCount; ++i)
+      for (i= 0; i < STMT_COUNT(Stmt->Query); ++i)
       {
         /* This dirty hack allows to avoid crash in case stmt object was not allocated
            TODO: The better place for this check would be where MultiStmts was not allocated
@@ -276,7 +275,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         }
       }
       MADB_FREE(Stmt->MultiStmts);
-      Stmt->Query.MultiStmtCount= Stmt->MultiStmtNr= 0;
+      Stmt->MultiStmtNr= 0;
+      /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
+      MADB_DeleteQuery(&Stmt->Query);
     }
     else if (Stmt->stmt != NULL)
     {
@@ -320,7 +321,7 @@ BOOL MADB_BulkInsertPossible(MADB_Stmt *Stmt)
 SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength)
 {
   SQLRETURN ret;
-  BOOL      ExecDirect= MADB_CheckIfExecDirectPossible(Stmt);
+  BOOL      ExecDirect= TRUE;
 
   ret= Stmt->Methods->Prepare(Stmt, StatementText, TextLength, ExecDirect);
   /* In case statement is not supported, we use mysql_query instead */
@@ -338,8 +339,8 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
     }
   }
 
-  /* If Prepare detected that we have multistmt, it prepared each statement, thus we can't use mariadb_stmt_execute_direct */
-  if (Stmt->Query.MultiStmtCount > 1)
+  /* For multistmt we don't use mariadb_stmt_execute_direct so far */
+  if (QUERY_IS_MULTISTMT(Stmt->Query))
   {
     ExecDirect= FALSE;
   }
@@ -381,7 +382,7 @@ MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
 /* {{{ MADB_StmtReset - reseting Stmt handler for new use. Has to be called inside a lock */
 void MADB_StmtReset(MADB_Stmt *Stmt)
 {
-  if (Stmt->Query.MultiStmtCount < 2 || Stmt->MultiStmts == NULL)
+  if (!QUERY_IS_MULTISTMT(Stmt->Query) || Stmt->MultiStmts == NULL)
   {
     if (Stmt->State > MADB_SS_PREPARED)
     {
@@ -429,7 +430,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
      have ane state set, but some of stuff still needs to be cleaned. Perhaps we could introduce a state
      for such case, smth like DIREXEC_PREPARED. Would be more proper, but yet overkill */
 
-    if (Stmt->Query.MultiStmtCount > 1)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
       while (mysql_more_results(Stmt->Connection->mariadb))
       {
@@ -526,15 +527,19 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stmt->MultiStmts */
-  if (QueryIsPossiblyMultistmt(&Stmt->Query) && Stmt->Query.MultiStmtCount > 1 &&
+  if (QueryIsPossiblyMultistmt(&Stmt->Query) && QUERY_IS_MULTISTMT(Stmt->Query) &&
     (Stmt->Query.ReturnsResult || Stmt->Query.HasParameters)) /* If neither of statements returns result,
                                                                           and does not have parameters, we will run them
                                                                           using text protocol */
   {
     if (DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
     {
+      if (ExecDirect != FALSE)
+      {
+        return MADB_EDPrepare(Stmt);
+      }
       /* We had error preparing any of statements */
-      if (GetMultiStatements(Stmt))
+      else if (GetMultiStatements(Stmt, ExecDirect))
       {
         return Stmt->Error.ReturnValue;
       }
@@ -603,13 +608,13 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
     /* If have multistatement query, and this is not allowed, we want to do normal prepare.
        To give it last chance. And to return correct error otherwise */
-    ! (Stmt->Query.MultiStmtCount > 1 && !DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS)))
+    ! (QUERY_IS_MULTISTMT(Stmt->Query) && !DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS)))
   {
     Stmt->State= MADB_SS_EMULATED;
     return SQL_SUCCESS;
   }
 
-  if (ExecDirect == TRUE)
+  if (ExecDirect && MADB_CheckIfExecDirectPossible(Stmt))
   {
     return MADB_EDPrepare(Stmt);
   }
@@ -1006,10 +1011,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   unsigned int ErrorCount=    0;
   unsigned int StatementNr;
   unsigned int ParamOffset=   0; /* for multi statements */
-  unsigned int Iterations=    1,
-    /* Will use it for STMT_ATTR_ARRAY_SIZE and as indicator if we are deploying MariaDB bulk insert feature */
-    MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? (unsigned int)Stmt->Apd->Header.ArraySize : 0;
+               /* Will use it for STMT_ATTR_ARRAY_SIZE and as indicator if we are deploying MariaDB bulk insert feature */
+  unsigned int MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? (unsigned int)Stmt->Apd->Header.ArraySize : 0;
   SQLULEN      j, Start=      0;
+  /* For multistatement direct execution */
+  char        *CurQuery= Stmt->Query.RefinedText, *QueriesEnd= Stmt->Query.RefinedText + Stmt->Query.RefinedLength;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
@@ -1049,13 +1055,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   {
     *Stmt->Ipd->Header.RowsProcessedPtr= 0;
   }
-
-  /* calculate Parameter number for multi statements */
-  if (Stmt->MultiStmts)
-  {
-    Iterations= Stmt->Query.MultiStmtCount;
-  }
-
+ 
   if (MariadbArrSize > 1)
   {
     if (MADB_DOING_BULK_OPER(Stmt))
@@ -1066,11 +1066,42 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     Stmt->Bulk.HasRowsToSkip= 0;
   }
 
-  for (StatementNr= 0; StatementNr < Iterations; ++StatementNr)
+  for (StatementNr= 0; StatementNr < STMT_COUNT(Stmt->Query); ++StatementNr)
   {
-    if (Stmt->MultiStmts)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
-      Stmt->stmt= Stmt->MultiStmts[StatementNr];
+      if (Stmt->MultiStmts && Stmt->MultiStmts[StatementNr] != NULL)
+      {
+        Stmt->stmt= Stmt->MultiStmts[StatementNr];
+      }
+      else
+      {
+        /* We have direct execution, since otherwise it'd already prepareds, and thus Stmt->MultiStmts would be set */
+        if (CurQuery >= QueriesEnd)
+        {
+          /* Something went wrong(with parsing). But we've got here, and everything worked. Giving it chance to fail later.
+             This shouldn't really happen */
+          MDBUG_C_PRINT(Stmt->Connection, "Got past end of query direct-executing %s on stmt #%u", Stmt->Query.RefinedText, StatementNr);
+          continue;
+        }
+        if (StatementNr > 0)
+        {
+          Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+        }
+        else
+        {
+          Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * STMT_COUNT(Stmt->Query));
+        }
+
+        Stmt->MultiStmts[StatementNr]= Stmt->stmt;
+
+        if (mysql_stmt_prepare(Stmt->stmt, CurQuery, (unsigned long)strlen(CurQuery)))
+        {
+          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
+        }
+        CurQuery+= strlen(CurQuery) + 1;
+      }
+      
       Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
       Stmt->RebindParams= TRUE;
 
@@ -1189,7 +1220,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       }     /* End of for() thru paramsets(parameters array) */
     }       /* End of if (bulk/not bulk) execution */
 
-    if (Stmt->MultiStmts)
+    if (QUERY_IS_MULTISTMT(Stmt->Query))
     {
       /* If we optimize memory allocation, then we will need to free bulk operation data here(among other places) */
       /* MADB_CleanBulkOperData(Stmt, ParamOffset); */
@@ -2905,7 +2936,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
            throws error if the length is not what it expected (ODBC-131)
            Probably it makes sense to do this only for SQL_C_DEFAULT type, which MS Access uses. But atm it looks like this should
            not hurt if done for other types, too */
-        if (*StrLen_or_IndPtr == 0 || (Bind.length_value > IrdRec->OctetLength && *StrLen_or_IndPtr > IrdRec->OctetLength))
+        if (*StrLen_or_IndPtr == 0 || (Bind.length_value > (unsigned long)IrdRec->OctetLength && *StrLen_or_IndPtr > IrdRec->OctetLength))
         {
           *StrLen_or_IndPtr= IrdRec->OctetLength;
         }
