@@ -262,7 +262,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     EnterCriticalSection(&Stmt->Connection->cs);
     /* TODO: if multistatement was prepared, but not executed, we would get here Stmt->stmt leaked. Unlikely that is very probable scenario,
              thus leaving this for new version */
-    if (QUERY_IS_MULTISTMT(Stmt->Query))
+    if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
     {
       unsigned int i;
       for (i= 0; i < STMT_COUNT(Stmt->Query); ++i)
@@ -278,16 +278,16 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       }
       MADB_FREE(Stmt->MultiStmts);
       Stmt->MultiStmtNr= 0;
-      /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
-      MADB_DeleteQuery(&Stmt->Query);
     }
     else if (Stmt->stmt != NULL)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
       mysql_stmt_close(Stmt->stmt);
     }
-
+    /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
+    MADB_DeleteQuery(&Stmt->Query);
     Stmt->Connection->Stmts= list_delete(Stmt->Connection->Stmts, &Stmt->ListItem);
+
     LeaveCriticalSection(&Stmt->Connection->cs);
     MADB_FREE(Stmt);
   } /* End of switch (Option) */
@@ -450,26 +450,23 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stmt->MultiStmts */
   if (QueryIsPossiblyMultistmt(&Stmt->Query) && QUERY_IS_MULTISTMT(Stmt->Query) &&
-    (Stmt->Query.ReturnsResult || Stmt->Query.HasParameters)) /* If neither of statements returns result,
+    (Stmt->Query.ReturnsResult || Stmt->Query.HasParameters) && Stmt->Query.BatchAllowed) /* If neither of statements returns result,
                                                                           and does not have parameters, we will run them
                                                                           using text protocol */
   {
-    if (DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
+    if (ExecDirect != FALSE)
     {
-      if (ExecDirect != FALSE)
-      {
-        return MADB_EDPrepare(Stmt);
-      }
-      /* We had error preparing any of statements */
-      else if (GetMultiStatements(Stmt, ExecDirect))
-      {
-        return Stmt->Error.ReturnValue;
-      }
-
-      /* all statemtens successfully prepared */
-      UNLOCK_MARIADB(Stmt->Connection);
-      return SQL_SUCCESS;
+      return MADB_EDPrepare(Stmt);
     }
+    /* We had error preparing any of statements */
+    else if (GetMultiStatements(Stmt, ExecDirect))
+    {
+      return Stmt->Error.ReturnValue;
+    }
+
+    /* all statemtens successfully prepared */
+    UNLOCK_MARIADB(Stmt->Connection);
+    return SQL_SUCCESS;
   }
 
   UNLOCK_MARIADB(Stmt->Connection);
@@ -530,7 +527,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
     /* If have multistatement query, and this is not allowed, we want to do normal prepare.
        To give it last chance. And to return correct error otherwise */
-    ! (QUERY_IS_MULTISTMT(Stmt->Query) && !DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS)))
+    ! (QUERY_IS_MULTISTMT(Stmt->Query) && !Stmt->Query.BatchAllowed))
   {
     Stmt->State= MADB_SS_EMULATED;
     return SQL_SUCCESS;
