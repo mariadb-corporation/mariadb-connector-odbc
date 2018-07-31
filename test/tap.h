@@ -700,7 +700,7 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
   strcpy(buffer, "USE ");
   strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
   OK_SIMPLE_STMT(Stmt1, buffer);
-  SQLFreeStmt(Stmt1, SQL_CLOSE);
+  SQLFreeStmt(Stmt1, SQL_DROP);
 
   return OK;
 }
