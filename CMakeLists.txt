@@ -82,6 +82,11 @@ IF(WIN32)
 ENDIF()
 
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
+  IF(GIT_BUILD_SRCPKG)
+    # We don't want conn/c (wrong) src pkg to be built.
+    SET(GIT_BUILD_SRCPKG FALSE)
+    SET(ODBC_GIT_BUILD_SRCPKG TRUE)
+  ENDIF()
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 ELSE()
   SET(USE_SYSTEM_INSTALLED_LIB TRUE)
@@ -405,19 +410,13 @@ Makefile$
 /_CPack_Packages/
 )
 
-
 # Build source packages
-IF(GIT_BUILD_SRCPKG)
-  # get branch name
-  EXECUTE_PROCESS(COMMAND git show-branch OUTPUT_VARIABLE git_branch)
-  STRING(REGEX MATCH "\\[([^]]+)\\]" git_branch ${git_branch})
-  STRING(REGEX REPLACE "\\[|\\]" "" GIT_BRANCH ${git_branch})
-  MESSAGE(STATUS "Git branch: ${GIT_BRANCH}")
+IF(GIT_BUILD_SRCPKG OR ODBC_GIT_BUILD_SRCPKG)
   IF(WIN32)
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip)
+    EXECUTE_PROCESS(COMMAND git archive --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip --worktree-attributes -v HEAD)
   ELSE()
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip)
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
+    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip -v HEAD)
+    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar -v HEAD)
     EXECUTE_PROCESS(COMMAND gzip -9 -f ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
   ENDIF()
 ENDIF()
