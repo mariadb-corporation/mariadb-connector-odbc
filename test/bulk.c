@@ -516,6 +516,84 @@ ODBC_TEST(t_odbc90)
 }
 #undef MAODBC_ROWS
 
+#define MAODBC_ROWS 3
+ODBC_TEST(t_odbc149)
+{
+  SQL_TIMESTAMP_STRUCT  Val[MAODBC_ROWS];
+  SQLINTEGER id[]={ 2, 1, 3 }, idBuf, row= 0;
+  /* Garbage in Len */
+  SQLLEN tsLen[]={ 0x01800000, SQL_NULL_DATA, 0x01800000 }, bLen[]={ 5, 3, 6 }, bBufLen;
+  SQLCHAR c[][8]={ "str1", "abcd", "xxxxxxy" }, cBuf[16];
+  SQLCHAR b[][8]={ "\x1f\x1f\x1f\x00\x1f", "\x00\x44\x88", "\xcd\xcd\xcd\xcd\xcd\xcd" }, bBuf[256];
+  SQLLEN  cInd[]={ SQL_NTS, SQL_NTS, SQL_NTS }, wLen;
+  SQLWCHAR w[][8]={ { 'x', 'x', 'x', 0 },{ 'y', 'y', 0 },{ 'z', 'z', 'z', 'a', 0 } }, wBuf[16];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc149");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc149 (id int not null, ts timestamp, c varchar(16), b tinyblob, w varchar(16))");
+
+  /* This cursor closing is required, otherwise DM(not on Windows) freaks out */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO odbc149(id, ts, c, b, w) values(?, ?, ?, ?, ?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TIMESTAMP, 0, 0, Val, tsLen[0]/* Garbage as buffer len */, tsLen));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, c, sizeof(c[0]), cInd));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY, 0, 0, b, sizeof(b[0]), bLen));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 5, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WCHAR, 0, 0, w, sizeof(w[0]), cInd));
+
+  memset(Val, 0, sizeof(Val));
+  Val[0].year= 2017;
+  Val[0].month= 6;
+  Val[0].day= 22;
+  Val[2].year= 2018;
+  Val[2].month= 7;
+  Val[2].day= 27;
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, ts, c, b, w FROM odbc149")
+    CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &idBuf, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_TIMESTAMP, &Val[1], 0, tsLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, cBuf, sizeof(cBuf), cInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_BINARY, bBuf, sizeof(bBuf), &bBufLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_WCHAR, wBuf, sizeof(wBuf), &wLen));
+
+  for (row= 0; row < MAODBC_ROWS; ++row)
+  {
+    memset(&Val[1], 0, sizeof(SQL_TIMESTAMP_STRUCT));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+    is_num(tsLen[0], sizeof(SQL_TIMESTAMP_STRUCT));
+    if (row != 1)
+    {
+      is_num(Val[1].year, Val[row].year);
+      is_num(Val[1].month, Val[row].month);
+      is_num(Val[1].day, Val[row].day);
+    }
+    else
+    {
+      /* We are supposed to get current timestamp in this row. Just checking that date's got some value */
+      FAIL_IF(Val[1].day + Val[1].month + Val[1].year  == 0, "Date shouldn't be zeroes")
+    }
+
+    is_num(idBuf, id[row]);
+    IS_STR(cBuf, c[row], strlen(c[row]) + 1);
+    is_num(bBufLen, bLen[row]);
+    memcmp(bBuf, b[row], bBufLen);
+    IS_WSTR(wBuf, w[row], wLen/sizeof(SQLWCHAR));
+  }
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc149");
+
+  return OK;
+}
+#undef MAODBC_ROWS
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -526,6 +604,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bulk_insert_indicator, "t_bulk_insert_indicator"},
   {t_bulk_insert_rows, "t_bulk_insert_rows"},
   {t_odbc90, "odbc90_insert_with_ts_col"},
+  {t_odbc149, "odbc149_ts_col_insert"},
   {NULL, NULL}
 };
 
