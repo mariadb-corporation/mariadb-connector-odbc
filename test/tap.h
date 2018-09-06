@@ -1159,6 +1159,14 @@ BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, un
   return TRUE;
 }
 
+#ifdef _WIN32
+char * GenGUID(char *buffer)
+{
+  char *ptr= buffer;
+
+  return ptr;
+}
+#endif
 
 BOOL UnixOdbc(HENV Env)
 {

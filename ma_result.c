@@ -29,6 +29,7 @@ void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
     sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
   memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
 
+  Stmt->LastRowFetched= 0;
   MADB_STMT_RESET_CURSOR(Stmt);
 }
 /* }}} */
@@ -67,7 +68,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 
     ++Stmt->MultiStmtNr;
 
-    MADB_InstallStmt(Stmt);
+    MADB_InstallStmt(Stmt, Stmt->MultiStmts[Stmt->MultiStmtNr]);
 
     return SQL_SUCCESS;
   }
@@ -87,40 +88,48 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   }
 
   if (mysql_stmt_more_results(Stmt->stmt))
-    mysql_stmt_free_result(Stmt->stmt);
-  else
-    return SQL_NO_DATA;
-  
-  LOCK_MARIADB(Stmt->Connection);
-  if (mysql_stmt_next_result(Stmt->stmt) ||
-      !Stmt->stmt->field_count)
   {
-    UNLOCK_MARIADB(Stmt->Connection);
+    mysql_stmt_free_result(Stmt->stmt);
+  }
+  else
+  {
     return SQL_NO_DATA;
   }
-
-  MADB_StmtResetResultStructures(Stmt);
+  
+  LOCK_MARIADB(Stmt->Connection);
+  if (mysql_stmt_next_result(Stmt->stmt) > 0)
+  {
+    UNLOCK_MARIADB(Stmt->Connection);
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+  }
+  
   /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
      Thus we free-ing bind structs on move to new result only */
   MADB_FREE(Stmt->result);
+  MADB_StmtResetResultStructures(Stmt);
 
-  MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
-
-  if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
+  if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
-    ret= Stmt->Methods->GetOutParams(Stmt, 0);
+    Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
   }
   else
   {
-    if (Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
-      mysql_stmt_store_result(Stmt->stmt);
-  }
-  UNLOCK_MARIADB(Stmt->Connection);
+    MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
 
-  if (/* mysql_stmt_field_count(Stmt->stmt) && */
-        Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
-  {
-    mysql_stmt_data_seek(Stmt->stmt, 0);
+    if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
+    {
+      Stmt->State= MADB_SS_OUTPARAMSFETCHED;
+      ret= Stmt->Methods->GetOutParams(Stmt, 0);
+    }
+    else
+    {
+      if (Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
+      {
+        mysql_stmt_store_result(Stmt->stmt);
+        mysql_stmt_data_seek(Stmt->stmt, 0);
+      }
+    }
+    UNLOCK_MARIADB(Stmt->Connection);
   }
 
   return ret;

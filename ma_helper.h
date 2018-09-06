@@ -73,7 +73,7 @@ BOOL          MADB_IsNumericType(SQLSMALLINT ConciseType);
 BOOL          MADB_IsIntType    (SQLSMALLINT ConciseType);
 
 /* For multistatement picks stmt handler pointed by stored index, and sets it as "current" stmt handler */
-void          MADB_InstallStmt  (MADB_Stmt *Stmt);
+void          MADB_InstallStmt  (MADB_Stmt *Stmt, MYSQL_STMT *stmt);
 
 /* for dummy binding */
 extern my_bool DummyError;
