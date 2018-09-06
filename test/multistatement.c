@@ -263,7 +263,7 @@ ODBC_TEST(t_odbc95)
 ODBC_TEST(t_odbc126)
 {
   SQLCHAR Query[][24]={ "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
-  unsigned int i, ExpectedRows[]= {3, 3, 1, 1};
+  unsigned int i, ExpectedRows[]= {3, 3, 1, 1}, resCount, affected;
   SQLRETURN rc, Expected= SQL_SUCCESS;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc126");
@@ -287,15 +287,26 @@ ODBC_TEST(t_odbc126)
   for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
   {
     OK_SIMPLE_STMT(Stmt, Query[i]);
-
+    resCount= 0;
     do {
-      is_num(my_print_non_format_result_ex(Stmt, FALSE), ExpectedRows[i]);
-
+      if (i > 1 || resCount < 2)
+      {
+        is_num(my_print_non_format_result_ex(Stmt, FALSE), ExpectedRows[i]);
+      }
+      else if (i < 2)
+      {
+        CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &affected));
+        is_num(affected, 0);
+        Expected= SQL_NO_DATA;
+      }
       rc= SQLMoreResults(Stmt);
       is_num(rc, Expected);
+      ++resCount;
 
-      Expected= SQL_NO_DATA;
-
+      if (i > 1)
+      {
+        Expected= SQL_NO_DATA;
+      }
     } while (rc != SQL_NO_DATA);
 
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -379,6 +390,96 @@ ODBC_TEST(t_odbc159)
 }
 
 
+ODBC_TEST(t_odbc177)
+{
+  SQLLEN count;
+
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc177");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc177_1");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc177");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc177_non_existent");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc177(col1 INT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE odbc177()\
+                        BEGIN\
+                          SELECT 1;\
+                          SELECT 2 as id, 'val' as `Value` FROM dual WHERE 1=0;\
+                          INSERT INTO t_odbc177 values(3);\
+                          DELETE FROM t_odbc177 WHERE 1=0;\
+                          SELECT 5, 4;\
+                          DELETE FROM t_odbc177;\
+                          SELECT * FROM odbc177_non_existent;\
+                          SELECT 6;\
+                        END");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE odbc177_1()\
+                        BEGIN\
+                          SELECT 1;\
+                          SELECT 2, 'val' FROM dual WHERE 1=0;\
+                          INSERT INTO t_odbc177 values(3), (7);\
+                          DELETE FROM t_odbc177 WHERE 1=0;\
+                          SELECT 5, 4;\
+                          SELECT 6;\
+                          DELETE FROM t_odbc177;\
+                        END");
+
+  OK_SIMPLE_STMT(Stmt, "CALL odbc177()");
+  /* First SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 1);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+
+  /* 2nd SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 0);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+
+  /* 3rd SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 1);
+
+  /* 4th SELECT - error */
+  is_num(SQLMoreResults(Stmt), SQL_ERROR);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Now without error, and verifying that we read last result with total affected rows */
+  OK_SIMPLE_STMT(Stmt, "CALL odbc177_1()");
+  /* First SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 1);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+
+  /* 2nd SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 0);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+
+  /* 3rd SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 1);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+
+  /* 4th SELECT */
+  is_num(my_print_non_format_result_ex(Stmt, FALSE), 1);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+
+  /* Final result with affected rows */
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &count));
+  /* Starting from 10.3 we have total number of affected (by SP) rows*/
+  if (ServerNotOlderThan(Connection, 10, 3, 0))
+  {
+    is_num(count, 4); /* 1 inserted, 1 deleted */
+  }
+  else /* In earlier servers that is only for last statement in SP */
+  {
+    is_num(count, 2);
+  }
+  is_num(SQLMoreResults(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc177");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc177");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc177_1");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -391,6 +492,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc126, "t_odbc126"},
   {diff_column_binding, "diff_column_binding"},
   {t_odbc159, "t_odbc159"},
+{ t_odbc177, "t_odbc177" },
   {NULL, NULL}
 };
 

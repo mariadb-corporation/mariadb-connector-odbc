@@ -388,9 +388,13 @@ ODBC_TEST(t_bug46910)
 
 	SQLExecDirect(Stmt, "CALL spbug46910_1()", SQL_NTS);
 	
-	SQLRowCount(Stmt, &i);
-	SQLNumResultCols(Stmt, &col_count);
-
+	CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &i));
+  is_num(i, 1);
+	CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &col_count));
+  is_num(col_count, 1);
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &i));
+  is_num(i, 0);
   FAIL_IF(SQLMoreResults(Stmt)!= SQL_NO_DATA, "No more results expected");
 
 	SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, catalog,

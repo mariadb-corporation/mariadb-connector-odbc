@@ -1072,7 +1072,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       }
       else
       {
-        /* We have direct execution, since otherwise it'd already prepareds, and thus Stmt->MultiStmts would be set */
+        /* We have direct execution, since otherwise it'd already prepared, and thus Stmt->MultiStmts would be set */
         if (CurQuery >= QueriesEnd)
         {
           /* Something went wrong(with parsing). But we've got here, and everything worked. Giving it chance to fail later.
@@ -1235,7 +1235,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   if (Stmt->MultiStmts)
   {
     Stmt->MultiStmtNr= 0;
-    MADB_InstallStmt(Stmt);
+    MADB_InstallStmt(Stmt, Stmt->MultiStmts[Stmt->MultiStmtNr]);
   }
   else if (mysql_stmt_field_count(Stmt->stmt) > 0)
   {

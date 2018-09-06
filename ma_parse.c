@@ -318,8 +318,8 @@ int ParseQuery(MADB_QUERY *Query)
   char        *end= p + Length, *CurQuery= NULL, *LastSemicolon= NULL;
   enum enum_madb_query_type StmtType;
 
-  MADB_InitDynamicArray(&Query->Tokens, sizeof(unsigned int), 20, 40);
-  MADB_InitDynamicArray(&Query->SubQuery, sizeof(SINGLE_QUERY), 20, 40);
+  MADB_InitDynamicArray(&Query->Tokens, sizeof(unsigned int), MAX(Length/32, 20), MAX(Length/20, 40));
+  MADB_InitDynamicArray(&Query->SubQuery, sizeof(SINGLE_QUERY), MAX(Length/64, 20), MAX(Length/64, 40));
 
   while (p < end)
   {

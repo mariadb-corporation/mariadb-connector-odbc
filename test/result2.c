@@ -836,7 +836,9 @@ ODBC_TEST(t_outparams)
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "eof expected");
 
   /* SP execution status */
-  FAIL_IF(SQLMoreResults(Stmt) != SQL_NO_DATA, "eof expected");
+  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

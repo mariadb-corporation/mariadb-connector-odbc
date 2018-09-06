@@ -1226,10 +1226,10 @@ BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
   return FALSE;
 }
 
-
-void MADB_InstallStmt(MADB_Stmt *Stmt)
+/* Now it's more like installing result */
+void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
 {
-  Stmt->stmt= Stmt->MultiStmts[Stmt->MultiStmtNr];
+  Stmt->stmt= stmt;
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {

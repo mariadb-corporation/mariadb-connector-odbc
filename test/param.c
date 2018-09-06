@@ -1028,7 +1028,7 @@ ODBC_TEST(t_odbcoutparams)
   }
 
   OK_SIMPLE_STMT(Stmt, "CALL t_odbcoutparams(?, ?, ?)");
-
+  /* Need to get to next resultset to get OUT parameters */
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
   is_num(ncol, 2);
 
@@ -1070,6 +1070,7 @@ ODBC_TEST(t_odbcoutparams)
   is_num(par[1], 100);
   is_num(par[2], 200);
 
+  is_num(SQLMoreResults(Stmt), SQL_SUCCESS); /* Last result - SP execution status, affected rows */
   FAIL_IF(SQLMoreResults(Stmt) != SQL_NO_DATA, "eof expected");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

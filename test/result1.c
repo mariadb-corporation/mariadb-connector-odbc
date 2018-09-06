@@ -1778,7 +1778,8 @@ ODBC_TEST(t_bug16817)
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, name, 1), "Zack", 4);
-  FAIL_IF(SQLMoreResults(Stmt) == 0, "expected eof");
+  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
 
 /* Driver manager doesn't like this (function sequence error)
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ncol));
