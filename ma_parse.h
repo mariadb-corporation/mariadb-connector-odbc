@@ -62,6 +62,7 @@ typedef struct {
      we can send them via text protocol */
   my_bool       ReturnsResult;
   enum enum_madb_query_type QueryType;
+  my_bool       PoorManParsing;
 
   my_bool       BatchAllowed;
   my_bool       AnsiQuotes;

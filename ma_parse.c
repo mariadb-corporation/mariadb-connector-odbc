@@ -19,6 +19,9 @@
 
 #include <ma_odbc.h>
 
+/* Minimal query length when we tried to avoid full parsing */
+#define QUERY_LEN_FOR_POOR_MAN_PARSING 32768
+
 char* SkipSpacesAndComments(char **CurPtr, size_t *Length, BOOL OverWrite)
 {
   char *End= *CurPtr + *Length, *Prev= NULL;
@@ -37,13 +40,12 @@ char* SkipSpacesAndComments(char **CurPtr, size_t *Length, BOOL OverWrite)
 }
 
 
-char* SkipQuotedString(char **CurPtr, char *End, char Quote, my_bool AnsiQuotes, my_bool NoBackslashEscape)
+char* SkipQuotedString(char **CurPtr, char *End, char Quote)
 {
   while (*CurPtr < End && **CurPtr != Quote)
   {
     /* Skipping backslash and next character, if needed */
-    if (**CurPtr == '\\' &&  (!NoBackslashEscape || Quote == '`' || /* Backtick works with ANSI_QUOTES */
-      AnsiQuotes && Quote == '"' ))/* In indetifier quotation backslash does not escape anything */
+    if (**CurPtr == '\\')
     {
       ++*CurPtr;
       /* Taking care of the case, when backslash is at last position */
@@ -52,6 +54,17 @@ char* SkipQuotedString(char **CurPtr, char *End, char Quote, my_bool AnsiQuotes,
         break;
       }
     }
+    ++*CurPtr;
+  }
+
+  return *CurPtr;
+}
+
+
+char* SkipQuotedString_Noescapes(char **CurPtr, char *End, char Quote)
+{
+  while (*CurPtr < End && **CurPtr != Quote)
+  {
     ++*CurPtr;
   }
 
@@ -182,22 +195,69 @@ unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare)
   return 0;
 }
 
-char *MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
+
+static char * ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
 {
   unsigned int i, TokenCount= Query->Tokens.elements;
 
   if (TokenCount < 4)
+  {
     return NULL;
+  }
   for (i=0; i < TokenCount - 3; i++)
   {
     if (MADB_CompareToken(Query, i, "WHERE", 5, Offset) &&
-        MADB_CompareToken(Query, i+1, "CURRENT", 7, 0) &&
-        MADB_CompareToken(Query, i+2, "OF", 2, 0))
+      MADB_CompareToken(Query, i+1, "CURRENT", 7, 0) &&
+      MADB_CompareToken(Query, i+2, "OF", 2, 0))
     {
       return MADB_Token(Query, i + 3);
     }
   }
   return NULL;
+}
+
+
+static char * PoorManCursorName(MADB_QUERY *Query, unsigned int *Offset)
+{
+  MADB_QUERY EndPiece;
+  char      *Res;
+
+  memset(&EndPiece, 0, sizeof(MADB_QUERY));
+
+  /* We do poor man on long queries only, thus there is no need to check length */
+  EndPiece.RefinedText= ltrim(Query->RefinedText + Query->RefinedLength - MADB_MAX_CURSOR_NAME - 32/* "WHERE CURRENT OF" + spaces */);
+  EndPiece.RefinedLength= strlen(EndPiece.RefinedText);
+
+  /* As we did poor man parsing, we don't have full information about the query. Thus, parsing only this part at the end of the query -
+     we need tockens, to check if we have WHERE CURRENT OF in usual way */
+  if (ParseQuery(&EndPiece))
+  {
+    return NULL;
+  }
+
+  /* Now looking for cursor name in usual way */
+  Res= ParseCursorName(&EndPiece, Offset);
+
+  /* Incrementing Offset with the offset of our part of the query */
+  if (Res != NULL)
+  {
+    *Offset= *Offset + EndPiece.RefinedText - Query->RefinedText;
+  }
+
+  MADB_DeleteQuery(&EndPiece);
+
+  return Res;
+}
+
+
+char * MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
+{
+  if (Query->PoorManParsing)
+  {
+    return PoorManCursorName(Query, Offset);
+  }
+
+  return ParseCursorName(Query, Offset);
 }
 
 
@@ -309,6 +369,11 @@ char* FixIsoFormat(char * StmtString, size_t *Length)
 #define SAVE_TOKEN(PTR2SAVE) do { Offset= (unsigned int)(PTR2SAVE - Query->RefinedText);\
 insert_dynamic(&Query->Tokens, (char*)&Offset); } while(0)
 
+static BOOL ShouldWeTryPoorManParsing(MADB_QUERY *Query)
+{
+  return (Query->RefinedLength > QUERY_LEN_FOR_POOR_MAN_PARSING) && (strchr(Query->RefinedText, ';')) == NULL && (strchr(Query->RefinedText, '?') == NULL);
+}
+
 int ParseQuery(MADB_QUERY *Query)
 {
   char        *p= Query->RefinedText, Quote;
@@ -320,6 +385,8 @@ int ParseQuery(MADB_QUERY *Query)
 
   init_dynamic_array(&Query->Tokens, sizeof(unsigned int), MAX(Length/32, 20), MAX(Length/20, 40));
   init_dynamic_array(&Query->SubQuery, sizeof(SINGLE_QUERY), MAX(Length/128, 20), MAX(Length/128, 40));
+
+  Query->PoorManParsing= ShouldWeTryPoorManParsing(Query);
 
   while (p < end)
   {
@@ -351,19 +418,42 @@ int ParseQuery(MADB_QUERY *Query)
         if (Query->Tokens.elements == 2)
         {
           Query->QueryType= StmtType;
+          if (Query->PoorManParsing)
+          {
+            return 0;
+          }
         }
       }
       switch (*p)
       {
       /* If some of them is opening a string, on the fall-through next `quote` won't be set,
          as STRING_OR_COMMENT will be `true`. Likewise, if we are already in the string. But if we get hear,
-         we are not supposet to be inside a string */
+         we are not supposed to be inside a string */
       case '"':
       case '\'':
       case '`':
+      {
+        char *SavePosition;
         Quote= *p++;
-        SkipQuotedString(&p, end, Quote, Query->AnsiQuotes, Query->NoBackslashEscape);
+        SavePosition= p; /* In case we go past eos while looking for ending quote */
+        if (Query->NoBackslashEscape || Quote == '`' || /* Backtick works with ANSI_QUOTES */
+          Query->AnsiQuotes && Quote == '"')/* In indetifier quotation backslash does not escape anything - CLI has error with that */
+        {
+          SkipQuotedString_Noescapes(&p, end, Quote);
+        }
+        else
+        {
+          SkipQuotedString(&p, end, Quote);
+        }
+        if (p >= end)
+        {
+          /* Basically we got ending quote here - possible in poor man case, when we look for cursor name starting from the position inside string.
+             Other options are bad query of parsing error */
+          p= SavePosition;
+          ReadingToken= FALSE;
+        }
         break;
+      }
       case '?': /* This can break token(w/out space char), and be beginning of a token.
                    Thus we need it in both places */
         Query->HasParameters= 1;
