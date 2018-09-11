@@ -263,7 +263,8 @@ ODBC_TEST(t_odbc95)
 ODBC_TEST(t_odbc126)
 {
   SQLCHAR Query[][24]={ "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
-  unsigned int i, ExpectedRows[]= {3, 3, 1, 1}, resCount, affected;
+  unsigned int i, ExpectedRows[]= {3, 3, 1, 1}, resCount;
+  SQLLEN affected;
   SQLRETURN rc, Expected= SQL_SUCCESS;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc126");
@@ -379,7 +380,7 @@ ODBC_TEST(t_odbc159)
 {
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
-                        CREATE TEMPORARY TABLE _temp_statistics AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
+                        CREATE TEMPORARY TABLE _temp_odbc159 AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
                         SELECT * FROM _temp_odbc159;");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -492,7 +493,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc126, "t_odbc126"},
   {diff_column_binding, "diff_column_binding"},
   {t_odbc159, "t_odbc159"},
-{ t_odbc177, "t_odbc177" },
+  {t_odbc177, "t_odbc177"},
   {NULL, NULL}
 };
 

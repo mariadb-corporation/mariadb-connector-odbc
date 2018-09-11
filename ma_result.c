@@ -29,6 +29,7 @@ void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
     sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
   memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
 
+  Stmt->LastRowFetched= 0;
   MADB_STMT_RESET_CURSOR(Stmt);
 }
 /* }}} */
