@@ -1560,6 +1560,37 @@ ODBC_TEST(odbc151)
 }
 
 
+ODBC_TEST(odbc182)
+{
+  char buffer[128];
+  SQL_TIMESTAMP_STRUCT ts= {0/*year*/, 0, 3, 12/*hour*/, 34, 56, 777/*fractional*/};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc182");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc182(col1 time)");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TIME, 8, 3, &ts, 0, NULL));
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc182 VALUES(?)", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22008");
+
+  ts.fraction= 0;
+  ts.hour= 24;
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc182 VALUES(?)", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22007");
+
+  ts.hour= 12;
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc182 VALUES(?)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT col1 FROM t_odbc182");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, buffer, 1), "12:34:56", 8);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc182");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {unbuffered_result, "unbuffered_result"},
@@ -1586,6 +1617,7 @@ MA_ODBC_TESTS my_tests[]=
   {insert_fetched_null, "insert_fetched_null"},
   {odbc45, "odbc-45-binding2bit"},
   {odbc151, "odbc-151-buffer_length"},
+  {odbc182, "odbc-182-timestamp2time"},
   {NULL, NULL}
 };
 

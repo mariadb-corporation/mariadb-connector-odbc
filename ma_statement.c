@@ -1482,7 +1482,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
   int             i;
   void            *DataPtr= NULL;
 
-  for (i=0; i < MADB_STMT_COLUMN_COUNT(Stmt); ++i)
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); ++i)
   {
     ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (ArdRec == NULL || !ArdRec->inUse)

@@ -387,24 +387,42 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
 
   switch (SqlRec->ConciseType) {
   case SQL_TYPE_DATE:
+    if (ts->hour + ts->minute + ts->second + ts->fraction != 0)
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22008, "Time fields are nonzero", 0);
+    }
+
     MaBind->buffer_type= MYSQL_TYPE_DATE;
     tm->time_type=       MYSQL_TIMESTAMP_DATE;
+    tm->year=  ts->year;
+    tm->month= ts->month;
+    tm->day=   ts->day;
     break;
   case SQL_TYPE_TIME:
+    if (ts->fraction != 0)
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22008, "Fractional seconds fields are nonzero", 0);
+    }
+    
+    if (!VALID_TIME(ts))
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22007, "Invalid time", 0);
+    }
     MaBind->buffer_type= MYSQL_TYPE_TIME;
     tm->time_type=       MYSQL_TIMESTAMP_TIME;
+    tm->hour=   ts->hour;
+    tm->minute= ts->minute;
+    tm->second= ts->second;
     break;
+  default:
+    tm->year=  ts->year;
+    tm->month= ts->month;
+    tm->day=   ts->day;
+    tm->hour=   ts->hour;
+    tm->minute= ts->minute;
+    tm->second= ts->second;
+    tm->second_part= ts->fraction / 1000;
   }
-
-  tm->year=  ts->year;
-  tm->month= ts->month;
-  tm->day=   ts->day;
-
-  tm->hour=   ts->hour;
-  tm->minute= ts->minute;
-  tm->second= ts->second;
-
-  tm->second_part= ts->fraction / 1000;
 
   *LengthPtr= sizeof(MYSQL_TIME);
 
@@ -421,7 +439,7 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
 
   if ((SqlRec->ConciseType == SQL_TYPE_TIME || SqlRec->ConciseType == SQL_TYPE_TIMESTAMP ||
     SqlRec->ConciseType == SQL_TIME || SqlRec->ConciseType == SQL_TIMESTAMP || SqlRec->ConciseType == SQL_DATETIME) &&
-    ts->hour > 23|| ts->minute > 59 || ts->second > 59)
+    !VALID_TIME(ts))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
   }

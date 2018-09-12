@@ -1214,7 +1214,7 @@ ODBC_TEST(t_odbc82)
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
 
-  CHECK_SQLSTATE(Stmt, "22007")
+  CHECK_SQLSTATE(Stmt, "22007");
 
   is_num(ts.hour, 0);
   is_num(ts.minute, 0);

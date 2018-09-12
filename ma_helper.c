@@ -814,7 +814,7 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
     {
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
 
-      if (tm->hour > 23 || tm->minute > 59 || tm->second > 59)
+      if (!VALID_TIME(tm))
       {
         return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
       }
