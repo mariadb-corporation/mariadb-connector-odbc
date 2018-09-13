@@ -1067,20 +1067,7 @@ size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
   *HexBuffer= 0;
   return (HexBuffer - Start);
 }
-/* }}} */
 
-unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt)
-{
-  MYSQL_ROWS *ptr= Stmt->stmt->result.data;
-  unsigned long Offset= 0;
-
-  while (ptr && ptr!= Stmt->stmt->result_cursor)
-  {
-    Offset++;
-    ptr= ptr->next;
-  }
-  return ptr ? Offset : 0;
-}
 
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
 {
@@ -1237,6 +1224,7 @@ void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
   }
   else
   {
+    Stmt->AffectedRows= 0;
     MADB_StmtResetResultStructures(Stmt);
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
   }

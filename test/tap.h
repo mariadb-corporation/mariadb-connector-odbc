@@ -443,6 +443,63 @@ int my_print_non_format_result(SQLHSTMT Stmt)
 }
 
 
+/* Same as my_print_non_format_result_ex, but uses SQLGetData, to fetch values, and not bind buffers */
+int ma_print_result_getdata_ex(SQLHSTMT Stmt, BOOL CloseCursor)
+{
+  SQLRETURN   rc;
+  SQLUINTEGER nRowCount=0;
+  SQLULEN     pcColDef;
+  SQLCHAR     szColName[MAX_NAME_LEN + 1];
+  SQLCHAR     szData[MAX_ROW_DATA_LEN]= {0};
+  SQLSMALLINT nIndex, ncol= 0, pfSqlType, pcbScale, pfNullable;
+  SQLLEN      ind_strlen;
+
+  rc = SQLNumResultCols(Stmt, &ncol);
+
+  mystmt_rows(Stmt, rc, -1);
+
+  for (nIndex = 1; nIndex <= ncol; ++nIndex)
+  {
+    rc = SQLDescribeCol(Stmt, nIndex, szColName, MAX_NAME_LEN, NULL,
+      &pfSqlType, &pcColDef, &pcbScale, &pfNullable);
+    /* Returning in case of an error -nIndex we will see in the log column# */
+    mystmt_rows(Stmt, rc, -nIndex);
+
+    fprintf(stdout, "%s\t", szColName);
+  }
+
+  fprintf(stdout, "\n");
+
+  while (SQL_SUCCEEDED(SQLFetch(Stmt)))
+  {
+    ++nRowCount;
+    for (nIndex=0; nIndex< ncol; ++nIndex)
+    {
+      rc= SQLGetData(Stmt, nIndex + 1, SQL_CHAR, szData, sizeof(szData), &ind_strlen);
+      mystmt_rows(Stmt, rc, -nIndex);
+      fprintf(stdout, "%s\t", szData);
+    }
+
+    fprintf(stdout, "\n");
+  }
+
+  if (CloseCursor)
+  {
+    SQLFreeStmt(Stmt, SQL_CLOSE);
+  }
+
+  fprintf(stdout, "# Total rows fetched: %d\n", (int)nRowCount);
+
+  return nRowCount;
+}
+
+
+int ma_print_result_getdata(SQLHSTMT Stmt)
+{
+  return my_print_non_format_result_ex(Stmt, TRUE);
+}
+
+
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
 if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr)) != SQL_SUCCESS)\
 {\
@@ -551,11 +608,11 @@ SQLWCHAR *my_fetch_wstr(SQLHSTMT Stmt, SQLWCHAR *buffer, SQLUSMALLINT icol, SQLL
   return buffer;
 }
 
-const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData,SQLUSMALLINT icol)
+const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData, SQLUSMALLINT icol)
 {
     SQLLEN nLen;
 
-    SQLGetData(Stmt,icol,SQL_CHAR,szData,1000,&nLen);
+    SQLGetData(Stmt, icol, SQL_CHAR, szData, 1000, &nLen);
     /* If Null value - putting down smth meaningful. also that allows caller to
        better/(in more easy way) test the value */
     if (nLen < 0)

@@ -65,7 +65,6 @@ int           MADB_CharToSQLNumeric (char *buffer, MADB_Desc *Ard, MADB_DescReco
                                      SQL_NUMERIC_STRUCT *dst_buffer, unsigned long RowNumber);
 void          MADB_NumericInit      (SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
 
-unsigned long MADB_StmtDataTell         (MADB_Stmt *Stmt);
 int           MADB_FindNextDaeParam     (MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber);
 
 BOOL          MADB_IsNumericType(SQLSMALLINT ConciseType);

@@ -33,7 +33,7 @@ ODBC_TEST(test_multi_statements)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (a int)");
 
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2), (3)");
 
   SQLRowCount(Stmt, &num_inserted);
   diag("inserted: %ld", (long)num_inserted);
@@ -42,7 +42,7 @@ ODBC_TEST(test_multi_statements)
   rc= SQLMoreResults(Stmt);
   num_inserted= 0;
   rc= SQLRowCount(Stmt, &num_inserted);
-  FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
+  FAIL_IF(num_inserted != 2, "Expected 2 row inserted");
 
   rc= SQLMoreResults(Stmt);
   FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
@@ -194,7 +194,7 @@ ODBC_TEST(test_semicolon)
    Also tests ODBC-97*/
 ODBC_TEST(t_odbc74)
 {
-  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[8];
+  SQLCHAR ref[][4]= {"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[8];
   unsigned int i;
   SQLHDBC     hdbc1;
   SQLHSTMT    Stmt1;
@@ -262,7 +262,7 @@ ODBC_TEST(t_odbc95)
 
 ODBC_TEST(t_odbc126)
 {
-  SQLCHAR Query[][24]={ "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
+  SQLCHAR Query[][24]= { "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
   unsigned int i, ExpectedRows[]= {3, 3, 1, 1}, resCount;
   SQLLEN affected;
   SQLRETURN rc, Expected= SQL_SUCCESS;
@@ -378,10 +378,35 @@ ODBC_TEST(diff_column_binding)
 
 ODBC_TEST(t_odbc159)
 {
+  unsigned int j= 0, ExpectedRows[]= {0, 0, 5};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 0};
+  SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
+  SQLRETURN rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
                         CREATE TEMPORARY TABLE _temp_odbc159 AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
-                        SELECT * FROM _temp_odbc159;");
+                        SELECT * FROM _temp_odbc159 LIMIT 5;");
+
+  do {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
+    if (j == 1)
+    {
+      diag("Rows in created table: %lld\n", (long long)Rows);
+      ExpRowCount[2]= Rows < ExpRowCount[2] ? Rows : ExpRowCount[2];
+    }
+    else
+    {
+      is_num(Rows, ExpRowCount[j]);
+    }
+    
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
+    is_num(ColumnsCount, expCols[j]);
+
+    is_num(ma_print_result_getdata_ex(Stmt, FALSE), ExpectedRows[j]);
+
+    rc= SQLMoreResults(Stmt);
+    ++j;
+  } while (rc != SQL_NO_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -481,6 +506,46 @@ ODBC_TEST(t_odbc177)
 }
 
 
+ODBC_TEST(t_odbc169)
+{
+  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * from t_odbc169; SELECT * from t_odbc169 ORDER BY col1 DESC",
+                        "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * from t_odbc169"};
+  unsigned int i, j= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0, 0};
+  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 3, 0, 3, 1};
+  SQLRETURN rc;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc169");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc169(col1 INT, col2 INT, col3 varchar(32) not null)");
+  
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc169 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')");
+
+  for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, Query[i]);
+
+    do {
+      CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
+      is_num(Rows, ExpRowCount[j]);
+      CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
+      is_num(ColumnsCount, expCols[j]);
+
+      is_num(ma_print_result_getdata_ex(Stmt, FALSE), ExpectedRows[j]);
+
+      rc= SQLMoreResults(Stmt);
+      ++j;
+    } while (rc != SQL_NO_DATA);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc169");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -494,6 +559,7 @@ MA_ODBC_TESTS my_tests[]=
   {diff_column_binding, "diff_column_binding"},
   {t_odbc159, "t_odbc159"},
   {t_odbc177, "t_odbc177"},
+  {t_odbc169, "t_odbc169"},
   {NULL, NULL}
 };
 

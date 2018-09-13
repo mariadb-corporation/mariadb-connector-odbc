@@ -1812,7 +1812,6 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
               Stmt->result[i].buffer = (char *)ArdRec->DataPtr + (RowNumber + 1) * ArdRec->OctetLength;
             }
           }
-          // Stmt->result[i].buffer = (char *)Stmt->result[i].buffer + Stmt->result[i].length;
           if (IndicatorPtr)
             *IndicatorPtr= *Stmt->stmt->bind[i].length;
           break;
@@ -2973,7 +2972,7 @@ SQLRETURN MADB_StmtRowCount(MADB_Stmt *Stmt, SQLLEN *RowCountPtr)
 {
   if (Stmt->AffectedRows != -1)
     *RowCountPtr= (SQLLEN)Stmt->AffectedRows;
-  else if (Stmt->stmt->result.rows && Stmt->stmt && mysql_stmt_field_count(Stmt->stmt))
+  else if (Stmt->stmt && Stmt->stmt->result.rows && mysql_stmt_field_count(Stmt->stmt))
     *RowCountPtr= (SQLLEN)mysql_stmt_num_rows(Stmt->stmt);
   else
     *RowCountPtr= 0;
