@@ -572,21 +572,20 @@ typedef struct t_table_bug
 } t_describe_col;
 
 
-t_describe_col t_tables_bug_data[5] =
+t_describe_col t_tables_bug_data[10] =
 {
-#ifdef MYODBC_UNICODEDRIVER
+  /* For "Unicode" connection */
   {"TABLE_CAT",   9, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_SCHEM",11, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NULLABLE},
   {"TABLE_NAME", 10, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_TYPE", 10, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
-  {"REMARKS",     7, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS}
-#else
+  {"REMARKS",     7, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
+  /* For "ANSI" connection */
   {"TABLE_CAT",   9, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_SCHEM",11, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NULLABLE},
   {"TABLE_NAME", 10, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_TYPE", 10, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"REMARKS",     7, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS}
-#endif
 };
 
 
@@ -595,9 +594,7 @@ ODBC_TEST(t_tables_bug)
   SQLSMALLINT i, ColumnCount, pcbColName, pfSqlType, pibScale, pfNullable;
   SQLULEN     pcbColDef;
   SQLCHAR     szColName[MAX_NAME_LEN];
-
-  diag("MariaDB ODBC Driver doesn't set column types for NULL columns");
-  return SKIP;
+  const int   RefArrOffset= 4; /* 4 for "ANSI" connection, which is default atm, and -1 for "Unicode" */
 
   CHECK_STMT_RC(Stmt,  SQLTables(Stmt, NULL, 0, NULL, 0, NULL, 0,
                             (SQLCHAR *)"TABLE", SQL_NTS));
@@ -619,13 +616,13 @@ ODBC_TEST(t_tables_bug)
     fprintf(stdout, "#  DecimalDigits : %d\n", pibScale);
     fprintf(stdout, "#  Nullable      : %d\n", pfNullable);
 
-    IS_STR(t_tables_bug_data[i-1].szColName, szColName, pcbColName);
-    is_num(t_tables_bug_data[i-1].pcbColName, pcbColName);
-    is_num(t_tables_bug_data[i-1].pfSqlType, pfSqlType);
+    IS_STR(t_tables_bug_data[i + RefArrOffset].szColName, szColName, pcbColName);
+    is_num(t_tables_bug_data[i + RefArrOffset].pcbColName, pcbColName);
+    is_num(t_tables_bug_data[i + RefArrOffset].pfSqlType, pfSqlType);
     /* This depends on NAME_LEN in mysql_com.h */
 
-    is_num(t_tables_bug_data[i-1].pibScale, pibScale);
-    is_num(t_tables_bug_data[i-1].pfNullable, pfNullable);
+    is_num(t_tables_bug_data[i + RefArrOffset].pibScale, pibScale);
+    is_num(t_tables_bug_data[i + RefArrOffset].pfNullable, pfNullable);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

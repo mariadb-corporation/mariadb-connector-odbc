@@ -823,11 +823,8 @@ ODBC_TEST(t_bug_11746572)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 2, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
-#ifdef MYODBC_UNICODEDRIVER
-  is_num(SqlType, SQL_WLONGVARCHAR);
-#else
   is_num(SqlType, SQL_LONGVARCHAR);
-#endif
+
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 3, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
