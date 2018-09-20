@@ -503,24 +503,24 @@ ODBC_TEST(charset_utf8)
                              (SQLCHAR *)"%", 1));
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  FAIL_IF(GetIntVal(hstmt1, 7) != 10, "Expected length 10");
+  is_num(GetIntVal(hstmt1, 7), 10);
   str_size= GetIntVal(hstmt1, 8);
   /* utf8 mbmaxlen = 3 in libmysql before MySQL 6.0 */
   
   if (str_size == 30)
   {
-    FAIL_IF(GetIntVal(hstmt1, 16) != 30, "Comparison failed");
+    is_num(GetIntVal(hstmt1, 16), 30);
   }
   else
   {
-    FAIL_IF(str_size != 40, "Comparison failed");
-    FAIL_IF(GetIntVal(hstmt1, 16) != 40, "Comparison failed");
+    is_num(str_size, 40);
+    is_num(GetIntVal(hstmt1, 16), 40);
   }
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  FAIL_IF(GetIntVal(hstmt1, 7) != 10, "Comparison failed");
-  FAIL_IF(GetIntVal(hstmt1, 8) != 10, "Comparison failed");
-  FAIL_IF(GetIntVal(hstmt1, 16) != 10, "Comparison failed");
+  is_num(GetIntVal(hstmt1, 7), 10);
+  is_num(GetIntVal(hstmt1, 8), 10);
+  is_num(GetIntVal(hstmt1, 16), 10);
     
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 

@@ -1792,7 +1792,7 @@ ODBC_TEST(t_bug16817)
   return OK;
 }
 
-#ifdef FIX_LATER
+
 #define MYSQL_NAME_LEN 64
 
 ODBC_TEST(t_binary_collation)
@@ -1812,29 +1812,26 @@ ODBC_TEST(t_binary_collation)
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,
                                 &decimal_digits, &nullable));
-#ifdef FIX_LATER
-  if (mysql_min_version(Connection, "5.2", 3) ||
+
+  if (ServerNotOlderThan(Connection, 5, 2, 0) ||
       /* 5.0.46 or later in 5.0 series */
       (!strncmp("5.0", (char *)server_version, 3) &&
-        mysql_min_version(Connection, "5.0.46", 6)) ||
+        ServerNotOlderThan(Connection, 5, 0, 46)) ||
       /* 5.1.22 or later in 5.1 series */
       (!strncmp("5.1", (char *)server_version, 3) &&
-        mysql_min_version(Connection, "5.1.22", 6)))
+        ServerNotOlderThan(Connection, 5, 1, 22)))
   {
-#ifdef MYODBC_UNICODEDRIVER
-    is_num(data_type, SQL_WVARCHAR);
-#else
+    /*is_num(data_type, SQL_WVARCHAR);*/
     is_num(data_type, SQL_VARCHAR);
-#endif
   }
   else
   {
     is_num(data_type, SQL_VARBINARY);
-#endif
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_binary_collation");
   return OK;
 }
-#endif
+//#endif
 
 /*
  * Bug 29239 - Prepare before insert returns wrong result
@@ -2329,6 +2326,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug13776_auto, "t_bug13776_auto",     NORMAL},
   {t_bug28617, "t_bug28617",     NORMAL},
   {t_bug34429, "t_bug34429",     NORMAL},
+  {t_binary_collation, "t_binary_collation", NORMAL},
   {NULL, NULL}
 };
 

@@ -598,7 +598,7 @@ SQLRETURN SQL_API SQLColumnsW(SQLHSTMT StatementHandle,
        *CpSchema= NULL,
        *CpTable= NULL,
        *CpColumn= NULL;
-  SQLULEN CpLength1, CpLength2, CpLength3, CpLength4;
+  SQLULEN CpLength1= 0, CpLength2= 0, CpLength3= 0, CpLength4= 0;
   SQLRETURN ret;
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
 
@@ -609,10 +609,22 @@ SQLRETURN SQL_API SQLColumnsW(SQLHSTMT StatementHandle,
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLColumns");
 
-  CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpSchema=  MADB_ConvertFromWChar(SchemaName,  NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpTable=   MADB_ConvertFromWChar(TableName,   NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpColumn=  MADB_ConvertFromWChar(ColumnName,  NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
+  if (CatalogName != NULL)
+  {
+    CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (SchemaName != NULL)
+  {
+    CpSchema=  MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (TableName != NULL)
+  {
+    CpTable=   MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (ColumnName != NULL)
+  {
+    CpColumn=  MADB_ConvertFromWChar(ColumnName, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
 
   ret= Stmt->Methods->Columns(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, (SQLSMALLINT)CpLength2,
                               CpTable, (SQLSMALLINT)CpLength3, CpColumn, (SQLSMALLINT)CpLength4);
@@ -2479,16 +2491,28 @@ SQLRETURN SQL_API SQLProcedureColumnsW(SQLHSTMT StatementHandle,
        *CpSchema= NULL,
        *CpProc= NULL,
        *CpColumn= NULL;
-  SQLULEN CpLength1, CpLength2, CpLength3, CpLength4;
+  SQLULEN CpLength1= 0, CpLength2= 0, CpLength3= 0, CpLength4= 0;
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpSchema= MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpProc= MADB_ConvertFromWChar(ProcName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpColumn= MADB_ConvertFromWChar(ColumnName, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
+  if (CatalogName != NULL)
+  {
+    CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (SchemaName != NULL)
+  {
+    CpSchema= MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (ProcName != NULL)
+  {
+    CpProc= MADB_ConvertFromWChar(ProcName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (ColumnName != NULL)
+  {
+    CpColumn= MADB_ConvertFromWChar(ColumnName, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
 
   ret= Stmt->Methods->ProcedureColumns(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, (SQLSMALLINT)CpLength2,
                                        CpProc, (SQLSMALLINT)CpLength3, CpColumn, (SQLSMALLINT)CpLength4);

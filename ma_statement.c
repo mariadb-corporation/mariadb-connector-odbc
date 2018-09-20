@@ -3461,20 +3461,31 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 {
   MADB_DynString StmtStr;
   SQLRETURN ret;
+  size_t Length= strlen(MADB_CATALOG_COLUMNSp3);
+  char *ColumnsPart= MADB_CALLOC(Length);
+  unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 && Stmt->Connection->Charset.cs_info->char_maxlen < 10 ? Stmt->Connection->Charset.cs_info->char_maxlen : 1;
 
   MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
+
+  if (ColumnsPart == NULL)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+
+  _snprintf(ColumnsPart, Length, MADB_CATALOG_COLUMNSp3, OctetsPerChar);
 
   MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
  
   MADB_CLEAR_ERROR(&Stmt->Error);
   if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp1))
     goto dynerror;
-  if (MADB_DynstrAppend(&StmtStr, (Stmt->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ? MADB_SQL_DATATYPE_ODBC3 : MADB_SQL_DATATYPE_ODBC2)))
+  if (MADB_DynstrAppend(&StmtStr, MADB_SQL_DATATYPE(Stmt)))
     goto dynerror;
-  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp3))
+  if (MADB_DynstrAppend(&StmtStr, ColumnsPart))
     goto dynerror;
   if (MADB_DynstrAppend(&StmtStr, MADB_DEFAULT_COLUMN(Stmt->Connection)))
     goto dynerror;
+
   if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp4))
     goto dynerror;
 
@@ -3483,10 +3494,10 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   ADJUST_LENGTH(TableName, NameLength3);
   ADJUST_LENGTH(ColumnName, NameLength4);
 
-  if(MADB_DynstrAppend(&StmtStr, "TABLE_SCHEMA LIKE "))
+  if(MADB_DynstrAppend(&StmtStr, "TABLE_SCHEMA = "))
     goto dynerror;
 
-  if (CatalogName  && CatalogName[0])
+  if (CatalogName)
   {
     if (MADB_DynstrAppend(&StmtStr, "'") ||
         MADB_DynstrAppendMem(&StmtStr, CatalogName, NameLength1) ||
@@ -3494,7 +3505,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
       goto dynerror;
   }
   else
-    if (MADB_DynstrAppend(&StmtStr, "IF(DATABASE() IS NOT NULL, DATABASE(), '%') "))
+    if (MADB_DynstrAppend(&StmtStr, "DATABASE()"))
       goto dynerror;
 
   if (TableName && NameLength3)
@@ -3541,27 +3552,37 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
        *p;
   size_t Length= strlen(MADB_PROCEDURE_COLUMNS(Stmt)) + 1024;
   SQLRETURN ret;
+  unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 ? Stmt->Connection->Charset.cs_info->char_maxlen: 1;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   if (!(StmtStr= MADB_CALLOC(Length)))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
 
   p= StmtStr;
 
-  p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt));
+  p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt), OctetsPerChar);
   
-  if (CatalogName && CatalogName[0])
-    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE '%s' ", CatalogName);
+  if (CatalogName)
+    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA='%s' ", CatalogName);
   else
     p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE DATABASE() ");
   if (ProcName && ProcName[0])
     p+= _snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
-  if (ColumnName && ColumnName[0])
-    p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
+  if (ColumnName)
+  {
+    if (ColumnName[0])
+    {
+      p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
+    }
+    else
+    {
+      p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME IS NULL ");
+    }
+  }
+    
   p+= _snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
