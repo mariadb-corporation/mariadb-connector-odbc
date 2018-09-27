@@ -793,25 +793,25 @@ ODBC_TEST(t_datecolumns)
 
   IS_STR(my_fetch_str(Stmt, col, 4), "a", 1);
   is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_TIMESTAMP);
+  is_num(my_fetch_int(Stmt, 15), SQL_CODE_TIMESTAMP);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "b", 1);
   is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_TIMESTAMP);
+  is_num(my_fetch_int(Stmt, 15), SQL_CODE_TIMESTAMP);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "c", 1);
   is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_DATE);
+  is_num(my_fetch_int(Stmt, 15), SQL_CODE_DATE);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 4), "d", 1);
   is_num(my_fetch_int(Stmt, 14), SQL_DATETIME);
-  is_num(my_fetch_int(Stmt, 15), SQL_TYPE_TIME);
+  is_num(my_fetch_int(Stmt, 15), SQL_CODE_TIME);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 

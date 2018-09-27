@@ -555,9 +555,7 @@ size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    /*if (!(Field->flags & BINARY_FLAG))
-      Length *= MaxCharLen ? MaxCharLen : 1;*/
-    return Length;
+    return Length; /* Field->length is calculated using current charset */
   default:
     return SQL_NO_TOTAL;
   }

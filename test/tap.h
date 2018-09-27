@@ -557,7 +557,7 @@ do {\
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
 #define IS_STR(A,B,C) do {const char *loc_a=(A), *loc_b=(B);\
 diag("%s %s", loc_a, loc_b);\
-FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "String comparison failed"); } while(0)
+FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "Strings do not match"); } while(0)
 
 #define is_num(A,B) \
 do {\
