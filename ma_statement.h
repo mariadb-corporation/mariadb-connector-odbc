@@ -160,8 +160,6 @@ SQLRETURN    MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect);
   "  WHEN 'mediumblob' THEN @dt:=" XSTR(SQL_LONGVARBINARY)\
   "  WHEN 'longblob' THEN @dt:=" XSTR(SQL_LONGVARBINARY)\
   "  WHEN 'decimal' THEN @dt:=" XSTR(SQL_DECIMAL)\
-  "  WHEN 'float' THEN @dt:=" XSTR(SQL_REAL)\
-  "  WHEN 'double' THEN @dt:=" XSTR(SQL_DOUBLE)\
   "  WHEN 'float' THEN @dt:=IF(NUMERIC_SCALE IS NULL," XSTR(SQL_REAL) ", "  XSTR(SQL_DECIMAL) ")"\
   "  WHEN 'double' THEN @dt:=IF(NUMERIC_SCALE IS NULL," XSTR(SQL_DOUBLE) ", "  XSTR(SQL_DECIMAL) ")"\
   "  WHEN 'binary' THEN @dt:=" XSTR(SQL_BINARY)\
