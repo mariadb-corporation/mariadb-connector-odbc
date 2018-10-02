@@ -1230,6 +1230,7 @@ ODBC_TEST(t_odbc82)
 ODBC_TEST(t_odbc70)
 {
   SQL_TIMESTAMP_STRUCT ts= { 0 }, ts1= { 0 }, ts2= { 0 };
+  char * ZeroDate= "0000-00-00 00:00:00";
 
   ts.year= 1970;
   ts.month= 1;
@@ -1263,14 +1264,21 @@ ODBC_TEST(t_odbc70)
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22007");
 
+  /* Not sure why is it here 2nd time, but won't hurt */
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22007");
 
-  ts1.year= ts1.month= ts1.day= 0;
+  ts1.year= ts1.month= ts1.day= 1;
   ts.year= ts.month= ts.day= 0;
 
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22007");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_TIMESTAMP,
+    0, 0, ZeroDate, 0, NULL));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+    CHECK_SQLSTATE(Stmt, "22008");
 
   return OK;
 }

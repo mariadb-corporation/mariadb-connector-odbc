@@ -254,6 +254,9 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
   case SQL_C_DATE:
   case SQL_C_TIME:
   case SQL_C_TIMESTAMP:
+  case SQL_TYPE_DATE:
+  case SQL_TYPE_TIME:
+  case SQL_TYPE_TIMESTAMP:
     return SQL_DATETIME;
   case SQL_C_INTERVAL_YEAR:
   case SQL_C_INTERVAL_YEAR_TO_MONTH:
