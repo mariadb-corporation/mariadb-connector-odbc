@@ -26,6 +26,7 @@
 #include "tap.h"
 
 /* Columns order num for SQLColumns */
+#define COLUMN_NAME        4
 #define DATA_TYPE          5
 #define COLUMN_SIZE        7
 #define BUFFER_LENGTH      8
@@ -1218,7 +1219,7 @@ ODBC_TEST(odbc131)
   SQLULEN     StrLen;
   SQLSMALLINT ShortData,
               SmallintFields[]= {DATA_TYPE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, SQL_DATA_TYPE, SQL_DATETIME_SUB},
-              IntFields[]= {COLUMN_SIZE, BUFFER_LENGTH/*, CHAR_OCTET_LENGTH, ORDINAL_POSITION*/};
+              IntFields[]= {COLUMN_SIZE, BUFFER_LENGTH, CHAR_OCTET_LENGTH, ORDINAL_POSITION};
   SQLINTEGER  IntData;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc131");
@@ -1366,20 +1367,21 @@ ODBC_TEST(odbc185)
   for (i= 0; i < sizeof(expectedw)/sizeof(expectedw[0]); ++i)
   {
     CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-    my_fetch_str(hstmt1, buff, 4);
-    is_num(my_fetch_int(hstmt1, 5   /* DATA_TYPE     */), expectedw[i]);
-    is_num(my_fetch_int(hstmt1, 14  /* SQL_DATA_TYPE */), expectedw[i]);
+    my_fetch_str(hstmt1, buff, COLUMN_NAME);
+    is_num(my_fetch_int(hstmt1, DATA_TYPE), expecteda[i]);
+    is_num(my_fetch_int(hstmt1, SQL_DATA_TYPE  /* SQL_DATA_TYPE */), expecteda[i]);
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    my_fetch_str(Stmt, buff, 4);
-    is_num(my_fetch_int(Stmt, 5   /* DATA_TYPE     */), expecteda[i]);
-    is_num(my_fetch_int(Stmt, 14  /* SQL_DATA_TYPE */), expecteda[i]);
+    my_fetch_str(Stmt, buff, COLUMN_NAME);
+    is_num(my_fetch_int(Stmt, DATA_TYPE), expecteda[i]);
+    is_num(my_fetch_int(Stmt, SQL_DATA_TYPE), expecteda[i]);
   }
   
   EXPECT_STMT(hstmt1, SQLFetch(hstmt1), SQL_NO_DATA_FOUND);
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE t_odbc185");
 
@@ -1390,6 +1392,44 @@ ODBC_TEST(odbc185)
   return OK;
 }
 
+ODBC_TEST(odbc152)
+{
+  SQLSMALLINT SqlDataType, SqlDatetimeSub= 0xffff, DataType;
+  SQLLEN LenType= 0, LenSub= 0, LenConciseType;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc152");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc152 (`val` bigint(20) NOT NULL, dt datetime)");
+
+  /* It doesn't matter if we call SQLColumns or SQLColumnsW */
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, 0,
+    "t_odbc152", SQL_NTS, NULL, SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, SQL_DATA_TYPE, SQL_C_SSHORT, &SqlDataType, 2, &LenType));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, SQL_DATETIME_SUB, SQL_C_SSHORT, &SqlDatetimeSub, 2, &LenSub));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, DATA_TYPE, SQL_C_SSHORT, &DataType, 2, &LenConciseType));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(SqlDataType, SQL_BIGINT);
+  is_num(LenType, 2);
+  is_num(DataType, SQL_BIGINT);
+  is_num(LenConciseType, 2);
+  is_num(LenSub, SQL_NULL_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(DataType, OdbcVer == SQL_OV_ODBC2 ? SQL_TIMESTAMP : SQL_TYPE_TIMESTAMP);
+  is_num(LenConciseType, 2);
+  is_num(SqlDataType, SQL_DATETIME);
+  is_num(LenType, 2);
+  is_num(SqlDatetimeSub, SQL_CODE_TIMESTAMP);
+  is_num(LenSub, 2);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc152");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1414,6 +1454,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc131, "odbc131_columns_data_len",      NORMAL},
   {odbc119, "odbc119_sqlstats_orderby",      NORMAL},
   {odbc185, "odbc185_sqlcolumns_wtypes",     NORMAL},
+  {odbc152, "odbc152_sqlcolumns_sql_data_type",   NORMAL},
   {NULL, NULL}
 };
 
