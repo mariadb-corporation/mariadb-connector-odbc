@@ -27,6 +27,7 @@ SET(MARIADB_ODBC_VERSION_QUALITY "alpha")
 
 SET(MARIADB_ODBC_VERSION "03.01.0000")
 
+SET(MARIADB_DEFAULT_PLUGINS_SUBDIR "plugin")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
 
@@ -284,6 +285,8 @@ TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTL
 IF(WIN32)
   ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
+                                  -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
+                                  -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
                                   -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
                                   -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
                                   -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake

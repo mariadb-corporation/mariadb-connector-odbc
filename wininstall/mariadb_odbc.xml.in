@@ -18,9 +18,14 @@
       <ComponentRef Id="RegistryKeys" />
       <ComponentRef Id="Setup" />
       <ComponentRef Id="Driver" />
+      <ComponentRef Id="CcPlugins" />
     </Feature>
     <Feature Id="DebugFeature" Title="Debug Information" Level="2">
       <ComponentRef Id="Debug" />
+    </Feature>
+    <Feature Id="PluginsFeature" Title="Authentification Plugins" Level="2">
+      <ComponentRef Id="CcPlugins" />
+      <ComponentRef Id="PluginsDebug" />
     </Feature>
   </Product>
 
@@ -28,7 +33,9 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="@FOLDER@">
         <Directory Id="MariaDB" Name="@PRODUCT_MANUFACTURER@">
-          <Directory Id="INSTALLFOLDER" Name="@PRODUCT_NAME@" />
+          <Directory Id="INSTALLFOLDER" Name="@PRODUCT_NAME@">
+            <Directory Id="PLUGINSFOLDER" Name="@plugins_subdir_name@" />
+          </Directory>
         </Directory>
       </Directory>
     </Directory>
@@ -51,9 +58,21 @@
         </File>
         <File Id="mariadb_odbc_lib" Name="maodbc.lib" DiskId="1" Source="$(var.binaries_dir)/maodbc.lib" />
       </Component>
-    <Component Id="Debug" Guid="2EA8B4DD-F470-4362-8D87-59090D255981" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
+    <Component Id="Debug" Guid="@GUID_DEBUG@" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
       <File Id="mariadb_odbc_dll_pdb" Name="maodbc.pdb" KeyPath="yes" DiskId="1" Source="$(var.binaries_dir)/maodbc.pdb" />
       <File Id="mariadb_odbc_setup_pdb" Name="maodbcs.pdb"  DiskId="1"  Source="$(var.binaries_dir)/maodbcs.pdb" />  
+    </Component>
+    <Component Id="CcPlugins" Guid="@GUID_PLUGINS@" Directory="PLUGINSFOLDER" DiskId="1" Win64="@IS_WIN64@">
+      <File Id="dialog_dll" Name="dialog.dll" KeyPath="yes" DiskId="1" Source="$(var.plugins_source_dir)/dialog.dll" />
+      <File Id="auth_gssapi_client_dll" Name="auth_gssapi_client.dll" DiskId="1" Source="$(var.plugins_source_dir)/auth_gssapi_client.dll" />
+      <File Id="mysql_clear_password_dll" Name="mysql_clear_password.dll"  DiskId="1" Source="$(var.plugins_source_dir)/mysql_clear_password.dll" />
+      <File Id="sha256_password_dll" Name="sha256_password.dll" DiskId="1" Source="$(var.plugins_source_dir)/sha256_password.dll" />
+    </Component>
+    <Component Id="PluginsDebug" Guid="@GUID_PLUGINS_DEBUG@" Directory="PLUGINSFOLDER" DiskId="1" Win64="@IS_WIN64@">
+      <File Id="dialog_pdb" Name="dialog.pdb" DiskId="1" Source="$(var.plugins_source_dir)/dialog.pdb" />
+      <File Id="auth_gssapi_client_pdb" Name="auth_gssapi_client.pdb" DiskId="1" Source="$(var.plugins_source_dir)/auth_gssapi_client.pdb" />
+      <File Id="mysql_clear_password_pdb" Name="mysql_clear_password.pdb" DiskId="1" Source="$(var.plugins_source_dir)/mysql_clear_password.pdb" />
+      <File Id="sha256_password_pdb" Name="sha256_password.pdb" DiskId="1" Source="$(var.plugins_source_dir)/sha256_password.pdb" />
     </Component>
   <!--  </ComponentGroup> -->
   </Fragment>

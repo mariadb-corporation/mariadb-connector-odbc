@@ -1,3 +1,5 @@
 <Include>
   <?define binaries_dir="@DRIVER_LIB_DIR@" ?>
+  <?define plugins_source_dir="@PLUGINS_LIB_DIR@" ?>
+  <?define plugins_subdir_name="@PLUGINS_SUBDIR_NAME@" ?>
 </Include>

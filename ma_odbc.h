@@ -19,13 +19,13 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
+#include <ma_odbc_version.h>
+
 #ifdef _WIN32
 # include "ma_platform_win32.h"
 #else
 # include "ma_platform_posix.h"
 #endif
-
-#define ODBCVER 0x0351
 
 #include <stdlib.h>
 
@@ -45,7 +45,6 @@
 #include <assert.h>
 #include <time.h>
 
-#include <ma_odbc_version.h>
 
 typedef struct st_ma_odbc_connection MADB_Dbc;
 typedef struct st_ma_odbc_stmt MADB_Stmt;

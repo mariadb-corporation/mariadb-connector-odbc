@@ -24,6 +24,7 @@
         of the function you are changing, needs to be changed accordingly */
 
 #include <ma_odbc.h>
+#include "Shlwapi.h"
 
 extern Client_Charset utf8;
 char LogFile[256];
@@ -281,4 +282,31 @@ int GetSourceAnsiCs(Client_Charset *cc)
 
   /* We don't need cs_info for this */
   return cc->CodePage;
+}
+
+BOOL MADB_DirectoryExists(const char *Path)
+{
+  DWORD FileAttributes = GetFileAttributes(Path);
+
+  return (FileAttributes != INVALID_FILE_ATTRIBUTES) && (FileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+void MADB_SetDefaultPluginsDir(MYSQL *mariadb)
+{
+  HMODULE hModule = GetModuleHandle(MADB_DRIVER_NAME);
+  char OurLocation[_MAX_PATH];
+  const char *PluginsSubDirName= "\\"MADB_DEFAULT_PLUGINS_SUBDIR;
+
+  GetModuleFileName(hModule, OurLocation, _MAX_PATH);
+  PathRemoveFileSpec(OurLocation);
+
+  if (strlen(OurLocation) < _MAX_PATH - strlen(PluginsSubDirName))
+  {
+    strcpy(OurLocation + strlen(OurLocation), PluginsSubDirName);
+
+    if (MADB_DirectoryExists(OurLocation) != FALSE)
+    {
+      mysql_options(mariadb, MYSQL_PLUGIN_DIR, OurLocation);
+    }
+  }
 }

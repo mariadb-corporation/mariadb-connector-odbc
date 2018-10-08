@@ -41,8 +41,6 @@
 #endif
 #define strcasecmp(A,B) _stricmp((A),(B))
 
-#define MADB_DRIVER_NAME "maodbc.dll"
-
 char *strndup(const char *s, size_t n);
 
 #endif /*_ma_platform_x_h_ */
