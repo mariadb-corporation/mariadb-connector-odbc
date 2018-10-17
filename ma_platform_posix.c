@@ -384,3 +384,10 @@ int GetSourceAnsiCs(Client_Charset *cc)
 
   return 0;
 }
+
+
+/* {{{ MADB_DSN_SetDefaults() */
+BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
+{
+  return Dsn->Socket || Dsn->ServerName && Dsn->Port > 0 && Dsn->IsTcpIp;
+}

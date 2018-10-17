@@ -96,6 +96,13 @@ const MADB_DsnKeyDep DsnKeysSwitch[]=
 };
 
 
+/* {{{ MADB_DSN_SetDefaults() */
+void MADB_DSN_SetDefaults(MADB_Dsn *Dsn)
+{
+  Dsn->IsTcpIp= 1;
+}
+/* }}} */
+
 /* {{{ MADB_Dsn_Init() */
 MADB_Dsn *MADB_DSN_Init()
 {
@@ -407,6 +414,25 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
 }
 /* }}} */
 
+
+size_t ConnStringLength(const char * String, char Delimiter)
+{
+  size_t      result= strlen(String);
+  const char *p=      String + result + 1;
+
+  if (Delimiter != '\0')
+  {
+    return result;
+  }
+  /* else - we have string with null terminated key=value pairs with additional NULL after last pair */
+  while (*p)
+  {
+    p+= strlen(p) + 1;
+  }
+
+  return p - String /* Length without ending NULL */;
+}
+
 /* {{{ MADB_ParseConnString */
 my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter)
 {
@@ -417,9 +443,12 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
     return FALSE;
 
   if (Length == SQL_NTS)
-    Length= strlen(String);
+  {
+    Length= ConnStringLength(String, Delimiter);
+  }
 
-  Buffer= _strdup(String);
+  Buffer= MADB_ALLOC(Length + 1);
+  Buffer= memcpy(Buffer, String, Length + 1);
   Key=    Buffer;
 
   while (Key && Key < ((char *)Buffer + Length))
@@ -458,8 +487,10 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
             special= TRUE;
           }
         }
-        else if ((p= strchr(Value, ';')))
+        else if ((p= strchr(Value, Delimiter)))
+        {
           *p= 0;
+        }
         Value= trim(Value);
 
         /* Overwriting here - if an option repeated more than once in the string, its last entrance will determine the value */
@@ -471,13 +502,17 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
         }
 
         if (p)
-          *p= (special) ? ' ' : ';';
+        {
+          *p= (special) ? ' ' : Delimiter;
+        }
         break;
       }
       ++i;
     }
-    if ((Key= strchr(Value, ';')))
+    if ((Key= strchr(Value, Delimiter)))
+    {
       ++Key;
+    }
   }
   MADB_FREE(Buffer);
   return TRUE;
@@ -490,7 +525,7 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
 BOOL MADB_ReadConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter)
 {
   /* Basically at this point we need DSN name only */
-  if (!MADB_ParseConnString(Dsn, String, Length, ';'))
+  if (!MADB_ParseConnString(Dsn, String, Length, Delimiter))
   {
     return FALSE;
   }
@@ -502,7 +537,7 @@ BOOL MADB_ReadConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char 
     MADB_ReadDSN(Dsn, NULL, FALSE);
     /* This redundancy is needed to be able to reset options set in the DSN, e.g. if DSN has Reconnect option selected, and
        connection string has AUTO_RECONNECT=0. Connection string should have precedence */
-    MADB_ParseConnString(Dsn, String, Length, ';');
+    MADB_ParseConnString(Dsn, String, Length, Delimiter);
   }
   return TRUE;
 }

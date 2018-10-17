@@ -282,3 +282,11 @@ int GetSourceAnsiCs(Client_Charset *cc)
   /* We don't need cs_info for this */
   return cc->CodePage;
 }
+
+
+/* {{{ MADB_DSN_SetDefaults() */
+BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
+{
+  return Dsn->ServerName && (Dsn->IsNamedPipe || Dsn->Port > 0);
+}
+/* }}} */

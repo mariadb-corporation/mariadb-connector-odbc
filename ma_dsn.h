@@ -138,6 +138,7 @@ extern MADB_DsnKey DsnKeys[];
 
 /*** Function prototypes ***/
 MADB_Dsn *  MADB_DSN_Init       (void);
+void        MADB_DSN_SetDefaults(MADB_Dsn *Dsn);
 void        MADB_DSN_Free       (MADB_Dsn *Dsn);
 my_bool     MADB_ReadDSN        (MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite);
 my_bool     MADB_SaveDSN        (MADB_Dsn *Dsn);
@@ -145,7 +146,8 @@ my_bool     MADB_DSN_Exists     (const char *DsnName);
 my_bool     MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
 BOOL        MADB_ReadConnString (MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
 SQLULEN     MADB_DsnToString    (MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength);
-void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
+void        MADB_DsnUpdateOptionsFields (MADB_Dsn *Dsn);
+BOOL        MADB_DSN_PossibleConnect    (MADB_Dsn *Dsn);
 
 /*** Helper macros ***/
 #define DSN_OPTION(a,b)\
