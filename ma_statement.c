@@ -1626,7 +1626,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
 {
   MADB_DescRecord *IrdRec, *ArdRec;
   int             i;
-  SQLLEN          *IndicatorPtr= NULL;
+  SQLLEN          *IndicatorPtr= NULL, *LengthPtr= NULL, Dummy= 0;
   void            *DataPtr=      NULL;
   SQLRETURN       rc= SQL_SUCCESS, FieldRc;
 
@@ -1635,14 +1635,20 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
     if ((ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ)) && ArdRec->inUse)
     {
       /* set indicator and dataptr */
-      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->OctetLengthPtr, RowNumber, sizeof(SQLLEN));
+      LengthPtr=    (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->OctetLengthPtr, RowNumber, sizeof(SQLLEN));
+      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->IndicatorPtr,   RowNumber, sizeof(SQLLEN));
       DataPtr=      (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr,        RowNumber, ArdRec->OctetLength);
-          
+
+      if (LengthPtr == NULL)
+      {
+        LengthPtr= &Dummy;
+      }
       /* clear IndicatorPtr */
-      if (IndicatorPtr && *IndicatorPtr < 0)
+      if (IndicatorPtr != NULL && IndicatorPtr != LengthPtr && *IndicatorPtr < 0)
       {
         *IndicatorPtr= 0;
       }
+
       IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
       /* assert(IrdRec != NULL) */
 
@@ -1670,7 +1676,9 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         {
           char *p= (char *)Stmt->result[i].buffer;
           if (p)
+          {
             *p= test(*p != '\0');
+          }
         }
         break;
         case SQL_C_TYPE_TIMESTAMP:
@@ -1686,46 +1694,48 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         case SQL_C_INTERVAL_HOUR_TO_SECOND:
         {
           MYSQL_TIME          *tm= (MYSQL_TIME*)ArdRec->InternalBuffer;
-          SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr, RowNumber, ArdRec->OctetLength);;
+          SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)DataPtr;
 
-          if (tm->hour > 99999)
+          /* If we have ts == NULL we (may) have tm also NULL, since we didn't really bind this column */
+          if (ts != NULL)
           {
-            FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_22015, NULL, 0);
-            CALC_ALL_FLDS_RC(rc, FieldRc);
-            break;
-          }
-
-          ts->intval.day_second.hour= tm->hour;
-          ts->intval.day_second.minute= tm->minute;
-          ts->interval_sign= tm->neg ? SQL_TRUE : SQL_FALSE;
-
-          if (ArdRec->Type == SQL_C_INTERVAL_HOUR_TO_MINUTE)
-          {
-            ts->intval.day_second.second= 0;
-            ts->interval_type= SQL_INTERVAL_HOUR_TO_MINUTE;
-            if (tm->second)
+            if (tm->hour > 99999)
             {
-              FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+              FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_22015, NULL, 0);
               CALC_ALL_FLDS_RC(rc, FieldRc);
               break;
             }
+
+            ts->intval.day_second.hour= tm->hour;
+            ts->intval.day_second.minute= tm->minute;
+            ts->interval_sign= tm->neg ? SQL_TRUE : SQL_FALSE;
+
+            if (ArdRec->Type == SQL_C_INTERVAL_HOUR_TO_MINUTE)
+            {
+              ts->intval.day_second.second= 0;
+              ts->interval_type= SQL_INTERVAL_HOUR_TO_MINUTE;
+              if (tm->second)
+              {
+                FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+                CALC_ALL_FLDS_RC(rc, FieldRc);
+                break;
+              }
+            }
+            else
+            {
+              ts->interval_type= SQL_INTERVAL_HOUR_TO_SECOND;
+              ts->intval.day_second.second= tm->second;
+            }
           }
-          else
-          {
-            ts->interval_type= SQL_INTERVAL_HOUR_TO_SECOND;
-            ts->intval.day_second.second= tm->second;
-          }
-          if (IndicatorPtr)
-          {
-            *IndicatorPtr= sizeof(SQL_INTERVAL_STRUCT);
-          }
+          
+          *LengthPtr= sizeof(SQL_INTERVAL_STRUCT);
         }
         break;
         case SQL_C_NUMERIC:
         {
           int rc= 0;
           MADB_CLEAR_ERROR(&Stmt->Error);
-          if (Stmt->result[i].buffer_length < Stmt->stmt->fields[i].max_length)
+          if (DataPtr != NULL && Stmt->result[i].buffer_length < Stmt->stmt->fields[i].max_length)
           {
             MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
             ArdRec->InternalBuffer[Stmt->result[i].buffer_length - 1]= 0;
@@ -1733,9 +1743,15 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
           }
 
           if ((rc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Stmt->Ard, ArdRec, NULL, RowNumber)))
+          {
             MADB_SetError(&Stmt->Error, rc, NULL, 0);
+          }
+          /* TODO: why is it here individually for Numeric type?! */
           if (Stmt->Ard->Header.ArrayStatusPtr)
+          {
             Stmt->Ard->Header.ArrayStatusPtr[RowNumber]= Stmt->Error.ReturnValue;
+          }
+          *LengthPtr= sizeof(SQL_NUMERIC_STRUCT);
         }
         break;
         case SQL_C_WCHAR:
@@ -1747,8 +1763,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
           /*MADB_ConvertAnsi2Unicode(&Stmt->Connection->Charset, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
                                    (SQLWCHAR *)DataPtr, ArdRec->OctetLength, &CharLen, 1, &Stmt->Error);*/
           /* Not quite right */
-          if (IndicatorPtr)
-            *IndicatorPtr= CharLen * sizeof(SQLWCHAR);
+          *LengthPtr= CharLen * sizeof(SQLWCHAR);
         }
         break;
 
@@ -1765,55 +1780,61 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         case SQL_C_DOUBLE:
           if (MADB_BinaryFieldType(IrdRec->ConciseType))
           {
-            if (Stmt->result[i].buffer_length >= (unsigned long)ArdRec->OctetLength)
+            if (DataPtr != NULL)
             {
-              if (LittleEndian())
+              if (Stmt->result[i].buffer_length >= (unsigned long)ArdRec->OctetLength)
               {
-                /* We currently got the bigendian number. If we or littleendian machine, we need to switch bytes */
-                SwitchEndianness((char*)Stmt->result[i].buffer + Stmt->result[i].buffer_length - ArdRec->OctetLength,
-                  ArdRec->OctetLength,
-                  (char*)DataPtr,
-                  ArdRec->OctetLength);
+                if (LittleEndian())
+                {
+                  /* We currently got the bigendian number. If we or littleendian machine, we need to switch bytes */
+                  SwitchEndianness((char*)Stmt->result[i].buffer + Stmt->result[i].buffer_length - ArdRec->OctetLength,
+                    ArdRec->OctetLength,
+                    (char*)DataPtr,
+                    ArdRec->OctetLength);
+                }
+                else
+                {
+                  memcpy(DataPtr, (void*)((char*)Stmt->result[i].buffer + Stmt->result[i].buffer_length - ArdRec->OctetLength), ArdRec->OctetLength);
+                }
               }
               else
               {
-                memcpy(DataPtr, (void*)((char*)Stmt->result[i].buffer + Stmt->result[i].buffer_length - ArdRec->OctetLength), ArdRec->OctetLength);
+                /* We won't write to the whole memory pointed by DataPtr, thus to need to zerofill prior to that */
+                memset(DataPtr, 0, ArdRec->OctetLength);
+                if (LittleEndian())
+                {
+                  SwitchEndianness((char*)Stmt->result[i].buffer,
+                    Stmt->result[i].buffer_length,
+                    (char*)DataPtr,
+                    ArdRec->OctetLength);
+                }
+                else
+                {
+                  memcpy((void*)((char*)DataPtr + ArdRec->OctetLength - Stmt->result[i].buffer_length),
+                    Stmt->result[i].buffer, Stmt->result[i].buffer_length);
+                }
               }
-            }
-            else
-            {
-              /* We won't write to the whole memory pointed by DataPtr, thus to need to zerofill prior to that */
-              memset(DataPtr, 0, ArdRec->OctetLength);
-              if (LittleEndian())
-              {
-                SwitchEndianness((char*)Stmt->result[i].buffer,
-                  Stmt->result[i].buffer_length,
-                  (char*)DataPtr,
-                  ArdRec->OctetLength);
-              }
-              else
-              {
-                memcpy((void*)((char*)DataPtr + ArdRec->OctetLength - Stmt->result[i].buffer_length),
-                  Stmt->result[i].buffer, Stmt->result[i].buffer_length);
-              }
+              *LengthPtr= *Stmt->stmt->bind[i].length;
             }
             break;
           }
           /* else {we are falling through below} */
         default:
-          if (Stmt->Ard->Header.ArraySize > 1)
+          if (DataPtr != NULL)
           {
-            if (Stmt->Ard->Header.BindType)
+            if (Stmt->Ard->Header.ArraySize > 1)
             {
-              Stmt->result[i].buffer= (char *)Stmt->result[i].buffer + Stmt->Ard->Header.BindType;
+              if (Stmt->Ard->Header.BindType)
+              {
+                Stmt->result[i].buffer= (char *)Stmt->result[i].buffer + Stmt->Ard->Header.BindType;
+              }
+              else
+              {
+                Stmt->result[i].buffer = (char *)ArdRec->DataPtr + (RowNumber + 1) * ArdRec->OctetLength;
+              }
             }
-            else
-            {
-              Stmt->result[i].buffer = (char *)ArdRec->DataPtr + (RowNumber + 1) * ArdRec->OctetLength;
-            }
+            *LengthPtr= *Stmt->stmt->bind[i].length;
           }
-          if (IndicatorPtr)
-            *IndicatorPtr= *Stmt->stmt->bind[i].length;
           break;
         }
       }

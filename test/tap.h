@@ -29,6 +29,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 
 #ifdef _WIN32
 # define _WINSOCKAPI_
@@ -707,6 +708,7 @@ SQLHANDLE DoConnect(SQLHANDLE Connection,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
+  /* _snprintf(DSNString, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn); */
   _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
@@ -733,9 +735,6 @@ SQLHANDLE DoConnect(SQLHANDLE Connection,
 
 int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 {
-  char      buffer[100];
-  SQLHANDLE Stmt1;
-
   *Env=         NULL;
   *Connection=  NULL;
 
@@ -743,23 +742,7 @@ int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 
   *Stmt= DoConnect(*Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
-  if (*Stmt == NULL)
-  {
-    return FAIL;
-  }
-
-  CHECK_DBC_RC(*Connection, SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &Stmt1));
-
-  strcpy(buffer, "CREATE SCHEMA IF NOT EXISTS ");
-  strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
-  OK_SIMPLE_STMT(Stmt1, buffer);
-
-  strcpy(buffer, "USE ");
-  strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
-  OK_SIMPLE_STMT(Stmt1, buffer);
-  SQLFreeStmt(Stmt1, SQL_DROP);
-
-  return OK;
+  return (*Stmt == NULL ? FAIL : OK);
 }
 
 

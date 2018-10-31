@@ -785,8 +785,11 @@ int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigne
 SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
 {
   void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
-  SQLLEN Dummy, *Length= ArdRecord->OctetLengthPtr ? ArdRecord->OctetLengthPtr : &Dummy,
-                *Ind= ArdRecord->IndicatorPtr ? ArdRecord->IndicatorPtr :&Dummy;
+  SQLLEN Dummy, *Length= GetBindOffset(Ard, ArdRecord, ArdRecord->OctetLengthPtr, RowNumber, ArdRecord->OctetLength),
+                *Ind= GetBindOffset(Ard, ArdRecord, ArdRecord->IndicatorPtr, RowNumber, ArdRecord->OctetLength);
+
+  Length= Length == NULL ? &Dummy : Length;
+  Ind=    Ind == NULL    ? &Dummy : Ind;
 
   switch(Type)
   {
@@ -795,19 +798,23 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
     {
       SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
-      ts->year= tm->year;
-      ts->month= tm->month;
-      ts->day= tm->day;
-      ts->hour= tm->hour;
-      ts->minute= tm->minute;
-      ts->second= tm->second;
-      ts->fraction= tm->second_part * 1000;
-      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
-
-      if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+      if (ts != NULL)
       {
-        *Ind= SQL_NULL_DATA;
-	    }
+        ts->year= tm->year;
+        ts->month= tm->month;
+        ts->day= tm->day;
+        ts->hour= tm->hour;
+        ts->minute= tm->minute;
+        ts->second= tm->second;
+        ts->fraction= tm->second_part * 1000;
+
+        if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+        {
+          *Ind= SQL_NULL_DATA;
+          break;
+        }
+      }
+      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
     }
     break;
     case SQL_C_TIME:
@@ -819,9 +826,12 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
       {
         return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
       }
-      ts->hour= tm->hour;
-      ts->minute= tm->minute;
-      ts->second= tm->second;
+      if (ts != NULL)
+      {
+        ts->hour= tm->hour;
+        ts->minute= tm->minute;
+        ts->second= tm->second;
+      }
       *Length= sizeof(SQL_TIME_STRUCT);
     }
     break;
@@ -829,15 +839,19 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
     case SQL_TYPE_DATE:
     {
       SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)DataPtr;
-      ts->year= tm->year;
-      ts->month= tm->month;
-      ts->day= tm->day;
-      *Length= sizeof(SQL_DATE_STRUCT);
 
-      if (ts->year + ts->month + ts->day == 0)
+      if (ts != NULL)
       {
-        *Ind= SQL_NULL_DATA;
+        ts->year= tm->year;
+        ts->month= tm->month;
+        ts->day= tm->day;
+        if (ts->year + ts->month + ts->day == 0)
+        {
+          *Ind= SQL_NULL_DATA;
+          break;
+        }
       }
+      *Length= sizeof(SQL_DATE_STRUCT);
     }
     break;
   }
@@ -849,17 +863,29 @@ void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN
 {
   size_t BindOffset= 0;
 
-  if (!Ptr)
+  /* This is not quite clear - I'd imagine, that if BindOffset is set, then Ptr can be NULL.
+     Makes perfect sense in case of row-based binding - setting pointers to offset in structure, and BindOffset to the begin of array.
+     One of members would have 0 offset then. But specs are rather against that, and other drivers also don't support such interpretation */
+  if (Ptr == NULL)
+  {
     return NULL;
-
-  if (Desc->Header.BindOffsetPtr)
+  }
+  if (Desc->Header.BindOffsetPtr != NULL)
+  {
     BindOffset= (size_t)*Desc->Header.BindOffsetPtr;
+  }
+
   /* row wise binding */
   if (Desc->Header.BindType == SQL_BIND_BY_COLUMN ||
-      Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+    Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+  {
     BindOffset+= PtrSize * RowNumber;
+  }
   else
+  {
     BindOffset+= Desc->Header.BindType * RowNumber;
+  }
+
   return (char *)Ptr + BindOffset;
 }
 
