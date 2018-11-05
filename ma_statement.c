@@ -1687,7 +1687,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         case SQL_C_TIMESTAMP:
         case SQL_C_TIME:
         case SQL_C_DATE:
-          FieldRc= MADB_CopyMadbTimestamp(Stmt, (MYSQL_TIME *)ArdRec->InternalBuffer, Stmt->Ard, ArdRec, ArdRec->Type, RowNumber);
+          FieldRc= MADB_CopyMadbTimestamp(Stmt, (MYSQL_TIME *)ArdRec->InternalBuffer, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
           CALC_ALL_FLDS_RC(rc, FieldRc);
           break;
         case SQL_C_INTERVAL_HOUR_TO_MINUTE:
@@ -2428,7 +2428,9 @@ SQLRETURN MADB_GetBookmark(MADB_Stmt  *Stmt,
   {
     *(SQLULEN *)TargetValuePtr= Stmt->Cursor.Position;
     if (StrLen_or_IndPtr)
+    {
       *StrLen_or_IndPtr= sizeof(SQLULEN);
+    }
     return SQL_SUCCESS;
   }
 
@@ -2456,6 +2458,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   my_bool         Error;
   MADB_DescRecord *IrdRec= NULL;
   MYSQL_FIELD     *Field= mysql_fetch_field_direct(Stmt->metadata, Offset);
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
 
   /* Should not really happen, and is evidence of that something wrong happened in some previous call(SQLFetch?) */
   if (Stmt->stmt->bind == NULL)
@@ -2522,88 +2526,29 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   {
   case SQL_DATE:
   case SQL_C_TYPE_DATE:
-    {
-      MYSQL_TIME tm;
-      SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)TargetValuePtr;
-
-      Bind.buffer_length= sizeof(MYSQL_TIME);
-      Bind.buffer= (void *)&tm;
-      Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
-      mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-      ts->year= tm.year;
-      ts->month= tm.month;
-      ts->day= tm.day;
-      if (StrLen_or_IndPtr)
-      {
-        *StrLen_or_IndPtr= sizeof(SQL_DATE_STRUCT);
-      }
-    }
-    break;
   case SQL_TIMESTAMP:
   case SQL_C_TYPE_TIMESTAMP:
-    {
-      MYSQL_TIME tm;
-      SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)TargetValuePtr;
-
-      Bind.buffer_length= sizeof(MYSQL_TIME);
-      Bind.buffer= (void *)&tm;
-      Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
-      mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-      if (!tm.year)
-      {
-        time_t sec_time;
-        struct tm * cur_tm;
-        sec_time= time(NULL);
-        cur_tm= localtime(&sec_time);
-        ts->year= 1900 + cur_tm->tm_year;
-        ts->month= cur_tm->tm_mon + 1;
-        ts->day= cur_tm->tm_mday;
-      }
-      else
-      {
-        ts->year= tm.year;
-        ts->month= tm.month;
-        ts->day= tm.day;
-      }
-      ts->hour= tm.hour;
-      ts->minute= tm.minute;
-      ts->second= tm.second;
-      ts->fraction= tm.second_part * 1000;
-      if (StrLen_or_IndPtr)
-      {
-        *StrLen_or_IndPtr= sizeof(SQL_TIMESTAMP_STRUCT);
-      }
-    }
-    break;
   case SQL_TIME:
   case SQL_C_TYPE_TIME:
     {
       MYSQL_TIME tm;
-      SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)TargetValuePtr;
 
       Bind.buffer_length= sizeof(MYSQL_TIME);
       Bind.buffer= (void *)&tm;
       /* c/c is too smart to convert hours to days and days to hours, we don't need that */
-      Bind.buffer_type= Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+      if ((OdbcType == SQL_C_TIME || OdbcType == SQL_C_TYPE_TIME)
+        && (IrdRec->ConciseType == SQL_TIME || IrdRec->ConciseType == SQL_TYPE_TIME))
+      {
+        Bind.buffer_type= MYSQL_TYPE_TIME;
+      }
+      else
+      {
+        Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
+      }
       mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-      ts->hour= tm.hour;
-      ts->minute= tm.minute;
-      ts->second= tm.second;
-
-      if (tm.hour > 23)
-      {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
-      }
-      if (tm.second_part)
-      {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
-      }
-      if (StrLen_or_IndPtr)
-      {
-        *StrLen_or_IndPtr= sizeof(SQL_TIME_STRUCT);
-      }
+      RETURN_ERROR_OR_CONTINUE(MADB_CopyMadbTimestamp(Stmt, &tm, TargetValuePtr, StrLen_or_IndPtr, StrLen_or_IndPtr, OdbcType, IrdRec->ConciseType));
+      break;
     }
-    break;
   case SQL_C_INTERVAL_HOUR_TO_MINUTE:
   case SQL_C_INTERVAL_HOUR_TO_SECOND:
     {
@@ -2652,7 +2597,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     {
       char  *ClientValue= NULL;
       size_t CharLength= 0;
-
 
       /* Kinda this it not 1st call for this value, and we have it nice and recoded */
       if (IrdRec->InternalBuffer == NULL/* && Stmt->Lengths[Offset] == 0*/)
@@ -2977,14 +2921,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
   }
-#ifdef MAODBC_DEBUG_DEVELOPER
-  else if (MDBUG_C_IS_ON(Stmt->Connection) && (TargetType == SQL_C_DEFAULT || TargetType == SQL_ARD_TYPE))
-  {
-    ma_debug_print(1, "%s(%s)", IrdRec->BaseColumnName, IrdRec->ColumnName);
-    ma_print_value(OdbcType, TargetValuePtr, Bind.length_value > 0 ? Bind.length_value : IrdRec->OctetLength);
-  }
-#endif
-  return SQL_SUCCESS;
+
+  return Stmt->Error.ReturnValue;
 }
 /* }}} */
 

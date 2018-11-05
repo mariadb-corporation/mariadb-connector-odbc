@@ -1289,12 +1289,12 @@ ODBC_TEST(t_odbc146)
 }
 
 
-ODBC_TEST(t_nulldate)
+ODBC_TEST(t_odbc194)
 {
   SQL_DATE_STRUCT Date;
   SQL_TIMESTAMP_STRUCT Datetime;
   SQL_TIME_STRUCT Time;
-  SQLLEN dInd, dtInd, tInd, sInd;
+  SQLLEN dInd, dtInd, tInd, sInd, zdtInd, zdInd;
   char asString[32];
   SQLWCHAR asWString[32];
 
@@ -1304,29 +1304,38 @@ ODBC_TEST(t_nulldate)
                        "VALUES('1986-03-20', '1899-12-30 21:07:32', '19:36:22', '2004-07-09 10:17:35', NULL),"
                        "(NULL, '1900-01-01 13:48:48', '02:05:25', '2004-07-26 12:30:34', NULL),"
                        "('1997-02-02', '1900-01-01 18:21:08', '09:33:31', '2004-08-02 07:59:23', '')");
-  OK_SIMPLE_STMT(Stmt, "SELECT CAST(NULL AS DATE), CAST(NULL AS DATETIME), CAST(NULL AS DATETIME), ''");
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST(NULL AS DATE), CAST(NULL AS DATETIME), CAST(NULL AS TIME), '',"
+                       "CAST('0000-00-00' AS DATETIME), CAST('0000-00-00' AS DATE)");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &dInd));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &dtInd));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_TIME, &Time, sizeof(SQL_TIME_STRUCT), &tInd));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &sInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &zdtInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 6, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &zdInd));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(dInd, SQL_NULL_DATA);
   is_num(dtInd, SQL_NULL_DATA);
   is_num(tInd, SQL_NULL_DATA);
   is_num(sInd, SQL_NULL_DATA);
+  is_num(zdtInd, SQL_NULL_DATA);
+  is_num(zdInd, SQL_NULL_DATA);
 
-  dInd= dtInd= tInd= sInd= 0;
+  dInd= dtInd= tInd= sInd= zdtInd= zdInd= 0;
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &dInd));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &dtInd));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TIME, &Time, sizeof(SQL_TIME_STRUCT), &tInd));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 4, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &sInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 5, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &zdtInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &zdInd));
   is_num(dInd, SQL_NULL_DATA);
   is_num(dtInd, SQL_NULL_DATA);
   is_num(tInd, SQL_NULL_DATA);
-  /* is_num(sInd, SQL_NULL_DATA); <-- This is yet to be fixed */
+  is_num(sInd, SQL_NULL_DATA);
+  is_num(zdtInd, SQL_NULL_DATA);
+  is_num(zdInd, SQL_NULL_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1437,7 +1446,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc134, "t_odbc-134-fetch_unbound_null"},
   {t_odbc133, "t_odbc-133-numeric"},
   {t_odbc146, "t_odbc146_numeric_getdata"},
-  {t_nulldate, "t_null_date"},
+  { t_odbc194, "t_odbc194_null_date"},
   {t_odbc192, "t_odbc192"},
   {NULL, NULL}
 };
