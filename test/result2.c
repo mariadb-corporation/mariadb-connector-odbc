@@ -1242,7 +1242,7 @@ ODBC_TEST(t_odbc133)
   return OK;
 }
 
-/* ODBC-146 - boils down to incorrect coonversion into SQL_NUMERIC in case of SQLGetData,
+/* ODBC-146 - boils down to incorrect conversion into SQL_NUMERIC in case of SQLGetData,
    and with binding it worked well */
 ODBC_TEST(t_odbc146)
 {
@@ -1289,6 +1289,136 @@ ODBC_TEST(t_odbc146)
 }
 
 
+ODBC_TEST(t_odbc194)
+{
+  SQL_DATE_STRUCT Date;
+  SQL_TIMESTAMP_STRUCT Datetime;
+  SQL_TIME_STRUCT Time;
+  SQLLEN dInd, dtInd, tInd, sInd, zdtInd, zdInd;
+  char asString[32];
+  SQLWCHAR asWString[32];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_nulldate");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_nulldate (date0 date, time0 datetime, time1 time, datetime0 datetime, datetime1 varchar(255))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_nulldate (date0, time0, time1, datetime0, datetime1) "
+                       "VALUES('1986-03-20', '1899-12-30 21:07:32', '19:36:22', '2004-07-09 10:17:35', NULL),"
+                       "(NULL, '1900-01-01 13:48:48', '02:05:25', '2004-07-26 12:30:34', NULL),"
+                       "('1997-02-02', '1900-01-01 18:21:08', '09:33:31', '2004-08-02 07:59:23', '')");
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST(NULL AS DATE), CAST(NULL AS DATETIME), CAST(NULL AS TIME), '',"
+                       "CAST('0000-00-00' AS DATETIME), CAST('0000-00-00' AS DATE)");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &dInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &dtInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_TIME, &Time, sizeof(SQL_TIME_STRUCT), &tInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &sInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &zdtInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 6, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &zdInd));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(dInd, SQL_NULL_DATA);
+  is_num(dtInd, SQL_NULL_DATA);
+  is_num(tInd, SQL_NULL_DATA);
+  is_num(sInd, SQL_NULL_DATA);
+  is_num(zdtInd, SQL_NULL_DATA);
+  is_num(zdInd, SQL_NULL_DATA);
+
+  dInd= dtInd= tInd= sInd= zdtInd= zdInd= 0;
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &dInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &dtInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TIME, &Time, sizeof(SQL_TIME_STRUCT), &tInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 4, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &sInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 5, SQL_C_TIMESTAMP, &Datetime, sizeof(SQL_TIMESTAMP_STRUCT), &zdtInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_DATE, &Date, sizeof(SQL_DATE_STRUCT), &zdInd));
+  is_num(dInd, SQL_NULL_DATA);
+  is_num(dtInd, SQL_NULL_DATA);
+  is_num(tInd, SQL_NULL_DATA);
+  is_num(sInd, SQL_NULL_DATA);
+  is_num(zdtInd, SQL_NULL_DATA);
+  is_num(zdInd, SQL_NULL_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT CAST(NULL AS DATE), CAST(NULL AS DATETIME), CAST(NULL AS DATETIME), '';");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, asString, sizeof(asString), &dInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, asString, sizeof(asString), &dtInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, asString, sizeof(asString), &tInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, asString, sizeof(asString), &sInd));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(dInd, SQL_NULL_DATA);
+  is_num(dtInd, SQL_NULL_DATA);
+  is_num(tInd, SQL_NULL_DATA);
+
+  dInd= dtInd= tInd= 0;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, asString, sizeof(asString), &dInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, asString, sizeof(asString), &dtInd));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_WCHAR, asWString, sizeof(asWString), &tInd));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_WCHAR, asWString, sizeof(asWString), &sInd));
+
+  is_num(dInd, SQL_NULL_DATA);
+  is_num(dtInd, SQL_NULL_DATA);
+  is_num(tInd, SQL_NULL_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_nulldate");
+
+  return OK;
+}
+
+
+/**
+Simple structure for a row (just one element) plus an indicator column.
+*/
+typedef struct {
+  SQL_TIMESTAMP_STRUCT val;
+  SQLLEN     ind;
+} ROW_WITH_DATETIME;
+
+/**
+
+*/
+ODBC_TEST(t_odbc192)
+{
+  ROW_WITH_DATETIME Rows[1];
+  SQLLEN BaseOffset=0x01, *OffsetPtr= (SQLLEN*)((char*)Rows - BaseOffset);
+
+  SQLExecDirect(Stmt, "DROP TABLE /*IF EXISTS*/ t_odbc192", SQL_NTS);
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc192 (some_ts datetime)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc192 (some_ts) VALUES('2018-10-23 12:00:01')");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+    (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)1, 0));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_TYPE,
+    (SQLPOINTER)sizeof(ROW_WITH_DATETIME), 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_OFFSET_PTR,
+    &OffsetPtr, 0));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_TIMESTAMP, (SQLPOINTER)(offsetof(ROW_WITH_DATETIME, val) + BaseOffset), 0,
+    (SQLLEN*)(offsetof(ROW_WITH_DATETIME, ind) + BaseOffset)));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT some_ts FROM t_odbc192");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(Rows[0].ind, sizeof(SQL_TIMESTAMP_STRUCT));
+  is_num(Rows[0].val.day, 23);
+  is_num(Rows[0].val.hour, 12);
+  is_num(Rows[0].val.second, 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1316,6 +1446,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc134, "t_odbc-134-fetch_unbound_null"},
   {t_odbc133, "t_odbc-133-numeric"},
   {t_odbc146, "t_odbc146_numeric_getdata"},
+  { t_odbc194, "t_odbc194_null_date"},
+  {t_odbc192, "t_odbc192"},
   {NULL, NULL}
 };
 

@@ -1697,22 +1697,21 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   case SQL_DRIVER_COMPLETE_REQUIRED:
   case SQL_DRIVER_COMPLETE:
   case SQL_DRIVER_NOPROMPT:
+
+    if (SQL_SUCCEEDED(MADB_DbcConnectDB(Dbc, Dsn)))
     {
-      SQLRETURN ret= MADB_DbcConnectDB(Dbc, Dsn);
-      if (SQL_SUCCEEDED(ret))
-      {
-        goto end;
-      }
-      else if (DriverCompletion == SQL_DRIVER_NOPROMPT)
-      {
-        /* For SQL_DRIVER_COMPLETE(_REQUIRED) this is not the end - will show prompt for user */
-        goto error;
-      }
+      goto end;
+    }
+    else if (DriverCompletion == SQL_DRIVER_NOPROMPT)
+    {
+      /* For SQL_DRIVER_COMPLETE(_REQUIRED) this is not the end - will show prompt for user */
+      goto error;
     }
     /* If we got here, it means that we had unsuccessful connect attempt with SQL_DRIVER_COMPLETE(_REQUIRED) completion
        Have to clean that error */
     MADB_CLEAR_ERROR(&Dbc->Error);
     break;
+
   case SQL_DRIVER_PROMPT:
     break;
   default:

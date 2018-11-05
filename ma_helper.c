@@ -254,6 +254,9 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
   case SQL_C_DATE:
   case SQL_C_TIME:
   case SQL_C_TIMESTAMP:
+  case SQL_TYPE_DATE:
+  case SQL_TYPE_TIME:
+  case SQL_TYPE_TIMESTAMP:
     return SQL_DATETIME;
   case SQL_C_INTERVAL_YEAR:
   case SQL_C_INTERVAL_YEAR_TO_MONTH:
@@ -779,32 +782,62 @@ int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigne
 }
 /* }}} */
 
-SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER DataPtr, SQLLEN *Length, SQLLEN *Ind,
+                                 SQLSMALLINT CType, SQLSMALLINT SqlType)
 {
-  void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
-  SQLLEN Dummy, *Length= ArdRecord->OctetLengthPtr ? ArdRecord->OctetLengthPtr : &Dummy,
-                *Ind= ArdRecord->IndicatorPtr ? ArdRecord->IndicatorPtr :&Dummy;
+  SQLLEN Dummy;
 
-  switch(Type)
+  Length= Length == NULL ? &Dummy : Length;
+
+  switch(CType)
   {
     case SQL_C_TIMESTAMP:
     case SQL_C_TYPE_TIMESTAMP:
     {
       SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
-      ts->year= tm->year;
-      ts->month= tm->month;
-      ts->day= tm->day;
-      ts->hour= tm->hour;
-      ts->minute= tm->minute;
-      ts->second= tm->second;
-      ts->fraction= tm->second_part * 1000;
-      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
-
-      if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+      if (ts != NULL)
       {
-        *Ind= SQL_NULL_DATA;
-	    }
+        /* If time converted to timestamp - fraction is set to 0, date is set to current date */
+        if (SqlType == SQL_TIME || SqlType == SQL_TYPE_TIME)
+        {
+          time_t sec_time;
+          struct tm * cur_tm;
+
+          sec_time= time(NULL);
+          cur_tm= localtime(&sec_time);
+
+          ts->year= 1900 + cur_tm->tm_year;
+          ts->month= cur_tm->tm_mon + 1;
+          ts->day= cur_tm->tm_mday;
+          ts->fraction= 0;
+        }
+        else
+        {
+          ts->year= tm->year;
+          ts->month= tm->month;
+          ts->day= tm->day;
+          ts->fraction= tm->second_part * 1000;
+        }
+        ts->hour= tm->hour;
+        ts->minute= tm->minute;
+        ts->second= tm->second;
+        
+
+        if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+        {
+          if (Ind != NULL)
+          {
+            *Ind= SQL_NULL_DATA;
+          }
+          else
+          {
+            return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+          }
+          break;
+        }
+      }
+      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
     }
     break;
     case SQL_C_TIME:
@@ -812,29 +845,51 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
     {
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
 
-      if (!VALID_TIME(tm))
+      if (ts != NULL)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+        /* tm(buffer from MYSQL_BIND) can be NULL. And that happens if ts(app's buffer) is null */
+        if (!VALID_TIME(tm))
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+        }
+
+        ts->hour= tm->hour;
+        ts->minute= tm->minute;
+        ts->second= tm->second;
+
+        *Length= sizeof(SQL_TIME_STRUCT);
+
+        if (tm->second_part)
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+        }
       }
-      ts->hour= tm->hour;
-      ts->minute= tm->minute;
-      ts->second= tm->second;
-      *Length= sizeof(SQL_TIME_STRUCT);
     }
     break;
     case SQL_C_DATE:
     case SQL_TYPE_DATE:
     {
       SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)DataPtr;
-      ts->year= tm->year;
-      ts->month= tm->month;
-      ts->day= tm->day;
-      *Length= sizeof(SQL_DATE_STRUCT);
 
-      if (ts->year + ts->month + ts->day == 0)
+      if (ts != NULL)
       {
-        *Ind= SQL_NULL_DATA;
+        ts->year= tm->year;
+        ts->month= tm->month;
+        ts->day= tm->day;
+        if (ts->year + ts->month + ts->day == 0)
+        {
+          if (Ind != NULL)
+          {
+            *Ind= SQL_NULL_DATA;
+          }
+          else
+          {
+            return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+          }
+          break;
+        }
       }
+      *Length= sizeof(SQL_DATE_STRUCT);
     }
     break;
   }
@@ -842,21 +897,34 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
   return SQL_SUCCESS;
 }
 
+
 void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN RowNumber, size_t PtrSize)
 {
   size_t BindOffset= 0;
 
-  if (!Ptr)
+  /* This is not quite clear - I'd imagine, that if BindOffset is set, then Ptr can be NULL.
+     Makes perfect sense in case of row-based binding - setting pointers to offset in structure, and BindOffset to the begin of array.
+     One of members would have 0 offset then. But specs are rather against that, and other drivers also don't support such interpretation */
+  if (Ptr == NULL)
+  {
     return NULL;
-
-  if (Desc->Header.BindOffsetPtr)
+  }
+  if (Desc->Header.BindOffsetPtr != NULL)
+  {
     BindOffset= (size_t)*Desc->Header.BindOffsetPtr;
+  }
+
   /* row wise binding */
   if (Desc->Header.BindType == SQL_BIND_BY_COLUMN ||
-      Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+    Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+  {
     BindOffset+= PtrSize * RowNumber;
+  }
   else
+  {
     BindOffset+= Desc->Header.BindType * RowNumber;
+  }
+
   return (char *)Ptr + BindOffset;
 }
 

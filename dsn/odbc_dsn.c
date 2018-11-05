@@ -425,37 +425,68 @@ end:
 	  SQLFreeHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt);
 }
 
-void MADB_WIN_TestDsn(my_bool ShowSuccess)
+
+static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn)
 {
-  MYSQL *mysql= mysql_init(NULL);
   SQLHANDLE Connection= NULL;
-  SQLRETURN ret;
-  MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
-  
-  GetDialogFields();
+  SQLRETURN Result;
+  char * InitCommand= Dsn->InitCommand;
+
+  Dsn->InitCommand= NULL;
 
   SQLAllocHandle(SQL_HANDLE_DBC, Environment, (SQLHANDLE *)&Connection);
   assert(Connection != NULL);
-  
-  ret= ((MADB_Dbc *)Connection)->Methods->ConnectDB((MADB_Dbc *)Connection, Dsn);
+  Result= ((MADB_Dbc *)Connection)->Methods->ConnectDB((MADB_Dbc *)Connection, Dsn);
+
+  Dsn->InitCommand= InitCommand;
+
+  if (Conn != NULL)
+  {
+    *Conn= Connection;
+  }
+  else
+  {
+    SQLDisconnect(Connection);
+    SQLFreeHandle(SQL_HANDLE_DBC, Connection);
+  }
+
+  return Result;
+}
+
+
+void MADB_WIN_TestDsn(my_bool ShowSuccess)
+{
+  SQLHANDLE Connection;
+  SQLRETURN ret;
+  MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
+
+  GetDialogFields();
+
+  ret= TestDSN(Dsn, &Connection);
 
   if (ShowSuccess)
   {
     char Info[1024];
-	if (ret == SQL_SUCCESS)
+    if (SQL_SUCCEEDED(ret))
+    {
       _snprintf(Info, 1024, "Connection successfully established\n\nServer information: %s", mysql_get_server_info(((MADB_Dbc *)Connection)->mariadb));
-    MessageBox(hwndTab[CurrentPage],  (ret == SQL_SUCCESS) ? Info : 
-	         ((MADB_Dbc *)Connection)->Error.SqlErrorMsg, "Connection test",MB_ICONINFORMATION| MB_OK);
+      MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
+    }
+    else
+    {
+      MessageBox(hwndTab[CurrentPage], ((MADB_Dbc *)Connection)->Error.SqlErrorMsg, "Connection test", MB_ICONINFORMATION| MB_OK);
+    }
   }
 
-  if (ret == SQL_SUCCESS)
+  if (SQL_SUCCEEDED(ret))
   {
     ConnectionOK= TRUE;
     DSN_Set_CharacterSets(Connection);
     DSN_Set_Database(Connection);
+
+    SQLDisconnect(Connection);
   }
 
-  SQLDisconnect(Connection);
   SQLFreeHandle(SQL_HANDLE_DBC, Connection);
 }
 
@@ -544,14 +575,14 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   case WM_CTLCOLORDLG:
     if (!hbrBg)
       hbrBg= CreateSolidBrush(RGB(255,255,255));
-      return (LONG)hbrBg;
+      return (INT_PTR)hbrBg;
     break;
    case WM_CTLCOLORSTATIC:
    {
      HDC hdcStatic = (HDC)wParam;
      SetTextColor(hdcStatic, RGB(0, 0, 0));
      SetBkMode(hdcStatic, TRANSPARENT);
-     return (LONG)hbrBg;
+     return (INT_PTR)hbrBg;
   }
   case WM_COMMAND:
     switch(LOWORD(wParam))
@@ -623,7 +654,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   case WM_CTLCOLORDLG:
     if (!hbrBg)
       hbrBg= CreateSolidBrush(RGB(255,255,255));
-      return (LONG)hbrBg;
+      return (INT_PTR)hbrBg;
     break;
   case WM_CLOSE:
     if(MessageBox(hDlg, TEXT("Close the program?"), TEXT("Close"),
@@ -664,6 +695,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   return FALSE;
 }
 
+
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
                        LPVOID lpReserved
@@ -672,6 +704,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
   hInstance= hModule;
   return TRUE;
 }
+
 
 void CenterWindow(HWND hwndWindow)
 {
@@ -691,7 +724,8 @@ void CenterWindow(HWND hwndWindow)
   
 }
 
-my_bool DSNDialog(HWND     hwndParent,
+
+BOOL DSNDialog(HWND     hwndParent,
                   WORD     fRequest,
                   LPCSTR   lpszDriver,
                   LPCSTR   lpszAttributes,
@@ -701,20 +735,18 @@ my_bool DSNDialog(HWND     hwndParent,
   BOOL    ret;
   char    *DsnName=  NULL;
   my_bool DsnExists= FALSE;
+  char    Delimiter= ';';
 
   if (Dsn->isPrompt < 0 || Dsn->isPrompt > MAODBC_PROMPT_REQUIRED)
   {
     Dsn->isPrompt= MAODBC_CONFIG;
   }
 
-  EffectiveDisabledPages=     DisabledPages[Dsn->isPrompt];
-  EffectiveDisabledControls=  DisabledControls[Dsn->isPrompt];
-
   if (lpszAttributes)
+  {
+    Delimiter= '\0';
     DsnName= strchr((char *)lpszAttributes, '=');
-  
-  if (lpszDriver)
-    MADB_DriverGet((char *)lpszDriver);
+  }
 
   if (DsnName)
   {
@@ -723,7 +755,9 @@ my_bool DSNDialog(HWND     hwndParent,
     if (!Dsn->isPrompt && !SQLValidDSN(DsnName))
     {
       if (hwndParent)
+      {
         MessageBox(hwndParent, "Validation of data source name failed", "Error", MB_ICONERROR | MB_OK);
+      }
       return FALSE;
     }
   }
@@ -739,41 +773,86 @@ my_bool DSNDialog(HWND     hwndParent,
 
   /* Even if DsnName invalid(in case of prompt) - we should not have problem */
   DsnExists= MADB_DSN_Exists(DsnName);
- 
-  InitCommonControls();
-
-  if (lpszDriver)
-    Dsn->Driver= _strdup(lpszDriver);
 
   SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &Environment);
   SQLSetEnvAttr(Environment, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
 
-  if (fRequest == ODBC_ADD_DSN)
+  switch (fRequest)
   {
-    if (DsnExists && hwndParent)
-    {
-      if (MessageBox(hwndParent, "Data source name already exists, do you want to replace it?", 
-                      "Question", MB_ICONQUESTION | MB_YESNO) != IDYES)
+    case ODBC_ADD_DSN:
+      if (DsnExists)
+      {
+        if (hwndParent)
+        {
+          if (MessageBox(hwndParent, "Data source name already exists, do you want to replace it?",
+            "Question", MB_ICONQUESTION | MB_YESNO) != IDYES)
+          {
+            return FALSE;
+          }
+        }
+      }
+      
+      MADB_DSN_SetDefaults(Dsn);
+      MADB_ParseConnString(Dsn, (char *)lpszAttributes, SQL_NTS, Delimiter);
+
+      /* Need to set driver after connstring parsing, and before saving */
+      if (lpszDriver)
+      {
+        Dsn->Driver= _strdup(lpszDriver);
+      }
+
+      if (SQL_SUCCEEDED(TestDSN(Dsn, NULL)))
+      {
+        return MADB_SaveDSN(Dsn);
+      }
+      else if (hwndParent == NULL)
+      {
         return FALSE;
-    }
-    Dsn->IsTcpIp= 1;
-  }
-  else
-  {
+      }
+
+      break;
+
+    case ODBC_CONFIG_DSN:
+
     /* i.e. not a prompt */
     if (Dsn->isPrompt == MAODBC_CONFIG && Dsn->SaveFile == NULL)
     {
       if (!DsnExists)
       {
-        MessageBox(0, "Data source name not found", "Error", MB_ICONERROR | MB_OK);
+        if (hwndParent != NULL)
+        {
+          MessageBox(0, "Data source name not found", "Error", MB_ICONERROR | MB_OK);
+        }
         return FALSE;
       }
-      else if (!MADB_ReadDSN(Dsn, (char *)lpszAttributes, TRUE))
+      else if (!MADB_ReadConnString(Dsn, (char *)lpszAttributes, SQL_NTS, Delimiter))
       {
         SQLPostInstallerError(ODBC_ERROR_INVALID_DSN, Dsn->ErrorMsg);
         return FALSE;
       }
+
+      if (hwndParent == NULL)
+      {
+        if (SQL_SUCCEEDED(TestDSN(Dsn, NULL)))
+        {
+          return MADB_SaveDSN(Dsn);
+        }
+        else if (hwndParent == NULL)
+        {
+          return FALSE;
+        }
+      }
     }
+  }
+
+  InitCommonControls();
+
+  EffectiveDisabledPages=     DisabledPages[Dsn->isPrompt];
+  EffectiveDisabledControls=  DisabledControls[Dsn->isPrompt];
+
+  if (fRequest == ODBC_ADD_DSN && Dsn->isPrompt == MAODBC_CONFIG && Dsn->DSNName != NULL)
+  {
+    EffectiveDisabledControls= PromptDisabledControls;
   }
 
   notCanceled= TRUE;
@@ -783,9 +862,6 @@ my_bool DSNDialog(HWND     hwndParent,
   /* Setting first not disabled page */
   CurrentPage= -1;
   SetPage(hwndMain, 1);
-
-  Edit_SetReadOnly(GetDlgItem(hwndTab[0], txtDsnName), 
-                   (hwndParent && DsnName && fRequest == ODBC_ADD_DSN) ? TRUE : FALSE);
 
   SetDialogFields();
   CenterWindow(hwndMain);
@@ -803,8 +879,14 @@ my_bool DSNDialog(HWND     hwndParent,
 
   SQLFreeHandle(SQL_HANDLE_ENV, Environment);
 
+  if (notCanceled && fRequest == ODBC_CONFIG_DSN && DsnName != NULL && strcmp(DsnName, Dsn->DSNName) != 0)
+  {
+    SQLRemoveDSNFromIni(DsnName);
+  }
+
   return notCanceled;
 }
+
 
 BOOL INSTAPI ConfigDSN(
      HWND     hwndParent,

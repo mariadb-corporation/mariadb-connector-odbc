@@ -1031,7 +1031,6 @@ ODBC_TEST(t_bug60646)
         " ,'2011-07-29 17:52:15.0000000009'"                        /*3*/
         " ,'1000-01-01 12:00:00.000000001'"                         /*4*/
         " ,time('2011-12-31 23:59:59.999999')"                      /*5*/
-        " ,ADDTIME('9999-12-31 23:59:59.999999', '1 1:1:1.000002')" /*6*/
         ); 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
@@ -1061,8 +1060,6 @@ ODBC_TEST(t_bug60646)
   /* 5) if time is converted to timestamp - checking if current date is set
         and if fractional part in place. former can actually fail if day is
         being changed */
-
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   {
     time_t sec_time= time(NULL);
     struct tm * cur_tm;
@@ -1076,21 +1073,7 @@ ODBC_TEST(t_bug60646)
     is_num(ts.day, cur_tm->tm_mday);
   }
 
-  is_num(ts.fraction, 999999000);
-
-  /* 6) Expecting an error because of longer date
-        At the moment ADDTIME('9999-12-31 23:59:59.999999', '1 1:1:1.000002')
-        will give you 10000-01-02 01:01:01.000001
-        Fixed in 5.6
-   */
-
-  if (0) //!mysql_min_version(Connection, "5.6.", 4))
-  {
-    FAIL_IF(SQLGetData(Stmt, 6, SQL_C_TYPE_TIMESTAMP, &ts, sizeof(ts),
-                              &len) != SQL_ERROR, "Error expected");
-
-    CHECK_SQLSTATE(Stmt, "22018");
-  }
+  is_num(ts.fraction, 0);
 
   /* 5th col once again This time we get it in time struct. Thus we are
      loosing fractioanl part. Thus the state has to be 01S07 and
@@ -1230,6 +1213,7 @@ ODBC_TEST(t_odbc82)
 ODBC_TEST(t_odbc70)
 {
   SQL_TIMESTAMP_STRUCT ts= { 0 }, ts1= { 0 }, ts2= { 0 };
+  char * ZeroDate= "0000-00-00 00:00:00";
 
   ts.year= 1970;
   ts.month= 1;
@@ -1263,14 +1247,21 @@ ODBC_TEST(t_odbc70)
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22007");
 
+  /* Not sure why is it here 2nd time, but won't hurt */
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22007");
 
-  ts1.year= ts1.month= ts1.day= 0;
+  ts1.year= ts1.month= ts1.day= 1;
   ts.year= ts.month= ts.day= 0;
 
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "22007");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_TIMESTAMP,
+    0, 0, ZeroDate, 0, NULL));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+    CHECK_SQLSTATE(Stmt, "22008");
 
   return OK;
 }

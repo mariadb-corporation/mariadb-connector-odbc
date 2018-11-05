@@ -1911,7 +1911,6 @@ ODBC_TEST(t_bug30958)
   is_num(outlen, 0);
 
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
-#ifdef NEEDS_TO_BE_FIXED
   outmax= 0;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
@@ -1919,7 +1918,6 @@ ODBC_TEST(t_bug30958)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
 
-#endif
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug30958");
@@ -1969,7 +1967,6 @@ ODBC_TEST(t_bug30958_ansi)
   is_num(outbuf[0], 0);
   is_num(outlen, 0);
 
-#ifdef TO_BE_FIXED_LATER
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
   outmax= 0;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
@@ -1977,7 +1974,6 @@ ODBC_TEST(t_bug30958_ansi)
   outmax= 1;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
-#endif
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug30958");
@@ -2027,7 +2023,7 @@ ODBC_TEST(t_bug30958_wchar)
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax, &outlen));
   is_num(outbuf[0], 0);
   is_num(outlen, 0);
-#ifdef TO_BE_FIXED_LATER
+
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
   outmax= 0;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
@@ -2035,7 +2031,7 @@ ODBC_TEST(t_bug30958_wchar)
   outmax= 1; /* outmax greater than 0, but less than sizeof(SQLWCHAR) */
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
-#endif
+
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug30958");

@@ -26,7 +26,8 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
-SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber);
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER DataPtr, SQLLEN *Length, SQLLEN *Ind,
+                                 SQLSMALLINT CType, SQLSMALLINT SqlType);
 int  MADB_GetWCharType(int Type);
 my_bool MADB_get_single_row(MADB_Dbc *Connection,
                             const char *StmtString,

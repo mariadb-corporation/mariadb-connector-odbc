@@ -370,8 +370,10 @@ ODBC_TEST(t_bug50195)
 
 ODBC_TEST(t_sqlprocedurecolumns)
 {
+  SQLHDBC   Hdbc1;
+  SQLHSTMT  Hstmt1;
   SQLRETURN rc= 0;
-  SQLCHAR szName[255]= {0};
+  SQLCHAR   szName[255]= {0};
 
   typedef struct 
   {
@@ -394,7 +396,7 @@ ODBC_TEST(t_sqlprocedurecolumns)
     unsigned long c17_char_octet_length;
     int c18_ordinal_position;
     char *c19_is_nullable;
-  }sqlproccol;
+  } sqlproccol;
 
   int total_params= 0, iter= 0;
 
@@ -582,74 +584,79 @@ ODBC_TEST(t_sqlprocedurecolumns)
     *data_to_check;
   int i;
 
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test1");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test2");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test2_noparam");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test3");
-  OK_SIMPLE_STMT(Stmt, "drop function if exists procedure_columns_test4_func");
-  OK_SIMPLE_STMT(Stmt, "drop function if exists procedure_columns_test4_func_noparam");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test5");
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc1));
+  /* Since results(buffer length) depends on connection charset, and expected that is a single-byte charset, we need to ensure that */
+  Hstmt1= ConnectWithCharset(&Hdbc1, "latin1", NULL);
+  FAIL_IF(Hstmt1 == NULL, "Could not establish connection or allocate stmt handle");
 
-  OK_SIMPLE_STMT(Stmt, "create procedure procedure_columns_test1(IN re_param1 TINYINT, OUT re_param2 SMALLINT," \
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test1");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test2");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test2_noparam");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test3");
+  OK_SIMPLE_STMT(Hstmt1, "drop function if exists procedure_columns_test4_func");
+  OK_SIMPLE_STMT(Hstmt1, "drop function if exists procedure_columns_test4_func_noparam");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test5");
+
+  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test1(IN re_param1 TINYINT, OUT re_param2 SMALLINT," \
                 "re_param3 MEDIUMINT, INOUT `re_param 4` INT UNSIGNED, OUT re_param5 BIGINT, re_param6 FLOAT(4,2)," \
                 "OUT re_param7 DOUBLE(5,2), IN re_param8 DECIMAL(10,3) unSIGned, re_param9 CHAR(32)," \
                 "Out re_param10 VARCHAR(64) charset utf8, ignore_param INT, re_param11 long VARBINARY, re_param12 double, re_param13 float)" \
                 "begin end;"
                 );
-  OK_SIMPLE_STMT(Stmt, "create procedure procedure_columns_test2(IN re_paramA bloB," \
+  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test2(IN re_paramA bloB," \
                 "IN re_paramB LONGBLOB, inout re_paramC TinyBlob, re_paramD mediumblob, IN re_paramE varbinary(128)," \
                 "OUT re_paramF binary, re_paramG binary(8), `re_param H` LONG VARCHAR, IN re_paramI TEXT," \
                 "re_paramJ mediumtext, INOUT re_paramK longtext, re_paramL tinytext, re_paramM numeric(8,2))" \
                 "begin end;"
                 );
-  OK_SIMPLE_STMT(Stmt, "create procedure procedure_columns_test2_noparam()"\
+  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test2_noparam()"\
                 "begin end;"
                 );
   
-  OK_SIMPLE_STMT(Stmt, "create procedure procedure_columns_test3(IN re_param_00 datetime,"\
+  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test3(IN re_param_00 datetime,"\
                 "OUT re_param_01 date, OUT re_param_02 time, INOUT re_param_03 timestamp,"\
                 "re_param_04 year)" \
                 "begin end;"
                 );
 
-  OK_SIMPLE_STMT(Stmt, "create function procedure_columns_test4_func(re_paramF int) returns varchar(32) deterministic "\
+  OK_SIMPLE_STMT(Hstmt1, "create function procedure_columns_test4_func(re_paramF int) returns varchar(32) deterministic "\
                 "begin return CONCAT('abc', paramF); end;"
                 );
 
-  OK_SIMPLE_STMT(Stmt, "create function procedure_columns_test4_func_noparam() returns varchar(32) deterministic "\
+  OK_SIMPLE_STMT(Hstmt1, "create function procedure_columns_test4_func_noparam() returns varchar(32) deterministic "\
                 "begin return 'abc'; end;"
                 );
 
-  OK_SIMPLE_STMT(Stmt, "create procedure procedure_columns_test5(IN re_param_set_01 SET('', \"one\", 'two', 'three'),"\
+  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test5(IN re_param_set_01 SET('', \"one\", 'two', 'three'),"\
                 "OUT re_param_enum_02 ENUM('', \"one\", 'tw)o', 'three m'))" \
                 "begin end;"
                 );
 
-  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, NULL, 0, NULL, 0,
+  CHECK_STMT_RC(Hstmt1, SQLProcedureColumns(Hstmt1, NULL, 0, NULL, 0,
                                      "procedure_columns_test%", SQL_NTS, 
                                      "re_%", SQL_NTS));
   data_to_check= re_names;
   for (i= 0; i < 2; ++i)
   {
-    while(SQLFetch(Stmt) == SQL_SUCCESS)
+    while(SQLFetch(Hstmt1) == SQL_SUCCESS)
       {
         SQLCHAR buff[255] = {0}, *param_cat, *param_name;
         SQLUINTEGER col_size, buf_len, octet_len;
 
-        param_cat= (SQLCHAR*)my_fetch_str(Stmt, buff, 1);
+        param_cat= (SQLCHAR*)my_fetch_str(Hstmt1, buff, 1);
         IS_STR(param_cat, data_to_check[iter].c01_procedure_cat, 
                strlen(data_to_check[iter].c01_procedure_cat) + 1);
 
-        IS_STR(my_fetch_str(Stmt, buff, 3), 
+        IS_STR(my_fetch_str(Hstmt1, buff, 3), 
                data_to_check[iter].c03_procedure_name, 
                strlen(data_to_check[iter].c03_procedure_name) + 1);
 
-        param_name= (SQLCHAR*)my_fetch_str(Stmt, buff, 4);
+        param_name= (SQLCHAR*)my_fetch_str(Hstmt1, buff, 4);
         diag("%s.%s", param_cat, param_name);
         IS_STR(param_name, data_to_check[iter].c04_column_name, 
                strlen(data_to_check[iter].c04_column_name) + 1);
 
-        is_num(my_fetch_int(Stmt, 5), data_to_check[iter].c05_column_type);
+        is_num(my_fetch_int(Hstmt1, 5), data_to_check[iter].c05_column_type);
 
         if (OdbcVer == SQL_OV_ODBC2)
         {
@@ -660,55 +667,59 @@ ODBC_TEST(t_sqlprocedurecolumns)
           case SQL_TYPE_DATE: data_to_check[iter].c06_data_type= SQL_DATE; break;
           }
         }
-        is_num(my_fetch_int(Stmt, 6), data_to_check[iter].c06_data_type);
+        is_num(my_fetch_int(Hstmt1, 6), data_to_check[iter].c06_data_type);
 
-        IS_STR(my_fetch_str(Stmt, buff, 7), 
+        IS_STR(my_fetch_str(Hstmt1, buff, 7), 
                data_to_check[iter].c07_type_name, 
                strlen(data_to_check[iter].c07_type_name) + 1);
 
-        col_size= my_fetch_int(Stmt, 8);
+        col_size= my_fetch_int(Hstmt1, 8);
         is_num(col_size, data_to_check[iter].c08_column_size);
 
-        buf_len= my_fetch_int(Stmt, 9);
+        buf_len= my_fetch_int(Hstmt1, 9);
         is_num(buf_len, data_to_check[iter].c09_buffer_length);
 
         diag("Iter: %d", iter);
-        is_num(my_fetch_int(Stmt, 10), data_to_check[iter].c10_decimal_digits);
+        is_num(my_fetch_int(Hstmt1, 10), data_to_check[iter].c10_decimal_digits);
     
-        is_num(my_fetch_int(Stmt, 11), data_to_check[iter].c11_num_prec_radix);
+        is_num(my_fetch_int(Hstmt1, 11), data_to_check[iter].c11_num_prec_radix);
 
-        is_num(my_fetch_int(Stmt, 15), data_to_check[iter].c15_sql_data_type);
+        is_num(my_fetch_int(Hstmt1, 15), data_to_check[iter].c15_sql_data_type);
 
-        is_num(my_fetch_int(Stmt, 16), data_to_check[iter].c16_sql_datetime_sub);
+        is_num(my_fetch_int(Hstmt1, 16), data_to_check[iter].c16_sql_datetime_sub);
 
-        octet_len= my_fetch_int(Stmt, 17);
+        octet_len= my_fetch_int(Hstmt1, 17);
         is_num(octet_len, data_to_check[iter].c17_char_octet_length);
 
-        is_num(my_fetch_int(Stmt, 18), data_to_check[iter].c18_ordinal_position);
+        is_num(my_fetch_int(Hstmt1, 18), data_to_check[iter].c18_ordinal_position);
 
-        IS_STR(my_fetch_str(Stmt, buff, 19), 
+        IS_STR(my_fetch_str(Hstmt1, buff, 19), 
                data_to_check[iter].c19_is_nullable, 
                strlen(data_to_check[iter].c19_is_nullable + 1));
 
         ++iter;
       }
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    CHECK_STMT_RC(Hstmt1, SQLFreeStmt(Hstmt1, SQL_CLOSE));
     iter= 0;
     if (i == 0)
     {
-      CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, NULL, 0, NULL, 0,
+      CHECK_STMT_RC(Hstmt1, SQLProcedureColumns(Hstmt1, NULL, 0, NULL, 0,
         "procedure_columns_test%", SQL_NTS,
         "", SQL_NTS));
       data_to_check= empty_name;
     }
   }
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test1");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test2");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test2_noparam");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test3");
-  OK_SIMPLE_STMT(Stmt, "drop function if exists procedure_columns_test4_func");
-  OK_SIMPLE_STMT(Stmt, "drop function if exists procedure_columns_test4_func_noparam");
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists procedure_columns_test5");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test1");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test2");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test2_noparam");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test3");
+  OK_SIMPLE_STMT(Hstmt1, "drop function if exists procedure_columns_test4_func");
+  OK_SIMPLE_STMT(Hstmt1, "drop function if exists procedure_columns_test4_func_noparam");
+  OK_SIMPLE_STMT(Hstmt1, "drop procedure if exists procedure_columns_test5");
+
+  CHECK_STMT_RC(Hstmt1, SQLFreeStmt(Hstmt1, SQL_DROP));
+  CHECK_DBC_RC(Hdbc1, SQLDisconnect(Hdbc1));
+  CHECK_DBC_RC(Hdbc1, SQLFreeConnect(Hdbc1));
 
   return OK;
 }

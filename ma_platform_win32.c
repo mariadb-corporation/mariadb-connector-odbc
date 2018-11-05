@@ -310,3 +310,11 @@ void MADB_SetDefaultPluginsDir(MYSQL *mariadb)
     }
   }
 }
+
+/* {{{ MADB_DSN_PossibleConnect() */
+BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
+{
+  return Dsn->ServerName && (Dsn->IsNamedPipe || Dsn->Port > 0);
+}
+/* }}} */
+
