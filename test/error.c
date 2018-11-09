@@ -690,6 +690,47 @@ ODBC_TEST(t_odbc123)
 }
 
 
+ODBC_TEST(t_odbc43)
+{
+  char *TimeWithFraction= "00:00:00.123", *DateWithTime= "2018-11-06 00:00:00.01",
+    *GoodTime= "14:24:33.00", *GoodDate= "2002-02-02 00:00:00";
+  SQLLEN Len= SQL_NTS;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc43");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc43 (d DATE, t TIME)");
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_odbc43(d, t) \
+                                        VALUES (?, ?)", SQL_NTS));
+
+  /* First valid values */
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_DATE,
+    0, 0, GoodDate, 0, &Len));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
+    SQL_TIME, 0, 0, GoodTime, 0, &Len));
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_DATE,
+    0, 0, DateWithTime, 0, &Len));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
+    SQL_TIME, 0, 0, GoodTime, 0, &Len));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22008");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_DATE,
+    0, 0, GoodDate, 0, &Len));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
+    SQL_TIME, 0, 0, TimeWithFraction, 0, &Len));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22008");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc43");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_odbc3_error, "t_odbc3_error"},
@@ -710,7 +751,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug49466, "t_bug49466"},
   {t_odbc94,   "t_odbc94"},
   {t_odbc115, "t_odbc115"},
-  { t_odbc123, "t_odbc123" },
+  {t_odbc123, "t_odbc123"},
+  {t_odbc43, "t_odbc43_datetime_overflow"},
   {NULL, NULL}
 };
 
