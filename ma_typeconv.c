@@ -74,7 +74,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
   {
     size_t FracMulIdx= End - (Frac + 1) - 1/*to get index array index */;
     /* ODBC - nano-seconds */
-    if (sscanf(Start, "%hd:%hu:%hu.%9lu", &Ts->hour, &Ts->minute,
+    if (sscanf(Start, "%hd:%hu:%hu.%9u", &Ts->hour, &Ts->minute,
       &Ts->second, &Ts->fraction) < 4)
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);

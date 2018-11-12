@@ -3491,12 +3491,14 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
     MADB_FixColumnDataTypes(Stmt, SqlColumnsColType);
   }
 
+  MADB_FREE(ColumnsPart);
   MADB_DynstrFree(&StmtStr);
   MDBUG_C_DUMP(Stmt->Connection, ret, d);
 
   return ret;
 
 dynerror:
+  MADB_FREE(ColumnsPart);
   MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   return Stmt->Error.ReturnValue;
 }
