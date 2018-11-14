@@ -506,7 +506,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   MADB_Stmt *Stmt;
   SQLRETURN ret;
   SQLLEN Size;
-  char Buffer[65 * sizeof(WCHAR)];
+  char Buffer[65 * sizeof(SQLWCHAR)];
 
   MADB_CLEAR_ERROR(&Connection->Error);
   ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, (SQLHANDLE*)&Stmt);

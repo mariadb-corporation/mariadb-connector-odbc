@@ -20,21 +20,42 @@
 # Cmake script to look for driver manager includes and libraries on platforms others than Windows
 # We expect that the driver manager is UnixODBC
 
-FIND_PROGRAM(ODBC_CONFIG odbc_config
+IF(WITH_IODBC)
+  SET(ODBC_CONFIG_EXEC iodbc-config)
+  SET(ODBC_CONFIG_INCLUDES --cflags)
+  SET(ODBC_CONFIG_LIBS --libs)
+  SET(ODBC_LIBS iodbc)
+  SET(ODBC_INSTLIBS iodbcinst)
+ELSE() #UnixODBC
+  SET(ODBC_CONFIG_EXEC odbc_config)
+  SET(ODBC_CONFIG_INCLUDES --include-prefix)
+  SET(ODBC_CONFIG_LIBS --lib-prefix)
+  SET(ODBC_LIBS odbc)
+  SET(ODBC_INSTLIBS odbcinst)
+ENDIF()
+
+FIND_PROGRAM(ODBC_CONFIG ${ODBC_CONFIG_EXEC}
              PATH
              /usr/bin
              ${DM_DIR}
              )
 
 IF(ODBC_CONFIG)
-  MESSAGE(STATUS "Found odbc_config: ${ODBC_CONFIG}")
-  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} --include-prefix 
+  MESSAGE(STATUS "Found ${ODBC_CONFIG_EXEC}: ${ODBC_CONFIG}")
+  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} ${ODBC_CONFIG_INCLUDES} 
                   OUTPUT_VARIABLE result)
   STRING(REPLACE "\n" "" ODBC_INCLUDE_DIR ${result})
-  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} --lib-prefix 
+  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} ${ODBC_CONFIG_LIBS} 
                   OUTPUT_VARIABLE result)
   STRING(REPLACE "\n" "" ODBC_LIB_DIR ${result})
+
+  IF(WITH_IODBC)
+    STRING(REPLACE "-I" "" ODBC_INCLUDE_DIR ${ODBC_INCLUDE_DIR})
+    STRING(REPLACE "-L" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
+    STRING(REPLACE " -liodbc -liodbcinst" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
+  ENDIF()
 ELSE()
+  MESSAGE(STATUS "${ODBC_CONFIG_EXEC} is not found ")
   # Try to find the include directory, giving precedence to special variables
   SET(LIB_PATHS /usr/local /usr)
 
@@ -59,7 +80,7 @@ ELSE()
             ENV DM_DIR
       PATHS /usr/local
             /usr
-      PATH_SUFFIXES include
+      PATH_SUFFIXES include include/iodbc
       NO_DEFAULT_PATH
       DOC "Driver Manager Includes")
   # Giving chance to cmake_(environment)path
@@ -69,9 +90,8 @@ ELSE()
   IF(ODBC_INCLUDE_DIR)
     MESSAGE(STATUS "Found ODBC Driver Manager includes: ${ODBC_INCLUDE_DIR}")
   ENDIF()
-
   # Try to find DM libraries, giving precedence to special variables
-  FIND_PATH(ODBC_LIB_DIR libodbc.so
+  FIND_PATH(ODBC_LIB_DIR "lib${ODBC_LIBS}.so"
       HINTS ${DM_LIB_DIR}
             ${DM_DIR}
             ENV DM_LIB_DIR
@@ -80,9 +100,9 @@ ELSE()
       PATH_SUFFIXES ${LIB_SUFFIX} 
       NO_DEFAULT_PATH
       DOC "Driver Manager Libraries")
-  FIND_PATH(ODBC_LIB_DIR libodbc.so
+  FIND_PATH(ODBC_LIB_DIR "lib${ODBC_LIBS}.so"
       DOC "Driver Manager Libraries")
-  FIND_PATH(ODBCINST_LIB_DIR libodbcinst.so
+  FIND_PATH(ODBCINST_LIB_DIR "lib${ODBC_INSTLIBS}.so"
       HINTS ${DM_LIB_DIR}
             ${DM_DIR}
             ENV DM_LIB_DIR
@@ -91,11 +111,11 @@ ELSE()
       PATH_SUFFIXES ${LIB_SUFFIX} 
       NO_DEFAULT_PATH
       DOC "Driver Manager Libraries")
-  FIND_PATH(ODBCINST_LIB_DIR libodbcinst.so
+  FIND_PATH(ODBCINST_LIB_DIR "lib${ODBC_INSTLIBS}.so"
       DOC "Driver Manager Libraries")
 ENDIF()
 
 IF(ODBC_LIB_DIR AND ODBC_INCLUDE_DIR)
-  MESSAGE(STATUS "Found ODBC Driver Manager libraries: ${ODBC_LIB_DIR} ${ODBC_LIB_DIR}")
+  MESSAGE(STATUS "Found ODBC Driver Manager libraries: ${ODBC_LIB_DIR} ${ODBCINST_LIB_DIR}")
   SET(DM_FOUND TRUE)
 ENDIF()
