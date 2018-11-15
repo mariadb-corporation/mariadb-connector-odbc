@@ -44,7 +44,6 @@ ELSE()
   SET(GUID_PLUGINS "B6355F5E-FA0B-427a-AC77-BC145887D11B")
   SET(GUID_PLUGINS_DEBUG "B2CB2291-249C-4258-83CB-A3E9C4DC9CFE")
 ENDIF()
-
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
                ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)
 IF(${revno})

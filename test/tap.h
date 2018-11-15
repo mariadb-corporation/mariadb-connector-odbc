@@ -141,7 +141,7 @@ static int Travis= 0;
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
 
-static MARIADB_CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL;
+static MARIADB_CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL, *DmUnicode= NULL;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -841,19 +841,28 @@ int run_tests(MA_ODBC_TESTS *tests)
   utf16= mariadb_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
   utf32= little_endian() ? &fakeUtf32le : mariadb_get_charset_by_name("utf32");
 
+  if (sizeof(SQLWCHAR) == 4)
+  {
+    DmUnicode= utf32;
+  }
+  else
+  {
+    DmUnicode= utf16;
+  }
+
   if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
   {
     fprintf(stdout, "HALT! Could not load charset info %p %p %p\n", utf8, utf16, utf32);
     return 1;
   }
 
-  wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, utf16);
-  wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, utf16);
-  wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, utf16);
-  wschema=     str2sqlwchar_on_gbuff(my_schema,     strlen(my_schema) + 1,     utf8, utf16);
-  wservername= str2sqlwchar_on_gbuff(my_servername, strlen(my_servername) + 1, utf8, utf16);
-  wdrivername= str2sqlwchar_on_gbuff(my_drivername, strlen(my_drivername) + 1, utf8, utf16);
-  wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, utf16);
+  wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, DmUnicode);
+  wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, DmUnicode);
+  wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, DmUnicode);
+  wschema=     str2sqlwchar_on_gbuff(my_schema,     strlen(my_schema) + 1,     utf8, DmUnicode);
+  wservername= str2sqlwchar_on_gbuff(my_servername, strlen(my_servername) + 1, utf8, DmUnicode);
+  wdrivername= str2sqlwchar_on_gbuff(my_drivername, strlen(my_drivername) + 1, utf8, DmUnicode);
+  wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, DmUnicode);
 
   if (getenv("TRAVIS") != NULL)
   {
@@ -1117,7 +1126,7 @@ wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
 */
 /*#define WC(string) dup_char_as_sqlwchar((string))*/
 /* Char(utf8) to slqWchar */
-#define CW(str) str2sqlwchar_on_gbuff(str, strlen(str)+1, utf8, utf16)
+#define CW(str) str2sqlwchar_on_gbuff(str, strlen(str)+1, utf8, DmUnicode)
 
 /* @n[in] - number of characters to compare. Negative means treating of strings as null-terminated */
 int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)

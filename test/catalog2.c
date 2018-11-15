@@ -1379,8 +1379,8 @@ ODBC_TEST(odbc185)
   {
     CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
     my_fetch_str(hstmt1, buff, COLUMN_NAME);
-    is_num(my_fetch_int(hstmt1, DATA_TYPE), expecteda[i]);
-    is_num(my_fetch_int(hstmt1, SQL_DATA_TYPE  /* SQL_DATA_TYPE */), expecteda[i]);
+    is_num(my_fetch_int(hstmt1, DATA_TYPE), expectedw[i]);
+    is_num(my_fetch_int(hstmt1, SQL_DATA_TYPE  /* SQL_DATA_TYPE */), expectedw[i]);
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     my_fetch_str(Stmt, buff, COLUMN_NAME);

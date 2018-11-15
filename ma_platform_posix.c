@@ -26,7 +26,7 @@
 #include <ma_odbc.h>
 #include <stdarg.h>
 
-extern MARIADB_CHARSET_INFO *utf16;
+extern MARIADB_CHARSET_INFO *DmUnicodeCs;
 extern Client_Charset utf8;
 
 char LogFile[256];
@@ -127,9 +127,9 @@ SQLINTEGER SqlwcsOctetLen(const SQLWCHAR *str, SQLINTEGER *CharLen)
   {
     while (inChars > 0 || inChars < 0 && *str)
     {
-      result+= utf16->mb_charlen(*str);
+      result+= DmUnicodeCs->mb_charlen(*str);
       --inChars;
-      str+= utf16->mb_charlen(*str)/sizeof(SQLWCHAR);
+      str+= DmUnicodeCs->mb_charlen(*str)/sizeof(SQLWCHAR);
     }
   }
 
@@ -165,7 +165,7 @@ SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset*
   {
     size_t wstr_octet_len= sizeof(SQLWCHAR) * (PtrLength + 1);
     /* TODO: Need error processing. i.e. if mariadb_convert_string returns -1 */
-    mariadb_convert_string(Ptr, &Length, cc->cs_info, (char*)WStr, &wstr_octet_len, utf16, NULL);
+    mariadb_convert_string(Ptr, &Length, cc->cs_info, (char*)WStr, &wstr_octet_len, DmUnicodeCs, NULL);
   }
 
   return WStr;
@@ -212,7 +212,7 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
   if (!(AscStr = (char *)MADB_CALLOC(AscLen)))
     return NULL;
 
-  AscLen= mariadb_convert_string((char*)Ptr, &PtrOctetLen, utf16, AscStr, &AscLen, cc->cs_info, Error);
+  AscLen= mariadb_convert_string((char*)Ptr, &PtrOctetLen, DmUnicodeCs, AscStr, &AscLen, cc->cs_info, Error);
 
   if (AscLen != (size_t)-1)
   {
@@ -286,7 +286,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
   dest_octet_len= sizeof(SQLWCHAR) * RequiredLength;
 
   RequiredLength= mariadb_convert_string(AnsiString, &src_octet_len, cc->cs_info, 
-                                        (char*)Tmp, &dest_octet_len, utf16, &error);
+                                        (char*)Tmp, &dest_octet_len, DmUnicodeCs, &error);
 
   if (RequiredLength < 1)
   {

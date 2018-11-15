@@ -19,7 +19,8 @@
 #include <ma_odbc.h>
 
 extern Client_Charset utf8;
-extern MARIADB_CHARSET_INFO*  utf16;
+extern MARIADB_CHARSET_INFO* DmUnicodeCs;
+extern MARIADB_CHARSET_INFO  dummyUtf32le;
 Client_Charset SourceAnsiCs= {0, 0}; /* Basically it should be initialized with 0 anyway */
 
 MARIADB_CHARSET_INFO * mysql_find_charset_name(const char *name);
@@ -99,9 +100,16 @@ MADB_Env *MADB_EnvInit()
   Env->OdbcVersion= SQL_OV_ODBC3;
 
   /* This is probably is better todo with thread_once */
-  if (utf16 == NULL)
+  if (DmUnicodeCs == NULL)
   {
-    utf16= mariadb_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
+    if (sizeof(SQLWCHAR) == 2)
+    {
+      DmUnicodeCs= mariadb_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
+    }
+    else
+    {
+      DmUnicodeCs= little_endian() ? &dummyUtf32le : mariadb_get_charset_by_name("utf32");
+    }
   }
   utf8.cs_info= mariadb_get_charset_by_name("utf8");
   GetDefaultLogDir();

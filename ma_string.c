@@ -18,7 +18,7 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
-extern MARIADB_CHARSET_INFO*  utf16;
+extern MARIADB_CHARSET_INFO*  DmUnicodeCs;
 
 char *MADB_GetTableName(MADB_Stmt *Stmt)
 {
@@ -531,7 +531,7 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
   {
     while (str < end && *str)
     {
-      str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR);
+      str+= (DmUnicodeCs->mb_charlen(*str))/sizeof(SQLWCHAR);
 
       if (str > end)
       {

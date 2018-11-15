@@ -34,7 +34,7 @@
       <Directory Id="@FOLDER@">
         <Directory Id="MariaDB" Name="@PRODUCT_MANUFACTURER@">
           <Directory Id="INSTALLFOLDER" Name="@PRODUCT_NAME@">
-            <Directory Id="PLUGINSFOLDER" Name="@plugins_subdir_name@" />
+            <Directory Id="PLUGINSFOLDER" Name="$(var.plugins_subdir_name)" />
           </Directory>
         </Directory>
       </Directory>

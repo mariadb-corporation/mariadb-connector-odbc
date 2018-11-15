@@ -992,7 +992,9 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
   MADB_Dbc    *Dbc=         (MADB_Dbc *)ConnectionHandle;
    
   if (!ConnectionHandle)
+  {
     return SQL_INVALID_HANDLE;
+  }
 
   MDBUG_C_ENTER(Dbc, "SQLDriverConnectW");
 
