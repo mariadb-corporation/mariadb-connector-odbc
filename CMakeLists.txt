@@ -341,7 +341,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
       COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
                                     -DTEST_DRIVER=${TEST_DRIVER}
                                     -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbcinst.ini
+                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
                                     -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
                        )
 
@@ -355,7 +355,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
                                     -DTEST_UID=${TEST_UID}
                                     -DTEST_PASSWORD=${TEST_PASSWORD}
                                     -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbc.ini
+                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
                                     -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
                        )
   ENDIF()
