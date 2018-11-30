@@ -2004,7 +2004,7 @@ ODBC_TEST(t_bug30958_wchar)
   */
   outlen= 99;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
-                                &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
+                                &outlen)!= SQL_SUCCESS_WITH_INFO, "SQL_SUCCESS_WITH_INFO expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
   CHECK_SQLSTATE(Stmt, "01004");
@@ -2012,7 +2012,7 @@ ODBC_TEST(t_bug30958_wchar)
   /* expect the same result, and not SQL_NO_DATA */
   outlen= 99;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
-                                &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
+                                &outlen)!= SQL_SUCCESS_WITH_INFO, "SQL_SUCCESS_WITH_INFO expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
   CHECK_SQLSTATE(Stmt, "01004");
@@ -2316,7 +2316,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29239, "t_bug29239",     NORMAL},
   {t_bug30958, "t_bug30958",     NORMAL},
   {t_bug30958_ansi, "t_bug30958_ansi",     NORMAL},
-  {t_bug30958_wchar, "t_bug30958_wchar",     KNOWN_FAILURE},
+  {t_bug30958_wchar, "t_bug30958_wchar",   NORMAL},
   {t_bug31246, "t_bug31246",     NORMAL},
   {t_bug13776, "t_bug13776",     NORMAL},
   {t_bug13776_auto, "t_bug13776_auto",     NORMAL},

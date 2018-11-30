@@ -2667,6 +2667,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
             Stmt->Lengths[Offset]= (unsigned long)(CharLength*sizeof(SQLWCHAR));
           }
         }
+        else if (BufferLength >= sizeof(SQLWCHAR))
+        {
+          *(SQLWCHAR*)TargetValuePtr= 0;
+        }
       }
       else  /* IrdRec->InternalBuffer == NULL && Stmt->Lengths[Offset] == 0 */
       {
