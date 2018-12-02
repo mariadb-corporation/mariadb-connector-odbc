@@ -20,6 +20,7 @@
 #define _ma_helper_h_
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
+MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt);
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);

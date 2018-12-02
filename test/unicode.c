@@ -1482,6 +1482,76 @@ ODBC_TEST(t_odbc72)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc203)
+{
+  wchar_t Query[][80]= {L"SELECT 1 Col1; SELECT * from t_odbc203", L"SELECT * from t_odbc203 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc203",
+                        L"INSERT INTO t_odbc203 VALUES(8, 7, 'Row #4');SELECT * from t_odbc203"};
+  wchar_t Expected[][3][7]={{L"1", L"", L""},        /* RS 1*/
+                            {L"1", L"2", L"Row 1"},  /* RS 2*/
+                            {L"3", L"4", L"Row 2"},
+                            {L"5", L"6", L"Row 3"},
+                            {L"5", L"6", L"Row 3"},  /* RS 3*/
+                            {L"3", L"4", L"Row 2"},
+                            {L"1", L"2", L"Row 1"},
+                            {L"Row 1", L"2" , L""},  /* RS 4*/
+                            {L"Row 2", L"4" , L""},
+                            {L"Row 3", L"6" , L""},
+
+                            //{L"---", L"--", L"--"},  /* RS 5 - placeholder, that RS is empty */
+                            {L"1", L"2", L"Row 1"},  /* RS 6*/
+                            {L"3", L"4", L"Row 2"},
+                            {L"5", L"6", L"Row 3"},
+                            {L"8", L"7", L"Row #4"}
+                           };
+  unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0, 0};
+  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3, 1};
+  SQLRETURN rc;
+  SQLSMALLINT Column, Row= 0;
+  SQLWCHAR    ColumnData[MAX_ROW_DATA_LEN]= {0};
+
+  OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE IF EXISTS t_odbc203"));
+
+  OK_SIMPLE_STMTW(wStmt, WW("CREATE TABLE t_odbc203(col1 INT, col2 INT, col3 varchar(32) not null)"));
+
+  OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc203 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')"));
+
+  for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
+  {
+    OK_SIMPLE_STMTW(wStmt, W(Query[i]));
+
+    do {
+      CHECK_STMT_RC(wStmt, SQLRowCount(wStmt, &Rows));
+      is_num(Rows, ExpRowCount[RsIndex]);
+      CHECK_STMT_RC(wStmt, SQLNumResultCols(wStmt, &ColumnsCount));
+      is_num(ColumnsCount, expCols[RsIndex]);
+
+      Rows= 0;
+      while (SQL_SUCCEEDED(SQLFetch(wStmt)))
+      {
+        for (Column= 0; Column < ColumnsCount; ++Column)
+        {
+          IS_WSTR(my_fetch_wstr(wStmt, ColumnData, Column + 1, sizeof(ColumnData)), W(Expected[Row][Column]), wcslen(Expected[Row][Column]));
+        }
+        ++Row;
+        ++Rows;
+      }
+      is_num(Rows, ExpectedRows[RsIndex]);
+
+      rc= SQLMoreResults(wStmt);
+      ++RsIndex;
+    } while (rc != SQL_NO_DATA);
+
+    CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+  }
+
+  OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE t_odbc203"));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1,        "test_CONO1",         NORMAL},
@@ -1511,6 +1581,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug14363601,     "t_bug14363601",      NORMAL},
   {t_odbc19,          "test_issue_odbc19",  NORMAL},
   {t_odbc72,          "odbc72_surrogate_pairs",  NORMAL},
+  {t_odbc203,         "t_odbc203",          NORMAL},
   {NULL, NULL}
 };
 
@@ -1520,5 +1591,5 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
-  return run_tests(my_tests);
+  return run_tests_ex(my_tests, TRUE);
 }

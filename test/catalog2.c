@@ -314,7 +314,7 @@ ODBC_TEST(t_bug50195)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  hstmt1= DoConnect(hdbc1, my_dsn, "bug50195", "a",  0, NULL, NULL, NULL, NULL);
+  hstmt1= DoConnect(hdbc1, FALSE, my_dsn, "bug50195", "a",  0, NULL, NULL, NULL, NULL);
 
   if (hstmt1 == NULL)
   {

@@ -38,6 +38,23 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 }
 
 
+MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt)
+{
+  static const my_bool UpdateMaxLength= 1;
+  MYSQL_STMT* stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+
+  if (stmt != NULL)
+  {
+    mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+  }
+  else
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+
+  return stmt;
+}
+
 /* Required, but not sufficient condition */
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query)
 {
@@ -75,7 +92,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   while (p < Stmt->Query.RefinedText + Stmt->Query.RefinedLength)
   {
-    Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : mysql_stmt_init(Stmt->Connection->mariadb);
+    Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : MADB_NewStmtHandle(Stmt);
     MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
 
     if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
@@ -88,7 +105,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
          prepare "multi-statement". */
       if (i == 0 && Stmt->Error.NativeError !=1295 /*ER_UNSUPPORTED_PS*/)
       {
-        Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+        Stmt->stmt= MADB_NewStmtHandle(Stmt);
         if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
         {
           mysql_stmt_close(Stmt->stmt);

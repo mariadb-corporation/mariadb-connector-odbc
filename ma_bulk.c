@@ -151,7 +151,7 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
     MaBind->length= MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long));
     if (MaBind->length == NULL)
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);;
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     }
   }
 

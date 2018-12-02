@@ -19,8 +19,6 @@
 #include <ma_odbc.h>
 
 struct st_ma_stmt_methods MADB_StmtMethods; /* declared at the end of file */
-static my_bool UpdateMaxLength= 1;
-
 
 /* {{{ MADB_StmtInit */
 SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
@@ -36,7 +34,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
  
   LOCK_MARIADB(Connection);
 
-  if (!(Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb)) ||
+  if (!(Stmt->stmt= MADB_NewStmtHandle(Stmt)) ||
     !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
     !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
     !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
@@ -46,7 +44,6 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   }
 
   MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-  mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
 
   Stmt->PutParam= -1;
   Stmt->Methods= &MADB_StmtMethods;
@@ -393,8 +390,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
       mysql_stmt_close(Stmt->stmt);
-      Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-      mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+      Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
       MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
     }
@@ -402,8 +398,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
   else
   {
     CloseMultiStatements(Stmt);
-    Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-    mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+    Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
     MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
   }
@@ -474,8 +469,8 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
     mysql_stmt_close(Stmt->stmt);
 
-    Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-    mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+    Stmt->stmt= MADB_NewStmtHandle(Stmt);
+
     UNLOCK_MARIADB(Stmt->Connection);
 
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_init(%0x)->%0x", Stmt->Connection->mariadb, Stmt->stmt);
@@ -1082,7 +1077,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         }
         if (StatementNr > 0)
         {
-          Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+          Stmt->stmt= MADB_NewStmtHandle(Stmt);
         }
         else
         {

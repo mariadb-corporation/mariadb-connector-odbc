@@ -225,7 +225,7 @@ ODBC_TEST(t_odbc74)
   OK_SIMPLE_STMT(Stmt, "TRUNCATE TABLE odbc74");
 
   AllocEnvConn(&Env, &hdbc1);
-  Stmt1= DoConnect(hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  Stmt1= DoConnect(hdbc1, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
   OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='NO_BACKSLASH_ESCAPES'");
@@ -508,12 +508,31 @@ ODBC_TEST(t_odbc177)
 
 ODBC_TEST(t_odbc169)
 {
-  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * from t_odbc169; SELECT * from t_odbc169 ORDER BY col1 DESC",
+  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * from t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
                         "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * from t_odbc169"};
-  unsigned int i, j= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
+  char Expected[][3][7]={ {"1", "", "" },       /* RS 1*/
+                          {"1", "2", "Row 1"},  /* RS 2*/
+                          {"3", "4", "Row 2"},
+                          {"5", "6", "Row 3"},
+                          {"5", "6", "Row 3"},  /* RS 3*/
+                          {"3", "4", "Row 2"},
+                          {"1", "2", "Row 1"},
+                          {"Row 1", "2" , ""},  /* RS 4*/
+                          {"Row 2", "4" , ""},
+                          {"Row 3", "6" , ""},
+
+                          /* RS 5 is empty */
+                          {"1", "2", "Row 1" }, /* RS 6*/
+                          {"3", "4", "Row 2" },
+                          {"5", "6", "Row 3" },
+                          {"8", "7", "Row #4"}
+                        };
+  unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
   SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0, 0};
-  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 3, 0, 3, 1};
+  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3, 1};
   SQLRETURN rc;
+  SQLSMALLINT Column, Row= 0;
+  SQLCHAR     ColumnData[MAX_ROW_DATA_LEN]={ 0 };
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc169");
 
@@ -527,14 +546,24 @@ ODBC_TEST(t_odbc169)
 
     do {
       CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
-      is_num(Rows, ExpRowCount[j]);
+      is_num(Rows, ExpRowCount[RsIndex]);
       CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
-      is_num(ColumnsCount, expCols[j]);
+      is_num(ColumnsCount, expCols[RsIndex]);
 
-      is_num(ma_print_result_getdata_ex(Stmt, FALSE), ExpectedRows[j]);
+      Rows= 0;
+      while (SQL_SUCCEEDED(SQLFetch(Stmt)))
+      {
+        for (Column= 0; Column < ColumnsCount; ++Column)
+        {
+          IS_STR(my_fetch_str(Stmt, ColumnData, Column + 1), Expected[Row][Column], strlen(Expected[Row][Column]));
+        }
+        ++Row;
+        ++Rows;
+      }
+      is_num(Rows, ExpectedRows[RsIndex]);
 
       rc= SQLMoreResults(Stmt);
-      ++j;
+      ++RsIndex;
     } while (rc != SQL_NO_DATA);
 
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
