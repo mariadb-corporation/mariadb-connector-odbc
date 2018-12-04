@@ -1385,7 +1385,7 @@ ODBC_TEST(t_odbc192)
   ROW_WITH_DATETIME Rows[1];
   SQLLEN BaseOffset=0x01, *OffsetPtr= (SQLLEN*)((char*)Rows - BaseOffset);
 
-  SQLExecDirect(Stmt, "DROP TABLE /*IF EXISTS*/ t_odbc192", SQL_NTS);
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc192");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc192 (some_ts datetime)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc192 (some_ts) VALUES('2018-10-23 12:00:01')");
 
@@ -1415,6 +1415,7 @@ ODBC_TEST(t_odbc192)
   is_num(Rows[0].val.second, 1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc192");
 
   return OK;
 }

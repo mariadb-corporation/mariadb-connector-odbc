@@ -1029,7 +1029,7 @@ ODBC_TEST(t_bug60646)
         "SELECT timestamp('2012-01-01 01:01:01.000001')"            /*1*/
         " ,timestamp('2012-01-01 01:01:01.100002')"                 /*2*/
         " ,'2011-07-29 17:52:15.0000000009'"                        /*3*/
-        " ,'1000-01-01 12:00:00.000000001'"                         /*4*/
+        " ,'1000-01-01 12:00:00.000001'"                         /*4*/
         " ,time('2011-12-31 23:59:59.999999')"                      /*5*/
         ); 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1048,7 +1048,7 @@ ODBC_TEST(t_bug60646)
         Test using string as MySQL does not support units less than a microsecond */
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TYPE_TIMESTAMP, &ts, sizeof(ts),
                             &len));
-  is_num(ts.fraction, 9000);
+  is_num(ts.fraction, 0);
 
   /* 4) testing if min fraction detected
         Again - mysql supports microseconds only. thus using string
@@ -1261,7 +1261,9 @@ ODBC_TEST(t_odbc70)
     0, 0, ZeroDate, 0, NULL));
 
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
-    CHECK_SQLSTATE(Stmt, "22008");
+    CHECK_SQLSTATE(Stmt, "22018");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc70");
 
   return OK;
 }
@@ -1489,6 +1491,62 @@ ODBC_TEST(t_odbc148)
 }
 
 
+ODBC_TEST(t_odbc199_time2timestamp)
+{
+  SQL_TIME_STRUCT t;
+  SQL_TIMESTAMP_STRUCT ts= {0}, ts1= {0};
+  time_t sec_time;
+  struct tm * cur_tm;
+
+  sec_time= time(NULL);
+  cur_tm= localtime(&sec_time);
+
+  ts.year= 1900 + cur_tm->tm_year;
+  ts.month= cur_tm->tm_mon + 1;
+  ts.day= cur_tm->tm_mday;
+  ts.fraction= 0;
+
+  ts1.year= ts1.month= ts1.day= 1;
+  t.hour= 11;
+  t.minute= 21;
+  t.second= 33;
+
+  ts.hour= t.hour;
+  ts.minute= t.minute;
+  ts.second= t.second;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_time2timestamp");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_time2timestamp (ts TIMESTAMP)");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TYPE_TIME, SQL_TIMESTAMP,
+    0, 0, &t, sizeof(t), NULL));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_time2timestamp(ts) \
+                                        VALUES (?)", SQL_NTS));
+  /* First valid values */
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT ts FROM t_time2timestamp");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TYPE_TIMESTAMP, &ts1, 0, NULL));
+
+  diag("This test may fail if run at the moment when day changes");
+  is_num(ts.year, ts1.year);
+  is_num(ts.month, ts1.month);
+  is_num(ts.day, ts1.day);
+  is_num(ts.hour, ts1.hour);
+  is_num(ts.minute, ts1.minute);
+  is_num(ts.second, ts1.second);
+  is_num(ts.fraction, ts1.fraction);
+
+  CHECK_STMT_RC(Stmt, SQLCloseCursor(Stmt));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_time2timestamp");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_ts,         "my_ts",       NORMAL},
@@ -1515,6 +1573,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug67793,    "t_bug67793",  NORMAL},
   {t_odbc138,     "t_odbc138_dateadd_negative", NORMAL},
   {t_odbc148,     "t_odbc148_datatypes_values_len", NORMAL},
+  { t_odbc199_time2timestamp, "t_odbc199_time2timestamp", NORMAL},
   {NULL, NULL}
 };
 

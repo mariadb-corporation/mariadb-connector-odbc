@@ -736,7 +736,7 @@ ODBC_TEST(odbc143)
   is_num(Length, sizeof(SQLWCHAR));
 
   AllocEnvConn(&Env, &Hdbc1);
-  Stmt1= DoConnect(Hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  Stmt1= DoConnect(Hdbc1, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
   OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI_QUOTES'");

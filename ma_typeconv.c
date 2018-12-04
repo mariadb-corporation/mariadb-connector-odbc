@@ -22,10 +22,10 @@
 #include <ma_odbc.h>
 
 /* Borrowed from C/C and adapted */
-SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, BOOL Interval, MADB_Error *Error)
+SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, BOOL Interval, MADB_Error *Error, int *isTime)
 {
-  char *Start= MADB_ALLOC(Length + 1);
-  my_bool is_date= 0, is_time= 0;
+  char *Start= MADB_ALLOC(Length + 1), *Frac, *End= Start + Length;
+  my_bool isDate= 0;
 
   if (Start == NULL)
   {
@@ -54,7 +54,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
     }
-    is_date= 1;
+    isDate= 1;
     if (!(Start= strchr(Start, ' ')))
     {
       goto check;
@@ -65,17 +65,29 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
     goto check;
   }
 
-  is_time= 1;
-
-  if (strchr(Start, '.')) /* fractional seconds */
+  if (isDate == 0)
   {
-    if (sscanf(Start, "%hd:%hu:%hu.%lu", &Ts->hour, &Ts->minute,
+    *isTime= 1;
+  }
+
+  if (Frac= strchr(Start, '.')) /* fractional seconds */
+  {
+    size_t FracMulIdx= End - (Frac + 1) - 1/*to get index array index */;
+    /* ODBC - nano-seconds */
+    if (sscanf(Start, "%hd:%hu:%hu.%9u", &Ts->hour, &Ts->minute,
       &Ts->second, &Ts->fraction) < 4)
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
     }
+    /* 9 digits up to nano-seconds, and -1 since comparing with arr idx  */
+    if (FracMulIdx < 9 - 1)
+    {
+      static unsigned long Mul[]= {100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10 };
+      Ts->fraction*= Mul[FracMulIdx];
+    }
   }
-  else {
+  else
+  {
     if (sscanf(Start, "%hd:%hu:%hu", &Ts->hour, &Ts->minute,
       &Ts->second) < 3)
     {
@@ -86,7 +98,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
 check:
   if (Interval == FALSE)
   {
-    if (is_date)
+    if (isDate)
     {
       if (Ts->year > 0)
       {
@@ -369,10 +381,11 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
   case SQL_DATETIME:
   {
     SQL_TIMESTAMP_STRUCT Ts;
+    int isTime;
 
     /* Enforcing constraints on date/time values */
-    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(DataPtr, Length, &Ts, FALSE, &Stmt->Error));
-    RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22008));
+    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(DataPtr, Length, &Ts, FALSE, &Stmt->Error, &isTime));
+    RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime));
     /* To stay on the safe side - still sending as string in the default branch */
   }
   default:
@@ -421,7 +434,7 @@ SQLRETURN MADB_Numeric2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr
 /* }}} */
 
 /* {{{ MADB_TsConversionIsPossible */
-SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState)
+SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, int isTime)
 {
   /* I think instead of MADB_ERR_22008 there should be also SqlState */
   switch (SqlType)
@@ -440,8 +453,8 @@ SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlT
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
     }
   default:
-    /* This only would be good for SQL_TYPE_TIME */
-    if (ts->year == 0 || ts->month == 0 || ts->day == 0)
+    /* This only would be good for SQL_TYPE_TIME. If C type is time(isTime!=0), and SQL type is timestamp, date fields may be NULL - driver should set them to current date */
+    if (isTime == 0 && ts->year == 0 || ts->month == 0 || ts->day == 0)
     {
       return MADB_SetError(Error, SqlState, NULL, 0);
     }
@@ -457,7 +470,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
   MYSQL_TIME           *tm= NULL;
   SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
-  RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22007));
+  RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22007, 0));
 
   if (*Buffer == NULL)
   {
@@ -553,9 +566,27 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
     tm= *Buffer;
   }
 
-  tm->year=  1970;
-  tm->month= 1;
-  tm->day=   1;
+  if(SqlRec->ConciseType == SQL_TYPE_TIMESTAMP ||
+    SqlRec->ConciseType == SQL_TIMESTAMP || SqlRec->ConciseType == SQL_DATETIME)
+  {
+    time_t sec_time;
+    struct tm * cur_tm;
+
+    sec_time= time(NULL);
+    cur_tm= localtime(&sec_time);
+
+    tm->year= 1900 + cur_tm->tm_year;
+    tm->month= cur_tm->tm_mon + 1;
+    tm->day= cur_tm->tm_mday;
+    tm->second_part= 0;
+  }
+  else
+  {
+    tm->year=  0;
+    tm->month= 0;
+    tm->day=   0;
+  }
+
 
   tm->hour=   ts->hour;
   tm->minute= ts->minute;
@@ -674,7 +705,7 @@ SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPt
     RETURN_ERROR_OR_CONTINUE(MADB_Timestamp2Sql(Stmt, CRec, DataPtr, Length, SqlRec, MaBind, Buffer, LengthPtr));
     break;
   case SQL_C_TIME:
-  case SQL_TYPE_TIME:
+  case SQL_C_TYPE_TIME:
     RETURN_ERROR_OR_CONTINUE(MADB_Time2Sql(Stmt, CRec, DataPtr, Length, SqlRec, MaBind, Buffer, LengthPtr));
     break;
   case SQL_C_INTERVAL_HOUR_TO_MINUTE:
