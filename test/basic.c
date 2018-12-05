@@ -93,14 +93,14 @@ ODBC_TEST(simple_test)
   
   SQLFetch(Stmt);
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
-  SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, 20, 0);
+  SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, sizeof(Buffer), 0);
   FAIL_IF(value != 1, "Expected value=1");
 
   IS_WSTR(Buffer, CW("Row no 1"), 9);
 
   rc= SQLFetch(Stmt);
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
-  SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, 20, 0);
+  SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer,  sizeof(Buffer), 0);
   FAIL_IF(value != 2, "Expected value=2");
   IS_WSTR(Buffer, CW("Row no 2"), 9);
 
@@ -753,7 +753,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out)/sizeof(SQLWCHAR), &conn_out_len,
                                         SQL_DRIVER_NOPROMPT));
-  is_num(conn_out_len, strlen(conna));
+  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
+  is_num(conn_out_len, strlen(conna)*(iOdbc() ? 4 : 1));
   IS_WSTR(connw_out, connw, strlen(conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -761,7 +762,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE));
-  is_num(conn_out_len, strlen(conna));
+  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
+  is_num(conn_out_len, strlen(conna)*(iOdbc() ? 4 : 1));
   IS_WSTR(connw_out, connw, strlen(conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -769,7 +771,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE_REQUIRED));
-  is_num(conn_out_len, strlen(conna));
+  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
+  is_num(conn_out_len, strlen(conna)*(iOdbc() ? 4 : 1));
   IS_WSTR(connw_out, connw, strlen(conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -1453,7 +1456,7 @@ ODBC_TEST(t_odbc91)
   /* Now testing scenario, there default database is set via connetion attribute, and connection handler is re-used
      after disconnect. This doesn't work with UnixODBC, because smart UnixODBC implicicitly deallocates connection handle
      when SQLDisconnect is called */
-  if (UnixOdbc(Env))
+  if (UnixOdbc())
   {
     diag("UnixODBC detected - Skipping part of the test");
     return OK;

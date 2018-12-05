@@ -629,7 +629,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       goto end;
     }
 
-    if (!Connection->IsAnsi)
+    if (!Connection->IsAnsi || iOdbc())
     {
       /* If application is not ansi, we should convert wchar into connection string */
       Connection->ConnOrSrcCharset= &Connection->Charset;
