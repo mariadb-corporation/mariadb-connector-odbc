@@ -529,7 +529,7 @@ int ma_print_result_getdata_exex(SQLHSTMT Stmt, BOOL CloseCursor, BOOL FetchAsWs
     fprintf(stdout, "\n");
   }
 
-  if (CloseCursor)
+  if (CloseCursor != FALSE)
   {
     SQLFreeStmt(Stmt, SQL_CLOSE);
   }
@@ -1272,7 +1272,10 @@ char * GenGUID(char *buffer)
 }
 #endif
 
-BOOL UnixOdbc(HENV Env)
+/* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
+#define iOdbc() (sizeof(SQLWCHAR)==4)
+
+BOOL UnixOdbc()
 {
 #ifdef SQL_ATTR_UNIXODBC_VERSION
   return TRUE;
