@@ -1131,7 +1131,7 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_INFO *from_cs, MARIADB_CHARSET_INFO *to_cs)
 {
   SQLWCHAR   *res= buff_pos;
-  size_t      rc, buff_size= sqlwchar_buff + sizeof(sqlwchar_buff) - buff_pos;
+  size_t      rc, buff_size= sizeof(sqlwchar_buff) - (buff_pos - sqlwchar_buff)*sizeof(SQLWCHAR);
   int         error;
   const char *src= str;
 
