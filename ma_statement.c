@@ -1535,20 +1535,48 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
     case SQL_C_TIME:
     case SQL_C_DATE:
       MADB_FREE(ArdRec->InternalBuffer);
-      ArdRec->InternalBuffer=       (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
-      Stmt->result[i].buffer=        ArdRec->InternalBuffer;
-      Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
-      Stmt->result[i].buffer_type=   MYSQL_TYPE_TIMESTAMP;
+      if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+      {
+        ArdRec->InternalBuffer= (char *)MADB_CALLOC(Stmt->stmt->fields[i].max_length + 1);
+        if (ArdRec->InternalBuffer == NULL)
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+        }
+        Stmt->result[i].buffer=        ArdRec->InternalBuffer;
+        Stmt->result[i].buffer_type=   MYSQL_TYPE_STRING;
+        Stmt->result[i].buffer_length= Stmt->stmt->fields[i].max_length + 1;
+      }
+      else
+      {
+        ArdRec->InternalBuffer=       (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
+        Stmt->result[i].buffer=        ArdRec->InternalBuffer;
+        Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
+        Stmt->result[i].buffer_type=   MYSQL_TYPE_TIMESTAMP;
+      }
       break;
     case SQL_C_INTERVAL_HOUR_TO_MINUTE:
     case SQL_C_INTERVAL_HOUR_TO_SECOND:
       {
         MYSQL_FIELD *Field= mysql_fetch_field_direct(Stmt->metadata, i);
         MADB_FREE(ArdRec->InternalBuffer);
-        ArdRec->InternalBuffer=       (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
-        Stmt->result[i].buffer=        ArdRec->InternalBuffer;
-        Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
-        Stmt->result[i].buffer_type=   Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+        if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+        {
+          ArdRec->InternalBuffer= (char *)MADB_CALLOC(Stmt->stmt->fields[i].max_length + 1);
+          if (ArdRec->InternalBuffer == NULL)
+          {
+            return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+          }
+          Stmt->result[i].buffer=        ArdRec->InternalBuffer;
+          Stmt->result[i].buffer_type=   MYSQL_TYPE_STRING;
+          Stmt->result[i].buffer_length= Stmt->stmt->fields[i].max_length + 1;
+        }
+        else
+        {
+          ArdRec->InternalBuffer=       (char *)MADB_CALLOC(sizeof(MYSQL_TIME));
+          Stmt->result[i].buffer=        ArdRec->InternalBuffer;
+          Stmt->result[i].buffer_length= sizeof(MYSQL_TIME);
+          Stmt->result[i].buffer_type=   Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+        }
       }
       break;
     case SQL_C_TINYINT:
@@ -1682,14 +1710,54 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         case SQL_C_TIMESTAMP:
         case SQL_C_TIME:
         case SQL_C_DATE:
-          FieldRc= MADB_CopyMadbTimestamp(Stmt, (MYSQL_TIME *)ArdRec->InternalBuffer, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
-          CALC_ALL_FLDS_RC(rc, FieldRc);
+          {
+            MYSQL_TIME tm, *Intermidiate;
+
+            if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+            {
+              BOOL isTime;
+
+              FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->stmt->bind[i].length, &tm, FALSE, &Stmt->Error, &isTime);
+              if (SQL_SUCCEEDED(FieldRc))
+              {
+                Intermidiate= &tm;
+              }
+              else
+              {
+                CALC_ALL_FLDS_RC(rc, FieldRc);
+                break;
+              }
+            }
+            else
+            {
+              Intermidiate= (MYSQL_TIME *)ArdRec->InternalBuffer;
+            }
+
+            FieldRc= MADB_CopyMadbTimestamp(Stmt, Intermidiate, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
+            CALC_ALL_FLDS_RC(rc, FieldRc);
+          }
           break;
         case SQL_C_INTERVAL_HOUR_TO_MINUTE:
         case SQL_C_INTERVAL_HOUR_TO_SECOND:
         {
-          MYSQL_TIME          *tm= (MYSQL_TIME*)ArdRec->InternalBuffer;
+          MYSQL_TIME          *tm= (MYSQL_TIME*)ArdRec->InternalBuffer, ForConversion;
           SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)DataPtr;
+
+          if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+          {
+            BOOL isTime;
+
+            FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->stmt->bind[i].length, &ForConversion, FALSE, &Stmt->Error, &isTime);
+            if (SQL_SUCCEEDED(FieldRc))
+            {
+              tm= &ForConversion;
+            }
+            else
+            {
+              CALC_ALL_FLDS_RC(rc, FieldRc);
+              break;
+            }
+          }
 
           /* If we have ts == NULL we (may) have tm also NULL, since we didn't really bind this column */
           if (ts != NULL)
@@ -1881,10 +1949,10 @@ else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
 /* {{{ MADB_StmtFetch */
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
-  unsigned int      row_num, j, rc;
-  SQLULEN           Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
-  MYSQL_ROW_OFFSET  SaveCursor= NULL;
-  SQLRETURN         Result= SQL_SUCCESS, RowResult;
+  unsigned int     row_num, j, rc;
+  SQLULEN          Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
+  MYSQL_ROW_OFFSET SaveCursor= NULL;
+  SQLRETURN        Result= SQL_SUCCESS, RowResult;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
@@ -2528,19 +2596,40 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     {
       MYSQL_TIME tm;
 
-      Bind.buffer_length= sizeof(MYSQL_TIME);
-      Bind.buffer= (void *)&tm;
-      /* c/c is too smart to convert hours to days and days to hours, we don't need that */
-      if ((OdbcType == SQL_C_TIME || OdbcType == SQL_C_TYPE_TIME)
-        && (IrdRec->ConciseType == SQL_TIME || IrdRec->ConciseType == SQL_TYPE_TIME))
+      if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        Bind.buffer_type= MYSQL_TYPE_TIME;
+        char  *ClientValue= NULL;
+        BOOL isTime;
+
+        if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+        }
+        Bind.buffer=        ClientValue;
+        Bind.buffer_type=   MYSQL_TYPE_STRING;
+        Bind.buffer_length= Stmt->stmt->fields[Offset].max_length + 1;
+        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, FALSE, &Stmt->Error, &isTime));
       }
       else
       {
-        Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
+
+
+        Bind.buffer_length= sizeof(MYSQL_TIME);
+        Bind.buffer= (void *)&tm;
+        /* c/c is too smart to convert hours to days and days to hours, we don't need that */
+        if ((OdbcType == SQL_C_TIME || OdbcType == SQL_C_TYPE_TIME)
+          && (IrdRec->ConciseType == SQL_TIME || IrdRec->ConciseType == SQL_TYPE_TIME))
+        {
+          Bind.buffer_type= MYSQL_TYPE_TIME;
+        }
+        else
+        {
+          Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
+          
+        }
+        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
       }
-      mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
       RETURN_ERROR_OR_CONTINUE(MADB_CopyMadbTimestamp(Stmt, &tm, TargetValuePtr, StrLen_or_IndPtr, StrLen_or_IndPtr, OdbcType, IrdRec->ConciseType));
       break;
     }
@@ -2550,12 +2639,29 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       MYSQL_TIME tm;
       SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)TargetValuePtr;
 
-      Bind.buffer_length= sizeof(MYSQL_TIME);
-      Bind.buffer= (void *)&tm;
-      /* c/c is too smart to convert hours to days and days to hours, we don't need that */
-      Bind.buffer_type= Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+      if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+      {
+        char *ClientValue= NULL;
+        BOOL isTime;
 
-      mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        if (!(ClientValue = (char *)MADB_CALLOC(Stmt->stmt->fields[Offset].max_length + 1)))
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+        }
+        Bind.buffer=        ClientValue;
+        Bind.buffer_type=   MYSQL_TYPE_STRING;
+        Bind.buffer_length= Stmt->stmt->fields[Offset].max_length + 1;
+        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, TRUE, &Stmt->Error, &isTime));
+      }
+      else
+      {
+        Bind.buffer_length= sizeof(MYSQL_TIME);
+        Bind.buffer= (void *)&tm;
+        /* c/c is too smart to convert hours to days and days to hours, we don't need that */
+        Bind.buffer_type= Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+      }
 
       if (tm.hour > 99999)
       {

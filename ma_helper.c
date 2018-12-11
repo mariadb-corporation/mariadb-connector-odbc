@@ -799,6 +799,28 @@ int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigne
 }
 /* }}} */
 
+void MADB_CopyOdbcTsToMadbTime(SQL_TIMESTAMP_STRUCT *Src, MYSQL_TIME *Dst)
+{
+  Dst->year=        Src->year;
+  Dst->month=       Src->month;
+  Dst->day=         Src->day;
+  Dst->hour=        Src->hour;
+  Dst->minute=      Src->minute;
+  Dst->second=      Src->second;
+  Dst->second_part= Src->fraction / 1000;
+}
+
+void MADB_CopyMadbTimeToOdbcTs(MYSQL_TIME *Src, SQL_TIMESTAMP_STRUCT *Dst)
+{
+  Dst->year=        Src->year;
+  Dst->month=       Src->month;
+  Dst->day=         Src->day;
+  Dst->hour=        Src->hour;
+  Dst->minute=      Src->minute;
+  Dst->second=      Src->second;
+  Dst->fraction=    Src->second_part*1000;
+}
+
 SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER DataPtr, SQLLEN *Length, SQLLEN *Ind,
                                  SQLSMALLINT CType, SQLSMALLINT SqlType)
 {
@@ -839,7 +861,6 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER Dat
         ts->hour= tm->hour;
         ts->minute= tm->minute;
         ts->second= tm->second;
-        
 
         if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
         {

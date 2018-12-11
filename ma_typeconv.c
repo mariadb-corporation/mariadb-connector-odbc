@@ -22,7 +22,7 @@
 #include <ma_odbc.h>
 
 /* Borrowed from C/C and adapted */
-SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, BOOL Interval, MADB_Error *Error, int *isTime)
+SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Interval, MADB_Error *Error, BOOL *isTime)
 {
   char *Start= MADB_ALLOC(Length + 1), *Frac, *End= Start + Length;
   my_bool isDate= 0;
@@ -32,7 +32,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
     return MADB_SetError(Error, MADB_ERR_HY001, NULL, 0);
   }
 
-  memset(Ts, 0, sizeof(SQL_TIMESTAMP_STRUCT));
+  memset(Tm, 0, sizeof(MYSQL_TIME));
   memcpy(Start, Str, Length);
   Start[Length]= '\0';
 
@@ -40,7 +40,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
 
   if (Length == 0)
   {
-    return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+    return SQL_SUCCESS;//MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
   }  
 
   /* Determine time type:
@@ -50,7 +50,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
   */
   if (strchr(Start, '-'))
   {
-    if (sscanf(Start, "%hd-%hu-%hu", &Ts->year, &Ts->month, &Ts->day) < 3)
+    if (sscanf(Start, "%d-%u-%u", &Tm->year, &Tm->month, &Tm->day) < 3)
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
     }
@@ -74,22 +74,22 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, SQL_TIMESTAMP_STRUCT *Ts, 
   {
     size_t FracMulIdx= End - (Frac + 1) - 1/*to get index array index */;
     /* ODBC - nano-seconds */
-    if (sscanf(Start, "%hd:%hu:%hu.%9u", &Ts->hour, &Ts->minute,
-      &Ts->second, &Ts->fraction) < 4)
+    if (sscanf(Start, "%d:%u:%u.%6u", &Tm->hour, &Tm->minute,
+      &Tm->second, &Tm->second_part) < 4)
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
     }
     /* 9 digits up to nano-seconds, and -1 since comparing with arr idx  */
-    if (FracMulIdx < 9 - 1)
+    if (FracMulIdx < 6 - 1)
     {
-      static unsigned long Mul[]= {100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10 };
-      Ts->fraction*= Mul[FracMulIdx];
+      static unsigned long Mul[]= {100000, 10000, 1000, 100, 10};
+      Tm->second_part*= Mul[FracMulIdx];
     }
   }
   else
   {
-    if (sscanf(Start, "%hd:%hu:%hu", &Ts->hour, &Ts->minute,
-      &Ts->second) < 3)
+    if (sscanf(Start, "%d:%u:%u", &Tm->hour, &Tm->minute,
+      &Tm->second) < 3)
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
     }
@@ -100,15 +100,15 @@ check:
   {
     if (isDate)
     {
-      if (Ts->year > 0)
+      if (Tm->year > 0)
       {
-        if (Ts->year < 69)
+        if (Tm->year < 70)
         {
-          Ts->year+= 2000;
+          Tm->year+= 2000;
         }
-        else if (Ts->year < 100)
+        else if (Tm->year < 100)
         {
-          Ts->year+= 1900;
+          Tm->year+= 1900;
         }
       }
     }
@@ -380,11 +380,13 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
       break;
   case SQL_DATETIME:
   {
+    MYSQL_TIME Tm;
     SQL_TIMESTAMP_STRUCT Ts;
-    int isTime;
+    BOOL isTime;
 
     /* Enforcing constraints on date/time values */
-    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(DataPtr, Length, &Ts, FALSE, &Stmt->Error, &isTime));
+    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(DataPtr, Length, &Tm, FALSE, &Stmt->Error, &isTime));
+    MADB_CopyMadbTimeToOdbcTs(&Tm, &Ts);
     RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime));
     /* To stay on the safe side - still sending as string in the default branch */
   }
@@ -522,13 +524,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
     tm->second= ts->second;
     break;
   default:
-    tm->year=  ts->year;
-    tm->month= ts->month;
-    tm->day=   ts->day;
-    tm->hour=   ts->hour;
-    tm->minute= ts->minute;
-    tm->second= ts->second;
-    tm->second_part= ts->fraction / 1000;
+    MADB_CopyOdbcTsToMadbTime(ts, tm);
   }
 
   *LengthPtr= sizeof(MYSQL_TIME);
