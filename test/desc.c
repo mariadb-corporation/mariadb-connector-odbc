@@ -335,9 +335,11 @@ ODBC_TEST(t_explicit_error)
     This crashes unixODBC 2.2.11, as it improperly frees the descriptor,
     and again tries to when freeing the statement handle.
   */
-  
-  FAIL_IF(SQLFreeHandle(SQL_HANDLE_DESC, desc1) != SQL_ERROR, "Error expected");
-  CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");
+  /* With iODBC is's SQL_INVALID_HANDLE for some reason */
+  is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), iOdbc() ? SQL_INVALID_HANDLE : SQL_ERROR);
+  /* CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");*/
+  FAIL_IF(check_sqlstate(Stmt, "HY024") != OK &&
+          check_sqlstate(Stmt, "HY017") != OK, "Expected HY024 or HY017");
   
   /* can't set apd as ard (and vice-versa) */
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expapd));

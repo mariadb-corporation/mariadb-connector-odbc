@@ -622,22 +622,22 @@ do {\
   }\
 } while(0)
 
-#define EXPECT_DBC(Dbc,Function, Expected)\
+#define EXPECT_DBC(_Dbc,_Function, _Expected)\
 do {\
-  SQLRETURN ret= (Function);\
-  if (ret != (Expected))\
+  SQLRETURN ret= (_Function);\
+  if (ret != (_Expected))\
   {\
-    CHECK_DBC_RC(Dbc, ret);\
+    CHECK_DBC_RC(_Dbc, ret);\
   }\
 } while(0)
 
-#define EXPECT_STMT(Stmt,Function, Expected)\
+#define EXPECT_STMT(_Stmt,_Function, _Expected)\
 do {\
-  SQLRETURN ret= (Function);\
-  if (ret != (Expected))\
+  SQLRETURN ret= (_Function);\
+  if (ret != (_Expected))\
   {\
-    CHECK_STMT_RC(Stmt, ret);\
-    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #Function, ret, #Expected, Expected);\
+    CHECK_STMT_RC(_Stmt, ret);\
+    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #_Function, ret, #_Expected, _Expected);\
     return FAIL;\
   }\
 } while(0)
