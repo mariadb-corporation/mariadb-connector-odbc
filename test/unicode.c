@@ -1527,6 +1527,12 @@ ODBC_TEST(t_odbc203)
       CHECK_STMT_RC(wStmt, SQLNumResultCols(wStmt, &ColumnsCount));
       is_num(ColumnsCount, expCols[RsIndex]);
 
+      if (iOdbc() && RsIndex == 5)
+      {
+        diag("Skipping values check in the last resultset, because of the bug in the iODBC");
+        break;
+      }
+
       Rows= 0;
       while (SQL_SUCCEEDED(SQLFetch(wStmt)))
       {

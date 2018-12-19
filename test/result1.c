@@ -309,11 +309,12 @@ ODBC_TEST(t_desc_col)
   CHECK_STMT_RC(Stmt1, SQLNumResultCols(Stmt1, &ColumnCount));
 
   is_num(ColumnCount, 23);
-
+  /* iOdbc maps ANSI calls to Unicode calls, like Windows DM does. But unlike Windows DM, it doesn't inform the connector about that.
+     Thus we get W types with iODBC here. But probably something has to be done with sizes as well */
   IS(desc_col_check(Stmt1, 1,  "c1",  SQL_INTEGER,   10, 10, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt1, 2,  "c2",  SQL_BINARY,    4,  2,  0,  SQL_NO_NULLS) == OK);
-  IS(desc_col_check(Stmt1, 3,  "c3",  SQL_CHAR,      1,  1,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt1, 4,  "c4",  SQL_VARCHAR,   5,  5,  0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 3,  "c3",  iOdbc() ? SQL_WCHAR : SQL_CHAR, 1, 1, 0, SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 4,  "c4",  iOdbc() ? SQL_WVARCHAR : SQL_VARCHAR, 5, 5, 0, SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt1, 5,  "c5",  SQL_DECIMAL,   10, 10, 3,  SQL_NO_NULLS) == OK);
   IS(desc_col_check(Stmt1, 6,  "c6",  SQL_TINYINT,   3,  4,  0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt1, 7,  "c7",  SQL_SMALLINT,  5,  6,  0,  SQL_NULLABLE) == OK);
@@ -324,13 +325,13 @@ ODBC_TEST(t_desc_col)
 
   IS(desc_col_check(Stmt1, 12, "c12", SQL_VARBINARY, 12, 12, 0,  SQL_NULLABLE) == OK);
 
-  IS(desc_col_check(Stmt1, 13, "c13", SQL_CHAR,      20, 20, 0,  SQL_NO_NULLS) == OK);
+  IS(desc_col_check(Stmt1, 13, "c13", iOdbc() ? SQL_WCHAR : SQL_CHAR, 20, 20, 0,  SQL_NO_NULLS) == OK);
   IS(desc_col_check(Stmt1, 14, "c14", SQL_REAL,      7,  7,  0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt1, 15, "c15", SQL_LONGVARCHAR, 255, 255, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt1, 16, "c16", SQL_LONGVARCHAR, 65535, 65535, 0,  SQL_NULLABLE) == OK);
-  IS(desc_col_check(Stmt1, 17, "c17", SQL_LONGVARCHAR, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 15, "c15", iOdbc() ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR, 255, 255, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 16, "c16", iOdbc() ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR, 65535, 65535, 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 17, "c17", iOdbc() ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
   /* Test may fail here if connection charset mbmaxlen > 1 */
-  IS(desc_col_check(Stmt1, 18, "c18", SQL_LONGVARCHAR, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
+  IS(desc_col_check(Stmt1, 18, "c18", iOdbc() ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR, 4294967295UL, 16777215 , 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt1, 19, "c19", SQL_LONGVARBINARY, 255, 255, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt1, 20, "c20", SQL_LONGVARBINARY, 65535, 65535, 0,  SQL_NULLABLE) == OK);
   IS(desc_col_check(Stmt1, 21, "c21", SQL_LONGVARBINARY, 16777215, 16777215, 0,  SQL_NULLABLE) == OK);
@@ -1821,8 +1822,7 @@ ODBC_TEST(t_binary_collation)
       (!strncmp("5.1", (char *)server_version, 3) &&
         ServerNotOlderThan(Connection, 5, 1, 22)))
   {
-    /*is_num(data_type, SQL_WVARCHAR);*/
-    is_num(data_type, SQL_VARCHAR);
+    is_num(data_type, iOdbc() ? SQL_WVARCHAR : SQL_VARCHAR);
   }
   else
   {

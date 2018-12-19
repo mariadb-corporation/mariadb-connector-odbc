@@ -1026,16 +1026,16 @@ ODBC_TEST(t_bug60646)
   const char *expected= "2012-01-01 01:01:01.000001";
 
   OK_SIMPLE_STMT(Stmt,
-        "SELECT timestamp('2012-01-01 01:01:01.000001')"            /*1*/
-        " ,timestamp('2012-01-01 01:01:01.100002')"                 /*2*/
-        " ,'2011-07-29 17:52:15.0000000009'"                        /*3*/
-        " ,'1000-01-01 12:00:00.000001'"                         /*4*/
-        " ,time('2011-12-31 23:59:59.999999')"                      /*5*/
-        ); 
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+        "SELECT timestamp('2012-01-01 01:01:01.000001')"  /*1*/
+        " ,timestamp('2012-01-01 01:01:01.100002')"       /*2*/
+        " ,'2011-07-29 17:52:15.0000000009'"              /*3*/
+        " ,'1000-01-01 12:00:00.000001'"                  /*4*/
+        " ,time('2011-12-31 23:59:59.999999')"            /*5*/
+        );
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
   /* Fields 1-4 checking conversions from date as a string
-  /* 1) just to be sure that everything is fine with string */
+   * 1) just to be sure that everything is fine with string */
   IS_STR(my_fetch_str(Stmt, buff, 1), expected, sizeof(expected));
 
   /* 2) testing if fractional part is converted to nanoseconds correctly */
@@ -1307,7 +1307,7 @@ ODBC_TEST(t_17613161)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_17613161");
 
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
   EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_TYPE_TIME, &result, 0,
     NULL), SQL_ERROR);
@@ -1357,7 +1357,7 @@ ODBC_TEST(t_bug67793)
 
   /* check situations with sec and min overflow */
   OK_SIMPLE_STMT(Stmt, "SELECT '123456789:45:07', '99999:42:09', CAST('-800:12:17' AS TIME)");
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
   EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen), SQL_ERROR);
   /* leading precision is 5, i.e. hours max value is 99999 */

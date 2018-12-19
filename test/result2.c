@@ -1269,8 +1269,8 @@ ODBC_TEST(t_odbc146)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  /* VB uses SQL_ARD_TYPE */
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_ARD_TYPE, &F1, sizeof(SQL_NUMERIC_STRUCT), &Len));
+  /* VB uses SQL_ARD_TYPE, but iODBC has some prejudice towrds SQL_ARD_TYPE */
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, iOdbc() ? SQL_C_NUMERIC : SQL_ARD_TYPE, &F1, sizeof(SQL_NUMERIC_STRUCT), &Len));
 
   is_num(F1.sign, 1);
   /* 0x12d644 = 1234500 */
