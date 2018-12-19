@@ -41,12 +41,25 @@ matrix:
     - os: linux
       env: DB=mariadb:10.2
     - os: linux
+      compiler: gcc
+      env: DB=mariadb:10.3
+    - os: linux
+      compiler: clang
       env: DB=mariadb:10.3
     - os: osx
+      compiler: clang
       env: DB=mariadb:10.3
+    - os: linux
+      env: DB=mariadb:10.2 PACKET=8M MAXSCALE_VERSION=2.1.8
+    - os: linux
+      env: DB=mysql:5.5
+    - os: linux
+      env: DB=mysql:5.6
+    - os: linux
+      env: DB=mysql:5.7
 
 script:
-  - if [ "$TRAVIS_OS_NAME" = "linux" AND "$DB" = "build" ] ; then .travis/build/build.sh; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" AND "$DB" = "build" ] ; then docker build -t build:latest --label build .travis/build/; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DB" = "build" ] ; then .travis/build/build.sh; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DB" = "build" ] ; then docker build -t build:latest --label build .travis/build/; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ] ; then .travis/script.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then .travis/osx.sh; fi

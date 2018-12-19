@@ -12,6 +12,9 @@ export TEST_SCHEMA=odbc_test
 export TEST_UID=root
 export TEST_PASSWORD= 
 
+# for some reason brew upgrades postgresql, so let's remove it
+brew remove postgis
+brew uninstall --ignore-dependencies postgresql
 # upgrade openssl
 brew upgrade openssl
 # install unixodbc
