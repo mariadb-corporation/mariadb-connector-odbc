@@ -1093,14 +1093,16 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         CurQuery+= strlen(CurQuery) + 1;
       }
       
-      Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
       Stmt->RebindParams= TRUE;
 
-      if (StatementNr > 0)
+      if (Stmt->ParamCount != mysql_stmt_param_count(Stmt->stmt))
       {
+        Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
         Stmt->params= (MYSQL_BIND*)MADB_REALLOC(Stmt->params, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
-        memset(Stmt->params, 0, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
       }
+
+      memset(Stmt->params, 0, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
+      
     }
 
     if (MADB_DOING_BULK_OPER(Stmt))
