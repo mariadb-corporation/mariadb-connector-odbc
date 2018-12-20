@@ -90,9 +90,38 @@ ODBC_TEST(test_params)
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, 0, NULL));
 
+
   for (i=0; i < 100; i++)
   {
     j= i + 100;
+    CHECK_STMT_RC(Stmt, SQLExecute(Stmt)); 
+
+    while (SQLMoreResults(Stmt) == SQL_SUCCESS);
+  }
+
+  return OK;
+}
+
+ODBC_TEST(test_params_last_count_smaller)
+{
+  int       i, j, k;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int, b int)");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?,?); INSERT INTO t2 VALUES (?)", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &k, 0, NULL));
+
+  for (i=0; i < 100; i++)
+  {
+    j= i + 100;
+    k= i + 1000;
     CHECK_STMT_RC(Stmt, SQLExecute(Stmt)); 
 
     while (SQLMoreResults(Stmt) == SQL_SUCCESS);
@@ -580,6 +609,7 @@ MA_ODBC_TESTS my_tests[]=
   {test_multi_statements, "test_multi_statements"},
   {test_multi_on_off, "test_multi_on_off"},
   {test_params, "test_params"},
+  {test_params_last_count_smaller, "test_params_last_count_smaller"},
   {t_odbc_16, "test_odbc_16"},
   {test_semicolon, "test_semicolon_in_string"},
   {t_odbc74, "t_odbc74and_odbc97"},
