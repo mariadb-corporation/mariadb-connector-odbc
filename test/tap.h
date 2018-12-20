@@ -1274,6 +1274,9 @@ char * GenGUID(char *buffer)
 }
 #endif
 
+/* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
+#define iOdbc() (sizeof(SQLWCHAR)==4)
+
 BOOL UnixOdbc()
 {
 #ifdef SQL_ATTR_UNIXODBC_VERSION
