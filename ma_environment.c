@@ -111,7 +111,7 @@ MADB_Env *MADB_EnvInit()
       DmUnicodeCs= little_endian() ? &dummyUtf32le : mariadb_get_charset_by_name("utf32");
     }
   }
-  utf8.cs_info= mariadb_get_charset_by_name("utf8");
+  utf8.cs_info= mariadb_get_charset_by_name("utf8mb4");
   GetDefaultLogDir();
   GetSourceAnsiCs(&SourceAnsiCs);
 

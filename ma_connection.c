@@ -114,6 +114,7 @@ SQLUSMALLINT MADB_supported_api[]=
 
 struct st_ma_connection_methods MADB_Dbc_Methods; /* declared at the end of file */
 
+
 my_bool CheckConnection(MADB_Dbc *Dbc)
 {
   if (!Dbc->mariadb)
@@ -622,13 +623,18 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       cs_name= cs->csname;
     }
 
-    if (InitClientCharset(&Connection->Charset, MADB_IS_EMPTY(cs_name) ? "utf8" : cs_name))
+    if (InitClientCharset(&Connection->Charset, MADB_IS_EMPTY(cs_name) ? "utf8mb4" : cs_name))
     {
       /* Memory allocation error */
       MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
       goto end;
     }
+    if (iOdbc() && strcmp(Connection->Charset.cs_info->csname, "swe7") == 0)
+    {
+      MADB_SetError(&Connection->Error, MADB_ERR_HY001, "Charset SWE7 is not supported with iODBC", 0);
+      goto end;
 
+    }
     if (!Connection->IsAnsi || iOdbc())
     {
       /* If application is not ansi, we should convert wchar into connection string */

@@ -1517,9 +1517,6 @@ ODBC_TEST(t_odbc137)
   const char Charset[][16]= {"latin1", "cp850", "cp1251", "cp866", "cp852", "cp1250", "latin2", "latin5" ,"latin7",
                              "cp1256", "cp1257", "geostd8", "greek", "koi8u", "koi8r", "hebrew", "macce", "macroman",
                              "dec8", "hp8", "armscii8", "ascii", "swe7", "tis620", "keybcs2"};
-                        /* Â‰ˆ≈ƒ÷ in latin1(cp= 1252),  Â‰ˆ≈ƒ÷ in cp850(cp= 437_,  () in win1251 */
-  /*const char TestStr[][8]={ "\xe5\xe4\xf6\xc5\xc4\xd6", "\x86\x84\x94\x8f\x8e\x99", "\xb4\xa2\xfa\xa5\xa1\xda" },
-    HexStr[][16]={ "0xE5E4F6C5C4D6", "0x8684948F8E99", "0xB4A2FAA5A1DA" };*/
   const char CreateStmtTpl[]= "CREATE TABLE `t_odbc137` (\
                           `val` TEXT DEFAULT NULL\
                           ) ENGINE=InnoDB DEFAULT CHARSET=%s";
@@ -1533,7 +1530,11 @@ ODBC_TEST(t_odbc137)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc137`");
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
-  for (i= 1; i < 256; ++i)
+  /* In fact it's probably does not make sense to test with iODBC. The only way to use connector with ansi connection charsets for
+     applications, is to use utf8 anyway */
+  /* On iOdbc it takes utf as source cs for recoding, and values starting from 0x80 require special values in the following byte.
+     Thus testing only till 0x7f */
+  for (i= 1; i < (iOdbc() ? 0x80 : 256); ++i)
   {
     if (i == '\'' || i == '\\')
     {
@@ -1545,11 +1546,19 @@ ODBC_TEST(t_odbc137)
     sprintf(AllAnsiHex + (i-1)*2, "%02x", i);
   }
 
-  AllAnsiChars[255 + Escapes]= AllAnsiHex[511]= '\0';
+  AllAnsiChars[(iOdbc() ? 0x7f : 255) + Escapes]= AllAnsiHex[(iOdbc() ? 0x7f : 255)*2 + 1]= '\0';
   
   for (i= 0; i < sizeof(Charset)/sizeof(Charset[0]); ++i)
   {
-    diag("Charset: %s", Charset[i]);
+    if (iOdbc() && strcmp(Charset[i], "swe7")==0)
+    {
+      diag("Charset %s is not supported with iODBC", Charset[i]);
+      continue;
+    }
+    else
+    {
+      diag("Charset: %s", Charset[i]);
+    }
     
     Hstmt= ConnectWithCharset(&Hdbc, Charset[i], NULL);
     FAIL_IF(Hstmt == NULL, "");
@@ -1557,17 +1566,17 @@ ODBC_TEST(t_odbc137)
     sprintf(CreateStmt, CreateStmtTpl, Charset[i]);
     OK_SIMPLE_STMT(Hstmt, CreateStmt);
 
-    sprintf(InsertStmt, InsertStmtTpl, AllAnsiChars);// TestStr[i]);
+    sprintf(InsertStmt, InsertStmtTpl, AllAnsiChars);
     OK_SIMPLE_STMT(Hstmt, InsertStmt);
 
-    sprintf(SelectStmt, SelectStmtTpl, AllAnsiHex);// HexStr[i]);
+    sprintf(SelectStmt, SelectStmtTpl, AllAnsiHex);
     OK_SIMPLE_STMT(Hstmt, SelectStmt);
 
     FAIL_IF(SQLFetch(Hstmt) == SQL_NO_DATA, "Wrong data has been stored in the table");
     /* We still need to make sure that the string has been delivered correctly */
     my_fetch_str(Hstmt, buffer, 1);
     /* AllAnsiChars is escaped, so we cannot compare result string against it */
-    for (j= 1; j < 256; ++j)
+    for (j= 1; j < (iOdbc() ? 0x80 : 256); ++j)
     {
       is_num((unsigned char)buffer[j - 1], j);
     }
