@@ -862,7 +862,7 @@ ODBC_TEST(t_odbc_26)
   EXPECT_STMT(Stmt, SQLParamData(Stmt, &parameter), SQL_NEED_DATA);
   is_num(parameter, 1);
 
-  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 2*sizeof(SQLWCHAR));
+  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 2*sizeof(SQLWCHAR)));
   CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &parameter));
 
   /* We return "N" for SQL_NEED_LONG_DATA_LEN, and this not gonna change. Thus SQL_LEN_DATA_AT_EXEC(0) and with any other parameter should work */
