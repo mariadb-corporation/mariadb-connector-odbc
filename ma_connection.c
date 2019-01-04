@@ -1414,6 +1414,10 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_ODBC_VER:
     break;
+  case SQL_OUTER_JOINS:
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
+                                     (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Dbc->Error);
+    break;
   case SQL_OJ_CAPABILITIES:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_OJ_LEFT | SQL_OJ_RIGHT |
                                                 SQL_OJ_NESTED | SQL_OJ_INNER, StringLengthPtr);
