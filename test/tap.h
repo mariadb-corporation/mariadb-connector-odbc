@@ -116,7 +116,7 @@ static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 static SQLCHAR *my_uid=        (SQLCHAR *)"root";
 static SQLCHAR *my_pwd=        (SQLCHAR *)"";
 static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
-static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 3.1";
+static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB ODBC 3.1 Driver";
 static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 
 static SQLWCHAR *wdsn;
@@ -208,7 +208,7 @@ void usage()
   fprintf(stdout, "-D Driver Name\n");
   fprintf(stdout, "-u Username\n");
   fprintf(stdout, "-p Password\n");
-  fprintf(stdout, "-s default database (schema)\n");
+  fprintf(stdout, "-s Default database (schema)\n");
   fprintf(stdout, "-S Server name/address\n");
   fprintf(stdout, "-P Port number\n");
   fprintf(stdout, "?  Displays this text\n");
