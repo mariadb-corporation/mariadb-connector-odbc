@@ -470,8 +470,8 @@ ODBC_TEST(t_columns)
   SQLINTEGER    Values[7][5][2]=
   {
     { {5,2},  {5,4}, {0,2},  {10,2},  {1,2}},
-    { {1,2},  {5,4},  {0,-1}, {10,-1}, {1,2}},
-    { {12,2}, {20,4}, {0,-1}, {10,-1}, {0,2}},
+    { {SQL_WCHAR, 2},  {5,4},  {0,-1}, {10,-1}, {1,2}},
+    { {SQL_WVARCHAR,2}, {20,4}, {0,-1}, {10,-1}, {0,2}},
     { {3,2},  {10,4}, {2,2},  {10,2},  {1,2}},
     { {-6,2},  {3,4}, {0,2},  {10,2},  {0,2}},
     { {4,2}, {10,4}, {0,2},  {10,2},  {0,2}},
@@ -594,7 +594,7 @@ ODBC_TEST(t_tables_bug)
   SQLSMALLINT i, ColumnCount, pcbColName, pfSqlType, pibScale, pfNullable;
   SQLULEN     pcbColDef;
   SQLCHAR     szColName[MAX_NAME_LEN];
-  const int   RefArrOffset= 4; /* 4 for "ANSI" connection, which is default atm, and -1 for "Unicode" */
+  const int   RefArrOffset= iOdbc() ? -1 : 4; /* 4 for "ANSI" connection, which is default atm, and -1 for "Unicode" */
 
   CHECK_STMT_RC(Stmt,  SQLTables(Stmt, NULL, 0, NULL, 0, NULL, 0,
                             (SQLCHAR *)"TABLE", SQL_NTS));

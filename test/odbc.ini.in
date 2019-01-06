@@ -1,3 +1,6 @@
+[ODBC Data Sources]
+@TEST_DSN@ = MariaDB ODBC Connector Test
+
 [@TEST_DSN@]
 Driver      = @TEST_DRIVER@
 DESCRIPTION = MariaDB ODBC Connector Test

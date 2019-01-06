@@ -174,6 +174,8 @@ const char comments[][2][60]= { {"\t#TODO: not ok - test is known to fail, unkno
 
 /* We don't test corresponding EnvAttr, but assume that connections are made using heler functions, and they use OdbcVer */
 #define IS_ODBC3() (OdbcVer == SQL_OV_ODBC3)
+/* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
+#define iOdbc() (sizeof(SQLWCHAR)==4)
 
 #define skip(A) diag((A)); return SKIP;
 
@@ -529,7 +531,7 @@ int ma_print_result_getdata_exex(SQLHSTMT Stmt, BOOL CloseCursor, BOOL FetchAsWs
     fprintf(stdout, "\n");
   }
 
-  if (CloseCursor)
+  if (CloseCursor != FALSE)
   {
     SQLFreeStmt(Stmt, SQL_CLOSE);
   }
@@ -620,22 +622,22 @@ do {\
   }\
 } while(0)
 
-#define EXPECT_DBC(Dbc,Function, Expected)\
+#define EXPECT_DBC(_Dbc,_Function, _Expected)\
 do {\
-  SQLRETURN ret= (Function);\
-  if (ret != (Expected))\
+  SQLRETURN ret= (_Function);\
+  if (ret != (_Expected))\
   {\
-    CHECK_DBC_RC(Dbc, ret);\
+    CHECK_DBC_RC(_Dbc, ret);\
   }\
 } while(0)
 
-#define EXPECT_STMT(Stmt,Function, Expected)\
+#define EXPECT_STMT(_Stmt,_Function, _Expected)\
 do {\
-  SQLRETURN ret= (Function);\
-  if (ret != (Expected))\
+  SQLRETURN ret= (_Function);\
+  if (ret != (_Expected))\
   {\
-    CHECK_STMT_RC(Stmt, ret);\
-    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #Function, ret, #Expected, Expected);\
+    CHECK_STMT_RC(_Stmt, ret);\
+    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #_Function, ret, #_Expected, _Expected);\
     return FAIL;\
   }\
 } while(0)
@@ -781,7 +783,7 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
   }
   else
   {
-    SQLWCHAR *DsnStringW= str2sqlwchar_on_gbuff(DSNString, strlen(DSNString) + 1, utf8, utf16);
+    SQLWCHAR *DsnStringW= str2sqlwchar_on_gbuff(DSNString, strlen(DSNString) + 1, utf8, DmUnicode);
     if (!SQL_SUCCEEDED(SQLDriverConnectW(Connection, NULL, DsnStringW, SQL_NTS, NULL, 0, &Length, SQL_DRIVER_NOPROMPT)))
     {
       odbc_print_error(SQL_HANDLE_DBC, Connection);
@@ -1140,7 +1142,7 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_INFO *from_cs, MARIADB_CHARSET_INFO *to_cs)
 {
   SQLWCHAR   *res= buff_pos;
-  size_t      rc, buff_size= sqlwchar_buff + sizeof(sqlwchar_buff) - buff_pos;
+  size_t      rc, buff_size= sizeof(sqlwchar_buff) - (buff_pos - sqlwchar_buff)*sizeof(SQLWCHAR);
   int         error;
   const char *src= str;
 
@@ -1272,7 +1274,10 @@ char * GenGUID(char *buffer)
 }
 #endif
 
-BOOL UnixOdbc(HENV Env)
+/* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
+#define iOdbc() (sizeof(SQLWCHAR)==4)
+
+BOOL UnixOdbc()
 {
 #ifdef SQL_ATTR_UNIXODBC_VERSION
   return TRUE;

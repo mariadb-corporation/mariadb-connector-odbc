@@ -1099,7 +1099,7 @@ ODBC_TEST(t_bug34672)
   SQLHSTMT   Stmt1;
 
   AllocEnvConn(&Env, &hdbc1);
-  Stmt1= ConnectWithCharset(&hdbc1, "utf8", NULL); /* For connection charset we need something, that has representation for those characters */
+  Stmt1= ConnectWithCharset(&hdbc1, "utf8mb4", NULL); /* For connection charset we need something, that has representation for those characters */
 
   if (sizeof(SQLWCHAR) == 2)
   {
@@ -1123,9 +1123,11 @@ ODBC_TEST(t_bug34672)
   CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
   CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 1, SQL_C_WCHAR, result,
                             sizeof(result), &reslen));
-  is_num(result[2], 0);
+  is_num(result[iOdbc() ? 1 : 2], 0);
   for (i= 0; i < inchars; ++i)
+  {
     is_num(result[i], chars[i]);
+  }
 
   is_num(reslen, inchars * sizeof(SQLWCHAR));
 
@@ -1526,6 +1528,12 @@ ODBC_TEST(t_odbc203)
       is_num(Rows, ExpRowCount[RsIndex]);
       CHECK_STMT_RC(wStmt, SQLNumResultCols(wStmt, &ColumnsCount));
       is_num(ColumnsCount, expCols[RsIndex]);
+
+      if (iOdbc() && RsIndex == 5)
+      {
+        diag("Skipping values check in the last resultset, because of the bug in the iODBC");
+        break;
+      }
 
       Rows= 0;
       while (SQL_SUCCEEDED(SQLFetch(wStmt)))

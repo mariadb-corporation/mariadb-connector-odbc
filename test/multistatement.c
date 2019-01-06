@@ -527,9 +527,9 @@ ODBC_TEST(t_odbc169)
                           {"5", "6", "Row 3" },
                           {"8", "7", "Row #4"}
                         };
-  unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
-  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0, 0};
-  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3, 1};
+  unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0};
+  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3};
   SQLRETURN rc;
   SQLSMALLINT Column, Row= 0;
   SQLCHAR     ColumnData[MAX_ROW_DATA_LEN]={ 0 };
@@ -549,6 +549,12 @@ ODBC_TEST(t_odbc169)
       is_num(Rows, ExpRowCount[RsIndex]);
       CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
       is_num(ColumnsCount, expCols[RsIndex]);
+
+      if (iOdbc() && RsIndex == 5)
+      {
+        diag("Skipping values check in the last resultset, because of the bug in the iODBC");
+        break;
+      }
 
       Rows= 0;
       while (SQL_SUCCEEDED(SQLFetch(Stmt)))
