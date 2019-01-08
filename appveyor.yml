@@ -18,9 +18,6 @@ clone_folder: c:\maodbc
 platform: x64
 configuration: Release
 
-install:
-    
-
 build_script:
     # build libmariadb separately first because otherwise the Wix installer build might look for files that aren't available yet
     - cd libmariadb
@@ -28,6 +25,17 @@ build_script:
     # build odbc
     - cd ..
     - cmake --build . --config RelWithDebInfo --parallel 2
+
+# scripts to run before build
+before_build:
+    - cd c:\maodbc
+    - git submodule init
+    - git submodule update
+    - mkdir win64
+    - cd win64
+    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0
+
+after_build:
     # download and install MariaDB Server
     - set FILE=http://mariadb.mirrors.ovh.net/MariaDB/mariadb-%DB%/winx64-packages/mariadb-%DB%-winx64.msi
     - ps: Start-FileDownload $Env:FILE -FileName server.msi -Timeout 900000
@@ -35,10 +43,10 @@ build_script:
     # create test database
     - c:\mariadb-server\bin\mysql.exe -e "CREATE DATABASE odbc_test" --user=root
     # install built odbc driver
-    - ps: $msifile = Get-ChildItem -Filter *.msi -Path C:\maodbc\win64\wininstall\ -File -Recurse | Select-Object -First 1
-    - ps: Write "C:\maodbc\win64\wininstall\$msifile"
-    # mariadb-connector-odbc-3.1.0-win64.msi
-    - ps: msiexec /i "C:\maodbc\win64\wininstall\$msifile" INSTALLDIR=c:\mariadb-odbc /qn 
+    - ps: $msifile = Get-ChildItem $env:APPVEYOR_BUILD_FOLDER\win64\wininstall\mariadb-connector-odbc*.msi | Select-Object -First 1
+    - ps: Push-AppveyorArtifact $msifile.FullName -FileName $msifile.Name
+    - ps: Write $msifile
+    - ps: msiexec /i $msifile INSTALLDIR=c:\mariadb-odbc /qn 
     # add ODBC DSN with the built driver
     # notice that it isn't possible to currently use Add-OdbcDsn in PowerShell. It will give an error because of missing properties. Therefore the
     # DSN is added to registry below.
@@ -60,26 +68,10 @@ build_script:
     - ps: New-ItemProperty -Path $regPath -Name "UID" -Value "root"
     - ps: New-Item -Path "HKCU:\Software\ODBC\ODBC.INI\ODBC Data Sources"
     - ps: New-ItemProperty -Path "HKCU:\Software\ODBC\ODBC.INI\ODBC Data Sources" -Name "test" -Value "MariaDB ODBC 3.1 Driver"
+    
+    # - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
     - cd test
     - ctest -V
-
-# scripts to run before build
-before_build:
-    - cd c:\maodbc
-    - git submodule init
-    - git submodule update
-#    - cd libmariadb
-#    - git fetch --all --tags --prune
-#    - git checkout v3.0.8
-#    - cd ..
-    - mkdir win64
-    - cd win64
-    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0
-
-after_build:
-
-artifacts:
-    - path: win64\wininstall\*.msi
 
 on_finish:
 #  - dir
@@ -91,4 +83,3 @@ on_finish:
 #  - dir libmariadb\release
 #  - dir wininstall
 #  - type wininstall\mariadb_odbc.xml
-#  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
