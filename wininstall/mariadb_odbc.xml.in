@@ -34,7 +34,8 @@
       <Directory Id="@FOLDER@">
         <Directory Id="MariaDB" Name="@PRODUCT_MANUFACTURER@">
           <Directory Id="INSTALLFOLDER" Name="@PRODUCT_NAME@">
-            <Directory Id="PLUGINSFOLDER" Name="$(var.plugins_subdir_name)" />
+            <Directory Id="PLUGINSFOLDER" Name="$(var.plugins_subdir_name)">
+            </Directory>
           </Directory>
         </Directory>
       </Directory>
@@ -60,9 +61,11 @@
       </Component>
     <Component Id="Debug" Guid="@GUID_DEBUG@" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
       <File Id="mariadb_odbc_dll_pdb" Name="maodbc.pdb" KeyPath="yes" DiskId="1" Source="$(var.binaries_dir)/maodbc.pdb" />
-      <File Id="mariadb_odbc_setup_pdb" Name="maodbcs.pdb"  DiskId="1"  Source="$(var.binaries_dir)/maodbcs.pdb" />  
+      <File Id="mariadb_odbc_setup_pdb" Name="maodbcs.pdb"  DiskId="1"  Source="$(var.binaries_dir)/maodbcs.pdb" />
+      <CreateFolder />
     </Component>
     <Component Id="CcPlugins" Guid="@GUID_PLUGINS@" Directory="PLUGINSFOLDER" DiskId="1" Win64="@IS_WIN64@">
+      <File Id="caching_sha2_password.dll" Name="caching_sha2_password.dll" DiskId="1" Source="$(var.plugins_source_dir)/caching_sha2_password.dll" />
       <File Id="dialog_dll" Name="dialog.dll" KeyPath="yes" DiskId="1" Source="$(var.plugins_source_dir)/dialog.dll" />
       <File Id="auth_gssapi_client_dll" Name="auth_gssapi_client.dll" DiskId="1" Source="$(var.plugins_source_dir)/auth_gssapi_client.dll" />
       <File Id="mysql_clear_password_dll" Name="mysql_clear_password.dll"  DiskId="1" Source="$(var.plugins_source_dir)/mysql_clear_password.dll" />
@@ -73,6 +76,7 @@
       <File Id="auth_gssapi_client_pdb" Name="auth_gssapi_client.pdb" DiskId="1" Source="$(var.plugins_source_dir)/auth_gssapi_client.pdb" />
       <File Id="mysql_clear_password_pdb" Name="mysql_clear_password.pdb" DiskId="1" Source="$(var.plugins_source_dir)/mysql_clear_password.pdb" />
       <File Id="sha256_password_pdb" Name="sha256_password.pdb" DiskId="1" Source="$(var.plugins_source_dir)/sha256_password.pdb" />
+      <CreateFolder />
     </Component>
   <!--  </ComponentGroup> -->
   </Fragment>

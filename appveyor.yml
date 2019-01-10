@@ -1,0 +1,86 @@
+environment: 
+    matrix:
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+          DB: 10.3.11
+          CMAKE_PARAM_G: 'Visual Studio 14 2015 Win64'
+
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+          DB: 10.3.11
+          CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
+
+# scripts that are called at very beginning, before repo cloning
+init:
+    - git config --global core.autocrlf input
+    - wmic cpu get NumberOfCores
+    - wmic ComputerSystem get TotalPhysicalMemory
+
+clone_folder: c:\maodbc
+platform: x64
+configuration: Release
+
+build_script:
+    # build libmariadb separately first because otherwise the Wix installer build might look for files that aren't available yet
+    - cd libmariadb
+    - cmake --build . --config RelWithDebInfo --parallel 2
+    # build odbc
+    - cd ..
+    - cmake --build . --config RelWithDebInfo --parallel 2
+
+# scripts to run before build
+before_build:
+    - cd c:\maodbc
+    - git submodule init
+    - git submodule update
+    - mkdir win64
+    - cd win64
+    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0
+
+after_build:
+    # download and install MariaDB Server
+    - set FILE=http://mariadb.mirrors.ovh.net/MariaDB/mariadb-%DB%/winx64-packages/mariadb-%DB%-winx64.msi
+    - ps: Start-FileDownload $Env:FILE -FileName server.msi -Timeout 900000
+    - msiexec /i server.msi INSTALLDIR=c:\mariadb-server SERVICENAME=mariadb /qn
+    # create test database
+    - c:\mariadb-server\bin\mysql.exe -e "CREATE DATABASE odbc_test" --user=root
+    # install built odbc driver
+    - ps: $msifile = Get-ChildItem $env:APPVEYOR_BUILD_FOLDER\win64\wininstall\mariadb-connector-odbc*.msi | Select-Object -First 1
+    - ps: Push-AppveyorArtifact $msifile.FullName -FileName $msifile.Name
+    - ps: Write $msifile
+    - ps: msiexec /i $msifile INSTALLDIR=c:\mariadb-odbc /qn 
+    # add ODBC DSN with the built driver
+    # notice that it isn't possible to currently use Add-OdbcDsn in PowerShell. It will give an error because of missing properties. Therefore the
+    # DSN is added to registry below.
+    #- ps: Add-OdbcDsn -Name "test" -DriverName "MariaDB ODBC 3.1 Driver" -DsnType "System" -SetPropertyValue @("Server=localhost", "PORT=3306", "Database=odbc_test")
+    - ps: New-Item -Path "HKCU:\Software\ODBC"
+    - ps: New-Item -Path "HKCU:\Software\ODBC\ODBC.INI"
+    - ps: $regPath = "HKCU:\Software\ODBC\ODBC.INI\test"
+    - ps: New-Item -Path $regPath
+    - ps: New-ItemProperty -Path $regPath -Name "CONN_TIMEOUT" -Value "0"
+    - ps: New-ItemProperty -Path $regPath -Name "DATABASE" -Value "odbc_test"
+    - ps: New-ItemProperty -Path $regPath -Name "DESCRIPTION" -Value "MariaDB ODBC test"
+    - ps: New-ItemProperty -Path $regPath -Name "Driver" -Value "MariaDB ODBC 3.1 Driver"
+    - ps: New-ItemProperty -Path $regPath -Name "OPTIONS" -Value "0"
+    - ps: New-ItemProperty -Path $regPath -Name "PORT" -Value "0"
+    - ps: New-ItemProperty -Path $regPath -Name "PWD" -Value ""
+    - ps: New-ItemProperty -Path $regPath -Name "SERVER" -Value "localhost"
+    - ps: New-ItemProperty -Path $regPath -Name "SSLVERIFY" -Value "0"
+    - ps: New-ItemProperty -Path $regPath -Name "TCPIP" -Value "1"
+    - ps: New-ItemProperty -Path $regPath -Name "UID" -Value "root"
+    - ps: New-Item -Path "HKCU:\Software\ODBC\ODBC.INI\ODBC Data Sources"
+    - ps: New-ItemProperty -Path "HKCU:\Software\ODBC\ODBC.INI\ODBC Data Sources" -Name "test" -Value "MariaDB ODBC 3.1 Driver"
+
+    - timeout /T 1    
+    # - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+    - cd test
+    - ctest -V
+
+on_finish:
+#  - dir
+#  - dir RelWithDebInfo
+#  - dir wininstall
+#  - dir libmariadb\RelWithDebInfo
+#  - dir release
+#  - dir libmariadb
+#  - dir libmariadb\release
+#  - dir wininstall
+#  - type wininstall\mariadb_odbc.xml

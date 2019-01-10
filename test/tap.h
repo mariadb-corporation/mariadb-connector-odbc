@@ -116,7 +116,7 @@ static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 static SQLCHAR *my_uid=        (SQLCHAR *)"root";
 static SQLCHAR *my_pwd=        (SQLCHAR *)"";
 static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
-static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 3.0";
+static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB ODBC 3.1 Driver";
 static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 
 static SQLWCHAR *wdsn;

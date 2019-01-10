@@ -820,9 +820,9 @@ ODBC_TEST(t_bug55870)
   sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s; NO_I_S=1", my_dsn, my_uid, my_pwd);
 
   sprintf(query, "grant Insert, Select on bug55870 to %s", my_uid);
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, SQL_NTS));
+  SQLExecDirect(Stmt, query, SQL_NTS);
   sprintf(query, "grant Insert (c), Select (c), Update (c) on bug55870 to %s", my_uid);
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, SQL_NTS));
+  SQLExecDirect(Stmt, query, SQL_NTS);
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, noI_SconnStr, sizeof(noI_SconnStr), NULL,
                                 0, NULL, SQL_DRIVER_NOPROMPT));
@@ -873,15 +873,14 @@ ODBC_TEST(t_bug55870)
       records from tables_priv and columns_priv
   */
   sprintf(query, "revoke select,insert on bug55870 from %s", my_uid);
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, SQL_NTS));
+  SQLExecDirect(Stmt, query, SQL_NTS);
 
   sprintf(query, "revoke select (c),insert (c),update (c) on bug55870 from %s", my_uid);
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, SQL_NTS));
+  SQLExecDirect(Stmt, query, SQL_NTS);
 
-  /*
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870r");
-    OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870_2");
-    OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870");*/
+  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870_2");
+  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870");
   
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
