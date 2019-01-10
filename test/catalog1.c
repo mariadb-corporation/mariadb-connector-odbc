@@ -531,9 +531,7 @@ ODBC_TEST(t_columns)
 
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-	/* if you get -8 for col1 here - that's fine. depends on setup. the test probably needs
-	   to be changed accordingly */
-    is_num(DataType,   Values[i][0][0]);
+    is_num(DataType, GetDefaultCharType(Values[i][0][0], TRUE));
     is_num(cbDataType, Values[i][0][1]);
 
     is_num(ColumnSize,   Values[i][1][0]);

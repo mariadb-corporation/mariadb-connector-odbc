@@ -667,7 +667,7 @@ ODBC_TEST(t_sqlprocedurecolumns)
           case SQL_TYPE_DATE: data_to_check[iter].c06_data_type= SQL_DATE; break;
           }
         }
-        is_num(my_fetch_int(Hstmt1, 6), data_to_check[iter].c06_data_type);
+        is_num(my_fetch_int(Hstmt1, 6), GetDefaultCharType(data_to_check[iter].c06_data_type,TRUE));
 
         IS_STR(my_fetch_str(Hstmt1, buff, 7), 
                data_to_check[iter].c07_type_name, 
@@ -684,7 +684,7 @@ ODBC_TEST(t_sqlprocedurecolumns)
     
         is_num(my_fetch_int(Hstmt1, 11), data_to_check[iter].c11_num_prec_radix);
 
-        is_num(my_fetch_int(Hstmt1, 15), data_to_check[iter].c15_sql_data_type);
+        is_num(my_fetch_int(Hstmt1, 15), GetDefaultCharType(data_to_check[iter].c15_sql_data_type, TRUE));
 
         is_num(my_fetch_int(Hstmt1, 16), data_to_check[iter].c16_sql_datetime_sub);
 

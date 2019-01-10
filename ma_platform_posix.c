@@ -248,7 +248,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
   SQLINTEGER  RequiredLength;
   SQLWCHAR   *Tmp= UnicodeString;
   int         rc= 0, error;
-  size_t      src_octet_len, dest_octet_len;
+  size_t      SrcOctetLen, DestOctetLen;
 
   if (LengthIndicator)
     *LengthIndicator= 0;
@@ -280,13 +280,19 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
     return 0;
 
   if (RequiredLength > UnicodeLength)
+  {
     Tmp= (SQLWCHAR *)malloc(RequiredLength * sizeof(SQLWCHAR));
+  }
+  else
+  {
+    RequiredLength= UnicodeLength;
+  }
 
-  src_octet_len= AnsiLength + IsNull;
-  dest_octet_len= sizeof(SQLWCHAR) * RequiredLength;
+  SrcOctetLen= AnsiLength + IsNull;
+  DestOctetLen= sizeof(SQLWCHAR) * RequiredLength;
 
-  RequiredLength= mariadb_convert_string(AnsiString, &src_octet_len, cc->cs_info, 
-                                        (char*)Tmp, &dest_octet_len, DmUnicodeCs, &error);
+  RequiredLength= mariadb_convert_string(AnsiString, &SrcOctetLen, cc->cs_info, 
+                                        (char*)Tmp, &DestOctetLen, DmUnicodeCs, &error);
 
   if (RequiredLength < 1)
   {

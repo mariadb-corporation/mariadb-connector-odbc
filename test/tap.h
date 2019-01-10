@@ -1285,4 +1285,23 @@ BOOL UnixOdbc()
   return FALSE;
  }
 
+
+int  GetDefaultCharType(int WType, BOOL isAnsiConnection)
+{
+#ifdef _WIN32
+  if (isAnsiConnection != FALSE)
+  {
+    switch (WType) {
+    case SQL_WCHAR:
+      return SQL_CHAR;
+    case SQL_WVARCHAR:
+      return SQL_VARCHAR;
+    case SQL_WLONGVARCHAR:
+      return SQL_LONGVARCHAR;
+    }
+  }
+#endif
+
+  return WType;
+}
 #endif      /* #ifndef _tap_h_ */

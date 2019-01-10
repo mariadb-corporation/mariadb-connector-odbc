@@ -222,7 +222,7 @@ end:
 /* Returns required length for result string with(if dest and dest length are provided)
    or without terminating NULL(otherwise). If cc is NULL, or not initialized(CodePage is 0),
    then simply SrcLength is returned. 
-   If Dest is not NULL, and DestLenth is 0, then error*/
+   If Dest is not NULL, and DestLenth is 0, then error */
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                       const char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {

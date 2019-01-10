@@ -2746,7 +2746,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
                 return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
               }
 
-              CharLength= MADB_SetString(&Stmt->Connection->Charset, IrdRec->InternalBuffer, (SQLINTEGER)ReqBuffOctetLen,
+              CharLength= MADB_SetString(&Stmt->Connection->Charset, IrdRec->InternalBuffer, (SQLINTEGER)ReqBuffOctetLen / sizeof(SQLWCHAR),
                 ClientValue, Stmt->stmt->fields[Offset].max_length - Stmt->CharOffset[Offset], &Stmt->Error);
             }
             else
