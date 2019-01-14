@@ -13,18 +13,20 @@ export TEST_UID=root
 export TEST_PASSWORD= 
 
 # for some reason brew upgrades postgresql, so let's remove it
-brew remove postgis
-brew uninstall --ignore-dependencies postgresql
+# brew remove postgis
+# brew uninstall --ignore-dependencies postgresql
 # upgrade openssl
-brew upgrade openssl
+# brew upgrade openssl
 # install unixodbc
-brew install libiodbc
+# brew install libiodbc
 # install and start MariaDB Server
-brew install mariadb
+# brew install mariadb
 mysql.server start
 
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_IODBC=ON -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2q -DOPENSSL_LIBRARIES=/usr/local/Cellar/openssl/1.0.2q/lib
+# ls -la /usr/local/Cellar/openssl/
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_IODBC=ON -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2o_2 -DOPENSSL_LIBRARIES=/usr/local/Cellar/openssl/1.0.2o_2/lib
 cmake --build . --config RelWithDebInfo
+
 ###################################################################################################################
 # run test suite
 ###################################################################################################################

@@ -4,6 +4,11 @@ services: docker
 addons:
   hosts:
     - mariadb.example.com
+  homebrew:
+    packages:
+      - openssl
+      - libiodbc
+      - mariadb
 
 before_install:
   - chmod +x .travis/script.sh
