@@ -83,4 +83,7 @@ ADD_CUSTOM_TARGET(
 
 ADD_DEPENDENCIES(${MSI_PACKAGE} ODBC_WIX)
 ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs)
+IF(NOT USE_SYSTEM_INSTALLED_LIB)
+  ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password)
+ENDIF()
 
