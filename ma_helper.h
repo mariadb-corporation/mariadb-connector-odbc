@@ -106,7 +106,7 @@ extern my_bool DummyError;
 #define MADB_REALLOC(a,b) realloc((a),(b))
 
 /* If required to free old memory pointed by current ptr, and set new value */
-#define MADB_RESET(ptr, newptr) {\
+#define MADB_RESET(ptr, newptr) do {\
   char *local_new_ptr= (newptr);\
   if (local_new_ptr != ptr) {\
     free((char*)(ptr));\

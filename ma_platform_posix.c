@@ -125,7 +125,7 @@ SQLINTEGER SqlwcsOctetLen(const SQLWCHAR *str, SQLINTEGER *CharLen)
 
   if (str)
   {
-    while (inChars > 0 || inChars < 0 && *str)
+    while (inChars > 0 || (inChars < 0 && *str))
     {
       result+= DmUnicodeCs->mb_charlen(*str);
       --inChars;
@@ -394,11 +394,11 @@ int GetSourceAnsiCs(Client_Charset *cc)
 /* {{{ MADB_DSN_PossibleConnect(MADB_Dsn *) */
 BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
 {
-  return Dsn->Socket || Dsn->ServerName && Dsn->Port > 0 && Dsn->IsTcpIp;
+  return Dsn->Socket || (Dsn->ServerName && Dsn->Port > 0 && Dsn->IsTcpIp);
 }
 
 
 /* Stub - atm it looks like we don't need to do anything here */
-void MADB_SetDefaultPluginsDir(MYSQL *mariadb)
+void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc)
 {
 }

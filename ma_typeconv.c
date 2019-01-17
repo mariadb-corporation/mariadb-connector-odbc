@@ -70,11 +70,11 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Inter
     *isTime= 1;
   }
 
-  if (Frac= strchr(Start, '.')) /* fractional seconds */
+  if ((Frac= strchr(Start, '.')) != NULL) /* fractional seconds */
   {
     size_t FracMulIdx= End - (Frac + 1) - 1/*to get index array index */;
     /* ODBC - nano-seconds */
-    if (sscanf(Start, "%d:%u:%u.%6u", &Tm->hour, &Tm->minute,
+    if (sscanf(Start, "%d:%u:%u.%6lu", &Tm->hour, &Tm->minute,
       &Tm->second, &Tm->second_part) < 4)
     {
       return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
@@ -456,7 +456,7 @@ SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlT
     }
   default:
     /* This only would be good for SQL_TYPE_TIME. If C type is time(isTime!=0), and SQL type is timestamp, date fields may be NULL - driver should set them to current date */
-    if (isTime == 0 && ts->year == 0 || ts->month == 0 || ts->day == 0)
+    if ((isTime == 0 && ts->year == 0) || ts->month == 0 || ts->day == 0)
     {
       return MADB_SetError(Error, SqlState, NULL, 0);
     }

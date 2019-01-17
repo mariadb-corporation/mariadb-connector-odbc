@@ -165,19 +165,19 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   unsigned int i;
   char         StmtStr[1024];
   char         *p= StmtStr;
-  char         Database[65];
+  char         Database[65]= {'\0'};
   MADB_Stmt    *Stmt= NULL;
   MADB_Stmt    *KeyStmt;
   
   Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
   p+= _snprintf(p, 1024, "SELECT * FROM ");
-  if (Database)
+  if (Database[0] != '\0')
   {
-    p+= _snprintf(p, 1024 - strlen(p), "`%s`.", Database);
+    p+= _snprintf(p, sizeof(StmtStr) - strlen(p), "`%s`.", Database);
   }
-  p+= _snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
+  p+= _snprintf(p, sizeof(StmtStr) - strlen(p), "%s LIMIT 0", TableName);
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
-    Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
+    Stmt->Methods->ExecDirect(Stmt, (char *)StmtStr, SQL_NTS) == SQL_ERROR ||
     Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
   {
     goto end;
@@ -1233,7 +1233,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, (SQLCHAR *)DynStmt.str, SQL_NTS, FALSE)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS, FALSE)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);

@@ -33,19 +33,23 @@ SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
     case SQL_HANDLE_DBC:
       EnterCriticalSection(&((MADB_Env *)InputHandle)->cs);
       MADB_CLEAR_ERROR(&((MADB_Env *)InputHandle)->Error);
-      if (*OutputHandlePtr = (SQLHANDLE)MADB_DbcInit((MADB_Env *)InputHandle))
+      if ((*OutputHandlePtr= (SQLHANDLE)MADB_DbcInit((MADB_Env *)InputHandle)) != NULL)
+      {
         ret= SQL_SUCCESS;
+      }
       LeaveCriticalSection(&((MADB_Env *)InputHandle)->cs);
       break;
     case SQL_HANDLE_DESC:
       EnterCriticalSection(&((MADB_Dbc *)InputHandle)->cs);
       MADB_CLEAR_ERROR(&((MADB_Dbc *)InputHandle)->Error);
-      if (*OutputHandlePtr = (SQLHANDLE)MADB_DescInit((MADB_Dbc *)InputHandle, MADB_DESC_UNKNOWN, TRUE))
+      if ((*OutputHandlePtr= (SQLHANDLE)MADB_DescInit((MADB_Dbc *)InputHandle, MADB_DESC_UNKNOWN, TRUE)) != NULL)
+      {
         ret= SQL_SUCCESS;
+      }
       LeaveCriticalSection(&((MADB_Dbc *)InputHandle)->cs);
       break;
     case SQL_HANDLE_ENV:
-      if ((*OutputHandlePtr = (SQLHANDLE)MADB_EnvInit()))
+      if ((*OutputHandlePtr= (SQLHANDLE)MADB_EnvInit()) != NULL)
       {
         ret= SQL_SUCCESS;
       }

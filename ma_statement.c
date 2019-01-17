@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -444,10 +444,12 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
 SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
 {
   /* TODO: In case of positioned command it shouldn't be always*/
-  if (Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0))
+  if ((Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)) != 0)
   {
     if (Stmt->params)
+    {
       MADB_FREE(Stmt->params);
+    }
     /* If we have "WHERE CURRENT OF", we will need bind additionaly parameters for each field in the index */
     Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
   }
@@ -886,7 +888,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
   for (i=0; i < (unsigned int)Stmt->ParamCount && ParameterNr < mysql_stmt_field_count(Stmt->stmt); i++)
   {
     MADB_DescRecord *IpdRecord, *ApdRecord;
-    if (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ))
+    if ((IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ))!= NULL)
     {
       if (IpdRecord->ParameterType == SQL_PARAM_INPUT_OUTPUT ||
           IpdRecord->ParameterType == SQL_PARAM_OUTPUT)
@@ -955,8 +957,8 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   MDBUG_C_PRINT(Stmt->Connection, ExecDirect ? "mariadb_stmt_execute_direct(%0x,%s)"
     : "mariadb_stmt_execute(%0x)(%s)", Stmt->stmt, STMT_STRING(Stmt));
 
-  if (ExecDirect && mariadb_stmt_execute_direct(Stmt->stmt, STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)))
-    || !ExecDirect && mysql_stmt_execute(Stmt->stmt))
+  if ((ExecDirect && mariadb_stmt_execute_direct(Stmt->stmt, STMT_STRING(Stmt), strlen(STMT_STRING(Stmt))))
+    || (!ExecDirect && mysql_stmt_execute(Stmt->stmt)))
   {
     ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_execute:ERROR%s", "");

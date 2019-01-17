@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -608,7 +608,7 @@ do {\
     }
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
-#define IS_STR(A,B,C) do {const char *loc_a=(A), *loc_b=(B);\
+#define IS_STR(A,B,C) do {const char *loc_a=(const char *)(A), *loc_b=(const char *)(B);\
 diag("%s %s", loc_a, loc_b);\
 FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "Strings do not match"); } while(0)
 
@@ -670,7 +670,7 @@ const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData, SQLUSMALLINT icol)
        better/(in more easy way) test the value */
     if (nLen == SQL_NULL_DATA)
     {
-      strcpy(szData, "(Null)"); 
+      strcpy((char*)szData, "(Null)"); 
     }
     diag(" my_fetch_str: %s(%ld)", szData, nLen);
     return((const char *)szData);
@@ -688,7 +688,7 @@ int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
   SQLGetDiagRec(hndtype, hnd, 1, sql_state, &err_code, err_msg,
                 SQL_MAX_MESSAGE_LENGTH - 1, &err_len);
 
-  IS_STR(sql_state, (SQLCHAR *)sqlstate, 5);
+  IS_STR(sql_state, sqlstate, 5);
 
   return OK;
 }
@@ -885,7 +885,7 @@ int reset_changed_server_variables(void)
     {
       int size= _snprintf(query, sizeof(query), set_template, locality[changed_server_variable[i].global],
                           changed_server_variable[i].name, changed_server_variable[i].value);
-      if (error == 0 && !SQL_SUCCEEDED(SQLExecDirect(Stmt, query, size)))
+      if (error == 0 && !SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)query, size)))
       {
         error= 1;
         diag("Following variables were not reset to their original values:");
@@ -933,13 +933,13 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     return 1;
   }
 
-  wdsn=        str2sqlwchar_on_gbuff(my_dsn,        strlen(my_dsn) + 1,        utf8, DmUnicode);
-  wuid=        str2sqlwchar_on_gbuff(my_uid,        strlen(my_uid) + 1,        utf8, DmUnicode);
-  wpwd=        str2sqlwchar_on_gbuff(my_pwd,        strlen(my_pwd) + 1,        utf8, DmUnicode);
-  wschema=     str2sqlwchar_on_gbuff(my_schema,     strlen(my_schema) + 1,     utf8, DmUnicode);
-  wservername= str2sqlwchar_on_gbuff(my_servername, strlen(my_servername) + 1, utf8, DmUnicode);
-  wdrivername= str2sqlwchar_on_gbuff(my_drivername, strlen(my_drivername) + 1, utf8, DmUnicode);
-  wstrport=    str2sqlwchar_on_gbuff(ma_strport,    strlen(ma_strport) + 1,    utf8, DmUnicode);
+  wdsn=        str2sqlwchar_on_gbuff((const char*)my_dsn,        strlen((const char*)my_dsn) + 1,        utf8, DmUnicode);
+  wuid=        str2sqlwchar_on_gbuff((const char*)my_uid,        strlen((const char*)my_uid) + 1,        utf8, DmUnicode);
+  wpwd=        str2sqlwchar_on_gbuff((const char*)my_pwd,        strlen((const char*)my_pwd) + 1,        utf8, DmUnicode);
+  wschema=     str2sqlwchar_on_gbuff((const char*)my_schema,     strlen((const char*)my_schema) + 1,     utf8, DmUnicode);
+  wservername= str2sqlwchar_on_gbuff((const char*)my_servername, strlen((const char*)my_servername) + 1, utf8, DmUnicode);
+  wdrivername= str2sqlwchar_on_gbuff((const char*)my_drivername, strlen((const char*)my_drivername) + 1, utf8, DmUnicode);
+  wstrport=    str2sqlwchar_on_gbuff((const char*)ma_strport,    strlen((const char*)ma_strport) + 1,    utf8, DmUnicode);
 
   if (getenv("TRAVIS") != NULL)
   {
@@ -1017,7 +1017,7 @@ int get_show_value(int global, const char * show_type, const char * var_name)
             show_type, var_name);
 
   /* Using automatically allocated (by the framework) STMT handle*/
-  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, query, size))
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)query, size))
    || !SQL_SUCCEEDED(SQLFetch(Stmt)))
   {
     /* atm I can't thing about any -1 value that can be interesting for tests.
@@ -1070,7 +1070,7 @@ int set_variable(int global, const char * var_name, int value)
   size= _snprintf(query, sizeof(query), set_template, global ? locality[GLOBAL] : locality[LOCAL],
                 var_name, value);
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, size));
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)query, size));
 
   changed_server_variable[i].global=  global;
   changed_server_variable[i].name=    var_name;
@@ -1255,9 +1255,9 @@ BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, un
 
   SQLGetInfo(Conn, SQL_DBMS_VER, ServerVersion, sizeof(ServerVersion), NULL);
 
-  sscanf(ServerVersion, "%u.%u.%u", &ServerMajor, &ServerMinor, &ServerPatch);
+  sscanf((const char*)ServerVersion, "%u.%u.%u", &ServerMajor, &ServerMinor, &ServerPatch);
 
-  if (ServerMajor < major || ServerMajor == major && (ServerMinor < minor || ServerMinor == minor && ServerPatch < patch))
+  if (ServerMajor < major || (ServerMajor == major && (ServerMinor < minor || (ServerMinor == minor && ServerPatch < patch))))
   {
     return FALSE;
   }

@@ -437,7 +437,7 @@ int ParseQuery(MADB_QUERY *Query)
         Quote= *p++;
         SavePosition= p; /* In case we go past eos while looking for ending quote */
         if (Query->NoBackslashEscape || Quote == '`' || /* Backtick works with ANSI_QUOTES */
-          Query->AnsiQuotes && Quote == '"')/* In indetifier quotation backslash does not escape anything - CLI has error with that */
+          (Query->AnsiQuotes && Quote == '"'))/* In indetifier quotation backslash does not escape anything - CLI has error with that */
         {
           SkipQuotedString_Noescapes(&p, end, Quote);
         }

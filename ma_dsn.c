@@ -297,7 +297,7 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite)
   }
   else 
   {
-    if (Value= strchr(KeyValue, '='))
+    if ((Value= strchr(KeyValue, '=')) != NULL)
     {
       ++Value;
       MADB_RESET(Dsn->DSNName, Value);
@@ -393,6 +393,8 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
           if (Val && Val[0])
             ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Val, "ODBC.INI");
         }
+      default:
+        /* To avoid warning with some compilers */
         break;
       }
       if (!ret)
@@ -585,6 +587,8 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         {
           Value= "1";
         }
+      default:
+        /* To avoid warning with some compilers */
         break;
       }
     }
@@ -600,7 +604,9 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
   }
 
   if (OutLength && OutString)
-    strncpy_s(OutString, OutLength, TmpStr,  TotalLength);
+  {
+    strncpy_s(OutString, OutLength, TmpStr, TotalLength);
+  }
   return TotalLength;
 }
 /* }}} */

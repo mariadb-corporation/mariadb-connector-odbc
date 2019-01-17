@@ -75,7 +75,7 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
 
     for (i= ParamOffset; i < MADB_STMT_PARAM_COUNT(Stmt); ++i)
     {
-      if (CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ))
+      if ((CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) != NULL)
       {
         MaBind= &Stmt->params[i - ParamOffset];
         DataPtr= GetBindOffset(Stmt->Apd, CRec, CRec->DataPtr, 0, CRec->OctetLength);
@@ -163,14 +163,14 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
       continue;
     }
 
-    if (OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_NULL_DATA
-      || IndicatorPtr != NULL && IndicatorPtr[row] != SQL_NULL_DATA)
+    if ((OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_NULL_DATA)
+      || (IndicatorPtr != NULL && IndicatorPtr[row] != SQL_NULL_DATA))
     {
       RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_NULL_DATA));
       continue;
     }
-    if (OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_COLUMN_IGNORE
-      || IndicatorPtr != NULL && IndicatorPtr[row] != SQL_COLUMN_IGNORE)
+    if ((OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_COLUMN_IGNORE)
+      || (IndicatorPtr != NULL && IndicatorPtr[row] != SQL_COLUMN_IGNORE))
     {
       RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_COLUMN_IGNORE));
       continue;

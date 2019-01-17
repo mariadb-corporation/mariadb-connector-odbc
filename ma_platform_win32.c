@@ -291,7 +291,7 @@ BOOL MADB_DirectoryExists(const char *Path)
   return (FileAttributes != INVALID_FILE_ATTRIBUTES) && (FileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-void MADB_SetDefaultPluginsDir(MYSQL *mariadb)
+void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc)
 {
   HMODULE hModule = GetModuleHandle(MADB_DRIVER_NAME);
   char OurLocation[_MAX_PATH];
@@ -306,7 +306,7 @@ void MADB_SetDefaultPluginsDir(MYSQL *mariadb)
 
     if (MADB_DirectoryExists(OurLocation) != FALSE)
     {
-      mysql_options(mariadb, MYSQL_PLUGIN_DIR, OurLocation);
+      mysql_options(Dbc->mariadb, MYSQL_PLUGIN_DIR, OurLocation);
     }
   }
 }

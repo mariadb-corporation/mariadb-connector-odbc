@@ -156,9 +156,18 @@ SQLULEN MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long l
   Cursor->RowsetSize= ArraySize;
 
   if (Position + ArraySize > RowsInResultst)
-    result= (SQLULEN)(RowsInResultst - Position);
+  {
+    if (Position >= 0 && RowsInResultst > Position)
+    {
+      result= (SQLULEN)(RowsInResultst - Position);
+    }
+    else
+    {
+      result= 1;
+    }
+  }
 
-  return result >= 0 ? result : 1;
+  return result;
 }
 /* }}} */
 

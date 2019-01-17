@@ -431,7 +431,10 @@ ODBC_TEST(t_odbc159)
     CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
     is_num(ColumnsCount, expCols[j]);
 
-    is_num(ma_print_result_getdata_ex(Stmt, FALSE), ExpectedRows[j]);
+    if (!iOdbc() || j != 2)
+    {
+      is_num(ma_print_result_getdata_ex(Stmt, FALSE), ExpectedRows[j]);
+    }
 
     rc= SQLMoreResults(Stmt);
     ++j;

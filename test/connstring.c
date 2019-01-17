@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2016 MariaDB Corporation AB
+                2016, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -144,10 +144,10 @@ ODBC_TEST(connstring_test)
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
   is_num(Dsn->Port, my_port);
   IS_STR(Dsn->Description, Description, sizeof(Description));
-  IS_STR(Dsn->Driver, my_drivername, strlen(my_drivername) + 1);
+  IS_STR(Dsn->Driver, my_drivername, strlen((const char*)my_drivername) + 1);
 
   FAIL_IF(Dsn->UserName == NULL, "User Name should not be NULL");
-  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly");
+  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen((const char*)my_uid) + 1), "Uid stored in/read from DSN incorrectly");
  
   if (Dsn->Password == NULL)
   { 
@@ -155,10 +155,10 @@ ODBC_TEST(connstring_test)
   }
   else
   {
-    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen((const char*)my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
   }
 
-  IS_STR(Dsn->ServerName, my_servername, strlen(my_servername) + 1);
+  IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);
 
   /* Checking that value in the connection string prevails over value in the dsn */
   _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;OPTIONS=%u;DESCRIPTION=%s", DsnConnStr, MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
@@ -279,7 +279,7 @@ ODBC_TEST(all_other_fields_test)
   RESET_DSN(Dsn);
   IS(MADB_ReadDSN(Dsn, DsnConnStr, TRUE));
   /* 2 special fields */
-  IS_STR(Dsn->Driver, my_drivername, strlen(my_drivername) + 1);
+  IS_STR(Dsn->Driver, (const char*)my_drivername, strlen((const char*)my_drivername) + 1);
   IS_STR(Dsn->Description, "DESCRIPTION", sizeof("DESCRIPTION"));
   i= 5;
   while(DsnKeys[i].DsnKey != NULL)
@@ -336,7 +336,7 @@ ODBC_TEST(aliases_tests)
   RESET_DSN(Dsn);
   IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, ';'));
 
-  FAIL_IF(Dsn->UserName == NULL || strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly")
+  FAIL_IF(Dsn->UserName == NULL || strncmp(Dsn->UserName, (const char*)my_uid, strlen((const char*)my_uid) + 1), "Uid stored in/read from DSN incorrectly")
 
   if (Dsn->Password == NULL)
   { 
@@ -344,11 +344,11 @@ ODBC_TEST(aliases_tests)
   }
   else
   {
-    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+    FAIL_IF(strncmp(Dsn->Password, (const char*)my_pwd, strlen((const char*)my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
   }
 
-  IS_STR(Dsn->ServerName, my_servername, strlen(my_servername) + 1);
-  IS_STR(Dsn->Catalog,    my_schema,     strlen(my_schema) + 1);
+  IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);
+  IS_STR(Dsn->Catalog,    my_schema,     strlen((const char*)my_schema) + 1);
   is_num(Dsn->Options,    options);
 
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
@@ -441,9 +441,9 @@ ODBC_TEST(driver_vs_dsn)
   is_num(Dsn->IsNamedPipe, 0);
   is_num(Dsn->Options,     0);
   FAIL_IF(Dsn->Port != 0 && Dsn->Port == my_port, "Port value from DSN!");
-  FAIL_IF(Dsn->UserName!= NULL && strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid value from DSN!");
-  FAIL_IF(Dsn->Password!= NULL && strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd value from DSN!");
-  FAIL_IF(Dsn->Catalog!= NULL && strncmp(Dsn->Catalog, my_schema, strlen(my_schema) + 1), "DB value from DSN!");
+  FAIL_IF(Dsn->UserName!= NULL && strncmp(Dsn->UserName, (const char*)my_uid, strlen((const char*)my_uid) + 1), "Uid value from DSN!");
+  FAIL_IF(Dsn->Password!= NULL && strncmp(Dsn->Password, (const char*)my_pwd, strlen((const char*)my_pwd) + 1), "Pwd value from DSN!");
+  FAIL_IF(Dsn->Catalog!= NULL && strncmp(Dsn->Catalog, (const char*)my_schema, strlen((const char*)my_schema) + 1), "DB value from DSN!");
 
   return OK;
 }
@@ -474,10 +474,10 @@ ODBC_TEST(odbc_188)
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
   is_num(Dsn->Port, my_port);
   IS_STR(Dsn->Description, Description, sizeof(Description));
-  IS_STR(Dsn->Driver, my_drivername, strlen(my_drivername) + 1);
+  IS_STR(Dsn->Driver, my_drivername, strlen((const char*)my_drivername) + 1);
 
   FAIL_IF(Dsn->UserName == NULL, "User Name should not be NULL");
-  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly");
+  FAIL_IF(strncmp(Dsn->UserName, (const char*)my_uid, strlen((const char*)my_uid) + 1), "Uid stored in/read from DSN incorrectly");
 
   if (Dsn->Password == NULL)
   {
@@ -485,10 +485,10 @@ ODBC_TEST(odbc_188)
   }
   else
   {
-    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+    FAIL_IF(strncmp(Dsn->Password, (const char*)my_pwd, strlen((const char*)my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
   }
 
-  IS_STR(Dsn->ServerName, my_servername, strlen(my_servername) + 1);
+  IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);
 
   /* Checking that value in the connection string prevails over value in the dsn */
   _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cDESCRIPTION=%s\0\0", DsnConnStr, '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,

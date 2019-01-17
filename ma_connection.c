@@ -339,8 +339,10 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
                                           Dbc->CatalogName, strlen(Dbc->CatalogName), &Dbc->Error);
       ret= SQL_SUCCESS;
     }
-    if (StringLengthPtr)
+    if (StringLengthPtr != NULL)
+    {
       *StringLengthPtr= (SQLINTEGER)StrLen;
+    }
     return ret;
   }
   case SQL_ATTR_LOGIN_TIMEOUT:
@@ -513,7 +515,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, (SQLHANDLE*)&Stmt);
   if (!SQL_SUCCEEDED(ret))
     return ret;
-  if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
+  if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (char *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
       !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt)))
   {
     MADB_CopyError(&Connection->Error, &Stmt->Error);
@@ -603,7 +605,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
   else
   {
-    MADB_SetDefaultPluginsDir(Connection->mariadb);
+    MADB_SetDefaultPluginsDir(Connection);
   }
 
   /* If a client character set was specified in DSN, we will always use it.
@@ -1810,12 +1812,12 @@ end:
   {
     if (StringLength1 == SQL_NTS)
     {
-      StringLength1= (SQLSMALLINT)strlen(InConnectionString);
+      StringLength1= (SQLSMALLINT)strlen((const char*)InConnectionString);
     }
     if (OutConnectionString && BufferLength)
     {
       /* Otherwise we are supposed to simply copy incoming connection string */
-      strncpy_s((char *)OutConnectionString, BufferLength, InConnectionString, StringLength1);
+      strncpy_s((char *)OutConnectionString, BufferLength, (const char*)InConnectionString, StringLength1);
     }
     Length= StringLength1;
   }

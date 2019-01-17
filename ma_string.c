@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2017 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -236,7 +236,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
 
     MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE*)&CountStmt);
     _snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
-    CountStmt->Methods->ExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
+    CountStmt->Methods->ExecDirect(CountStmt, (char *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
     CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
 
@@ -460,7 +460,7 @@ SQLLEN MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
     }
     else
     {
-      while (inChars > 0 || inChars < 0 && *str)
+      while (inChars > 0 || (inChars < 0 && *str))
       {
         result+= cs->mb_charlen(0 + *str);
         --inChars;

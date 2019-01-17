@@ -125,7 +125,7 @@ int MADB_ListWalk(MADB_List *list, MADB_ListWalkAction action, char * argument)
 }
 
 
-/************************** MADB_DynString ***************************
+/************************** MADB_DynString ***************************/
 /*
   Code for handling strings with can grow dynamicly.
   Copyright Monty Program KB.
