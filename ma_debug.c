@@ -140,4 +140,19 @@ void ma_print_value(SQLSMALLINT OdbcType, SQLPOINTER Value, SQLLEN octets)
       break;
   }
 }
+
+/* #ifdef __APPLE__
+void TravisTrace(char *format, va_list args)
+{
+  BOOL Travis= FALSE;
+  Travis= getenv("TRAVIS") != NULL;
+
+  if (Travis != FALSE)
+  {
+    printf("#");
+    vprintf(format, args);
+  }
+
+}
+#endif */
 #endif

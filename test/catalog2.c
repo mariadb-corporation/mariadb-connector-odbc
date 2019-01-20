@@ -286,7 +286,7 @@ ODBC_TEST(t_bug50195)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
-  if (Travis != 0)
+  if (Travis != 0  && TravisOnOsx == 0)
   {
     diag("Test is run in Travis");
     SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@'%'", SQL_NTS);
@@ -320,7 +320,7 @@ ODBC_TEST(t_bug50195)
   {
     diag("Couldn't connect with new user of allocate the stmt");
 
-    if (Travis)
+    if (Travis != 0  && TravisOnOsx == 0)
     {
       OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@'%'");
     }
@@ -352,7 +352,7 @@ ODBC_TEST(t_bug50195)
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
-  if (Travis)
+  if (Travis != 0  && TravisOnOsx == 0)
   {
     OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@'%'");
   }

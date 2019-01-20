@@ -135,7 +135,7 @@ static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 static unsigned int  my_port=        3306;
 char          ma_strport[12]= ";PORT=3306";
 
-static int Travis= 0;
+static int Travis= 0, TravisOnOsx= 0;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -944,7 +944,12 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
   if (getenv("TRAVIS") != NULL)
   {
     Travis= 1;
+    if (_stricmp(getenv("TRAVIS_OS_NAME"), "osx") == 0)
+    {
+      TravisOnOsx= 1;
+    }
   }
+  
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
     odbc_print_error(SQL_HANDLE_DBC, Connection); 
