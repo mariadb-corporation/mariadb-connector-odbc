@@ -1309,4 +1309,19 @@ int  GetDefaultCharType(int WType, BOOL isAnsiConnection)
 
   return WType;
 }
+
+/* Needed for crazy iODBC on OS X */
+int iOdbcSetParamBufferSize(SQLHSTMT hStmt, SQLUSMALLINT ParamIdx, SQLLEN BufferSize)
+{
+#ifdef __APPLE__
+  if (iOdbc())
+  {
+    SQLHDESC Apd;
+
+    CHECK_STMT_RC(hStmt, SQLGetStmtAttr(hStmt, SQL_ATTR_APP_PARAM_DESC, &Apd, SQL_IS_POINTER, NULL));
+    CHECK_DESC_RC(Apd, SQLSetDescField(Apd, ParamIdx, SQL_DESC_OCTET_LENGTH, (SQLPOINTER)BufferSize, SQL_IS_INTEGER));
+  }
+#endif
+  return OK;
+}
 #endif      /* #ifndef _tap_h_ */

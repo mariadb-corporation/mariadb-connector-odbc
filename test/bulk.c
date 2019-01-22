@@ -533,7 +533,10 @@ ODBC_TEST(t_bulk_delete)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
     (SQLPOINTER)3, 0));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, id_ind));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, insert_val, 7, val_indicator));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, insert_val, sizeof(insert_val[0]), val_indicator));
+
+  /* Needed for crazy iODBC on OS X */
+  is_num(iOdbcSetParamBufferSize(Stmt, 2, sizeof(insert_val[0])), OK);
 
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bulk_delete VALUES(?, ?)");
 
@@ -585,6 +588,10 @@ ODBC_TEST(t_odbc149)
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, c, sizeof(c[0]), cInd));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY, 0, 0, b, sizeof(b[0]), bLen));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 5, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WCHAR, 0, 0, w, sizeof(w[0]), cInd));
+
+  is_num(iOdbcSetParamBufferSize(Stmt, 3, sizeof(c[0])), OK);
+  is_num(iOdbcSetParamBufferSize(Stmt, 4, sizeof(b[0])), OK);
+  is_num(iOdbcSetParamBufferSize(Stmt, 5, sizeof(w[0])), OK);
 
   memset(Val, 0, sizeof(Val));
   Val[0].year= 2017;
