@@ -431,6 +431,7 @@ void            CloseClientCharset(Client_Charset *cc);
 } while(0)
 
 #define iOdbc() (sizeof(SQLWCHAR)==4)
+
 #include <ma_error.h>
 #include <ma_info.h>
 #include <ma_environment.h>

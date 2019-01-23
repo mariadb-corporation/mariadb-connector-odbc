@@ -316,10 +316,14 @@ ODBC_TEST(t_explicit_error)
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(hstmt2, SQL_ATTR_APP_ROW_DESC,
                                  &desc2, 0, NULL));
 
-  /* can't set implicit ard from a different statement */
-  FAIL_IF(SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
-                                    desc2, 0) != SQL_ERROR, "Error expected");
-  CHECK_SQLSTATE(Stmt, "HY017");
+  /* iOdbc on OSX crashes on this call */
+  if (iOdbcOnOsX() == FALSE)
+  {
+    /* can't set implicit ard from a different statement */
+    FAIL_IF(SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,
+      desc2, 0) != SQL_ERROR, "Error expected");
+    CHECK_SQLSTATE(Stmt, "HY017");
+  }
 
   /* can set it to the same statement */
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, desc1, 0));
@@ -335,8 +339,8 @@ ODBC_TEST(t_explicit_error)
     This crashes unixODBC 2.2.11, as it improperly frees the descriptor,
     and again tries to when freeing the statement handle.
   */
-  /* With iODBC is's SQL_INVALID_HANDLE for some reason */
-  is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), iOdbc() ? SQL_INVALID_HANDLE : SQL_ERROR);
+  /* With iODBC on Linux it's SQL_INVALID_HANDLE for some reason */
+  is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc() && iOdbcOnOsX() == FALSE) ? SQL_INVALID_HANDLE : SQL_ERROR);
   /* CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");*/
   FAIL_IF(check_sqlstate(Stmt, "HY024") != OK &&
           check_sqlstate(Stmt, "HY017") != OK, "Expected HY024 or HY017");

@@ -575,11 +575,13 @@ ODBC_TEST(paramarray_by_column)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR, &paramsProcessed, 0));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY,
-    0, 0, bData, 5, bInd));
+    0, 0, bData, STR_FIELD_LENGTH, bInd));
+  is_num(iOdbcSetParamBufferSize(Stmt, 1, STR_FIELD_LENGTH), OK);
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER,
     0, 0, intField, 0, intInd));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR,
-    0, 0, (SQLPOINTER)strField, 5, strInd ));
+    0, 0, (SQLPOINTER)strField, STR_FIELD_LENGTH, strInd ));
+  is_num(iOdbcSetParamBufferSize(Stmt, 3, STR_FIELD_LENGTH), OK);
 
   /* We don't expect errors in paramsets processing, thus we should get SQL_SUCCESS only*/
   FAIL_IF(SQLExecDirect(Stmt, "INSERT INTO t_bug48310 (bData, intField, strField) " \
@@ -665,11 +667,13 @@ ODBC_TEST(paramarray_ignore_paramset)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR, &paramsProcessed, 0));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY,
-    0, 0, bData, 5, bInd));
+    0, 0, bData, STR_FIELD_LENGTH, bInd));
+  is_num(iOdbcSetParamBufferSize(Stmt, 1, STR_FIELD_LENGTH), OK);
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER,
     0, 0, intField, 0, intInd));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR,
-    0, 0, (SQLPOINTER)strField, 5, strInd ));
+    0, 0, (SQLPOINTER)strField, STR_FIELD_LENGTH, strInd ));
+  is_num(iOdbcSetParamBufferSize(Stmt, 3, STR_FIELD_LENGTH), OK);
 
   /* We don't expect errors in paramsets processing, thus we should get SQL_SUCCESS only*/
   FAIL_IF(SQLExecDirect(Stmt, "INSERT INTO t_bug48310 (bData, intField, strField) " \

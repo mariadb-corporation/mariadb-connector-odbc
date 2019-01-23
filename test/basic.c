@@ -1550,10 +1550,10 @@ ODBC_TEST(t_odbc137)
   
   for (i= 0; i < sizeof(Charset)/sizeof(Charset[0]); ++i)
   {
-    if (iOdbc() && strcmp(Charset[i], "swe7")==0)
+    if (iOdbc() && strcmp(Charset[i], "koi8u")==0)
     {
       diag("Charset %s is not supported with iODBC", Charset[i]);
-      continue;
+      break;
     }
     else
     {

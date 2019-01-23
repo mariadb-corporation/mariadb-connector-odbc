@@ -1289,9 +1289,6 @@ char * GenGUID(char *buffer)
 }
 #endif
 
-/* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
-#define iOdbc() (sizeof(SQLWCHAR)==4)
-
 BOOL UnixOdbc()
 {
 #ifdef SQL_ATTR_UNIXODBC_VERSION
@@ -1320,18 +1317,27 @@ int  GetDefaultCharType(int WType, BOOL isAnsiConnection)
   return WType;
 }
 
+/* Looks like same version of iOdbc behaves differently on os x and linux, thus for some tests we need to be able to tell there is iOdbc run */
+BOOL iOdbcOnOsX()
+{
+#ifdef __APPLE__
+  return iOdbc();
+#endif
+  return FALSE;
+}
+
+
 /* Needed for crazy iODBC on OS X */
 int iOdbcSetParamBufferSize(SQLHSTMT hStmt, SQLUSMALLINT ParamIdx, SQLLEN BufferSize)
 {
-#ifdef __APPLE__
-  if (iOdbc())
+  if (iOdbcOnOsX())
   {
     SQLHDESC Apd;
 
     CHECK_STMT_RC(hStmt, SQLGetStmtAttr(hStmt, SQL_ATTR_APP_PARAM_DESC, &Apd, SQL_IS_POINTER, NULL));
     CHECK_DESC_RC(Apd, SQLSetDescField(Apd, ParamIdx, SQL_DESC_OCTET_LENGTH, (SQLPOINTER)BufferSize, SQL_IS_INTEGER));
   }
-#endif
+
   return OK;
 }
 #endif      /* #ifndef _tap_h_ */
