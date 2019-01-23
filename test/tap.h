@@ -622,7 +622,7 @@ do {\
   }\
 } while(0)
 
-#define EXPECT_DBC(_Dbc,_Function, _Expected)\
+#define EXPECT_DBC(_Dbc, _Function, _Expected)\
 do {\
   SQLRETURN ret= (_Function);\
   if (ret != (_Expected))\
@@ -631,7 +631,7 @@ do {\
   }\
 } while(0)
 
-#define EXPECT_STMT(_Stmt,_Function, _Expected)\
+#define EXPECT_STMT(_Stmt, _Function, _Expected)\
 do {\
   SQLRETURN ret= (_Function);\
   if (ret != (_Expected))\
@@ -642,6 +642,16 @@ do {\
   }\
 } while(0)
 
+#define EXPECT_DESC(_Desc, Function, Expected)\
+do {\
+  SQLRETURN ret= (Function);\
+  if (ret != (Expected))\
+  {\
+    CHECK_DESC_RC(_Desc, ret);\
+    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #Function, ret, #Expected, Expected);\
+    return FAIL;\
+  }\
+} while(0)
 
 int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
 {
