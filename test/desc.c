@@ -747,6 +747,28 @@ ODBC_TEST(t_odbc166)
 }
 
 
+ODBC_TEST(t_odbc213)
+{
+  SQLSMALLINT a;
+  SQLHDESC Ipd, OtherDesc;
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT_OUTPUT, SQL_C_SHORT, SQL_SMALLINT, 0, 0, &a, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_PARAM_DESC, &Ipd, SQL_IS_POINTER, NULL));
+  CHECK_DESC_RC(Ipd, SQLGetDescField(Ipd, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL));
+
+  is_num(a, SQL_PARAM_INPUT_OUTPUT);
+
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC, &OtherDesc, SQL_IS_POINTER, NULL));
+  EXPECT_DESC(OtherDesc, SQLGetDescField(OtherDesc, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &OtherDesc, SQL_IS_POINTER, NULL));
+  EXPECT_DESC(OtherDesc, SQLGetDescField(OtherDesc, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC, &OtherDesc, SQL_IS_POINTER, NULL));
+  EXPECT_DESC(OtherDesc, SQLGetDescField(OtherDesc, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL), SQL_ERROR);
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_desc_paramset,"t_desc_paramset"},
@@ -764,7 +786,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc14, "t_odbc14"},
   {t_set_explicit_copy, "t_set_explicit_copy_of_ard"},
   {t_odbc155, "t_odbc155and157_decimaldigits_display_size"},
-  { t_odbc166, "t_odbc166_decimal_display_size"},
+  {t_odbc166, "t_odbc166_decimal_display_size"},
+  {t_odbc213, "t_odbc213_param_type"},
   {NULL, NULL}
 };
 
