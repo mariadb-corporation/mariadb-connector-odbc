@@ -590,13 +590,13 @@ ODBC_TEST(t_blob_bug)
 }
 
 
-#define TEST_ODBC_TEXT_LEN 3000
+#define TEST_ODBC_TEXT_LEN 500
 ODBC_TEST(t_text_fetch)
 {
   SQLRETURN  rc;
   SQLINTEGER i;
-  SQLLEN     row_count, length, ParamLength[]= {255, TEST_ODBC_TEXT_LEN/2, TEST_ODBC_TEXT_LEN/1.5, TEST_ODBC_TEXT_LEN-1};
-  SQLCHAR    data[TEST_ODBC_TEXT_LEN+1];
+  SQLLEN     row_count, length, ParamLength[]= {255, TEST_ODBC_TEXT_LEN*3, TEST_ODBC_TEXT_LEN*4, TEST_ODBC_TEXT_LEN*6-1};
+  SQLCHAR    data[TEST_ODBC_TEXT_LEN*6+1];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_text_fetch");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_text_fetch(t1 tinytext,"
@@ -609,14 +609,14 @@ ODBC_TEST(t_text_fetch)
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, 255, iOdbc() ? &ParamLength[0] : NULL));
 
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, TEST_ODBC_TEXT_LEN/2, iOdbc() ? &ParamLength[1] : NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, TEST_ODBC_TEXT_LEN*3, iOdbc() ? &ParamLength[1] : NULL));
   
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, (SQLINTEGER)(TEST_ODBC_TEXT_LEN/1.5), iOdbc() ? &ParamLength[2] : NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, (SQLINTEGER)(TEST_ODBC_TEXT_LEN*4), iOdbc() ? &ParamLength[2] : NULL));
   
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, TEST_ODBC_TEXT_LEN-1, iOdbc() ? &ParamLength[3] : NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (char *)data, TEST_ODBC_TEXT_LEN*6-1, iOdbc() ? &ParamLength[3] : NULL));
 
-  memset(data,'A',TEST_ODBC_TEXT_LEN);
-  data[TEST_ODBC_TEXT_LEN]='\0';
+  memset(data,'A',TEST_ODBC_TEXT_LEN*6);
+  data[TEST_ODBC_TEXT_LEN*6]='\0';
 
   for (i=0; i < 10; i++)
   {
@@ -634,25 +634,25 @@ ODBC_TEST(t_text_fetch)
   while (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
   {
       printf("# row '%ld' (lengths:", row_count);
-      rc = SQLGetData(Stmt,1,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
+      rc = SQLGetData(Stmt,1,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
       printf("%ld", length);
       FAIL_IF(length != 255, "assert");
 
-      rc = SQLGetData(Stmt,2,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
+      rc = SQLGetData(Stmt,2,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
       printf(",%ld", length);
-      FAIL_IF(length != TEST_ODBC_TEXT_LEN/2, "assert");
+      FAIL_IF(length != TEST_ODBC_TEXT_LEN*3, "assert");
 
-      rc = SQLGetData(Stmt,3,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
+      rc = SQLGetData(Stmt,3,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
       printf(",%ld", length);
-      FAIL_IF(length != (SQLINTEGER)(TEST_ODBC_TEXT_LEN/1.5), "assert");
+      FAIL_IF(length != (SQLINTEGER)(TEST_ODBC_TEXT_LEN*4), "assert");
 
-      rc = SQLGetData(Stmt,4,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN,&length);
+      rc = SQLGetData(Stmt,4,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
       printf(",%ld)\n", length);
-      FAIL_IF(length != TEST_ODBC_TEXT_LEN-1, "assert");
+      FAIL_IF(length != TEST_ODBC_TEXT_LEN*6-1, "assert");
       row_count++;
 
       rc = SQLFetch(Stmt);

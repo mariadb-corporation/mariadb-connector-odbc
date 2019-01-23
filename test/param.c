@@ -1591,6 +1591,21 @@ ODBC_TEST(odbc182)
 }
 
 
+ODBC_TEST(odbc212)
+{
+  SQLSMALLINT a;
+  SQLHDESC Ipd;
+#pragma warning(disable: 4996)
+#pragma warning(push)
+  CHECK_STMT_RC(Stmt, SQLBindParam(Stmt, 1, SQL_C_SHORT, SQL_SMALLINT, 0, 0, &a, NULL));
+#pragma warning(pop)
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_PARAM_DESC, &Ipd, SQL_IS_POINTER, NULL));
+  CHECK_DESC_RC(Ipd, SQLGetDescField(Ipd, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL));
+
+  is_num(a, SQL_PARAM_INPUT);
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {unbuffered_result, "unbuffered_result"},
@@ -1618,6 +1633,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc45, "odbc-45-binding2bit"},
   {odbc151, "odbc-151-buffer_length"},
   {odbc182, "odbc-182-timestamp2time"},
+  {odbc212, "odbc-212-sqlbindparam_inout_type"},
   {NULL, NULL}
 };
 
