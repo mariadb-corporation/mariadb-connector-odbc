@@ -650,14 +650,14 @@ ODBC_TEST(t_current_catalog_unicode)
 
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS test_odbc_current");
 
-  latin_as_sqlwchar("test_odbc_current", cur_db);
+  latin_as_sqlwchar((char*)"test_odbc_current", cur_db);
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, SQL_NTS);
   FAIL_IF(rc == SQL_SUCCESS, "Error expected");
 
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE test_odbc_current");
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
 
-  latin_as_sqlwchar("test_odbc_current", cur_db);
+  latin_as_sqlwchar((char*)"test_odbc_current", cur_db);
   rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, SQL_NTS);
   CHECK_DBC_RC(Connection,rc);
 

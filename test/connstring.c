@@ -147,7 +147,7 @@ ODBC_TEST(connstring_test)
   IS_STR(Dsn->Driver, my_drivername, strlen((const char*)my_drivername) + 1);
 
   FAIL_IF(Dsn->UserName == NULL, "User Name should not be NULL");
-  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen((const char*)my_uid) + 1), "Uid stored in/read from DSN incorrectly");
+  FAIL_IF(strncmp(Dsn->UserName, (const char*)my_uid, strlen((const char*)my_uid) + 1), "Uid stored in/read from DSN incorrectly");
  
   if (Dsn->Password == NULL)
   { 
@@ -155,7 +155,7 @@ ODBC_TEST(connstring_test)
   }
   else
   {
-    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen((const char*)my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+    FAIL_IF(strncmp(Dsn->Password, (const char*)my_pwd, strlen((const char*)my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
   }
 
   IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);

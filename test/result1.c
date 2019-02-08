@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation A
+                2013, 2019 MariaDB Corporation A
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -147,7 +147,7 @@ ODBC_TEST(t_convert_type)
   rc = SQLGetInfo(Connection,SQL_DBMS_VER,DbVersion,MAX_NAME_LEN, &Length);
   CHECK_DBC_RC(Connection,rc);
   diag("SQL_DBMS_VER: %s", DbVersion);
-  is_num(Length, strlen(DbVersion));
+  is_num(Length, strlen((const char*)DbVersion));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_convert");
 
@@ -358,45 +358,42 @@ ODBC_TEST(t_convert)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_convert");
 
-    rc = SQLExecDirect(Stmt,"CREATE TABLE t_convert(testing tinytext)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_convert(testing tinytext)");
 
-    rc = SQLExecDirect(Stmt,"INSERT INTO t_convert VALUES('record1')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"INSERT INTO t_convert VALUES('record2')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"INSERT INTO t_convert VALUES('record1')");
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  OK_SIMPLE_STMT(Stmt,"INSERT INTO t_convert VALUES('record2')");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt,"SELECT CONCAT(testing, '-must be string') FROM t_convert ORDER BY RAND()", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_CHAR, &data, 100, &data_len);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"SELECT CONCAT(testing, '-must be string') FROM t_convert ORDER BY RAND()");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-    IS(strcmp((char *)data,"record1-must be string") == 0 ||
+  rc = SQLBindCol(Stmt,1,SQL_C_CHAR, &data, 100, &data_len);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
+  IS(strcmp((char *)data,"record1-must be string") == 0 ||
+           strcmp((char *)data,"record2-must be string") == 0);
+
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
+  IS(strcmp((char *)data,"record1-must be string") == 0 ||
              strcmp((char *)data,"record2-must be string") == 0);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-    IS(strcmp((char *)data,"record1-must be string") == 0 ||
-             strcmp((char *)data,"record2-must be string") == 0);
+  rc = SQLFetch(Stmt);
+  IS( rc == SQL_NO_DATA);
 
-    rc = SQLFetch(Stmt);
-    IS( rc == SQL_NO_DATA);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_convert");
 
@@ -415,8 +412,7 @@ ODBC_TEST(t_max_rows)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  rc = SQLExecDirect(Stmt,"create table t_max_rows(id int)", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"create table t_max_rows(id int)");
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -443,13 +439,11 @@ ODBC_TEST(t_max_rows)
   rc = SQLSetStmtAttr(Stmt,SQL_ATTR_MAX_ROWS,(SQLPOINTER)0,0);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExecDirect(Stmt,"select count(*) from t_max_rows", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select count(*) from t_max_rows");
   IS( 1 == myrowcount(Stmt) );
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
-  rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from t_max_rows");
   IS( 10 == myrowcount(Stmt) );
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
@@ -461,8 +455,7 @@ ODBC_TEST(t_max_rows)
    for Bug #6609: SQL_ATTR_MAX_ROWS and leading spaces in query result in
    truncating end of query.
   */
-  rc = SQLExecDirect(Stmt,"  select * from t_max_rows", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"  select * from t_max_rows");
   is_num(5, myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -470,8 +463,7 @@ ODBC_TEST(t_max_rows)
   rc = SQLSetStmtAttr(Stmt,SQL_ATTR_MAX_ROWS,(SQLPOINTER)15,0);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from t_max_rows");
   IS( 10 == myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -482,7 +474,7 @@ ODBC_TEST(t_max_rows)
   rc = SQLSetStmtAttr(Stmt,SQL_ATTR_MAX_ROWS,(SQLPOINTER)3,0);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLPrepare(Stmt,"select * from t_max_rows where id > ?", SQL_NTS);
+  rc = SQLPrepare(Stmt,(SQLCHAR*)"select * from t_max_rows where id > ?", SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
   rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_ULONG,SQL_INTEGER,0,0,&i,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -500,8 +492,7 @@ ODBC_TEST(t_max_rows)
   rc = SQLSetStmtAttr(Stmt,SQL_ATTR_MAX_ROWS,(SQLPOINTER)0,0);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExecDirect(Stmt,"select * from t_max_rows", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from t_max_rows");
   IS( 10 == myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -531,7 +522,7 @@ ODBC_TEST(t_max_rows)
     CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1,SQL_ATTR_MAX_ROWS,(SQLPOINTER)7,0));
 
     /* May fail if test dsn does not specify database to use */
-    OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
+    OK_SIMPLE_STMT(hstmt1, "select * from t_max_rows");
 
     is_num(7, myrowcount(hstmt1));
 
@@ -541,7 +532,7 @@ ODBC_TEST(t_max_rows)
        table */
     CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1,SQL_ATTR_MAX_ROWS,(SQLPOINTER)12,0));
 
-    OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
+    OK_SIMPLE_STMT(hstmt1, "select * from t_max_rows");
   
     is_num(10, myrowcount(hstmt1));
 
@@ -560,7 +551,7 @@ ODBC_TEST(t_max_rows)
     /* max_rows IS less than a prefetch number */
     CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1,SQL_ATTR_MAX_ROWS,(SQLPOINTER)3,0));
 
-    OK_SIMPLE_STMT(hstmt1,"select * from t_max_rows");
+    OK_SIMPLE_STMT(hstmt1, "select * from t_max_rows");
 
     is_num(3, myrowcount(hstmt1));
 
@@ -583,11 +574,9 @@ ODBC_TEST(t_multistep)
   SQLINTEGER id;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_multistep");
-  rc = SQLExecDirect(Stmt,"create table t_multistep(col1 int,col2 varchar(200))", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"create table t_multistep(col1 int,col2 varchar(200))");
 
-  rc = SQLExecDirect(Stmt,"insert into t_multistep values(10,'MySQL - Open Source Database')", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"insert into t_multistep values(10,'MySQL - Open Source Database')");
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -601,8 +590,7 @@ ODBC_TEST(t_multistep)
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,&id,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExecDirect(Stmt,"select * from t_multistep", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from t_multistep");
 
   rc = SQLFetch(Stmt);
   CHECK_STMT_RC(Stmt,rc);
@@ -687,14 +675,11 @@ ODBC_TEST(t_zerolength)
   SQLLEN     pcbValue,pcbValue1,pcbValue2;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_zerolength");
-  rc = SQLExecDirect(Stmt,"create table t_zerolength(str varchar(20), bin varbinary(20), blb blob)", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"create table t_zerolength(str varchar(20), bin varbinary(20), blb blob)");
 
-  rc = SQLExecDirect(Stmt,"insert into t_zerolength values('','','')", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"insert into t_zerolength values('','','')");
 
-  rc = SQLExecDirect(Stmt,"insert into t_zerolength values('venu','mysql','monty')", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"insert into t_zerolength values('venu','mysql','monty')");
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -705,8 +690,7 @@ ODBC_TEST(t_zerolength)
   SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
   SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_KEYSET_DRIVEN, 0);
 
-  rc = SQLExecDirect(Stmt,"select * from t_zerolength", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from t_zerolength");
 
   rc = SQLFetch(Stmt);
   CHECK_STMT_RC(Stmt,rc);
@@ -986,81 +970,78 @@ ODBC_TEST(t_empty_str_bug)
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt,"CREATE TABLE t_empty_str_bug(Id int NOT NULL,\
-                                                        Name varchar(10) default NULL, \
-                                                        Description varchar(10) default NULL, \
-                                                        PRIMARY KEY  (Id))", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_empty_str_bug(Id int NOT NULL,\
+                                                    Name varchar(10) default NULL, \
+                                                    Description varchar(10) default NULL, \
+                                                    PRIMARY KEY  (Id))");
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"venu", SQL_NTS));
 
-    CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"venu", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt,"select * from t_empty_str_bug");
 
-    rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&id,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&id,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,&name,100,&name_len);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,&name,100,&name_len);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,3,SQL_C_CHAR,&desc,100,&desc_len);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,3,SQL_C_CHAR,&desc,100,&desc_len);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
+  IS(rc == SQL_NO_DATA_FOUND);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
-    IS(rc == SQL_NO_DATA_FOUND);
+  id= 10;
+  strcpy((char *)name,"MySQL AB");
+  name_len= SQL_NTS;
+  strcpy((char *)desc,"");
+  desc_len= SQL_COLUMN_IGNORE;
 
-    id= 10;
-    strcpy((char *)name,"MySQL AB");
-    name_len= SQL_NTS;
-    strcpy((char *)desc,"");
-    desc_len= SQL_COLUMN_IGNORE;
+  rc = SQLSetPos(Stmt,1,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetPos(Stmt,1,SQL_ADD,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLRowCount(Stmt,&name_len);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLRowCount(Stmt,&name_len);
-    CHECK_STMT_RC(Stmt,rc);
+  diag("rows affected: %d",name_len);
+  IS(name_len == 1);
 
-    diag("rows affected: %d",name_len);
-    IS(name_len == 1);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  IS( 1 == myrowcount(Stmt));
 
-    IS( 1 == myrowcount(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,1,NULL,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,1,NULL,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  name[0]='\0';
+  IS(10 == my_fetch_int(Stmt,1));
+  IS(!strcmp((const char *)"MySQL AB",my_fetch_str(Stmt,name,2)));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3,SQL_CHAR, name, MAX_ROW_DATA_LEN+1,
+                            &name_len));
+  /*Checking that if value IS NULL - buffer will not be changed */
+  IS_STR("MySQL AB", name, 9); /* NULL */
 
-    name[0]='\0';
-    IS(10 == my_fetch_int(Stmt,1));
-    IS(!strcmp((const char *)"MySQL AB",my_fetch_str(Stmt,name,2)));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3,SQL_CHAR, name, MAX_ROW_DATA_LEN+1,
-                              &name_len));
-    /*Checking that if value IS NULL - buffer will not be changed */
-    IS_STR("MySQL AB", name, 9); /* NULL */
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_empty_str_bug");
 
@@ -1070,54 +1051,52 @@ ODBC_TEST(t_empty_str_bug)
 
 ODBC_TEST(t_desccol)
 {
-    SQLRETURN rc;
-    SQLCHAR colname[20];
-    SQLSMALLINT collen,datatype,decptr,nullable;
-    SQLULEN colsize;
+  SQLRETURN rc;
+  SQLCHAR colname[20];
+  SQLSMALLINT collen,datatype,decptr,nullable;
+  SQLULEN colsize;
 
-    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccol");
-    SQLExecDirect(Stmt,"drop table t_desccol", SQL_NTS);
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccol");
+  SQLExecDirect(Stmt, (SQLCHAR*)"drop table t_desccol", SQL_NTS);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt,"create table t_desccol(col1 int, col2 varchar(10), col3 text)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "create table t_desccol(col1 int, col2 varchar(10), col3 text)");
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt,"insert into t_desccol values(10,'venu','mysql')");
+  OK_SIMPLE_STMT(Stmt,"insert into t_desccol values(10,'venu','mysql')");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt,"select * from t_desccol", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "select * from t_desccol");
 
-    rc = SQLDescribeCol(Stmt,1,colname,20,&collen,&datatype,&colsize,&decptr,&nullable);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("1: %s,%d,%d,%d,%d,%d",colname,collen,datatype,colsize,decptr,nullable);;
+  rc = SQLDescribeCol(Stmt,1,colname,20,&collen,&datatype,&colsize,&decptr,&nullable);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("1: %s,%d,%d,%d,%d,%d",colname,collen,datatype,colsize,decptr,nullable);;
 
-    rc = SQLDescribeCol(Stmt,2,colname,20,&collen,&datatype,&colsize,&decptr,&nullable);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("2: %s,%d,%d,%d,%d,%d",colname,collen,datatype,colsize,decptr,nullable);;
+  rc = SQLDescribeCol(Stmt,2,colname,20,&collen,&datatype,&colsize,&decptr,&nullable);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("2: %s,%d,%d,%d,%d,%d",colname,collen,datatype,colsize,decptr,nullable);;
 
-    rc = SQLDescribeCol(Stmt,3,colname,20,&collen,&datatype,&colsize,&decptr,&nullable);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("3: %s,%d,%d,%d,%d,%d",colname,collen,datatype,colsize,decptr,nullable);;
+  rc = SQLDescribeCol(Stmt,3,colname,20,&collen,&datatype,&colsize,&decptr,&nullable);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("3: %s,%d,%d,%d,%d,%d",colname,collen,datatype,colsize,decptr,nullable);;
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccol");
 
@@ -1273,10 +1252,10 @@ ODBC_TEST(t_desccolext)
 
 ODBC_TEST(t_desccol1)
 {
-    SQLRETURN rc;
+  SQLRETURN rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccol1");
-    rc = SQLExecDirect(Stmt,(SQLCHAR *)"create table t_desccol1\
+  rc = SQLExecDirect(Stmt,(SQLCHAR *)"create table t_desccol1\
                  ( record decimal(8,0),\
                    title varchar(250),\
                    num1 float,\
@@ -1287,48 +1266,46 @@ ODBC_TEST(t_desccol1)
                    stime time,\
                    numer numeric(7,0),\
                    muner1 numeric(12,5))",SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"select * from t_desccol1", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"select * from t_desccol1");
+  {
+      SQLCHAR      ColumnName[255];
+      SQLSMALLINT  ColumnNameSize;
+      SQLSMALLINT  ColumnSQLDataType;
+      SQLULEN      ColumnSize;
+      SQLSMALLINT  ColumnDecimals;
+      SQLSMALLINT  ColumnNullable;
+      SQLSMALLINT  index, pccol;
 
-    {
-        SQLCHAR      ColumnName[255];
-        SQLSMALLINT  ColumnNameSize;
-        SQLSMALLINT  ColumnSQLDataType;
-        SQLULEN      ColumnSize;
-        SQLSMALLINT  ColumnDecimals;
-        SQLSMALLINT  ColumnNullable;
-        SQLSMALLINT  index, pccol;
+      rc = SQLNumResultCols(Stmt,(SQLSMALLINT *)&pccol);
+      CHECK_STMT_RC(Stmt,rc);
+      diag("total columns:%d",pccol);
 
-        rc = SQLNumResultCols(Stmt,(SQLSMALLINT *)&pccol);
-        CHECK_STMT_RC(Stmt,rc);
-        diag("total columns:%d",pccol);
+      diag("Name   nlen type    size decs null");
+      for ( index = 1; index <= pccol; index++)
+      {
+          rc = SQLDescribeCol(Stmt, index, ColumnName,
+                              sizeof(ColumnName),
+                              &ColumnNameSize, &ColumnSQLDataType,
+                              &ColumnSize,
+                              &ColumnDecimals, &ColumnNullable);
+          CHECK_STMT_RC(Stmt,rc);
 
-        diag("Name   nlen type    size decs null");
-        for ( index = 1; index <= pccol; index++)
-        {
-            rc = SQLDescribeCol(Stmt, index, ColumnName,
-                                sizeof(ColumnName),
-                                &ColumnNameSize, &ColumnSQLDataType,
-                                &ColumnSize,
-                                &ColumnDecimals, &ColumnNullable);
-            CHECK_STMT_RC(Stmt,rc);
+          diag("%-6s %4d %4d %7ld %4d %4d", ColumnName,
+                        ColumnNameSize, ColumnSQLDataType, ColumnSize,
+                        ColumnDecimals, ColumnNullable);
+      }
+  }
 
-            diag("%-6s %4d %4d %7ld %4d %4d", ColumnName,
-                         ColumnNameSize, ColumnSQLDataType, ColumnSize,
-                         ColumnDecimals, ColumnNullable);
-        }
-    }
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccol1");
 
@@ -1418,127 +1395,126 @@ ODBC_TEST(t_colattributes)
 
 ODBC_TEST(t_exfetch)
 {
-    SQLRETURN rc;
-    SQLUINTEGER i;
+  SQLRETURN rc;
+  SQLUINTEGER i;
 
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_exfetch");
 
-    rc = SQLExecDirect(Stmt,"create table t_exfetch(col1 int)", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt,"create table t_exfetch(col1 int)");
 
-    rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_exfetch values (?)",
-                    SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_exfetch values (?)",
+                  SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
-                          SQL_INTEGER,0,0,&i,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
+                        SQL_INTEGER,0,0,&i,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    for ( i = 1; i <= 5; i++ )
-    {
-        rc = SQLExecute(Stmt);
-        CHECK_STMT_RC(Stmt,rc);
-    }
+  for ( i = 1; i <= 5; i++ )
+  {
+      rc = SQLExecute(Stmt);
+      CHECK_STMT_RC(Stmt,rc);
+  }
 
-    SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLExecDirect(Stmt, (SQLCHAR *)"select * from t_exfetch",SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLExecDirect(Stmt, (SQLCHAR *)"select * from t_exfetch",SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_LAST,0,NULL,NULL);/* 5 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 5);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_LAST,0,NULL,NULL);/* 5 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 5);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,0,NULL,NULL);/* 4 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 4);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,0,NULL,NULL);/* 4 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 4);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-3,NULL,NULL);/* 1 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 1);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-3,NULL,NULL);/* 1 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 1);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL);/* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL);/* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,1,NULL,NULL); /* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,1,NULL,NULL); /* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,-1,NULL,NULL);/* 0 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 1);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,-1,NULL,NULL);/* 0 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 1);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,4,NULL,NULL);/* 4 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 4);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,4,NULL,NULL);/* 4 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 4);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,2,NULL,NULL);/* 4 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,2,NULL,NULL);/* 4 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,2,NULL,NULL);/* last */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 5);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,2,NULL,NULL);/* last */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 5);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,2,NULL,NULL);/* last+1 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,2,NULL,NULL);/* last+1 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,-7,NULL,NULL);/* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,-7,NULL,NULL);/* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,2,NULL,NULL);/* 1 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 1);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,2,NULL,NULL);/* 1 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 1);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,2,NULL,NULL);/* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,2,NULL,NULL);/* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,0,NULL,NULL);/* 1*/
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 1);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,0,NULL,NULL);/* 1*/
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 1);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,0,NULL,NULL);/* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,0,NULL,NULL);/* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL); /* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL); /* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL); /* 1 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 1); /* MyODBC .39 returns 2 instead of 1 */
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL); /* 1 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 1); /* MyODBC .39 returns 2 instead of 1 */
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL);/* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-1,NULL,NULL);/* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL);/* 1 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 1);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL);/* 1 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 1);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL);/* 2 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i == 2);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,1,NULL,NULL);/* 2 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i == 2);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-2,NULL,NULL);/* 0 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,-2,NULL,NULL);/* 0 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,6,NULL,NULL);/* last+1 */
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_RELATIVE,6,NULL,NULL);/* last+1 */
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "eof expected");
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,6,NULL,NULL);/* last+1 */
-    CHECK_STMT_RC(Stmt, rc);
-    IS(i == 5);
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_PREV,6,NULL,NULL);/* last+1 */
+  CHECK_STMT_RC(Stmt, rc);
+  IS(i == 5);
 
-    SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt,SQL_UNBIND);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt,SQL_UNBIND);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_exfetch");
 
@@ -1548,95 +1524,87 @@ ODBC_TEST(t_exfetch)
 
 ODBC_TEST(tmysql_rowstatus)
 {
-    SQLRETURN rc;
-    SQLHSTMT hstmt1;
-    SQLULEN pcrow[4];
-    SQLUSMALLINT rgfRowStatus[6];
-    SQLINTEGER nData= 555;
-    SQLCHAR szData[255] = "setpos-update";
+  SQLRETURN rc;
+  SQLHSTMT hstmt1;
+  SQLULEN pcrow[4];
+  SQLUSMALLINT rgfRowStatus[6];
+  SQLINTEGER nData= 555;
+  SQLCHAR szData[255] = "setpos-update";
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(Connection, &hstmt1));
 
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"venu_cur", SQL_NTS));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_rowstatus");
-    rc = SQLExecDirect(Stmt,"create table tmysql_rowstatus(col1 int , col2 varchar(30))", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "create table tmysql_rowstatus(col1 int , col2 varchar(30))");
 
-    rc = SQLExecDirect(Stmt,"insert into tmysql_rowstatus values(100,'venu')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_rowstatus values(100,'venu')");
 
-    rc = SQLExecDirect(Stmt,"insert into tmysql_rowstatus values(200,'MySQL')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_rowstatus values(200,'MySQL')");
 
-    rc = SQLExecDirect(Stmt,"insert into tmysql_rowstatus values(300,'MySQL3')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLExecDirect(Stmt,"insert into tmysql_rowstatus values(400,'MySQL3')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLExecDirect(Stmt,"insert into tmysql_rowstatus values(500,'MySQL3')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLExecDirect(Stmt,"insert into tmysql_rowstatus values(600,'MySQL3')", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
-
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
-
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
-    CHECK_STMT_RC(Stmt, rc);
-
-    rc = SQLExecDirect(Stmt,"select * from tmysql_rowstatus", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData),NULL);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,pcrow,(SQLUSMALLINT *)&rgfRowStatus);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,pcrow,(SQLUSMALLINT *)&rgfRowStatus);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
-
-    OK_SIMPLE_STMT(hstmt1,
-           "UPDATE tmysql_rowstatus SET col1 = 999,"
-           "col2 = 'pos-update' WHERE CURRENT OF venu_cur");
-
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_LAST,1,NULL,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
-
-    diag("rgfRowStatus[0]:%d",rgfRowStatus[0]);
-
-    SQLFreeStmt(Stmt,SQL_CLOSE);
-
-    rc = SQLFreeStmt(hstmt1,SQL_DROP);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_rowstatus values(300,'MySQL3')");
 
 
-    rc = SQLExecDirect(Stmt,"select * from tmysql_rowstatus", SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_rowstatus values(400,'MySQL3')");
 
-    IS(5 == myrowcount(Stmt));
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_rowstatus values(500,'MySQL3')");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_rowstatus values(600,'MySQL3')");
+
+
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+  CHECK_STMT_RC(Stmt, rc);
+
+  OK_SIMPLE_STMT(Stmt,"select * from tmysql_rowstatus");
+
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData),NULL);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,pcrow,(SQLUSMALLINT *)&rgfRowStatus);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,pcrow,(SQLUSMALLINT *)&rgfRowStatus);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
+
+  OK_SIMPLE_STMT(hstmt1,
+          "UPDATE tmysql_rowstatus SET col1 = 999,"
+          "col2 = 'pos-update' WHERE CURRENT OF venu_cur");
+
+  rc = SQLExtendedFetch(Stmt,SQL_FETCH_LAST,1,NULL,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
+
+  diag("rgfRowStatus[0]:%d",rgfRowStatus[0]);
+
+  SQLFreeStmt(Stmt,SQL_CLOSE);
+
+  rc = SQLFreeStmt(hstmt1,SQL_DROP);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
+
+  OK_SIMPLE_STMT(Stmt, "select * from tmysql_rowstatus");
+
+  IS(5 == myrowcount(Stmt));
+
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_rowstatus");
 
@@ -1689,7 +1657,6 @@ ODBC_TEST(t_true_length)
 
   return OK;
 }
-
 
 /**
  Bug #27544: Calling stored procedure causes "Out of sync" and "Lost

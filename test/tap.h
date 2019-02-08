@@ -1184,7 +1184,7 @@ SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_IN
 }
 
 
-#define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
+#define LW(latin_str) latin_as_sqlwchar((char*)latin_str, sqlwchar_buff)
 /* wchar_t to SQLLWCHAR, used by both W and WW macros */
 #define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? (SQLWCHAR*)A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
 /* Converting char const to sqlWchar */
@@ -1195,7 +1195,7 @@ SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_IN
  Helper for converting a (char *) to a (SQLWCHAR *)
 */
 /* Char(utf8) to slqWchar */
-#define CW(str) str2sqlwchar_on_gbuff(str, strlen(str)+1, utf8, DmUnicode)
+#define CW(str) str2sqlwchar_on_gbuff((const char*)(str), strlen((const char*)(str))+1, utf8, DmUnicode)
 
 /* @n[in] - number of characters to compare. Negative means treating of strings as null-terminated */
 int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)

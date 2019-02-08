@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -65,7 +65,7 @@ ODBC_TEST(test_count)
 {
   SQLWCHAR columnname[64];
   SQLSMALLINT columnlength, datatype, digits, nullable;
-  SQLLEN columnsize;
+  SQLULEN columnsize;
   SQLRETURN rc;
  
   rc= SQLExecDirectW(Stmt, CW("DROP TABLE IF EXISTS test_count"), SQL_NTS);
@@ -78,7 +78,7 @@ ODBC_TEST(test_count)
   SQLBindCol(Stmt, 1, SQL_INTEGER, &columnsize, sizeof(SQLINTEGER), NULL);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
 
-  wprintf(L"%s: %d\n", columnname, columnsize);
+  wprintf(L"%s: %lu\n", columnname, columnsize);
 
   return (OK);
 }

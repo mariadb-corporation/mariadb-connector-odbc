@@ -30,23 +30,23 @@ ODBC_TEST(test_CONO1)
   /* check SQLColumns with ANSI_QUOTES on and off */
   SQLRETURN ret;
   SQLLEN rowCount;
-  SQLCHAR *create_table= "CREATE TABLE cono1 (InitialStartDateTime datetime NOT NULL,  TicketId int(11) NOT NULL AUTO_INCREMENT,  CallCount int(11) NOT NULL DEFAULT '1',  CalledNumber varchar(30) DEFAULT NULL,  CallingNumber varchar(30) DEFAULT NULL,  CallType tinyint(3) unsigned DEFAULT NULL,  ChargeUnits smallint(6) DEFAULT NULL,  NetworkAndTrunkNode int(11) DEFAULT NULL,  TrunkGroupIdentity varchar(10) DEFAULT NULL,  EntityId int(11) DEFAULT NULL,  PersonalOrBusiness tinyint(3) unsigned DEFAULT NULL,   WaitingDuration smallint(6) DEFAULT '0',  EffectiveCallDuration int(11) DEFAULT NULL,  ComType tinyint(3) unsigned DEFAULT NULL,  CostInfo double DEFAULT NULL,  InitialDialledNumber varchar(30) DEFAULT NULL,  Carrier varchar(5) DEFAULT NULL,  UserToUserVolume smallint(6) DEFAULT '0',  StartDateTime datetime DEFAULT NULL,  Duration int(11) DEFAULT NULL,  RedirectedCallIndicator tinyint(3) unsigned DEFAULT NULL,  Subaddress varchar(20) DEFAULT NULL,  HighLevelComp tinyint(3) unsigned DEFAULT NULL,  CostType tinyint(3) unsigned DEFAULT NULL,  TrunkIdentity smallint(6) DEFAULT NULL,  SpecificChargeInfo char(7) DEFAULT NULL,  BearerCapability tinyint(3) unsigned DEFAULT NULL,  DataVolume int(11) DEFAULT NULL,  AdditionalEntityId int(11) DEFAULT NULL,  FirstCarrierCost double NOT NULL,  FirstCarrierCostT double DEFAULT NULL,  SecondCarrierCost double NOT NULL,  SecondCarrierCostT double DEFAULT NULL,  FacilityCost double NOT NULL,  FacilityCostT double DEFAULT NULL,  FacturedCost double DEFAULT NULL,  FacturedCostT double DEFAULT NULL,  SubscriptionCost double NOT NULL DEFAULT '0',  SubscriptionCostT double DEFAULT NULL,  FirstCarrierId int(11) DEFAULT NULL,  SecondCarrierId int(11) DEFAULT NULL,  FirstCarrierDirectionId int(11) DEFAULT NULL,  SecondCarrierDirectionId int(11) DEFAULT NULL,  FirstCarrierCcnId int(11) DEFAULT NULL,  SecondCarrierCcnId int(11) DEFAULT NULL,  ActingExtensionNumber varchar(30) DEFAULT NULL,  TransitTrunkGroupIdentity varchar(5) DEFAULT NULL,  NodeTimeOffset smallint(6) DEFAULT NULL,  ExternFacilities binary(5) DEFAULT NULL,  InternFacilities binary(5) DEFAULT NULL,  TicketOrigin tinyint(3) unsigned DEFAULT '0',  TimeDlt int(11) DEFAULT NULL,  PRIMARY KEY (TicketId),  UNIQUE KEY IX_Ticket (TicketId),  KEY IX2_Ticket (EntityId),  KEY IX3_Ticket (InitialStartDateTime),  KEY IX4_Ticket (StartDateTime))";
+  SQLCHAR *create_table= (SQLCHAR *)"CREATE TABLE cono1 (InitialStartDateTime datetime NOT NULL,  TicketId int(11) NOT NULL AUTO_INCREMENT,  CallCount int(11) NOT NULL DEFAULT '1',  CalledNumber varchar(30) DEFAULT NULL,  CallingNumber varchar(30) DEFAULT NULL,  CallType tinyint(3) unsigned DEFAULT NULL,  ChargeUnits smallint(6) DEFAULT NULL,  NetworkAndTrunkNode int(11) DEFAULT NULL,  TrunkGroupIdentity varchar(10) DEFAULT NULL,  EntityId int(11) DEFAULT NULL,  PersonalOrBusiness tinyint(3) unsigned DEFAULT NULL,   WaitingDuration smallint(6) DEFAULT '0',  EffectiveCallDuration int(11) DEFAULT NULL,  ComType tinyint(3) unsigned DEFAULT NULL,  CostInfo double DEFAULT NULL,  InitialDialledNumber varchar(30) DEFAULT NULL,  Carrier varchar(5) DEFAULT NULL,  UserToUserVolume smallint(6) DEFAULT '0',  StartDateTime datetime DEFAULT NULL,  Duration int(11) DEFAULT NULL,  RedirectedCallIndicator tinyint(3) unsigned DEFAULT NULL,  Subaddress varchar(20) DEFAULT NULL,  HighLevelComp tinyint(3) unsigned DEFAULT NULL,  CostType tinyint(3) unsigned DEFAULT NULL,  TrunkIdentity smallint(6) DEFAULT NULL,  SpecificChargeInfo char(7) DEFAULT NULL,  BearerCapability tinyint(3) unsigned DEFAULT NULL,  DataVolume int(11) DEFAULT NULL,  AdditionalEntityId int(11) DEFAULT NULL,  FirstCarrierCost double NOT NULL,  FirstCarrierCostT double DEFAULT NULL,  SecondCarrierCost double NOT NULL,  SecondCarrierCostT double DEFAULT NULL,  FacilityCost double NOT NULL,  FacilityCostT double DEFAULT NULL,  FacturedCost double DEFAULT NULL,  FacturedCostT double DEFAULT NULL,  SubscriptionCost double NOT NULL DEFAULT '0',  SubscriptionCostT double DEFAULT NULL,  FirstCarrierId int(11) DEFAULT NULL,  SecondCarrierId int(11) DEFAULT NULL,  FirstCarrierDirectionId int(11) DEFAULT NULL,  SecondCarrierDirectionId int(11) DEFAULT NULL,  FirstCarrierCcnId int(11) DEFAULT NULL,  SecondCarrierCcnId int(11) DEFAULT NULL,  ActingExtensionNumber varchar(30) DEFAULT NULL,  TransitTrunkGroupIdentity varchar(5) DEFAULT NULL,  NodeTimeOffset smallint(6) DEFAULT NULL,  ExternFacilities binary(5) DEFAULT NULL,  InternFacilities binary(5) DEFAULT NULL,  TicketOrigin tinyint(3) unsigned DEFAULT '0',  TimeDlt int(11) DEFAULT NULL,  PRIMARY KEY (TicketId),  UNIQUE KEY IX_Ticket (TicketId),  KEY IX2_Ticket (EntityId),  KEY IX3_Ticket (InitialStartDateTime),  KEY IX4_Ticket (StartDateTime))";
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SET SQL_MODE='ANSI_QUOTES'", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "DROP TABLE IF EXISTS cono1", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, create_table, SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "SET SQL_MODE='ANSI_QUOTES'");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS cono1");
+  OK_SIMPLE_STMT(Stmt, create_table);
   
 
-  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, "cono1", SQL_NTS, NULL, 0);
+  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
   SQLRowCount(Stmt, &rowCount);
   diag("row_count: %u", rowCount);
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SET SQL_MODE=''", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "SET SQL_MODE=''");
 
-  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, "cono1", SQL_NTS, NULL, 0);
+  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
     return FAIL;
 
@@ -251,7 +251,7 @@ ODBC_TEST(simple_2)
   while (SQLFetch(Stmt) == SQL_SUCCESS)
   {
     FAIL_IF(nOutData != nInData, "OutData != InData");
-    FAIL_IF(strncmp(szOutData, nRowCount++ ? "param" : "direct", 5), "");
+    FAIL_IF(strncmp((const char*)szOutData, nRowCount++ ? "param" : "direct", 5), "");
     nInData += 10;
   }
 
@@ -281,8 +281,8 @@ ODBC_TEST(test_reconnect)
     rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
     
-    rc= SQLConnectW(hdbc1, latin_as_sqlwchar(my_dsn, dsn), SQL_NTS, latin_as_sqlwchar(my_uid, username), SQL_NTS,
-                   latin_as_sqlwchar(my_pwd, passwd), SQL_NTS);
+    rc= SQLConnectW(hdbc1, latin_as_sqlwchar((char*)my_dsn, dsn), SQL_NTS, latin_as_sqlwchar((char*)my_uid, username), SQL_NTS,
+                   latin_as_sqlwchar((char*)my_pwd, passwd), SQL_NTS);
     CHECK_DBC_RC(hdbc1, rc);
     rc= SQLDisconnect(hdbc1);
     CHECK_DBC_RC(hdbc1, rc);
@@ -305,8 +305,8 @@ ODBC_TEST(t_disconnect)
            passwd[64];
   rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
-  rc= SQLConnectW(hdbc1, latin_as_sqlwchar(my_dsn, dsn), SQL_NTS, latin_as_sqlwchar(my_uid, username), SQL_NTS,
-                   latin_as_sqlwchar(my_pwd, passwd), SQL_NTS);
+  rc= SQLConnectW(hdbc1, latin_as_sqlwchar((char*)my_dsn, dsn), SQL_NTS, latin_as_sqlwchar((char*)my_uid, username), SQL_NTS,
+                   latin_as_sqlwchar((char*)my_pwd, passwd), SQL_NTS);
   CHECK_DBC_RC(hdbc1, rc);
 
   for (i=0; i < 100; i++)
@@ -415,7 +415,7 @@ ODBC_TEST(t_basic)
   while (SQLFetch(Stmt) == SQL_SUCCESS)
   {
     FAIL_IF(nOutData != nInData, "in != out");
-    FAIL_IF(strncmp(szOutData, nRowCount++ ? "param" : "direct", 5) != 0, "comparison failed");
+    FAIL_IF(strncmp((const char*)szOutData, nRowCount++ ? "param" : "direct", 5) != 0, "comparison failed");
     nInData += 10;
   }
 
@@ -487,12 +487,12 @@ ODBC_TEST(charset_utf8)
                                  SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
-  CHECK_STMT_RC(hstmt1, SQLExecDirect(hstmt1, "SELECT _latin1 0x73E36F207061756C6F", SQL_NTS));
+  OK_SIMPLE_STMT(hstmt1, "SELECT _latin1 0x73E36F207061756C6F");
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
   SQLGetData(hstmt1, 1, SQL_CHAR, conn_out, 512, NULL);
-  FAIL_IF(strncmp(conn_out, "s\xC3\xA3o paulo", 10) != 0, "Comparison mismatch");
+  FAIL_IF(strncmp((const char*)conn_out, "s\xC3\xA3o paulo", 10) != 0, "Comparison mismatch");
     
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA, "End of result expected");
 
@@ -592,7 +592,7 @@ ODBC_TEST(charset_gbk)
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_CHAR, conn_out, sizeof(conn_out), NULL));
-  FAIL_IF(strcmp(conn_out, str) != 0, "comparison failed");
+  FAIL_IF(strcmp((const char*)conn_out, (const char*)str) != 0, "comparison failed");
   
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA, "SQL_NO_DATA expected");
 
@@ -622,7 +622,7 @@ ODBC_TEST(t_bug30774)
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_CHAR, username, 65, NULL));
 
-  FAIL_IF(strstr(username, "!!!"), "Username changed");
+  FAIL_IF(strstr((const char*)username, "!!!"), "Username changed");
   
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND, "Expected end of data");
 
@@ -715,15 +715,15 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
                                  0, &conn_out_len, SQL_DRIVER_NOPROMPT));
   diag("OutString Length: %d", conn_out_len);
-  is_num(conn_out_len, strlen(conna));
+  is_num(conn_out_len, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, conna_out,
                                  sizeof(conna_out), &conn_out_len, SQL_DRIVER_NOPROMPT));
 
-  is_num(conn_out_len, strlen(conna));
-  FAIL_IF(strncmp(conna_out, conna, strlen(conna)), "In and Out connstrings do not match");
+  is_num(conn_out_len, strlen((const char*)conna));
+  FAIL_IF(strncmp((const char*)conna_out, (const char*)conna, conn_out_len), "In and Out connstrings do not match");
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   
@@ -733,16 +733,16 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
                                  0, &conn_out_len, SQL_DRIVER_COMPLETE));
 
-  is_num(conn_out_len, strlen(conna));
-  IS_STR(conna_out, conna, strlen(conna));
+  is_num(conn_out_len, strlen((const char*)conna));
+  IS_STR(conna_out, conna, conn_out_len);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
                                  0, &conn_out_len, SQL_DRIVER_COMPLETE_REQUIRED));
  
-  is_num(conn_out_len, strlen(conna));
-  IS_STR(conna_out, conna, strlen(conna));
+  is_num(conn_out_len, strlen((const char*)conna));
+  IS_STR(conna_out, conna, conn_out_len);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
@@ -754,8 +754,8 @@ ODBC_TEST(t_driverconnect_outstring)
                                         sizeof(connw_out)/sizeof(SQLWCHAR), &conn_out_len,
                                         SQL_DRIVER_NOPROMPT));
   /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen(conna)*(iOdbc() ? 4 : 1));
-  IS_WSTR(connw_out, connw, strlen(conna));
+  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
@@ -763,8 +763,8 @@ ODBC_TEST(t_driverconnect_outstring)
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE));
   /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen(conna)*(iOdbc() ? 4 : 1));
-  IS_WSTR(connw_out, connw, strlen(conna));
+  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
@@ -772,8 +772,8 @@ ODBC_TEST(t_driverconnect_outstring)
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE_REQUIRED));
   /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen(conna)*(iOdbc() ? 4 : 1));
-  IS_WSTR(connw_out, connw, strlen(conna));
+  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
@@ -784,12 +784,12 @@ ODBC_TEST(t_driverconnect_outstring)
 
 ODBC_TEST(setnames)
 {
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SET NAMES utf8", SQL_NTS), SQL_ERROR);
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SeT NamES utf8", SQL_NTS), SQL_ERROR);
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "   set names utf8", SQL_NTS), SQL_ERROR);
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "	set names utf8", SQL_NTS), SQL_ERROR);
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "/* comment */	set names utf8", SQL_NTS), SQL_ERROR);
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "set /* comment */ names utf8", SQL_NTS), SQL_ERROR); 
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"SET NAMES utf8", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"SeT NamES utf8", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"   set names utf8", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"	set names utf8", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"/* comment */	set names utf8", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"set /* comment */ names utf8", SQL_NTS), SQL_ERROR);
   return OK;
 }
 
@@ -825,7 +825,7 @@ ODBC_TEST(sqlcancel)
 {
   SQLLEN     pcbLength= SQL_LEN_DATA_AT_EXEC(0);
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select ?", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1,SQL_PARAM_INPUT,SQL_C_CHAR,
                           SQL_VARCHAR,0,0,(SQLPOINTER)1,0,&pcbLength));
@@ -835,7 +835,7 @@ ODBC_TEST(sqlcancel)
   /* Without SQLCancel we would get "out of sequence" DM error */
   CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "select 1", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select 1", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
@@ -923,7 +923,7 @@ ODBC_TEST(t_describe_nulti)
   OK_SIMPLE_STMT(hstmt1, "CREATE TABLE t1 (columnX VARCHAR(255))");
 
   OK_SIMPLE_STMT(hstmt1, "INSERT INTO t1 VALUES ('test')");
-  CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, "SELECT * FROM t1", SQL_NTS));
+  CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"SELECT * FROM t1", SQL_NTS));
  
 
   CHECK_STMT_RC(hstmt1, SQLDescribeCol(hstmt1, 1, ColumnName, 64, NULL, 0, 0, 0, 0));
@@ -1309,7 +1309,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Unsuccessful query */
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT count(*) FROM t_reset_nonexistent", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"SELECT count(*) FROM t_reset_nonexistent", SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Successful directly executed query */
@@ -1354,22 +1354,22 @@ ODBC_TEST(t_odbc32)
 
 ODBC_TEST(t_gh_issue3)
 {
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\nSELECT 1", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "\nSELECT 1");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 1);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\tSELECT 2", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "\tSELECT 2");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 2);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\t SELECT 3", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "\t SELECT 3");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 3);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "\n\t\n  \t\n  \n \t\t\t\t SELECT 4", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "\n\t\n  \t\n  \n \t\t\t\t SELECT 4" );
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 4);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1407,7 +1407,7 @@ ODBC_TEST(t_odbc69)
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   /* If everything is right, right port value will override the wrong one, and connect will be successful */
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn),
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
 
@@ -1435,7 +1435,7 @@ ODBC_TEST(t_odbc91)
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc));
 
-  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
 
@@ -1447,7 +1447,7 @@ ODBC_TEST(t_odbc91)
   sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;DATABASE=%s%s",
     my_dsn, my_uid, my_pwd, my_options, my_servername, my_schema, ma_strport);
 
-  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
 
@@ -1467,7 +1467,7 @@ ODBC_TEST(t_odbc91)
   sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s%s",
     my_drivername, my_uid, my_pwd, my_options, my_servername, ma_strport);
 
-  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
 
@@ -1490,7 +1490,7 @@ ODBC_TEST(t_odbc91)
   CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)buffer, sizeof(buffer), NULL));
   IS_STR(buffer, "t_odbc91", sizeof("t_odbc91"));
 
-  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen(conn),
+  CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
@@ -1574,7 +1574,7 @@ ODBC_TEST(t_odbc137)
 
     FAIL_IF(SQLFetch(Hstmt) == SQL_NO_DATA, "Wrong data has been stored in the table");
     /* We still need to make sure that the string has been delivered correctly */
-    my_fetch_str(Hstmt, buffer, 1);
+    my_fetch_str(Hstmt, (SQLCHAR*)buffer, 1);
     /* AllAnsiChars is escaped, so we cannot compare result string against it */
     for (j= 1; j < (iOdbc() ? 0x80 : 256); ++j)
     {
@@ -1638,7 +1638,7 @@ ODBC_TEST(t_odbc162)
   SQLSMALLINT ColumnCount;
   SQLRETURN rc;
 
-  rc= SQLExecDirect(Stmt, "with x as (select 1 as `val`\
+  rc= SQLExecDirect(Stmt, (SQLCHAR*)"with x as (select 1 as `val`\
                                    union all\
                                    select 2 as `val`\
                                    union all\
@@ -1722,8 +1722,8 @@ ODBC_TEST(t_odbc181)
 
   OK_SIMPLE_STMT(Stmt, "SELECT col1, col2 FROM t_odbc181");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_STR(my_fetch_str(Stmt, buffer, 1), "-0.0042", 8);
-  IS_STR(my_fetch_str(Stmt, buffer, 2), "text ending with newline\r\n some quetion ? end; and something after semicolon",
+  IS_STR(my_fetch_str(Stmt, (SQLCHAR*)buffer, 1), "-0.0042", 8);
+  IS_STR(my_fetch_str(Stmt, (SQLCHAR*)buffer, 2), "text ending with newline\r\n some quetion ? end; and something after semicolon",
     sizeof("text ending with newline\r\n some quetion ? end; and something after semicolon"));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

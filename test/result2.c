@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -272,7 +272,7 @@ ODBC_TEST(t_bug32821)
   SQLLEN      sPar= sizeof(SQLUINTEGER);
 
   /* 131071 = 0x1ffff - all 1 for field c*/
-  SQLCHAR * insStmt= "insert into t_bug32821 values (0,0,0),(1,1,1)\
+  SQLCHAR * insStmt= (SQLCHAR*)"insert into t_bug32821 values (0,0,0),(1,1,1)\
                       ,(1,255,131071),(1,258,?)";
   const unsigned char expected_a[]= {'\0', '\1', '\1', '\1'};
   const SQLUINTEGER   expected_b[]= {0L, 1L, 255L, 258L};
@@ -420,21 +420,21 @@ ODBC_TEST(t_bug55024)
   SQLSMALLINT len;
   SQLLEN      res;
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t_test55024", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_test55024");
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "CREATE TABLE t_test55024(col01 LONGTEXT, "\
-                                                                  "col02 BINARY(16),"\
-                                                                  "col03 VARBINARY(16),"\
-                                                                  "col04 LONGBLOB,"\
-                                                                  "col05 BIGINT,"\
-                                                                  "col06 TINYINT,"\
-                                                                  "col07 BIT, col08 DOUBLE"\
-                                                                  ") CHARSET latin1", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_test55024(col01 LONGTEXT, "\
+                                                "col02 BINARY(16),"\
+                                                "col03 VARBINARY(16),"\
+                                                "col04 LONGBLOB,"\
+                                                "col05 BIGINT,"\
+                                                "col06 TINYINT,"\
+                                                "col07 BIT, col08 DOUBLE"\
+                                                ") CHARSET latin1");
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_test55024 VALUES ('a', 'b', 'c', 'd', 999, 111, 1, 3.1415)", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_test55024 VALUES ('a', 'b', 'c', 'd', 999, 111, 1, 3.1415)");
 
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SELECT * FROM t_test55024", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_test55024");
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_TYPE, NULL, 0, &len, &res));
   is_num(res, SQL_LONGVARCHAR);
@@ -486,7 +486,7 @@ ODBC_TEST(t_bug56677)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "select * from bug56677", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select * from bug56677", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &colCount));
 
   is_num(colCount, 2);
@@ -547,9 +547,9 @@ ODBC_TEST(t_desccol_before_exec)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "select tt_varchar from desccol_before_exec where tt_int > ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select tt_varchar from desccol_before_exec where tt_int > ?", SQL_NTS));
 
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, colname, sizeof(colname), NULL,
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, (SQLCHAR*)colname, sizeof(colname), NULL,
     NULL, &collen, NULL, NULL));
 
   IS_STR(colname, "tt_varchar", 11);
@@ -575,7 +575,7 @@ ODBC_TEST(t_desccol_before_exec)
 
   /* Now doing all the same things with SQLColAttribute */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "select tt_int, tt_varchar "
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select tt_int, tt_varchar "
                                    "from desccol_before_exec "
                                    "where tt_int <= ?", SQL_NTS));
 
@@ -619,14 +619,14 @@ ODBC_TEST(t_bug62657)
   OK_SIMPLE_STMT(Stmt, "insert into b62657 values(1),(2)");
 
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "select * from b62657", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "select * from b62657");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   /* Any failing  query would do the job here */
   CHECK_DBC_RC(hstmt1, SQLAllocStmt(Connection, &hstmt1));
 
-  FAIL_IF(SQLExecDirect(hstmt1, "select * from some_ne_rubbish", SQL_NTS) != SQL_ERROR, "Error expected");
+  FAIL_IF(SQLExecDirect(hstmt1, (SQLCHAR*)"select * from some_ne_rubbish", SQL_NTS) != SQL_ERROR, "Error expected");
 
   /* Error of other query before all rows fetched causes next fetch
      to fail */
@@ -671,8 +671,8 @@ ODBC_TEST(t_row_status)
   CHECK_DESC_RC(ird, SQLSetDescField(ard, 0, SQL_DESC_ARRAY_SIZE,
                                 (SQLPOINTER)2, SQL_IS_INTEGER));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "select * from b_row_status\
-                                       where i=1", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "select * from b_row_status\
+                        where i=1");
 
   /* it has to be SQL_SUCCESS here */
   FAIL_IF(SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 1, NULL,
@@ -688,9 +688,9 @@ ODBC_TEST(t_row_status)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "select if(i is NULL,NULL,repeat(char(64+i),8/i))\
-                                       from b_row_status\
-                                       order by i desc", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "select if(i is NULL,NULL,repeat(char(64+i),8/i))\
+                        from b_row_status\
+                        order by i desc");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, res, 5, NULL));  
 
@@ -719,9 +719,6 @@ ODBC_TEST(t_prefetch)
     HSTMT hstmt1;
     SQLCHAR conn[512];
 
-    diag("Multi statements not supported");
-    return SKIP;
-
     sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PREFETCH=5",
           my_dsn, my_uid, my_pwd);
     
@@ -737,20 +734,20 @@ ODBC_TEST(t_prefetch)
 
     OK_SIMPLE_STMT(Stmt, "insert into b_prefecth values(1),(2),(3),(4),(5),(6),(7)");
 
-    CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, "select* from b_prefecth;    ", SQL_NTS));
+    CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"select * from b_prefecth;    ", SQL_NTS));
     CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
     CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1,SQL_DROP));
 
     CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
-    sprintf((char *)conn+strlen(conn), ";MULTI_STATEMENTS=1");
+    sprintf((char *)conn+strlen((const char*)conn), ";OPTION=67108864");/* Multistatements */
 
     CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, sizeof(conn), NULL,
                                    0, NULL,
                                    SQL_DRIVER_NOPROMPT));
     CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
-    CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, "select* from b_prefecth;\
+    CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"select* from b_prefecth;\
                                         select * from b_prefecth where i < 7; ",
                               SQL_NTS));
 
@@ -930,12 +927,12 @@ ODBC_TEST(t_bug11766437)
 
       sprintf((char *)tbuf, "name%d", i);
       /* Verifying inserted name field */
-      IS_STR(ptr, tbuf, strlen(tbuf));
+      IS_STR(ptr, tbuf, strlen((const char*)tbuf));
       /* Incrementing ptr by MAX_CHAR_SIZE (max size kept for name column) */
       ptr+=MAX_CHAR_SIZE;
 
       /* Verifying length of name field */
-      is_num(*((SQLLEN *)ptr), strlen(tbuf));
+      is_num(*((SQLLEN *)ptr), strlen((const char*)tbuf));
       /* Incrementing ptr by sizeof(SQLLEN) last parameter of SQLBindCol  */
       ptr += sizeof(SQLLEN);
 
@@ -965,7 +962,7 @@ ODBC_TEST(t_odbc29)
 
   /* The problem was that connector trimmed extra spaces, but used initial statement length. Adding garbage at the end to verify
      that trimmed string length is calculated correctly */
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "  select * from bug_odbc29somegarbageafterendofstatement", sizeof("  select * from bug_odbc29") - 1));
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"  select * from bug_odbc29somegarbageafterendofstatement", sizeof("  select * from bug_odbc29") - 1));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &cols_count));
 
   is_num(cols_count, 2);
