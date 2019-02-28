@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2017 MariaDB Corporation AB
+   Copyright (C) 2013, 2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -118,6 +118,7 @@ SQLRETURN    MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect);
 /* So far we always use all fields for index. Once that is changed, this should be changed as well */
 #define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor)
 #define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= -1; 
+#define MADB_STMT_CLOSE_STMT(aStmt)   mysql_stmt_close((aStmt)->stmt);(aStmt)->stmt= NULL
 
 #define MADB_OCTETS_PER_CHAR 2
 

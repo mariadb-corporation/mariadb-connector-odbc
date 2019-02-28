@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -66,7 +66,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 error:
   if (Stmt && Stmt->stmt)
   {
-    mysql_stmt_close(Stmt->stmt);
+    MADB_STMT_CLOSE_STMT(Stmt);
     UNLOCK_MARIADB(Stmt->Connection);
   }
   MADB_DescFree(Stmt->IApd, TRUE);
@@ -277,7 +277,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     else if (Stmt->stmt != NULL)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-      mysql_stmt_close(Stmt->stmt);
+      MADB_STMT_CLOSE_STMT(Stmt);
     }
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
     MADB_DeleteQuery(&Stmt->Query);
@@ -389,7 +389,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     if (Stmt->State >= MADB_SS_PREPARED)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-      mysql_stmt_close(Stmt->stmt);
+      MADB_STMT_CLOSE_STMT(Stmt);
       Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
       MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
@@ -460,6 +460,7 @@ SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
 SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
   LOCK_MARIADB(Stmt->Connection);
+
   MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt, STMT_STRING(Stmt));
   if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
   {
@@ -467,9 +468,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
-    mysql_stmt_close(Stmt->stmt);
-
-    Stmt->stmt= MADB_NewStmtHandle(Stmt);
+    MADB_STMT_CLOSE_STMT(Stmt);
 
     UNLOCK_MARIADB(Stmt->Connection);
 

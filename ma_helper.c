@@ -108,8 +108,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
         Stmt->stmt= MADB_NewStmtHandle(Stmt);
         if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
         {
-          mysql_stmt_close(Stmt->stmt);
-          Stmt->stmt= NULL;
+          MADB_STMT_CLOSE_STMT(Stmt);
         }
         else
         {
