@@ -113,6 +113,7 @@ SQLRETURN    MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect);
     return SQL_INVALID_HANDLE
 
 #define MADB_STMT_COLUMN_COUNT(aStmt) (aStmt)->Ird->Header.Count
+#define MADB_RESET_COLUMT_COUNT(aStmt) (aStmt)->Ird->Header.Count= 0
 #define MADB_STMT_PARAM_COUNT(aStmt)  (aStmt)->ParamCount
 #define MADB_POSITIONED_COMMAND(aStmt) ((aStmt)->PositionedCommand && (aStmt)->PositionedCursor)
 /* So far we always use all fields for index. Once that is changed, this should be changed as well */

@@ -983,9 +983,6 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
       failed++;
     }
 
-    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
-    tests++;
-
     if (reset_changed_server_variables())
     {
       fprintf(stdout, "HALT! An error occurred while tried to reset server variables changed by the test!\n");
@@ -997,6 +994,10 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     {
       SQLFreeStmt(Stmt, SQL_DROP);
     }
+
+    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
+    tests++;
+
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
     fflush(stdout);

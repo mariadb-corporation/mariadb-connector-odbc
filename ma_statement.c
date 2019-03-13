@@ -469,6 +469,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
     /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
     MADB_STMT_CLOSE_STMT(Stmt);
+    Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
     UNLOCK_MARIADB(Stmt->Connection);
 

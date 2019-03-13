@@ -1323,6 +1323,7 @@ void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
+    MADB_DescFree(Stmt->Ird, TRUE);
     Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
   }
   else

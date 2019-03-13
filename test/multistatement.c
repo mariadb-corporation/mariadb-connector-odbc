@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -604,6 +604,44 @@ ODBC_TEST(t_odbc169)
 }
 
 
+ODBC_TEST(t_odbc219)
+{
+  SQLSMALLINT ColumnCount;
+  SQLCHAR ColumnName[8], Query[][80]= {"CALL odbc219()", "SELECT 1 Col1; INSERT INTO t_odbc219 VALUES(2)"};
+  unsigned int i;
+  long long ExpectedColCount[]= {2, 1};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc219");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc219");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc219(col1 INT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE odbc219()\
+                        BEGIN\
+                          SELECT 1 as id, 'text' as val;\
+                        END");
+  for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, Query[i]);
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+    is_num(ColumnCount, ExpectedColCount[i]);
+    my_print_non_format_result_ex(Stmt, FALSE);
+    CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+    is_num(ColumnCount, 0);
+    EXPECT_STMT(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_NAME, (SQLPOINTER)ColumnName, sizeof(ColumnName), NULL, NULL), SQL_ERROR);
+
+    EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc219");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc219");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -619,6 +657,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc159, "t_odbc159"},
   {t_odbc177, "t_odbc177"},
   {t_odbc169, "t_odbc169"},
+  {t_odbc219, "t_odbc219"},
   {NULL, NULL}
 };
 
