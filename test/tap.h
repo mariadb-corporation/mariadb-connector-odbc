@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -111,6 +111,7 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 #include <assert.h>
 /* We need mysql for MARIADB_CHARSET_INFO type and conversion routine */
 #include <mysql.h>
+
 
 BOOL   UseDsnOnly= FALSE;
 static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
@@ -1288,5 +1289,38 @@ BOOL UnixOdbc(HENV Env)
 #endif
   return FALSE;
  }
+
+
+const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
+{
+  static char AsNumber[8];
+
+  switch (TypeId)
+  {
+  case SQL_C_TINYINT: return "SQL_TINYINT";
+  case SQL_C_STINYINT: return "SQL_C_STINYINT";
+  case SQL_C_UTINYINT: return "SQL_C_UTINYINT";
+  case SQL_C_SHORT: return "SQL_SMALLINT";
+  case SQL_C_SSHORT: return "SQL_C_SSHORT";
+  case SQL_C_USHORT: return "SQL_C_USHORT";
+  case SQL_C_LONG: return "SQL_INTEGER";
+  case SQL_C_SLONG: return "SQL_C_SLONG";
+  case SQL_C_ULONG: return "SQL_C_ULONG";
+  case SQL_C_UBIGINT: return "SQL_C_UBIGINT";
+  case SQL_C_SBIGINT: return "SQL_C_SBIGINT";
+  case SQL_BIGINT: return "SQL_BIGINT";
+  case SQL_C_DOUBLE: return "SQL_DOUBLE";
+  case SQL_C_FLOAT: return "SQL_REAL";
+  case SQL_DECIMAL: return "SQL_DECIMAL";
+  case SQL_VARCHAR: return "SQL_VARCHAR";
+  default:
+    if (Buffer == NULL)
+    {
+      Buffer= AsNumber;
+    }
+    sprintf(Buffer, "%hu", TypeId);
+  }
+  return Buffer;
+}
 
 #endif      /* #ifndef _tap_h_ */

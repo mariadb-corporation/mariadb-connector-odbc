@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2018 MariaDB Corporation AB
+                2017, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1403,6 +1403,7 @@ ODBC_TEST(odbc185)
   return OK;
 }
 
+
 ODBC_TEST(odbc152)
 {
   SQLSMALLINT SqlDataType, SqlDatetimeSub= 0xffff, DataType;
@@ -1442,6 +1443,42 @@ ODBC_TEST(odbc152)
   return OK;
 }
 
+
+ODBC_TEST(odbc231)
+{
+  SQLINTEGER ColumnSize= 0, BufferLength= 0;
+  SQLLEN     ColumnSizeLen, BufferLengthLen, Type1, Type2, Unsigned1, Unsigned2;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc231");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc231 (`val` LONGTEXT)");
+
+  /* It doesn't matter if we call SQLColumns or SQLColumnsW */
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, 0,
+    "t_odbc231", SQL_NTS, NULL, SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, COLUMN_SIZE, SQL_DESC_CONCISE_TYPE, NULL, 0, NULL, &Type1));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, BUFFER_LENGTH, SQL_DESC_CONCISE_TYPE, NULL, 0, NULL, &Type2));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, COLUMN_SIZE, SQL_DESC_UNSIGNED, NULL, 0, NULL, &Unsigned1));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, BUFFER_LENGTH, SQL_DESC_UNSIGNED, NULL, 0, NULL, &Unsigned2));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, COLUMN_SIZE, SQL_C_SLONG, &ColumnSize, 0, &ColumnSizeLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, BUFFER_LENGTH, SQL_C_ULONG, &BufferLength, 0, &BufferLengthLen));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num((unsigned)ColumnSize, 0xffffffff);
+  is_num(ColumnSizeLen, sizeof(SQLINTEGER));
+  diag("Longtext size: %lu(%lx) type %s %s, buffer length: %lu(%lx) type %s %s", ColumnSize, ColumnSize, OdbcTypeAsString((SQLSMALLINT)Type1, NULL),
+    Unsigned1 ? "Unsigned" : "Signed", BufferLength, BufferLength, OdbcTypeAsString((SQLSMALLINT)Type2, NULL), Unsigned2 ? "Unsigned" : "Signed");
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc231");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1466,6 +1503,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc119, "odbc119_sqlstats_orderby",      NORMAL},
   {odbc185, "odbc185_sqlcolumns_wtypes",     NORMAL},
   {odbc152, "odbc152_sqlcolumns_sql_data_type",   NORMAL},
+  {odbc231, "odbc231_sqlcolumns_longtext",   NORMAL},
   {NULL, NULL}
 };
 

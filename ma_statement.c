@@ -1488,7 +1488,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       continue;
     }
 
-    DataPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr,        RowNumber, ArdRec->OctetLength);
+    DataPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr, RowNumber, ArdRec->OctetLength);
 
     MADB_FREE(ArdRec->InternalBuffer);
     if (!DataPtr)
@@ -2082,6 +2082,15 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
         {
           MADB_DescRecord *ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
                           *IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
+          /* If (numeric) field value and buffer are of the same size - ignoring truncation.
+          In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
+          some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
+          signed, or vice versa, why we should prevent that. Plus it seems there is the bug in C/C atm */
+          if (ArdRec->OctetLength == IrdRec->OctetLength
+           && MADB_IsIntType(IrdRec->ConciseType) && MADB_IsIntType(ArdRec->ConciseType))
+          {
+            continue;
+          }
           /* For numeric types we return either 22003 or 01S07, 01004 for the rest.
              if ird type is not fractional - we return 22003. But as a matter of fact, it's possible that we have 22003 if converting
              from fractional types */
@@ -3512,11 +3521,11 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
 
 
 static MADB_ShortTypeInfo SqlColumnsColType[18]=
-                               /*1*/    {{SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
-                               /*5*/     {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
-                               /*9*/     {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
-                               /*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
-                               /*16*/    {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
+/*1*/    {{SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+/*5*/     {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
+/*9*/     {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+/*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+/*16*/    {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
 
 /* {{{ MADB_StmtColumns */
 SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
