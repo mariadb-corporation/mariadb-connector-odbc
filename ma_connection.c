@@ -601,6 +601,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_options(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
 
+  if (Dsn->ReadMycnf != '\0')
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
+  }
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
      for unicode connections we use utf8

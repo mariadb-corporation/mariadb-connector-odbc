@@ -98,6 +98,7 @@ MADB_OptionsMap OptionsMap[]= {
   {2, ckReconnect,                     MADB_OPT_FLAG_AUTO_RECONNECT},
   {2, ckConnectPrompt,                 MADB_OPT_FLAG_NO_PROMPT},
   {2, ckCompressed,                    MADB_OPT_FLAG_COMPRESSED_PROTO},
+  {2, ckUseMycnf,                      MADB_OPT_FLAG_USE_CNF},
   {3, ckIgnoreSchema,                  MADB_OPT_FLAG_NO_SCHEMA},
   {3, ckIgnoreSpace,                   MADB_OPT_FLAG_IGNORE_SPACE},
   {3, ckMultiStmt,                     MADB_OPT_FLAG_MULTI_STATEMENTS},

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -65,7 +65,8 @@ MADB_DsnKey DsnKeys[]=
   {"SSLCRL",         offsetof(MADB_Dsn, SslCrl),            DSN_TYPE_STRING, 0, 0},
   {"SSLCRLPATH",     offsetof(MADB_Dsn, SslCrlPath),        DSN_TYPE_STRING, 0, 0},
   {"SOCKET",         offsetof(MADB_Dsn, Socket),            DSN_TYPE_STRING, 0, 0},
-  {"SAVEFILE",       offsetof(MADB_Dsn, SaveFile),            DSN_TYPE_STRING, 0, 0}, /* 30 */
+  {"SAVEFILE",       offsetof(MADB_Dsn, SaveFile),          DSN_TYPE_STRING, 0, 0}, /* 30 */
+  {"USE_MYCNF",      offsetof(MADB_Dsn, ReadMycnf),         DSN_TYPE_OPTION, MADB_OPT_FLAG_USE_CNF, 0},
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},
@@ -88,7 +89,7 @@ typedef struct
 } MADB_DsnKeyDep;
 
 /* Define pairs of keys that are switches, i.e. setting one should reset the other.
-   Transitive dependencies have to be defined as dierect dependencies here as well */
+   Transitive dependencies have to be defined as direct dependencies here as well */
 const MADB_DsnKeyDep DsnKeysSwitch[]=
 {
   {DSNKEY_NAMEDPIPE_INDEX, DSNKEY_TCPIP_INDEX,     0},

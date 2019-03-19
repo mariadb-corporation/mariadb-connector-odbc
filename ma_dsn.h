@@ -121,6 +121,7 @@ typedef struct st_madb_dsn
   char *SslFpList;
   my_bool SslVerify;
   char *SaveFile;
+  my_bool ReadMycnf;
   /* --- Internal --- */
   int isPrompt;
   MADB_DsnKey *Keys;
