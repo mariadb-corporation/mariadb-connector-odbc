@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1420,6 +1420,26 @@ ODBC_TEST(t_odbc192)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc232)
+{
+  char Buffer[16];
+  OK_SIMPLE_STMT(Stmt, "SELECT \"ABCDEFGHIJ\" AS COLUMN1");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, Buffer, sizeof(Buffer), NULL));
+
+  IS_STR(Buffer, "ABCDEFGHIJ", 10);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1449,6 +1469,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc146, "t_odbc146_numeric_getdata"},
   { t_odbc194, "t_odbc194_null_date"},
   {t_odbc192, "t_odbc192"},
+  {t_odbc232, "t_odbc232"},
   {NULL, NULL}
 };
 
