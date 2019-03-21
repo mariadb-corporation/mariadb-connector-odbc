@@ -684,7 +684,32 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
    || !MADB_IS_EMPTY(Dsn->SslKey))
   {
     mysql_ssl_set(Connection->mariadb, Dsn->SslKey, Dsn->SslCert, Dsn->SslCa, Dsn->SslCaPath, Dsn->SslCipher);
+
+    if (Dsn->TlsVersion > 0)
+    {
+      char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
+      unsigned int i, NeedComma= 0;
+
+      for (i= 0; i < sizeof(TlsVersionBits); ++i)
+      {
+        if (Dsn->TlsVersion & TlsVersionBits[i])
+        {
+          if (NeedComma != 0)
+          {
+            *Ptr++= ',';
+          }
+          else
+          {
+            NeedComma= 1;
+          }
+          strcpy(Ptr, TlsVersionName[i]);
+          Ptr += strlen(TlsVersionName[i]);
+        }
+      }
+      mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
+    }
   }
+  
   if (Dsn->SslVerify)
   {
     const unsigned int verify= 0x01010101;

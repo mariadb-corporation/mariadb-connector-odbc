@@ -289,4 +289,10 @@ BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
 {
   return Dsn->ServerName && (Dsn->IsNamedPipe || Dsn->Port > 0);
 }
+
+
+char* strcasestr(const char* HayStack, const char* Needle)
+{
+  return StrStrIA(HayStack, Needle);
+}
 /* }}} */

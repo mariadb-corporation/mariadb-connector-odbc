@@ -34,7 +34,12 @@
 #ifdef _WIN32
 # define _WINSOCKAPI_
 # include <windows.h>
+# include <shlwapi.h>
 
+char* strcasestr(const char* HayStack, const char* Needle)
+{
+  return StrStrIA(HayStack, Needle);
+}
 #else
 
 # include <string.h>

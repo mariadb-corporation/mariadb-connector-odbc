@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -89,9 +89,16 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[22], 4, txtSslCaPath,       260, 0},
   {&DsnKeys[23], 4, txtSslCipher,        32, 0},
   {&DsnKeys[24], 4, cbSslVerify,          0, 0},
-
+  {&DsnKeys[32], 4, cbTls11,              1, 0},
+  {&DsnKeys[32], 4, cbTls12,              2, 0},
+  {&DsnKeys[32], 4, cbTls13,              4, 0},
   {NULL, 0, 0, 0, 0}
 };
+
+#define CBGROUP_BIT(MapIdx)             (char)(DsnMap[MapIdx].MaxLength)
+#define IS_CB_CHECKED(MapIdx)           GetButtonState(DsnMap[MapIdx].Page, DsnMap[MapIdx].Item)
+#define CBGROUP_SETBIT(_Dsn, MapIdx)    *GET_FIELD_PTR(_Dsn, DsnMap[MapIdx].Key, char)|= CBGROUP_BIT(MapIdx)
+#define CBGROUP_RESETBIT(_Dsn, MapIdx)  *GET_FIELD_PTR(_Dsn, DsnMap[MapIdx].Key, char)&= ~CBGROUP_BIT(MapIdx)
 
 MADB_OptionsMap OptionsMap[]= {
   {1, rbPipe,                          MADB_OPT_FLAG_NAMED_PIPE},
@@ -149,6 +156,10 @@ my_bool SetDialogFields()
         SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
                            Val ? BST_CHECKED : BST_UNCHECKED, 0);
       }
+      break;
+    case DSN_TYPE_CBOXGROUP:
+      SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
+        (*GET_FIELD_PTR(Dsn, DsnMap[i].Key, char) & CBGROUP_BIT(i)) != '\0' ? BST_CHECKED : BST_UNCHECKED, 0);
     }
     i++;
   }
@@ -334,7 +345,17 @@ void GetDialogFields()
        *(int *)((char *)Dsn + DsnMap[i].Key->DsnOffset)= GetFieldIntVal(DsnMap[i].Page, DsnMap[i].Item);
        break;
     case DSN_TYPE_BOOL:
-      *(my_bool *)((char *)Dsn + DsnMap[i].Key->DsnOffset)=  GetButtonState(DsnMap[i].Page, DsnMap[i].Item);
+      *GET_FIELD_PTR(Dsn, DsnMap[i].Key, my_bool)=  IS_CB_CHECKED(i);
+      break;
+    case DSN_TYPE_CBOXGROUP:
+      if (IS_CB_CHECKED(i) != '\0')
+      {
+        CBGROUP_SETBIT(Dsn, i);
+      }
+      else
+      {
+        CBGROUP_RESETBIT(Dsn, i);
+      }
     }
     ++i;
   }

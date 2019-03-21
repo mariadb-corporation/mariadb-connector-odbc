@@ -171,28 +171,32 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     GROUPBOX        "SSL Settings",IDC_STATIC,7,7,277,124,0,WS_EX_TRANSPARENT
 
-    LTEXT           "Key",IDC_STATIC,15,25,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslKey,84,25,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbKeyBrowse,195,23,30,14
+    LTEXT           "Key",IDC_STATIC,15,20,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslKey,84,20,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbKeyBrowse,195,18,30,14
 
-    LTEXT           "Certificate",IDC_STATIC,15,39,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCert,84,39,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbCertBrowse,195,37,30,14
+    LTEXT           "Certificate",IDC_STATIC,15,34,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCert,84,34,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCertBrowse,195,32,30,14
 
-    LTEXT           "Certificate Authority",IDC_STATIC,15,53,68,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCertAuth,84,53,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbCaCertBrowse,195,51,30,14
+    LTEXT           "Certificate Authority",IDC_STATIC,15,48,68,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCertAuth,84,48,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCaCertBrowse,195,46,30,14
 
-    LTEXT           "CA Path",IDC_STATIC,15,67,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCaPath,84,67,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbCaPathBrowse,195,65,30,14
+    LTEXT           "CA Path",IDC_STATIC,15,62,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCaPath,84,62,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCaPathBrowse,195,60,30,14
 
-    LTEXT           "Cipher",IDC_STATIC,15,81,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCipher,84,81,110,10,ES_AUTOHSCROLL
+    LTEXT           "Cipher",IDC_STATIC,15,76,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCipher,84,76,110,10,ES_AUTOHSCROLL
 
-    CONTROL         "Verify Certificate",cbSslVerify,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,95,97,10,WS_EX_TRANSPARENT
-//    CONTROL         "Disable catalog support",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,91,10,WS_EX_TRANSPARENT
-//    CONTROL         "Ignore space after function names",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,53,127,10,WS_EX_TRANSPARENT
+    CONTROL         "Verify Certificate",cbSslVerify,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,90,97,10,WS_EX_TRANSPARENT
+
+    LTEXT           "Allowed TLS versions(Not checking any means that all are allowed)",IDC_STATIC,15,104,264,8,0,WS_EX_TRANSPARENT
+    CONTROL         "v.1.1",cbTls11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,115,30,10,WS_EX_TRANSPARENT
+    CONTROL         "v.1.2",cbTls12,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,45,115,30,10,WS_EX_TRANSPARENT
+    CONTROL         "v.1.3",cbTls13,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,75,115,30,10,WS_EX_TRANSPARENT
+
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
     PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
     PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED

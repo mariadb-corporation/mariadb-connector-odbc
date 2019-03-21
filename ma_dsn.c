@@ -67,6 +67,7 @@ MADB_DsnKey DsnKeys[]=
   {"SOCKET",         offsetof(MADB_Dsn, Socket),            DSN_TYPE_STRING, 0, 0},
   {"SAVEFILE",       offsetof(MADB_Dsn, SaveFile),          DSN_TYPE_STRING, 0, 0}, /* 30 */
   {"USE_MYCNF",      offsetof(MADB_Dsn, ReadMycnf),         DSN_TYPE_OPTION, MADB_OPT_FLAG_USE_CNF, 0},
+  {"TLSVERSION",     offsetof(MADB_Dsn, TlsVersion),        DSN_TYPE_CBOXGROUP, 0, 0},
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},
@@ -77,9 +78,8 @@ MADB_DsnKey DsnKeys[]=
   {NULL, 0, DSN_TYPE_BOOL,0,0}
 };
 
+/* TODO: Shouln't 2nd be DSNKEY_OPTIONS_INDEX? But I seemed to remember it was removed for a reason... */
 #define IS_OPTIONS_BITMAP(key_index) (key_index == DSNKEY_OPTIONS_INDEX || key_index == DSNKEY_OPTIONS_INDEX)
-
-#define GET_FIELD_PTR(DSN, DSNKEY, TYPE) ((TYPE *)((char*)(DSN) + (DSNKEY)->DsnOffset))
 
 typedef struct
 {
@@ -96,6 +96,8 @@ const MADB_DsnKeyDep DsnKeysSwitch[]=
   {DSNKEY_TCPIP_INDEX,     DSNKEY_NAMEDPIPE_INDEX, 0}
 };
 
+const char TlsVersionName[][8]= {"TLSv1.1", "TLSv1.2", "TLSv1.3"};
+const char TlsVersionBits[]=    {MADB_TLSV11, MADB_TLSV12, MADB_TLSV13};
 
 /* {{{ MADB_DSN_SetDefaults() */
 void MADB_DSN_SetDefaults(MADB_Dsn *Dsn)
@@ -247,9 +249,36 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
     }
     break;
   case DSN_TYPE_BOOL:
-    if (*GET_FIELD_PTR(Dsn, DsnKey, my_bool) && OverWrite == FALSE)
-      break;
-    *GET_FIELD_PTR(Dsn, DsnKey, my_bool)= atoi(Value);
+    /* If value is not set or we may overwrite it */
+    if (!(*GET_FIELD_PTR(Dsn, DsnKey, my_bool) && OverWrite == FALSE))
+    {
+      *GET_FIELD_PTR(Dsn, DsnKey, my_bool)= atoi(Value);
+    }
+    break;
+  case DSN_TYPE_CBOXGROUP:
+    /* If value is not set or we may overwrite it */
+    if (! (*GET_FIELD_PTR(Dsn, DsnKey, char) && OverWrite == FALSE))
+    {
+      char IntValue= atoi(Value);
+
+      /* Atm we have only one DSN_TYPE_CBOXGROUP!!!, and following works only for it. If sometime another such field is added,
+         we will need another data structure array, that will bind DSN field with string values and bits for this field.
+         So far we use hardcoded arrays for the singe such field we have atm */
+      if (IntValue == '\0')
+      {
+        unsigned int i;
+
+        IntValue= 0;
+        for (i= 0; i < sizeof(TlsVersionBits); ++i)
+        {
+          if (strcasestr(Value, TlsVersionName[i]) != NULL)
+          {
+            IntValue|= TlsVersionBits[i];
+          }
+        }
+      }
+      *GET_FIELD_PTR(Dsn, DsnKey, char)= IntValue;
+    }
     break;
   case DSN_TYPE_INT:
     if (*GET_FIELD_PTR(Dsn, DsnKey, int) && OverWrite == FALSE)
@@ -376,14 +405,20 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
     {
       ret= TRUE;
       /* We do not save DSN_TYPE_OPTION - they are saved as OPTIONS bits */
-      switch(DsnKeys[i].Type){
+      switch (DsnKeys[i].Type) {
       case DSN_TYPE_BOOL:
-          ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, 
+        ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, 
           *GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool) ? "1" : "0", "ODBC.INI");
         break;
       case DSN_TYPE_INT:
         {
           _snprintf(Value ,32, "%d", *(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
+          ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Value, "ODBC.INI");
+        }
+        break;
+      case DSN_TYPE_CBOXGROUP:
+        {
+          _snprintf(Value, 32, "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
           ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Value, "ODBC.INI");
         }
         break;
@@ -395,7 +430,8 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
             ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Val, "ODBC.INI");
         }
         break;
-      }
+      }  /* switch */
+
       if (!ret)
       {
         SQLInstallerError(1,&ErrNum, Dsn->ErrorMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
@@ -577,7 +613,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
       case DSN_TYPE_INT:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], int))
         {
-          _snprintf(IntVal, sizeof(IntVal), "%d",*(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
+          _snprintf(IntVal, sizeof(IntVal), "%d", *GET_FIELD_PTR(Dsn, &DsnKeys[i], int));
           Value= IntVal;
         }
         break;
@@ -585,6 +621,13 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool))
         {
           Value= "1";
+        }
+        break;
+      case DSN_TYPE_CBOXGROUP:
+        if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
+        {
+          _snprintf(IntVal, sizeof(IntVal), "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
+          Value= IntVal;
         }
         break;
       }
