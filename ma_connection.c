@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -676,50 +676,83 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     int protocol= MYSQL_PROTOCOL_SOCKET;
     mysql_options(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
   }
-  
-  if (!MADB_IS_EMPTY(Dsn->SslCa)
-   || !MADB_IS_EMPTY(Dsn->SslCaPath)
-   || !MADB_IS_EMPTY(Dsn->SslCipher)
-   || !MADB_IS_EMPTY(Dsn->SslCert)
-   || !MADB_IS_EMPTY(Dsn->SslKey))
+
   {
-    mysql_ssl_set(Connection->mariadb, Dsn->SslKey, Dsn->SslCert, Dsn->SslCa, Dsn->SslCaPath, Dsn->SslCipher);
+    /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
+       to have this paranoid check to make sure we dont' them */
+    const char *SslKey=    ltrim(Dsn->SslKey);
+    const char *SslCert=   ltrim(Dsn->SslCert);
+    const char *SslCa=     ltrim(Dsn->SslCa);
+    const char *SslCaPath= ltrim(Dsn->SslCaPath);
+    const char *SslCipher= ltrim(Dsn->SslCipher);
 
-    if (Dsn->TlsVersion > 0)
+    if (!MADB_IS_EMPTY(SslCa)
+     || !MADB_IS_EMPTY(SslCaPath)
+     || !MADB_IS_EMPTY(SslCipher)
+     || !MADB_IS_EMPTY(SslCert)
+     || !MADB_IS_EMPTY(SslKey))
     {
-      char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
-      unsigned int i, NeedComma= 0;
+      char Enable= 1;
+      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_ENFORCE, &Enable);
 
-      for (i= 0; i < sizeof(TlsVersionBits); ++i)
+      if (!MADB_IS_EMPTY(SslKey))
       {
-        if (Dsn->TlsVersion & TlsVersionBits[i])
-        {
-          if (NeedComma != 0)
-          {
-            *Ptr++= ',';
-          }
-          else
-          {
-            NeedComma= 1;
-          }
-          strcpy(Ptr, TlsVersionName[i]);
-          Ptr += strlen(TlsVersionName[i]);
-        }
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_KEY, SslKey);
       }
-      mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
+      if (!MADB_IS_EMPTY(SslCert))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CERT, SslCert);
+      }
+      if (!MADB_IS_EMPTY(SslCa))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CA, SslCa);
+      }
+      if (!MADB_IS_EMPTY(SslCaPath))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
+      }
+      if (!MADB_IS_EMPTY(SslCipher))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
+      }
+
+      if (Dsn->TlsVersion > 0)
+      {
+        char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
+        unsigned int i, NeedComma= 0;
+
+        for (i= 0; i < sizeof(TlsVersionBits); ++i)
+        {
+          if (Dsn->TlsVersion & TlsVersionBits[i])
+          {
+            if (NeedComma != 0)
+            {
+              *Ptr++= ',';
+            }
+            else
+            {
+              NeedComma= 1;
+            }
+            strcpy(Ptr, TlsVersionName[i]);
+            Ptr += strlen(TlsVersionName[i]);
+          }
+        }
+        mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
+      }
+    }
+  
+    if (Dsn->SslVerify)
+    {
+      const unsigned int verify= 0x01010101;
+      mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+    }
+    else
+    {
+      const unsigned int verify= 0;
+      mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
     }
   }
   
-  if (Dsn->SslVerify)
-  {
-    const unsigned int verify= 0x01010101;
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
-  }
-  else
-  {
-    const unsigned int verify= 0;
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
-  }
 
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
