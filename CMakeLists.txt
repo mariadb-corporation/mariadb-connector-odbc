@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2016 MariaDB Corporation AB
+#   Copyright (C) 2013,2019 MariaDB Corporation AB
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -22,10 +22,10 @@ cmake_minimum_required(VERSION 2.8)
 
 SET(MARIADB_ODBC_VERSION_MAJOR 3)
 SET(MARIADB_ODBC_VERSION_MINOR 1)
-SET(MARIADB_ODBC_VERSION_PATCH 0)
-SET(MARIADB_ODBC_VERSION_QUALITY "rc")
+SET(MARIADB_ODBC_VERSION_PATCH 1)
+SET(MARIADB_ODBC_VERSION_QUALITY "ga")
 
-SET(MARIADB_ODBC_VERSION "03.01.0000")
+SET(MARIADB_ODBC_VERSION "03.01.0001")
 
 SET(MARIADB_DEFAULT_PLUGINS_SUBDIR "plugin")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
@@ -317,6 +317,10 @@ SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
 ELSE()
+  IF(APPLE)
+    MESSAGE(STATUS "Configuring to generate PKG package")
+    ADD_SUBDIRECTORY(osxinstall)
+  ENDIF()
   IF(NOT DEFINED INSTALL_LIB_SUFFIX)
     SET(INSTALL_LIB_SUFFIX "lib")
     IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")

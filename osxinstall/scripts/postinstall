@@ -1,0 +1,76 @@
+#!/bin/bash
+# ************************************************************************************
+#   Copyright (C) 2019 MariaDB Corporation AB
+#   
+#   This library is free software; you can redistribute it and/or
+#   modify it under the terms of the GNU Library General Public
+#   License as published by the Free Software Foundation; either
+#   version 2.1 of the License, or (at your option) any later version.
+#   
+#   This library is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#   Library General Public License for more details.
+#   
+#   You should have received a copy of the GNU Library General Public
+#   License along with this library; if not see <http://www.gnu.org/licenses>
+#   or write to the Free Software Foundation, Inc., 
+#   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
+# *************************************************************************************/
+
+touch /tmp/maodbc_postinstall.log
+
+echo "Registering  MariaDB ODBC driver" > /tmp/maodbc_postinstall.log
+
+if [ $2 ]; then
+  target=$2
+  case "$target" in
+  */)
+    ;;
+  *)
+    target="${target}/"
+    ;;
+  esac
+  echo "Driver installation target - $target" >> /tmp/maodbc_postinstall.log
+fi
+
+set -a
+ODBCINSTINI="${target}Library/ODBC/odbcinst.ini"
+instinidir="$(dirname -- "$ODBCINSTINI")"
+
+echo "Using $ODBCINSTINI, dirname - ${instinidir}" >> /tmp/maodbc_postinstall.log
+
+if [ ! -f $ODBCINSTINI ] ; then
+  echo "$ODBCINSTINI does not exist" >> /tmp/maodbc_postinstall.log
+  mkdir -p "$instinidir" && touch "$ODBCINSTINI"
+
+  if [ ! -f $ODBCINSTINI ] ; then
+    echo "$ODBCINSTINI still does not exist" >> /tmp/maodbc_postinstall.log
+    echo "$ODBCINSTINI still does not exist"
+    mkdir -p "$instinidir"
+    touch "$ODBCINSTINI"
+    exit 1
+  fi
+  echo "Writing common options and driver entry" >> /tmp/maodbc_postinstall.log
+  echo "[ODBC]" > $ODBCINSTINI
+  echo "Trace     = no" >> $ODBCINSTINI
+  echo "TraceFile = /tmp/iodbc_trace.log" >> $ODBCINSTINI
+  echo "" >> $ODBCINSTINI
+  echo "[ODBC Drivers]" >> $ODBCINSTINI
+  echo "mariadb_odbc = Installed" >> $ODBCINSTINI
+  echo "" >> $ODBCINSTINI
+  echo "[mariadb_odbc]" >> $ODBCINSTINI
+  echo "Driver      = ${target}Library/MariaDB/MariaDB-Connector-ODBC/libmaodbc.dylib" >> $ODBCINSTINI
+  echo "Description = MariaDB ODBC Connector" >> $ODBCINSTINI
+  echo "Threading   = 0" >> $ODBCINSTINI
+  echo "" >> $ODBCINSTINI
+  echo "Registration has been successfully finished" >> /tmp/maodbc_postinstall.log
+
+  exit 0
+fi
+
+${target}Library/MariaDB/MariaDB-Connector-ODBC/bin/install_driver "${target}Library/MariaDB/MariaDB-Connector-ODBC/libmaodbc.dylib" mariadb_odbc >> /tmp/maodbc_postinstall.log
+
+echo "Registration has been successfully finished" >> /tmp/maodbc_postinstall.log
+
+exit 0

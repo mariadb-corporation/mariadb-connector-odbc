@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>MariaDB Connector/ODBC</title>
+    <welcome file="WELCOME.html" />
+    <license file="LICENSE.html" />
+    <readme file="README.html" />
+    <pkg-ref id="com.mariadb.connector.odbc"/>
+    <options customize="never" require-scripts="false"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.mariadb.connector.odbc"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.mariadb.connector.odbc" visible="false">
+        <pkg-ref id="com.mariadb.connector.odbc"/>
+    </choice>
+    <pkg-ref id="com.mariadb.connector.odbc" version="3.1.0" onConclusion="none">libmaodbc.pkg</pkg-ref>
+</installer-gui-script>
