@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2017 MariaDB Corporation AB
+   Copyright (C) 2013, 2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -113,11 +113,13 @@ SQLRETURN    MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect);
     return SQL_INVALID_HANDLE
 
 #define MADB_STMT_COLUMN_COUNT(aStmt) (aStmt)->Ird->Header.Count
+#define MADB_RESET_COLUMT_COUNT(aStmt) (aStmt)->Ird->Header.Count= 0
 #define MADB_STMT_PARAM_COUNT(aStmt)  (aStmt)->ParamCount
 #define MADB_POSITIONED_COMMAND(aStmt) ((aStmt)->PositionedCommand && (aStmt)->PositionedCursor)
 /* So far we always use all fields for index. Once that is changed, this should be changed as well */
 #define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor)
 #define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= -1; 
+#define MADB_STMT_CLOSE_STMT(aStmt)   mysql_stmt_close((aStmt)->stmt);(aStmt)->stmt= NULL
 
 #define MADB_OCTETS_PER_CHAR 2
 
@@ -225,7 +227,7 @@ SQLRETURN    MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect);
     "  WHEN DATA_TYPE = 'year' THEN @ColSize:=4"\
     "  WHEN DATA_TYPE in ('timestamp', 'datetime') THEN @ColSize:=19 "\
     "  ELSE @ColSize:=CHARACTER_MAXIMUM_LENGTH "\
-  "END AS SIGNED)"
+  "END AS UNSIGNED)"
 
 #define MADB_CATALOG_COLUMNSp1 "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, "
 #define MADB_CATALOG_COLUMNSp3 ", UCASE(IF(COLUMN_TYPE LIKE '%%(%%)%%',  CONCAT(SUBSTRING(COLUMN_TYPE,1, LOCATE('(',COLUMN_TYPE) - 1 ), SUBSTRING(COLUMN_TYPE,1+locate(')',COLUMN_TYPE))), COLUMN_TYPE )) AS TYPE_NAME, "\

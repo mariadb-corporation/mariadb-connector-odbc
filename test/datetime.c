@@ -118,7 +118,7 @@ ODBC_TEST(my_ts)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_ts");
 
   /* Test of 2-digits year(YYMMDD) format */
-  OK_SIMPLE_STMT(Stmt, "select cast(\"910825\" as date)"); 
+  OK_SIMPLE_STMT(Stmt, "select cast('910825' as date)"); 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
 

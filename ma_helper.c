@@ -108,8 +108,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
         Stmt->stmt= MADB_NewStmtHandle(Stmt);
         if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
         {
-          mysql_stmt_close(Stmt->stmt);
-          Stmt->stmt= NULL;
+          MADB_STMT_CLOSE_STMT(Stmt);
         }
         else
         {
@@ -1275,24 +1274,13 @@ BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
 {
   switch (ConciseType)
   {
-    case SQL_C_TINYINT:
-    case SQL_C_STINYINT:
-    case SQL_C_UTINYINT:
-    case SQL_C_SHORT:
-    case SQL_C_SSHORT:
-    case SQL_C_USHORT:
-    case SQL_C_LONG:
-    case SQL_C_SLONG:
-    case SQL_C_ULONG:
-    case SQL_C_UBIGINT:
-    case SQL_C_SBIGINT:
-    case SQL_BIGINT:
     case SQL_C_DOUBLE:
     case SQL_C_FLOAT:
     case SQL_DECIMAL:
       return TRUE;
   }
-  return FALSE;
+
+  return MADB_IsIntType(ConciseType);
 }
 
 
@@ -1324,6 +1312,7 @@ void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
+    MADB_DescFree(Stmt->Ird, TRUE);
     Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
   }
   else

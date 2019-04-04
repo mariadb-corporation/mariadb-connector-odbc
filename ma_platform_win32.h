@@ -35,6 +35,7 @@
 
 #include <windows.h>
 #include <WinSock2.h>
+#include <shlwapi.h>
 
 #if !defined(HAVE_mit_thread) && !defined(HAVE_STRTOK_R)
 #define strtok_r(A,B,C) strtok((A),(B))
@@ -44,5 +45,6 @@
 #define MADB_DRIVER_NAME "maodbc.dll"
 
 char *strndup(const char *s, size_t n);
+char* strcasestr(const char* HayStack, const char* Needle);
 
 #endif /*_ma_platform_x_h_ */

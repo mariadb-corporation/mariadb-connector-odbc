@@ -34,7 +34,12 @@
 #ifdef _WIN32
 # define _WINSOCKAPI_
 # include <windows.h>
+# include <shlwapi.h>
 
+char* strcasestr(const char* HayStack, const char* Needle)
+{
+  return StrStrIA(HayStack, Needle);
+}
 #else
 
 # include <string.h>
@@ -112,6 +117,8 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 /* We need mysql for MARIADB_CHARSET_INFO type and conversion routine */
 #include <mysql.h>
 
+
+BOOL   UseDsnOnly= FALSE;
 static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 static SQLCHAR *my_uid=        (SQLCHAR *)"root";
 static SQLCHAR *my_pwd=        (SQLCHAR *)"";
@@ -773,11 +780,17 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
-  /* _snprintf(DSNString, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn); */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
-           uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
-           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-           add_parameters ? add_parameters : "");
+  if (UseDsnOnly != FALSE)
+  {
+    _snprintf(DSNString, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
+  }
+  else
+  {
+    _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+      uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
+      schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
+      add_parameters ? add_parameters : "");
+  }
   diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
@@ -992,9 +1005,6 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
       failed++;
     }
 
-    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
-    tests++;
-
     if (reset_changed_server_variables())
     {
       fprintf(stdout, "HALT! An error occurred while tried to reset server variables changed by the test!\n");
@@ -1006,6 +1016,10 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     {
       SQLFreeStmt(Stmt, SQL_DROP);
     }
+
+    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
+    tests++;
+
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
     fflush(stdout);
@@ -1298,7 +1312,7 @@ BOOL UnixOdbc()
  }
 
 
-int  GetDefaultCharType(int WType, BOOL isAnsiConnection)
+int GetDefaultCharType(int WType, BOOL isAnsiConnection)
 {
 #ifdef _WIN32
   if (isAnsiConnection != FALSE)
@@ -1339,5 +1353,38 @@ int iOdbcSetParamBufferSize(SQLHSTMT hStmt, SQLUSMALLINT ParamIdx, SQLLEN Buffer
   }
 
   return OK;
+}
+
+
+const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
+{
+  static char AsNumber[8];
+
+  switch (TypeId)
+  {
+  case SQL_C_TINYINT: return "SQL_TINYINT";
+  case SQL_C_STINYINT: return "SQL_C_STINYINT";
+  case SQL_C_UTINYINT: return "SQL_C_UTINYINT";
+  case SQL_C_SHORT: return "SQL_SMALLINT";
+  case SQL_C_SSHORT: return "SQL_C_SSHORT";
+  case SQL_C_USHORT: return "SQL_C_USHORT";
+  case SQL_C_LONG: return "SQL_INTEGER";
+  case SQL_C_SLONG: return "SQL_C_SLONG";
+  case SQL_C_ULONG: return "SQL_C_ULONG";
+  case SQL_C_UBIGINT: return "SQL_C_UBIGINT";
+  case SQL_C_SBIGINT: return "SQL_C_SBIGINT";
+  case SQL_BIGINT: return "SQL_BIGINT";
+  case SQL_C_DOUBLE: return "SQL_DOUBLE";
+  case SQL_C_FLOAT: return "SQL_REAL";
+  case SQL_DECIMAL: return "SQL_DECIMAL";
+  case SQL_VARCHAR: return "SQL_VARCHAR";
+  default:
+    if (Buffer == NULL)
+    {
+      Buffer= AsNumber;
+    }
+    sprintf(Buffer, "%hu", TypeId);
+  }
+  return Buffer;
 }
 #endif      /* #ifndef _tap_h_ */

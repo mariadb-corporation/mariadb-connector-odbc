@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -775,6 +775,38 @@ ODBC_TEST(t_odbc213)
   return OK;
 }
 
+/*  */
+ODBC_TEST(t_odbc216)
+{
+  SQLLEN FixedPrecScale;
+  SQLSMALLINT i, ColumnCount;
+  SQLCHAR TypeName[32];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc216");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc216(dec1 decimal(10,4),\
+      bi bigint, f float, ti tinyint, si smallint, r real, i int,\
+      c char(10), vc varchar(20), dt datetime, ts timestamp, n numeric,\
+      n2 numeric(19,4), d double, t time, mi mediumint, date1 date)");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc216");
+
+  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+  for (i= 0; i < ColumnCount; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_TYPE_NAME, TypeName, sizeof(TypeName), NULL, NULL));
+    FixedPrecScale= SQL_TRUE;
+    diag("Field #%u %s", i + 1, (const char*) TypeName);
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_FIXED_PREC_SCALE, NULL, 0, NULL, (SQLPOINTER)&FixedPrecScale));
+    is_num(FixedPrecScale, SQL_FALSE);
+  }
+ 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc216");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_desc_paramset,"t_desc_paramset"},
@@ -794,6 +826,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc155, "t_odbc155and157_decimaldigits_display_size"},
   {t_odbc166, "t_odbc166_decimal_display_size"},
   {t_odbc213, "t_odbc213_param_type"},
+  {t_odbc216, "t_odbc216_fixed_prec_scale"},
   {NULL, NULL}
 };
 

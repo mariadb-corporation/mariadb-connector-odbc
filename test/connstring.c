@@ -512,6 +512,91 @@ ODBC_TEST(odbc_188)
 }
 
 
+/* Only testing that opion is saved/red */
+ODBC_TEST(odbc_229)
+{
+  const char *LocalDSName=  "madb_connstr_usecnf";
+  const char *LocalConnStr= "DSN=madb_connstr_usecnf";
+  char connstr4dsn[512];
+
+  IS(SQLRemoveDSNFromIni(LocalDSName));
+  FAIL_IF(MADB_DSN_Exists(LocalDSName), "DSN exsists!");
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;USE_MYCNF=1", LocalDSName, my_drivername);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
+  IS(Dsn->Options & MADB_OPT_FLAG_USE_CNF);
+
+  IS(CreateTestDsn(Dsn));
+
+  RESET_DSN(Dsn);
+
+  IS(MADB_ReadDSN(Dsn, LocalConnStr, TRUE));
+
+  diag("USE_MYCNF: %hu %u %u", (short)Dsn->ReadMycnf, Dsn->Options, Dsn->Options & MADB_OPT_FLAG_USE_CNF);
+  IS(Dsn->ReadMycnf);
+  IS(Dsn->Options & MADB_OPT_FLAG_USE_CNF);
+
+  FAIL_IF(PopDSN(), "Could not remove DSN");
+
+  return OK;
+}
+
+/* Testing that both numeric and string representation of TLSVERSION work */
+ODBC_TEST(odbc_228)
+{
+  const char *LocalDSName=  "madb_connstr_tlsversion";
+  const char *LocalConnStr= "DSN=madb_connstr_tlsversion";
+  char connstr4dsn[512];
+
+  IS(SQLRemoveDSNFromIni(LocalDSName));
+  FAIL_IF(MADB_DSN_Exists(LocalDSName), "DSN exsists!");
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=TLSv1.1,TLSv1.3;PORT=3307", LocalDSName, my_drivername);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
+  is_num(Dsn->TlsVersion, MADB_TLSV11|MADB_TLSV13);
+  is_num(Dsn->Port, 3307);
+
+  IS(CreateTestDsn(Dsn));
+
+  RESET_DSN(Dsn);
+
+  IS(MADB_ReadDSN(Dsn, LocalConnStr, TRUE));
+
+  diag("TlsVerion: %hu, Port: %u", (short)Dsn->TlsVersion, Dsn->Port);
+  is_num(Dsn->TlsVersion, MADB_TLSV11|MADB_TLSV13);
+  is_num(Dsn->Port, 3307);
+
+  RESET_DSN(Dsn);
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=6", LocalDSName, my_drivername);
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  is_num(Dsn->TlsVersion, MADB_TLSV12|MADB_TLSV13);
+
+  RESET_DSN(Dsn);
+
+  /* If not only meaningful bits are set. Maybe that should be an error? */
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=65", LocalDSName, my_drivername);
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  is_num(Dsn->TlsVersion & MADB_TLSV11, MADB_TLSV11);
+  is_num(Dsn->TlsVersion & MADB_TLSV12, 0);
+  is_num(Dsn->TlsVersion & MADB_TLSV13, 0);
+
+  RESET_DSN(Dsn);
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=garbage tlsv1.2", LocalDSName, my_drivername);
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  is_num(Dsn->TlsVersion, MADB_TLSV12);
+
+  FAIL_IF(PopDSN(), "Could not remove DSN");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {connstring_test,       "connstring_parsing_test", NORMAL},
@@ -521,7 +606,8 @@ MA_ODBC_TESTS my_tests[]=
   {dependent_fields,      "dependent_fields_tests",  NORMAL},
   {driver_vs_dsn,         "driver_vs_dsn",           NORMAL},
   {odbc_188,              "odbc188_nt_pairs",        NORMAL},
-  
+  {odbc_229,              "odbc229_usecnf",          NORMAL},
+  {odbc_228,              "odbc228_tlsversion",      NORMAL},
   {NULL, NULL, 0}
 };
 

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -120,6 +120,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
+    MADB_DescFree(Stmt->Ird, TRUE);
     Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
   }
   else

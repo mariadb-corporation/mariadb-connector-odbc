@@ -66,7 +66,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 error:
   if (Stmt && Stmt->stmt)
   {
-    mysql_stmt_close(Stmt->stmt);
+    MADB_STMT_CLOSE_STMT(Stmt);
     UNLOCK_MARIADB(Stmt->Connection);
   }
   MADB_DescFree(Stmt->IApd, TRUE);
@@ -207,7 +207,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     break;
   case SQL_UNBIND:
     MADB_FREE(Stmt->result);
-    ResetMetadata(&Stmt->metadata, NULL);
     MADB_DescFree(Stmt->Ard, TRUE);
     break;
   case SQL_RESET_PARAMS:
@@ -277,7 +276,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     else if (Stmt->stmt != NULL)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-      mysql_stmt_close(Stmt->stmt);
+      MADB_STMT_CLOSE_STMT(Stmt);
     }
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
     MADB_DeleteQuery(&Stmt->Query);
@@ -389,7 +388,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     if (Stmt->State >= MADB_SS_PREPARED)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-      mysql_stmt_close(Stmt->stmt);
+      MADB_STMT_CLOSE_STMT(Stmt);
       Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
       MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
@@ -462,6 +461,7 @@ SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
 SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
   LOCK_MARIADB(Stmt->Connection);
+
   MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt, STMT_STRING(Stmt));
   if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
   {
@@ -469,8 +469,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
     /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
-    mysql_stmt_close(Stmt->stmt);
-
+    MADB_STMT_CLOSE_STMT(Stmt);
     Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
     UNLOCK_MARIADB(Stmt->Connection);
@@ -1490,7 +1489,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       continue;
     }
 
-    DataPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr,        RowNumber, ArdRec->OctetLength);
+    DataPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, ArdRec, ArdRec->DataPtr, RowNumber, ArdRec->OctetLength);
 
     MADB_FREE(ArdRec->InternalBuffer);
     if (!DataPtr)
@@ -2084,6 +2083,15 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
         {
           MADB_DescRecord *ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
                           *IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
+          /* If (numeric) field value and buffer are of the same size - ignoring truncation.
+          In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
+          some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
+          signed, or vice versa, why we should prevent that. Plus it seems there is the bug in C/C atm */
+          if (ArdRec->OctetLength == IrdRec->OctetLength
+           && MADB_IsIntType(IrdRec->ConciseType) && MADB_IsIntType(ArdRec->ConciseType))
+          {
+            continue;
+          }
           /* For numeric types we return either 22003 or 01S07, 01004 for the rest.
              if ird type is not fractional - we return 22003. But as a matter of fact, it's possible that we have 22003 if converting
              from fractional types */
@@ -3514,11 +3522,11 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
 
 
 static MADB_ShortTypeInfo SqlColumnsColType[18]=
-                               /*1*/    {{SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
-                               /*5*/     {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
-                               /*9*/     {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
-                               /*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
-                               /*16*/    {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
+/*1*/    {{SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+/*5*/     {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
+/*9*/     {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+/*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+/*16*/    {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
 
 /* {{{ MADB_StmtColumns */
 SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,

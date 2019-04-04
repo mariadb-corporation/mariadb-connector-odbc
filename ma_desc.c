@@ -201,13 +201,11 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   switch (Field->type) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 10;
     Record->Precision= (SQLSMALLINT)Field->length - 2;
     Record->Scale= Field->decimals;
     break;
   case MYSQL_TYPE_FLOAT:
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 2;
     Record->Precision= (SQLSMALLINT)Field->length - 2;
     //Record->Scale= Field->decimals;
@@ -216,9 +214,9 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_YEAR:
   case MYSQL_TYPE_LONG:
   case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_YEAR:
     Record->NumPrecRadix= 10;
     break;
   case MYSQL_TYPE_TIMESTAMP:
@@ -440,14 +438,12 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
   */
   switch (Record->ConciseType) {
   case SQL_DECIMAL:
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 10;
     Record->Precision= (SQLSMALLINT)Record->OctetLength - 2;
     /*Record->Scale= Fields[i].decimals;*/
     break;
   case SQL_REAL:
     /* Float*/
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 2;
     Record->Precision= (SQLSMALLINT)Record->OctetLength - 2;
     break;
@@ -574,7 +570,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->ConciseType= Record->Type= SQL_C_DEFAULT;
     break;
   case MADB_DESC_IPD:
-    Record->FixedPrecScale= SQL_TRUE;
+    Record->FixedPrecScale= SQL_FALSE;
     Record->LocalTypeName= "";
     Record->Nullable= SQL_NULLABLE;
     Record->ParameterType= SQL_PARAM_INPUT;
@@ -584,7 +580,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     break;
   case MADB_DESC_IRD:
     Record->Nullable= SQL_NULLABLE_UNKNOWN;
-    Record->FixedPrecScale= SQL_TRUE;
+    Record->FixedPrecScale= SQL_FALSE;
     Record->CaseSensitive= SQL_TRUE;
     Record->ConciseType= SQL_VARCHAR;
     Record->AutoUniqueValue= SQL_FALSE;
@@ -734,7 +730,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->DateTimeIntervalPrecision;
     break;
   case SQL_DESC_FIXED_PREC_SCALE:
-    *((SQLINTEGER *)ValuePtr)= DescRecord->FixedPrecScale;
+    *((SQLSMALLINT *)ValuePtr)= DescRecord->FixedPrecScale;
     break;
   case SQL_DESC_INDICATOR_PTR:
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->IndicatorPtr;
