@@ -131,6 +131,7 @@ typedef struct st_madb_dsn
   char *SslFpList;
   my_bool SslVerify;
   char TlsVersion;
+  my_bool ForceTls;
   char *SaveFile;
   my_bool ReadMycnf;
   /* --- Internal --- */

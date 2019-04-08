@@ -750,6 +750,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     }
   }
   
+  if (Dsn->ForceTls != '\0')
+  {
+    const unsigned int ForceTls= 0x01010101;
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&ForceTls);
+  }
 
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
