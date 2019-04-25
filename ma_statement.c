@@ -50,6 +50,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   /* default behaviour is SQL_CURSOR_STATIC */
   Stmt->Options.CursorType= SQL_CURSOR_STATIC;
   Stmt->Options.UseBookmarks= SQL_UB_OFF;
+  Stmt->Options.MetadataId= Connection->MetadataId;
 
   Stmt->Apd= Stmt->IApd;
   Stmt->Ard= Stmt->IArd;
@@ -2439,7 +2440,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Options.MaxRows= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_METADATA_ID:
-    Stmt->Options.MetadataId=(SQLUINTEGER)(SQLULEN)ValuePtr;
+    Stmt->Options.MetadataId= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_NOSCAN:
     if ((SQLULEN)ValuePtr != SQL_NOSCAN_ON)
@@ -3337,12 +3338,12 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
 /* }}} */
 
 /* {{{ MADB_StmtTables */
-SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
-                          char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
-                          SQLSMALLINT NameLength3, char *TableType, SQLSMALLINT NameLength4)
+SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT CatalogNameLength,
+                          char *SchemaName, SQLSMALLINT SchemaNameLength, char *TableName,
+                          SQLSMALLINT TableNameLength, char *TableType, SQLSMALLINT TableTypeLength)
 {
   MADB_DynString StmtStr;
-   char Quote[2];
+  char Quote[2];
   SQLRETURN ret;
 
   /*
@@ -3358,11 +3359,12 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
 
   MDBUG_C_ENTER(Stmt->Connection, "MADB_StmtTables");
 
-  ADJUST_LENGTH(CatalogName, NameLength1);
-  ADJUST_LENGTH(TableName, NameLength3);
-  ADJUST_LENGTH(TableType, NameLength4);
+  ADJUST_LENGTH(CatalogName, CatalogNameLength);
+  ADJUST_LENGTH(SchemaName, SchemaNameLength);
+  ADJUST_LENGTH(TableName, TableNameLength);
+  ADJUST_LENGTH(TableType, TableTypeLength);
 
-  if (NameLength1 > 64 || NameLength3 > 64)
+  if (CatalogNameLength > 64 || TableNameLength > 64)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
     return Stmt->Error.ReturnValue;
@@ -3373,7 +3375,8 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
      the result set contains a list of valid catalogs for the data source. 
      (All columns except the TABLE_CAT column contain NULLs
   */
-  if (CatalogName && NameLength1 && !NameLength3 && !strcmp(CatalogName, SQL_ALL_TABLE_TYPES))
+  if (CatalogName && CatalogNameLength && TableName != NULL && !TableNameLength &&
+    SchemaName != NULL && SchemaNameLength == 0 && !strcmp(CatalogName, SQL_ALL_CATALOGS))
   {
     MADB_InitDynamicString(&StmtStr, "SELECT SCHEMA_NAME AS TABLE_CAT, CONVERT(NULL,CHAR(64)) AS TABLE_SCHEM, "
                                   "CONVERT(NULL,CHAR(64)) AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
@@ -3386,7 +3389,8 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
      the result set contains a list of valid table types for the data source. 
      (All columns except the TABLE_TYPE column contain NULLs.)
   */
-  else if (!NameLength1 && !NameLength3 && TableType && NameLength4 &&
+  else if (CatalogName != NULL && !CatalogNameLength && TableName != NULL && !TableNameLength &&
+    SchemaName != NULL && SchemaNameLength == 0 && TableType && TableTypeLength &&
             !strcmp(TableType, SQL_ALL_TABLE_TYPES))
   {
     MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
@@ -3398,6 +3402,16 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
                                   "SELECT NULL, NULL, NULL, 'SYSTEM VIEW', NULL FROM DUAL",
                                   8192, 512); 
   }
+  /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%"
+     if that is not the special case of call for schemas list. Otherwise we return empty resultset*/
+  else if (SchemaName &&
+    (!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0 ||
+      strcmp(SchemaName, SQL_ALL_SCHEMAS)))
+  {
+    MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+      "NULL AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
+      "FROM DUAL WHERE 1=0", 8192, 512);
+  }
   else
   {
     MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
@@ -3405,29 +3419,31 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLe
                                   "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
                                   8192, 512);
     if (Stmt->Options.MetadataId== SQL_TRUE)
-      strcpy(Quote, "`");
-    else
-      strcpy(Quote, "'");
-
-    MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA ");
-    if (CatalogName && NameLength1)
     {
+      strcpy(Quote, "`");
+    }
+    else
+    {
+      strcpy(Quote, "'");
+    }
+
+    if (CatalogName)
+    {
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA ");
       MADB_DynstrAppend(&StmtStr, "LIKE ");
       MADB_DynstrAppend(&StmtStr, Quote);
       MADB_DynstrAppend(&StmtStr, CatalogName);
       MADB_DynstrAppend(&StmtStr, Quote);
     }
-    else
-      MADB_DynstrAppend(&StmtStr, "= DATABASE() ");
 
-    if (TableName && NameLength3)
+    if (TableName && TableNameLength)
     {
       MADB_DynstrAppend(&StmtStr, " AND TABLE_NAME LIKE ");
       MADB_DynstrAppend(&StmtStr, Quote);
       MADB_DynstrAppend(&StmtStr, TableName);
       MADB_DynstrAppend(&StmtStr, Quote);
     }
-    if (TableType && NameLength4 && strcmp(TableType, SQL_ALL_TABLE_TYPES) != 0)
+    if (TableType && TableTypeLength && strcmp(TableType, SQL_ALL_TABLE_TYPES) != 0)
     {
       unsigned int i;
       char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};

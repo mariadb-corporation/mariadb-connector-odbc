@@ -206,7 +206,7 @@ void mark_all_tests_normal(MA_ODBC_TESTS *tests)
 }
 
 
-void usage()
+void Usage()
 {
   fprintf(stdout, "Valid options:\n");
   fprintf(stdout, "-d DSN Name\n");
@@ -216,6 +216,7 @@ void usage()
   fprintf(stdout, "-s default database (schema)\n");
   fprintf(stdout, "-S Server name/address\n");
   fprintf(stdout, "-P Port number\n");
+  fprintf(stdout, "-o Use only DSN for the connection");
   fprintf(stdout, "?  Displays this text\n");
 }
 
@@ -269,7 +270,7 @@ void get_options(int argc, char **argv)
   {
     if (argv[i][0] != '-' || argv[i][1] == 0 || argc == i + 1)
     {
-      usage();
+      Usage();
       exit(0);
     }
 
@@ -295,13 +296,17 @@ void get_options(int argc, char **argv)
     case 'D':
       my_drivername= (SQLCHAR*)argv[i+1];
       break;
+    case 'o':
+      UseDsnOnly= TRUE;
+      --i; /* -o doesn't have value, thus we need to decrement argument index so we do not miss next option */
+      break;
     case '?':
-      usage();
+      Usage();
       exit(0);
       break;
     default:
       fprintf(stdout, "Unknown option %c\n", argv[i][1]);
-      usage();
+      Usage();
       exit(0);
     }
   }
@@ -559,7 +564,7 @@ int ma_print_result_getdata(SQLHSTMT Stmt)
 
 
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr)) != SQL_SUCCESS)\
+if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr))))\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -781,6 +786,7 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
   if (UseDsnOnly != FALSE)
   {
     _snprintf(DSNString, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
+    diag(DSNString);
   }
   else
   {
@@ -788,12 +794,12 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
       uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
       schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
       add_parameters ? add_parameters : "");
-  }
-  diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+    diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
-  
+  }
+
   if (DoWConnect == FALSE)
   {
     if (!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))

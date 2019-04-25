@@ -349,7 +349,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= 0;
     break;
   case SQL_ATTR_METADATA_ID:
-    *(SQLINTEGER *)ValuePtr= Dbc->MetadataId;
+    *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
     *(SQLINTEGER *)ValuePtr= SQL_CUR_USE_ODBC;
     break;
