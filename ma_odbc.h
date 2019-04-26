@@ -237,7 +237,7 @@ typedef struct
 	void* BookmarkPtr;
   SQLLEN BookmarkLength;
   SQLSMALLINT BookmarkType;
-	SQLUINTEGER	MetadataId;
+  SQLULEN	MetadataId;
   SQLULEN SimulateCursor;
 } MADB_StmtOptions;
 

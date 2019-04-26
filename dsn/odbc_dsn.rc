@@ -190,7 +190,9 @@ BEGIN
     LTEXT           "Cipher",IDC_STATIC,15,76,56,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtSslCipher,84,76,110,10,ES_AUTOHSCROLL
 
-    CONTROL         "Verify Certificate",cbSslVerify,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,90,97,10,WS_EX_TRANSPARENT
+    CONTROL         "Verify Certificate",cbSslVerify,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,90,68,10,WS_EX_TRANSPARENT
+
+    CONTROL         "Force TLS Use",cbForceTls,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,90,97,10,WS_EX_TRANSPARENT
 
     LTEXT           "Allowed TLS versions(Not checking any means that all are allowed)",IDC_STATIC,15,104,264,8,0,WS_EX_TRANSPARENT
     CONTROL         "v.1.1",cbTls11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,115,30,10,WS_EX_TRANSPARENT

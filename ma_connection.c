@@ -352,7 +352,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= 0;
     break;
   case SQL_ATTR_METADATA_ID:
-    *(SQLINTEGER *)ValuePtr= Dbc->MetadataId;
+    *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
     *(SQLINTEGER *)ValuePtr= SQL_CUR_USE_ODBC;
     break;
@@ -601,7 +601,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   if( !MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
   {
-    mysql_options(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
+    mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
   else
   {
@@ -649,24 +649,21 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
 
   /* todo: error handling */
-  mysql_options(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->Charset.cs_info->csname);
+  mysql_optionsv(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->Charset.cs_info->csname);
 
   if (Dsn->InitCommand && Dsn->InitCommand[0])
-    mysql_options(Connection->mariadb, MYSQL_INIT_COMMAND, Dsn->InitCommand);
+    mysql_optionsv(Connection->mariadb, MYSQL_INIT_COMMAND, Dsn->InitCommand);
  
   if (Dsn->ConnectionTimeout)
-    mysql_options(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
 
   Connection->Options= Dsn->Options;
-  /* TODO: set DSN FLags (Options):
-           Some of them (like reconnect) can be set via mysql_options, some of them are connection
-           attributes
-  */
+
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
-    mysql_options(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
 
   if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
-    mysql_options(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
     client_flags|= CLIENT_NO_SCHEMA;
@@ -681,12 +678,12 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     client_flags|= CLIENT_MULTI_STATEMENTS;
 
   /* enable truncation reporting */
-  mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
+  mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
 
   if (Dsn->Socket)
   {
     int protocol= MYSQL_PROTOCOL_SOCKET;
-    mysql_options(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
   }
 
   {
@@ -756,19 +753,24 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     if (Dsn->SslVerify)
     {
       const unsigned int verify= 0x01010101;
-      mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
     }
     else
     {
       const unsigned int verify= 0;
-      mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
     }
   }
   
+  if (Dsn->ForceTls != '\0')
+  {
+    const unsigned int ForceTls= 0x01010101;
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&ForceTls);
+  }
 
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
   }
 
   if (!mysql_real_connect(Connection->mariadb,
