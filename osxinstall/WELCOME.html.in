@@ -1,0 +1,13 @@
+<html>
+<head>
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+</style>
+<title>Welcome to MariaDB Connector/ODBC Installer</title>
+</head>
+<body>
+<p>This is going to install MariaDB Connector/ODBC(Unicode) @PRODUCT_ARCH_BITS@bit version @PRODUCT_VERSION@ - a database driver that uses the industry standard Open Database Connectivity (ODBC) API.</p>
+</body>
+</html>

@@ -47,7 +47,7 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 
 int Usage()
 {
-  printf("Usage: install_driver <driver_location> [<driver_naeme>]\n");
+  printf("Usage: install_driver <driver_location> [<driver_name>]\n");
   return 1;
 }
 
@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 {
   unsigned int UsageCount, ErrorCode;
   char DriverDescr[1024], ErrorText[128], OutLocation[512], DriverDir[512];
-  const char *DriverLocation, *DriverName, *DriverFileName;
+  const char *DriverLocation, *DriverName, *DriverFileName, *DriverDescription= "MariaDB Connector/ODBC";
 
   if (argc < 2 || strcmp(argv[1], "--help") == 0)
   {
@@ -92,6 +92,11 @@ int main(int argc, char** argv)
     DriverName= DriverLocation;
   }
 
+  if (argc > 3)
+  {
+    DriverDescription= argv[3];
+  }
+
   if (strlen(DriverLocation) > strlen(DriverDir))
   {
     DriverFileName= DriverLocation + strlen(DriverDir) + 1;
@@ -105,7 +110,7 @@ int main(int argc, char** argv)
   /*SQLConfigDriver(NULL, ODBC_REMOVE_DRIVER, DriverName, NULL, NULL, 0, NULL);*/
   SQLRemoveDriver(DriverName, FALSE, &UsageCount);
   printf("Installing driver %s in %s as %s\n", DriverFileName, DriverDir, DriverName);
-  _snprintf(DriverDescr, sizeof(DriverDescr), "%s%cDriver=%s%c", DriverName, '\0', DriverLocation, '\0');
+  _snprintf(DriverDescr, sizeof(DriverDescr), "%s%cDriver=%s%cDescription=%s%cThreading=0%c", DriverName, '\0', DriverLocation, '\0', DriverDescription, '\0', '\0');
 
 
   if (SQLInstallDriverEx(DriverDescr, DriverDir, OutLocation, sizeof(OutLocation), NULL, ODBC_INSTALL_COMPLETE, NULL) == FALSE)

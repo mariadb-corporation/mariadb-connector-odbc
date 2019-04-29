@@ -195,6 +195,7 @@ BOOL MADB_DsnSwitchDependents(MADB_Dsn *Dsn, unsigned int Changed)
         break;
       case DSN_TYPE_OPTION:
       case DSN_TYPE_BOOL:
+      case DSN_TYPE_CBOXGROUP:
         {
           KeySet= *GET_FIELD_PTR(Dsn, &DsnKeys[Changed], my_bool);
         }

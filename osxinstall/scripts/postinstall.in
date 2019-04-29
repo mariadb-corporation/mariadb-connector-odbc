@@ -47,21 +47,31 @@ if [ ! -f $ODBCINSTINI ] ; then
   if [ ! -f $ODBCINSTINI ] ; then
     echo "$ODBCINSTINI still does not exist" >> /tmp/maodbc_postinstall.log
     echo "$ODBCINSTINI still does not exist"
-    mkdir -p "$instinidir"
-    touch "$ODBCINSTINI"
+#    mkdir -p "$instinidir"
+#    touch "$ODBCINSTINI"
     exit 1
   fi
+  chmod 664 $ODBCINSTINI
+
+  if [ ! -f ${target}Library/ODBC/odbc.ini ] ; then
+    echo "${target}Library/ODBC/odbc.ini does not exist - creating it" >> /tmp/maodbc_postinstall.log
+    touch "${target}Library/ODBC/odbc.ini"
+    chgrp admin ${target}Library/ODBC/odbc.ini
+    chmod 664 ${target}Library/ODBC/odbc.ini
+    echo "[ODBC Data Sources]" > ${target}Library/ODBC/odbc.ini
+  fi
+
   echo "Writing common options and driver entry" >> /tmp/maodbc_postinstall.log
   echo "[ODBC]" > $ODBCINSTINI
   echo "Trace     = no" >> $ODBCINSTINI
   echo "TraceFile = /tmp/iodbc_trace.log" >> $ODBCINSTINI
   echo "" >> $ODBCINSTINI
   echo "[ODBC Drivers]" >> $ODBCINSTINI
-  echo "mariadb_odbc = Installed" >> $ODBCINSTINI
+  echo "MariaDB ODBC @PRODUCT_SERIES@ Unicode Driver = Installed" >> $ODBCINSTINI
   echo "" >> $ODBCINSTINI
-  echo "[mariadb_odbc]" >> $ODBCINSTINI
+  echo "[MariaDB ODBC @PRODUCT_SERIES@ Unicode Driver]" >> $ODBCINSTINI
   echo "Driver      = ${target}Library/MariaDB/MariaDB-Connector-ODBC/libmaodbc.dylib" >> $ODBCINSTINI
-  echo "Description = MariaDB ODBC Connector" >> $ODBCINSTINI
+  echo "Description = MariaDB Connector/ODBC(Unicode) @PRODUCT_VERSION@ @PRODUCT_ARCH_BITS@bit" >> $ODBCINSTINI
   echo "Threading   = 0" >> $ODBCINSTINI
   echo "" >> $ODBCINSTINI
   echo "Registration has been successfully finished" >> /tmp/maodbc_postinstall.log
@@ -69,7 +79,7 @@ if [ ! -f $ODBCINSTINI ] ; then
   exit 0
 fi
 
-${target}Library/MariaDB/MariaDB-Connector-ODBC/bin/install_driver "${target}Library/MariaDB/MariaDB-Connector-ODBC/libmaodbc.dylib" mariadb_odbc >> /tmp/maodbc_postinstall.log
+${target}Library/MariaDB/MariaDB-Connector-ODBC/bin/install_driver "${target}Library/MariaDB/MariaDB-Connector-ODBC/libmaodbc.dylib" "MariaDB ODBC @PRODUCT_SERIES@ Unicode Driver" "MariaDB Connector/ODBC(Unicode) @PRODUCT_VERSION@ @PRODUCT_ARCH_BITS@bit" >> /tmp/maodbc_postinstall.log
 
 echo "Registration has been successfully finished" >> /tmp/maodbc_postinstall.log
 
