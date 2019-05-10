@@ -488,7 +488,11 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
     return 7;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return Field->length;
+  {
+    /* The edge case like decimal(1,1)*/
+    size_t Precision= Field->length - test((Field->flags & UNSIGNED_FLAG) == 0) - test(Field->decimals != 0);
+    return Field->length + test(Precision == Field->decimals);
+  }
   case MYSQL_TYPE_DATE:
     return SQL_DATE_LEN; /* YYYY-MM-DD */
   case MYSQL_TYPE_TIME:
@@ -554,7 +558,11 @@ size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
     return 4;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return Field->length;
+  {
+    /* The edge case like decimal(1,1)*/
+    size_t Precision= Field->length - test((Field->flags & UNSIGNED_FLAG) == 0) - test(Field->decimals != 0);
+    return Field->length + test(Precision == Field->decimals);
+  }
   case MYSQL_TYPE_DATE:
     return sizeof(SQL_DATE_STRUCT);
   case MYSQL_TYPE_TIME:
