@@ -269,7 +269,7 @@ ODBC_TEST(t_bug50195)
 {
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
-  const char  expected_privs[][24]={ "ALTER", "CREATE", "CREATE VIEW", "DELETE", "DROP", "INDEX",
+  char        expected_privs[][24]={ "ALTER", "CREATE", "CREATE VIEW", "DELETE", "DROP", "INDEX",
                                     "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE" },
               expected_103[][24]={ "ALTER", "CREATE", "CREATE VIEW", "DELETE", "DELETE VERSIONING ROWS",
                          "DROP", "INDEX", "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE" },
@@ -282,6 +282,11 @@ ODBC_TEST(t_bug50195)
   {
     expected= expected_103[0];
     privs_count= sizeof(expected_103)/sizeof(expected_103[0]);
+
+    if (ServerNotOlderThan(Connection, 10, 3, 15))
+    {
+      strcpy(expected_103[4], "DELETE HISTORY");
+    }
   }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
