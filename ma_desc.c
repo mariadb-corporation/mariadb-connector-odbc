@@ -142,25 +142,28 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   MADB_DeleteDynamic(&Desc->Records);
 
   Desc->Header.Count= 0;
-
-  for (i=0; i < Desc->Stmts.elements; i++)
-  {
-    MADB_Stmt **XStmt= ((MADB_Stmt **)Desc->Stmts.buffer) + i;
-    MADB_Stmt *Stmt= *XStmt;
-    switch(Desc->DescType) {
-    case MADB_DESC_ARD:
-      Stmt->Ard=Stmt->IArd;
-      break;
-    case MADB_DESC_APD:
-      Stmt->Apd= Stmt->IApd;
-      break;
-    }
-  }
-  MADB_DeleteDynamic(&Desc->Stmts);
   if (Desc->AppType)
   {
-    Desc->Dbc->Descrs= MADB_ListDelete(Desc->Dbc->Stmts, &Desc->ListItem);
+    EnterCriticalSection(&Desc->Dbc->ListsCs);
+    for (i=0; i < Desc->Stmts.elements; i++)
+    {
+      MADB_Stmt **XStmt= ((MADB_Stmt **)Desc->Stmts.buffer) + i;
+      MADB_Stmt *Stmt= *XStmt;
+      switch(Desc->DescType) {
+      case MADB_DESC_ARD:
+        Stmt->Ard=Stmt->IArd;
+        break;
+      case MADB_DESC_APD:
+        Stmt->Apd= Stmt->IApd;
+        break;
+      }
+    }
+    MADB_DeleteDynamic(&Desc->Stmts);
+  
+    Desc->Dbc->Descrs= MADB_ListDelete(Desc->Dbc->Descrs, &Desc->ListItem);
+    LeaveCriticalSection(&Desc->Dbc->ListsCs);
   }
+  
   if (!RecordsOnly)
     MADB_FREE(Desc);
   return SQL_SUCCESS;

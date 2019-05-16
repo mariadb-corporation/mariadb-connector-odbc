@@ -359,7 +359,8 @@ typedef struct st_client_charset
 struct st_ma_odbc_connection
 {
   MYSQL *mariadb;                /* handle to a mariadb connection */
-  CRITICAL_SECTION cs;           /* mutex */
+  CRITICAL_SECTION cs;           /* mutex for mariadb handle, i.e. for server communications */
+  CRITICAL_SECTION ListsCs;      /*       for operations with lists */
   MADB_Env *Environment;         /* global environment */
   MADB_Dsn *Dsn;
   struct st_ma_connection_methods *Methods;

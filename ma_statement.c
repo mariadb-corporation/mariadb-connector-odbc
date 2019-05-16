@@ -40,11 +40,12 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
     !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
     !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
   {
+    UNLOCK_MARIADB(Stmt->Connection);
     goto error;
   }
 
   MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-
+  UNLOCK_MARIADB(Connection);
   Stmt->PutParam= -1;
   Stmt->Methods= &MADB_StmtMethods;
   /* default behaviour is SQL_CURSOR_STATIC */
@@ -56,10 +57,12 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   Stmt->Ard= Stmt->IArd;
   Stmt->Ipd= Stmt->IIpd;
   Stmt->Ird= Stmt->IIrd;
-
+  
   Stmt->ListItem.data= (void *)Stmt;
+  EnterCriticalSection(&Stmt->Connection->ListsCs);
   Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
-  UNLOCK_MARIADB(Connection);
+  LeaveCriticalSection(&Stmt->Connection->ListsCs);
+
   Stmt->Ard->Header.ArraySize= 1;
 
   return SQL_SUCCESS;
@@ -68,7 +71,6 @@ error:
   if (Stmt && Stmt->stmt)
   {
     MADB_STMT_CLOSE_STMT(Stmt);
-    UNLOCK_MARIADB(Stmt->Connection);
   }
   MADB_DescFree(Stmt->IApd, TRUE);
   MADB_DescFree(Stmt->IArd, TRUE);
@@ -226,7 +228,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     /* For explicit descriptors we only remove reference to the stmt*/
     if (Stmt->Apd->AppType)
     {
+      EnterCriticalSection(&Stmt->Connection->ListsCs);
       RemoveStmtRefFromDesc(Stmt->Apd, Stmt, TRUE);
+      LeaveCriticalSection(&Stmt->Connection->ListsCs);
       MADB_DescFree(Stmt->IApd, FALSE);
     }
     else
@@ -235,7 +239,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     }
     if (Stmt->Ard->AppType)
     {
+      EnterCriticalSection(&Stmt->Connection->ListsCs);
       RemoveStmtRefFromDesc(Stmt->Ard, Stmt, TRUE);
+      LeaveCriticalSection(&Stmt->Connection->ListsCs);
       MADB_DescFree(Stmt->IArd, FALSE);
     }
     else
@@ -281,9 +287,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     }
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
     MADB_DeleteQuery(&Stmt->Query);
-    Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
-
     LeaveCriticalSection(&Stmt->Connection->cs);
+    EnterCriticalSection(&Stmt->Connection->ListsCs);
+    Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
+    LeaveCriticalSection(&Stmt->Connection->ListsCs);
+    
     MADB_FREE(Stmt);
   } /* End of switch (Option) */
   return SQL_SUCCESS;

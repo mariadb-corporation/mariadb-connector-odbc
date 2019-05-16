@@ -440,6 +440,7 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
   Connection->Methods= &MADB_Dbc_Methods;
   //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
   InitializeCriticalSection(&Connection->cs);
+  InitializeCriticalSection(&Connection->ListsCs);
   /* Not sure that critical section is really needed here - this init routine is called when
      no one has the handle yet */
   EnterCriticalSection(&Connection->Environment->cs);

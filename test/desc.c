@@ -340,11 +340,13 @@ ODBC_TEST(t_explicit_error)
     and again tries to when freeing the statement handle.
   */
   /* With iODBC on Linux it's SQL_INVALID_HANDLE for some reason */
-  is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc() /*&& iOdbcOnOsX() == FALSE*/) ? SQL_INVALID_HANDLE : SQL_ERROR);
-  /* CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");*/
-  FAIL_IF(check_sqlstate(Stmt, "HY024") != OK &&
-          check_sqlstate(Stmt, "HY017") != OK, "Expected HY024 or HY017");
-  
+  if (iOdbcOnOsX() == FALSE || Travis == FALSE)
+  {
+    is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc() /*&& iOdbcOnOsX() == FALSE*/) ? SQL_INVALID_HANDLE : SQL_ERROR);
+    /* CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");*/
+    FAIL_IF(check_sqlstate(Stmt, "HY024") != OK &&
+      check_sqlstate(Stmt, "HY017") != OK, "Expected HY024 or HY017");
+  }
   /* can't set apd as ard (and vice-versa) */
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expapd));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
