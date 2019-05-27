@@ -20,13 +20,17 @@
 #define _ma_helper_h_
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
+MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt);
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
-SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber);
+void MADB_CopyOdbcTsToMadbTime(SQL_TIMESTAMP_STRUCT *Src, MYSQL_TIME *Dst);
+void MADB_CopyMadbTimeToOdbcTs(MYSQL_TIME *Src, SQL_TIMESTAMP_STRUCT *Dst);
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER DataPtr, SQLLEN *Length, SQLLEN *Ind,
+                                 SQLSMALLINT CType, SQLSMALLINT SqlType);
 int  MADB_GetWCharType(int Type);
 my_bool MADB_get_single_row(MADB_Dbc *Connection,
                             const char *StmtString,
@@ -34,12 +38,12 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
                             unsigned int NumCols,
                             char **Buffers,
                             size_t *Buffer_Lengths);
-bool MADB_CheckODBCType(SQLSMALLINT Type);
+BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
 SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, const CHARSET_INFO *Charset);
-int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
+int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
@@ -53,12 +57,12 @@ char * ltrim(char *Str);
 char * trim(char *Str);
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
-void *GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
-BOOL MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);
+void *  GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
+BOOL    MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);
 
-SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
-MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
-char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);
+SQLRETURN     MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
+MYSQL_RES *   MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
+char *        MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);
 
 /* SQL_NUMERIC stuff */
 int           MADB_CharToSQLNumeric (char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdRecord,
@@ -67,6 +71,7 @@ size_t        MADB_SqlNumericToChar (SQL_NUMERIC_STRUCT *Numeric, char *Buffer, 
 void          MADB_NumericInit      (SQL_NUMERIC_STRUCT *number, MADB_DescRecord *Ard);
 
 unsigned long MADB_StmtDataTell         (MADB_Stmt *Stmt);
+
 int           MADB_FindNextDaeParam     (MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber);
 
 BOOL          MADB_IsNumericType(SQLSMALLINT ConciseType);
@@ -82,22 +87,34 @@ extern my_bool DummyError;
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
+#define MADB_INT_MAX32       0x7FFFFFFFL
+
+#ifndef MIN
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef test
+#define test(a)		((a) ? 1 : 0)
+#endif
+
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) \
-  my_free((a));\
+  free((a));\
   (a)= NULL;
-#define MADB_ALLOC(a) my_malloc((a), MYF(0))
-#define MADB_CALLOC(a) my_malloc((a), MYF(MY_ZEROFILL))
-#define MADB_REALLOC(a,b) my_realloc((a),(b),MYF(MY_ZEROFILL))
+#define MADB_ALLOC(a) malloc((a))
+#define MADB_CALLOC(a) calloc((a) > 0 ? (a) : 1, sizeof(char))
+#define MADB_REALLOC(a,b) realloc((a),(b))
 
 /* If required to free old memory pointed by current ptr, and set new value */
 #define MADB_RESET(ptr, newptr) {\
   char *local_new_ptr= (newptr);\
   if (local_new_ptr != ptr) {\
-    my_free((gptr)(ptr));\
+    free((char*)(ptr));\
     if (local_new_ptr != NULL)\
-      (ptr)= my_strdup(local_new_ptr, MYF(0));\
+      (ptr)= _strdup(local_new_ptr);\
     else\
       (ptr)= NULL;\
   }\

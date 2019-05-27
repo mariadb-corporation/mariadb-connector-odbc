@@ -241,7 +241,7 @@ static char * PoorManCursorName(MADB_QUERY *Query, unsigned int *Offset)
   /* Incrementing Offset with the offset of our part of the query */
   if (Res != NULL)
   {
-    *Offset= *Offset + EndPiece.RefinedText - Query->RefinedText;
+    *Offset= (unsigned int)(*Offset + EndPiece.RefinedText - Query->RefinedText);
   }
 
   MADB_DeleteQuery(&EndPiece);
@@ -384,7 +384,7 @@ int ParseQuery(MADB_QUERY *Query)
   enum enum_madb_query_type StmtType;
 
   init_dynamic_array(&Query->Tokens, sizeof(unsigned int), MAX(Length/32, 20), MAX(Length/20, 40));
-  init_dynamic_array(&Query->SubQuery, sizeof(SINGLE_QUERY), MAX(Length/128, 20), MAX(Length/128, 40));
+  init_dynamic_array(&Query->SubQuery, sizeof(SINGLE_QUERY), MAX(Length/64, 20), MAX(Length/64, 40));
 
   Query->PoorManParsing= ShouldWeTryPoorManParsing(Query);
 
@@ -517,7 +517,7 @@ char * StripLeadingComments(char *Str, size_t *Length, BOOL OverWrite)
     return Str;
   }
 
-  if (strncmp(Str, "--", 1) == 0)
+  if (strncmp(Str, "--", 2) == 0)
   {
     Res= strchr(Str + 2, '\n');
   }

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2016 MariaDB Corporation AB
+                2016, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -334,7 +334,7 @@ ODBC_TEST(aliases_tests)
   IS(CreateTestDsn(Dsn));
 
   RESET_DSN(Dsn);
-  IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, ';'));
 
   FAIL_IF(Dsn->UserName == NULL || strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly")
 
@@ -354,7 +354,7 @@ ODBC_TEST(aliases_tests)
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
   _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;USER=user;PASSWORD=password;SERVERNAME=servername;DB=randomdbname;OPTION=%u", LocalDSName, option);
 
-  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
   IS_STR(Dsn->UserName,   "user",         sizeof("user"));
   IS_STR(Dsn->Password,   "password",     sizeof("password"));
@@ -385,7 +385,7 @@ ODBC_TEST(dependent_fields)
   IS(CreateTestDsn(Dsn));
 
   RESET_DSN(Dsn);
-  IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, LocalConnStr, SQL_NTS, ';'));
 
   is_num(Dsn->IsTcpIp,     1);
   is_num(Dsn->IsNamedPipe, 0);
@@ -394,7 +394,7 @@ ODBC_TEST(dependent_fields)
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
   _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;NamedPipe=1", LocalDSName);
 
-  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   is_num(Dsn->IsTcpIp,     0);
   is_num(Dsn->IsNamedPipe, 1);
   is_num(Dsn->Options,     MADB_OPT_FLAG_NAMED_PIPE);
@@ -432,7 +432,7 @@ ODBC_TEST(driver_vs_dsn)
   RESET_DSN(Dsn);
   _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;SERVER=%s;", DsnName, my_drivername, "some.other.host");
 
-  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, TRUE));
+  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
   /* Natural in any case*/
   IS_STR(Dsn->ServerName, "some.other.host", sizeof("some.other.host"));
@@ -448,6 +448,154 @@ ODBC_TEST(driver_vs_dsn)
   return OK;
 }
 
+/* Parsing of NULL terminated connstring of NULL terminated key=value pairs*/
+ODBC_TEST(odbc_188)
+{
+  char connstr4dsn[512];
+
+  IS(SQLRemoveDSNFromIni(DsnName));
+  FAIL_IF(MADB_DSN_Exists(DsnName), "DSN exsists!");
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s%cDESCRIPTION={%s}%cDRIVER=%s%cUID=%s%cPWD=%s%cSERVER=%s%cPORT=%u%cOPTIONS=%u%cNO_PROMPT=1\0\0", DsnName, '\0',
+    Description, '\0', my_drivername, '\0', my_uid, '\0', my_pwd, '\0', my_servername, '\0', my_port, '\0', MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT, '\0');
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
+
+  VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
+  IS_STR(Dsn->Description, Description, strlen(Description) + 1);
+
+  FAIL_IF(CreateTestDsn(Dsn) == FAIL, "Failed to create test DSN");
+  IS(MADB_DSN_Exists(DsnName));
+
+  RESET_DSN(Dsn);
+
+  IS(MADB_ReadDSN(Dsn, DsnConnStr, TRUE));
+
+  VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
+  is_num(Dsn->Port, my_port);
+  IS_STR(Dsn->Description, Description, sizeof(Description));
+  IS_STR(Dsn->Driver, my_drivername, strlen(my_drivername) + 1);
+
+  FAIL_IF(Dsn->UserName == NULL, "User Name should not be NULL");
+  FAIL_IF(strncmp(Dsn->UserName, my_uid, strlen(my_uid) + 1), "Uid stored in/read from DSN incorrectly");
+
+  if (Dsn->Password == NULL)
+  {
+    FAIL_IF(my_pwd != NULL && *my_pwd != '\0', "Password shouldn't be NULL");
+  }
+  else
+  {
+    FAIL_IF(strncmp(Dsn->Password, my_pwd, strlen(my_pwd) + 1), "Pwd stored in/read from DSN incorrectly");
+  }
+
+  IS_STR(Dsn->ServerName, my_servername, strlen(my_servername) + 1);
+
+  /* Checking that value in the connection string prevails over value in the dsn */
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cDESCRIPTION=%s\0\0", DsnConnStr, '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
+    '\0', "Changed description");
+
+  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
+  VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS);
+  IS_STR(Dsn->Description, "Changed description", sizeof("Changed description"));
+
+  RESET_DSN(Dsn);
+
+  /* Same as previous, but also that last ent*/
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cNO_PROMPT=0%cAUTO_RECONNECT=1\0\0", DsnConnStr,
+    '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE, '\0', '\0');
+
+  IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
+  VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE|MADB_OPT_FLAG_AUTO_RECONNECT);
+  IS_STR(Dsn->Description, Description, sizeof(Description));
+
+  return OK;
+}
+
+
+/* Only testing that opion is saved/red */
+ODBC_TEST(odbc_229)
+{
+  const char *LocalDSName=  "madb_connstr_usecnf";
+  const char *LocalConnStr= "DSN=madb_connstr_usecnf";
+  char connstr4dsn[512];
+
+  IS(SQLRemoveDSNFromIni(LocalDSName));
+  FAIL_IF(MADB_DSN_Exists(LocalDSName), "DSN exsists!");
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;USE_MYCNF=1", LocalDSName, my_drivername);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
+  IS(Dsn->Options & MADB_OPT_FLAG_USE_CNF);
+
+  IS(CreateTestDsn(Dsn));
+
+  RESET_DSN(Dsn);
+
+  IS(MADB_ReadDSN(Dsn, LocalConnStr, TRUE));
+
+  diag("USE_MYCNF: %hu %u %u", (short)Dsn->ReadMycnf, Dsn->Options, Dsn->Options & MADB_OPT_FLAG_USE_CNF);
+  IS(Dsn->ReadMycnf);
+  IS(Dsn->Options & MADB_OPT_FLAG_USE_CNF);
+
+  FAIL_IF(PopDSN(), "Could not remove DSN");
+
+  return OK;
+}
+
+/* Testing that both numeric and string representation of TLSVERSION work */
+ODBC_TEST(odbc_228)
+{
+  const char *LocalDSName=  "madb_connstr_tlsversion";
+  const char *LocalConnStr= "DSN=madb_connstr_tlsversion";
+  char connstr4dsn[512];
+
+  IS(SQLRemoveDSNFromIni(LocalDSName));
+  FAIL_IF(MADB_DSN_Exists(LocalDSName), "DSN exsists!");
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=TLSv1.1,TLSv1.3;PORT=3307", LocalDSName, my_drivername);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
+  is_num(Dsn->TlsVersion, MADB_TLSV11|MADB_TLSV13);
+  is_num(Dsn->Port, 3307);
+
+  IS(CreateTestDsn(Dsn));
+
+  RESET_DSN(Dsn);
+
+  IS(MADB_ReadDSN(Dsn, LocalConnStr, TRUE));
+
+  diag("TlsVerion: %hu, Port: %u", (short)Dsn->TlsVersion, Dsn->Port);
+  is_num(Dsn->TlsVersion, MADB_TLSV11|MADB_TLSV13);
+  is_num(Dsn->Port, 3307);
+
+  RESET_DSN(Dsn);
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=6", LocalDSName, my_drivername);
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  is_num(Dsn->TlsVersion, MADB_TLSV12|MADB_TLSV13);
+
+  RESET_DSN(Dsn);
+
+  /* If not only meaningful bits are set. Maybe that should be an error? */
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=65", LocalDSName, my_drivername);
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  is_num(Dsn->TlsVersion & MADB_TLSV11, MADB_TLSV11);
+  is_num(Dsn->TlsVersion & MADB_TLSV12, 0);
+  is_num(Dsn->TlsVersion & MADB_TLSV13, 0);
+
+  RESET_DSN(Dsn);
+
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=garbage tlsv1.2", LocalDSName, my_drivername);
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+  is_num(Dsn->TlsVersion, MADB_TLSV12);
+
+  FAIL_IF(PopDSN(), "Could not remove DSN");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -457,7 +605,9 @@ MA_ODBC_TESTS my_tests[]=
   {aliases_tests,         "aliases_tests",           NORMAL},
   {dependent_fields,      "dependent_fields_tests",  NORMAL},
   {driver_vs_dsn,         "driver_vs_dsn",           NORMAL},
-  
+  {odbc_188,              "odbc188_nt_pairs",        NORMAL},
+  {odbc_229,              "odbc229_usecnf",          NORMAL},
+  {odbc_228,              "odbc228_tlsversion",      NORMAL},
   {NULL, NULL, 0}
 };
 

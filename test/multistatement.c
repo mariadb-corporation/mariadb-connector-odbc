@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -33,7 +33,7 @@ ODBC_TEST(test_multi_statements)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (a int)");
 
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2), (3)");
 
   SQLRowCount(Stmt, &num_inserted);
   diag("inserted: %ld", (long)num_inserted);
@@ -42,7 +42,7 @@ ODBC_TEST(test_multi_statements)
   rc= SQLMoreResults(Stmt);
   num_inserted= 0;
   rc= SQLRowCount(Stmt, &num_inserted);
-  FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
+  FAIL_IF(num_inserted != 2, "Expected 2 row inserted");
 
   rc= SQLMoreResults(Stmt);
   FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
@@ -93,6 +93,34 @@ ODBC_TEST(test_params)
   for (i=0; i < 100; i++)
   {
     j= i + 100;
+    CHECK_STMT_RC(Stmt, SQLExecute(Stmt)); 
+
+    while (SQLMoreResults(Stmt) == SQL_SUCCESS);
+  }
+
+  return OK;
+}
+
+ODBC_TEST(test_params_last_count_smaller)
+{
+  int       i, j, k;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int, b int)");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?,?); INSERT INTO t2 VALUES (?)", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &k, 0, NULL));
+
+  for (i=0; i < 100; i++)
+  {
+    j= i + 100;
+    k= i + 1000;
     CHECK_STMT_RC(Stmt, SQLExecute(Stmt)); 
 
     while (SQLMoreResults(Stmt) == SQL_SUCCESS);
@@ -194,7 +222,7 @@ ODBC_TEST(test_semicolon)
    Also tests ODBC-97*/
 ODBC_TEST(t_odbc74)
 {
-  SQLCHAR ref[][4]={"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[8];
+  SQLCHAR ref[][4]= {"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[8];
   unsigned int i;
   SQLHDBC     hdbc1;
   SQLHSTMT    Stmt1;
@@ -225,7 +253,7 @@ ODBC_TEST(t_odbc74)
   OK_SIMPLE_STMT(Stmt, "TRUNCATE TABLE odbc74");
 
   AllocEnvConn(&Env, &hdbc1);
-  Stmt1= DoConnect(hdbc1, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  Stmt1= DoConnect(hdbc1, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
   OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='NO_BACKSLASH_ESCAPES'");
@@ -262,8 +290,9 @@ ODBC_TEST(t_odbc95)
 
 ODBC_TEST(t_odbc126)
 {
-  SQLCHAR Query[][24]={ "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
-  unsigned int i, ExpectedRows[]= {3, 3, 1, 1}, resCount, affected;
+  SQLCHAR Query[][24]= { "CALL odbc126_1", "CALL odbc126_2", "SELECT 1, 2; SELECT 3", "SELECT 4; SELECT 5,6" };
+  unsigned int i, ExpectedRows[]= {3, 3, 1, 1}, resCount;
+  SQLLEN affected;
   SQLRETURN rc, Expected= SQL_SUCCESS;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc126");
@@ -377,10 +406,35 @@ ODBC_TEST(diff_column_binding)
 
 ODBC_TEST(t_odbc159)
 {
+  unsigned int j= 0, ExpectedRows[]= {0, 0, 5};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 0};
+  SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
+  SQLRETURN rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
-                        CREATE TEMPORARY TABLE _temp_statistics AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
-                        SELECT * FROM _temp_odbc159;");
+                        CREATE TEMPORARY TABLE _temp_odbc159 AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
+                        SELECT * FROM _temp_odbc159 LIMIT 5;");
+
+  do {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
+    if (j == 1)
+    {
+      diag("Rows in created table: %lld\n", (long long)Rows);
+      ExpRowCount[2]= Rows < ExpRowCount[2] ? Rows : ExpRowCount[2];
+    }
+    else
+    {
+      is_num(Rows, ExpRowCount[j]);
+    }
+    
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
+    is_num(ColumnsCount, expCols[j]);
+
+    is_num(ma_print_result_getdata_ex(Stmt, FALSE), ExpectedRows[j]);
+
+    rc= SQLMoreResults(Stmt);
+    ++j;
+  } while (rc != SQL_NO_DATA);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -480,11 +534,119 @@ ODBC_TEST(t_odbc177)
 }
 
 
+ODBC_TEST(t_odbc169)
+{
+  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * from t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
+                        "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * from t_odbc169"};
+  char Expected[][3][7]={ {"1", "", "" },       /* RS 1*/
+                          {"1", "2", "Row 1"},  /* RS 2*/
+                          {"3", "4", "Row 2"},
+                          {"5", "6", "Row 3"},
+                          {"5", "6", "Row 3"},  /* RS 3*/
+                          {"3", "4", "Row 2"},
+                          {"1", "2", "Row 1"},
+                          {"Row 1", "2" , ""},  /* RS 4*/
+                          {"Row 2", "4" , ""},
+                          {"Row 3", "6" , ""},
+
+                          /* RS 5 is empty */
+                          {"1", "2", "Row 1" }, /* RS 6*/
+                          {"3", "4", "Row 2" },
+                          {"5", "6", "Row 3" },
+                          {"8", "7", "Row #4"}
+                        };
+  unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0, 0};
+  SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3, 1};
+  SQLRETURN rc;
+  SQLSMALLINT Column, Row= 0;
+  SQLCHAR     ColumnData[MAX_ROW_DATA_LEN]={ 0 };
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc169");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc169(col1 INT, col2 INT, col3 varchar(32) not null)");
+  
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc169 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')");
+
+  for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, Query[i]);
+
+    do {
+      CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
+      is_num(Rows, ExpRowCount[RsIndex]);
+      CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
+      is_num(ColumnsCount, expCols[RsIndex]);
+
+      Rows= 0;
+      while (SQL_SUCCEEDED(SQLFetch(Stmt)))
+      {
+        for (Column= 0; Column < ColumnsCount; ++Column)
+        {
+          IS_STR(my_fetch_str(Stmt, ColumnData, Column + 1), Expected[Row][Column], strlen(Expected[Row][Column]));
+        }
+        ++Row;
+        ++Rows;
+      }
+      is_num(Rows, ExpectedRows[RsIndex]);
+
+      rc= SQLMoreResults(Stmt);
+      ++RsIndex;
+    } while (rc != SQL_NO_DATA);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc169");
+
+  return OK;
+}
+
+
+ODBC_TEST(t_odbc219)
+{
+  SQLSMALLINT ColumnCount;
+  SQLCHAR ColumnName[8], Query[][80]= {"CALL odbc219()", "SELECT 1 Col1; INSERT INTO t_odbc219 VALUES(2)"};
+  unsigned int i;
+  long long ExpectedColCount[]= {2, 1};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc219");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc219");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc219(col1 INT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE odbc219()\
+                        BEGIN\
+                          SELECT 1 as id, 'text' as val;\
+                        END");
+  for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, Query[i]);
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+    is_num(ColumnCount, ExpectedColCount[i]);
+    my_print_non_format_result_ex(Stmt, FALSE);
+    CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+
+    CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+    is_num(ColumnCount, 0);
+    EXPECT_STMT(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_NAME, (SQLPOINTER)ColumnName, sizeof(ColumnName), NULL, NULL), SQL_ERROR);
+
+    EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc219");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc219");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
   {test_multi_on_off, "test_multi_on_off"},
   {test_params, "test_params"},
+  {test_params_last_count_smaller, "test_params_last_count_smaller"},
   {t_odbc_16, "test_odbc_16"},
   {test_semicolon, "test_semicolon_in_string"},
   {t_odbc74, "t_odbc74and_odbc97"},
@@ -492,7 +654,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc126, "t_odbc126"},
   {diff_column_binding, "diff_column_binding"},
   {t_odbc159, "t_odbc159"},
-{ t_odbc177, "t_odbc177" },
+  {t_odbc177, "t_odbc177"},
+  {t_odbc169, "t_odbc169"},
+  {t_odbc219, "t_odbc219"},
   {NULL, NULL}
 };
 

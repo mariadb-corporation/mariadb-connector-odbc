@@ -222,7 +222,6 @@ ODBC_TEST(t_bug5853)
                                       SQL_C_CHAR, SQL_VARCHAR, 0, 0, NULL,
                                       0, &nLen));
 
-;
   while ((rc= SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)) != SQL_NO_DATA_FOUND)
   {
     char data[2][3] = { "uvw", "xyz" };

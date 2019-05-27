@@ -14,7 +14,7 @@ git clone -b odbc-2.0 https://github.com/MariaDB/mariadb-connector-odbc.git
 cd mariadb-connector-odbc
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCONC_WITH_UNIT_TESTS=Off -DCONC_WITH_MSI=OFF .
 cmake --build . --config RelWithDebInfo
-msiexec.exe /i wininstall\mariadb-connector-odbc-2.0.18-win32.msi
+msiexec.exe /i wininstall\mariadb-connector-odbc-2.0.19-win32.msi
 ```
 
 ## CentOS

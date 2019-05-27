@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -747,6 +747,181 @@ ODBC_TEST(t_odbc166)
 }
 
 
+ODBC_TEST(t_odbc213)
+{
+  SQLSMALLINT a;
+  SQLHDESC Ipd, OtherDesc;
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT_OUTPUT, SQL_C_SHORT, SQL_SMALLINT, 0, 0, &a, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_PARAM_DESC, &Ipd, SQL_IS_POINTER, NULL));
+  CHECK_DESC_RC(Ipd, SQLGetDescField(Ipd, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL));
+
+  is_num(a, SQL_PARAM_INPUT_OUTPUT);
+
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC, &OtherDesc, SQL_IS_POINTER, NULL));
+  EXPECT_DESC(OtherDesc, SQLGetDescField(OtherDesc, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &OtherDesc, SQL_IS_POINTER, NULL));
+  EXPECT_DESC(OtherDesc, SQLGetDescField(OtherDesc, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC, &OtherDesc, SQL_IS_POINTER, NULL));
+  EXPECT_DESC(OtherDesc, SQLGetDescField(OtherDesc, 1, SQL_DESC_PARAMETER_TYPE, &a, SQL_IS_SMALLINT, NULL), SQL_ERROR);
+
+  return OK;
+}
+
+/*  */
+ODBC_TEST(t_odbc216)
+{
+  SQLLEN FixedPrecScale;
+  SQLSMALLINT i, ColumnCount;
+  SQLCHAR TypeName[32];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc216");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc216(dec1 decimal(10,4),\
+      bi bigint, f float, ti tinyint, si smallint, r real, i int,\
+      c char(10), vc varchar(20), dt datetime, ts timestamp, n numeric,\
+      n2 numeric(19,4), d double, t time, mi mediumint, date1 date)");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc216");
+
+  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
+  for (i= 0; i < ColumnCount; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_TYPE_NAME, TypeName, sizeof(TypeName), NULL, NULL));
+    FixedPrecScale= SQL_TRUE;
+    diag("Field #%u %s", i + 1, (const char*) TypeName);
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, i + 1, SQL_DESC_FIXED_PREC_SCALE, NULL, 0, NULL, (SQLPOINTER)&FixedPrecScale));
+    is_num(FixedPrecScale, SQL_FALSE);
+  }
+ 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc216");
+
+  return OK;
+}
+
+/*  */
+ODBC_TEST(t_odbc211)
+{
+  SQLLEN Size;
+  SQLSMALLINT DecimalDigits;
+  SQLCHAR v1[8], v2[8], v3[8], v4[8], v5[8], v6[8];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc211");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc211(d1 decimal(1,0) NOT NULL, d2 decimal(2,0) NOT NULL, d3 decimal(1,1) NOT NULL,"
+                       "d1u decimal(1,0) UNSIGNED NOT NULL, d2u decimal(2,0) UNSIGNED NOT NULL, d3u decimal(1,1) UNSIGNED NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc211 values('-1', '-22', '-0.3', '4', '55', '0.6')");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc211");
+
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  /* 1(precision) + sign + 0 for decimal point */
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  is_num(Size, 3);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  is_num(Size, 4);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 5, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &Size));
+  is_num(Size, 3);
+
+  /* Testing everything else */
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 0);
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 2, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 0);
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 3, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 1);
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 4, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 0);
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 5, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 0);
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 6, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  is_num(DecimalDigits, 1);
+  is_num(Size, 1);
+  Size= 0;
+
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  /* Column size is field's precision https://docs.microsoft.com/en-us/sql/odbc/reference/appendixes/column-size?view=sql-server-2017 */
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 3);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 4);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 5, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 5, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &Size));
+  is_num(Size, 3);
+
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_PRECISION, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_SCALE, NULL, 0, NULL, &Size));
+  is_num(Size, 0);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_PRECISION, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 2, SQL_DESC_SCALE, NULL, 0, NULL, &Size));
+  is_num(Size, 0);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_PRECISION, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 3, SQL_DESC_SCALE, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_DESC_PRECISION, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 4, SQL_DESC_SCALE, NULL, 0, NULL, &Size));
+  is_num(Size, 0);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 5, SQL_DESC_PRECISION, NULL, 0, NULL, &Size));
+  is_num(Size, 2);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 5, SQL_DESC_SCALE, NULL, 0, NULL, &Size));
+  is_num(Size, 0);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_PRECISION, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_SCALE, NULL, 0, NULL, &Size));
+  is_num(Size, 1);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_CHAR, v1, sizeof(v1), &Size));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_CHAR, v2, sizeof(v2), &Size));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_CHAR, v3, sizeof(v3), &Size));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_CHAR, v4, sizeof(v4), &Size));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_CHAR, v5, sizeof(v5), &Size));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 6, SQL_CHAR, v6, sizeof(v6), &Size));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(v1, "-1", 3);
+  IS_STR(v2, "-22", 4);
+  IS_STR(v3, "-0.3", 5);
+  IS_STR(v4, "4", 2);
+  IS_STR(v5, "55", 3);
+  IS_STR(v6, "0.6", 4);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc211");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_desc_paramset,"t_desc_paramset"},
@@ -764,7 +939,10 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc14, "t_odbc14"},
   {t_set_explicit_copy, "t_set_explicit_copy_of_ard"},
   {t_odbc155, "t_odbc155and157_decimaldigits_display_size"},
-  { t_odbc166, "t_odbc166_decimal_display_size"},
+  {t_odbc166, "t_odbc166_decimal_display_size"},
+  {t_odbc213, "t_odbc213_param_type"},
+  {t_odbc216, "t_odbc216_fixed_prec_scale"},
+  {t_odbc211, "t_odbc211_zero_scale"},
   {NULL, NULL}
 };
 

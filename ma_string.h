@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,7 +19,7 @@
 #ifndef _ma_string_h_
 #define _ma_string_h_
 
-char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed);
+char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed);
 int MADB_ConvertAnsi2Unicode(Client_Charset* cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error);
@@ -32,15 +32,16 @@ my_bool   MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *
 my_bool   MADB_DynStrAppendQuoted(DYNAMIC_STRING *DynString, char *String);
 my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
 my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString);
-SQLWCHAR* MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
+SQLWCHAR* MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
 SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
-                      const char *Src, SQLLEN SrcLength, MADB_Error *Error);
+                        const char *Src, SQLLEN SrcLength, MADB_Error *Error);
 my_bool   MADB_ValidateStmt(MADB_QUERY *Query);
 
 SQLLEN     MbstrOctetLen(const char *str, SQLLEN *CharLen, CHARSET_INFO *cs);
 SQLLEN     MbstrCharLen(const char *str, SQLINTEGER OctetLen, CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
-SQLINTEGER SqlwcsLen(SQLWCHAR *str);
+SQLLEN     SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length);
+SQLLEN     SafeStrlen(SQLCHAR *str, SQLLEN buff_length);
 
 #define ADJUST_LENGTH(ptr, len)\
   if((ptr) && ((len) == SQL_NTS))\

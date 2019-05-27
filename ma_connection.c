@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -204,7 +204,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, NULL, Dbc->ConnOrSrcCharset, NULL);
       }
       else
-        Dbc->CatalogName= my_strdup((char *)ValuePtr, MYF(0));
+        Dbc->CatalogName= _strdup((char *)ValuePtr);
 
       if (Dbc->mariadb &&
           mysql_select_db(Dbc->mariadb, Dbc->CatalogName))
@@ -260,7 +260,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         if (MADB_IsolationLevel[i].SqlIsolation == (SQLLEN)ValuePtr)
         {
           char StmtStr[128];
-          my_snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+          _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                       MADB_IsolationLevel[i].StrIsolation);
           LOCK_MARIADB(Dbc);
           if (mysql_query(Dbc->mariadb, StmtStr))
@@ -349,7 +349,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= 0;
     break;
   case SQL_ATTR_METADATA_ID:
-    *(SQLINTEGER *)ValuePtr= Dbc->MetadataId;
+    *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
     *(SQLINTEGER *)ValuePtr= SQL_CUR_USE_ODBC;
     break;
@@ -508,13 +508,13 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
   char Buffer[65 * sizeof(WCHAR)];
 
   MADB_CLEAR_ERROR(&Connection->Error);
-  ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, (void**)&Stmt);
+  ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, (SQLHANDLE*)&Stmt);
   if (!SQL_SUCCEEDED(ret))
     return ret;
   if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-    !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt)))
+      !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt)))
   {
-    MADB_CopyError(&Connection->Error, &((MADB_Stmt *)Stmt)->Error);
+    MADB_CopyError(&Connection->Error, &Stmt->Error);
     goto end;
   }
   
@@ -597,9 +597,13 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   if( !MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
   {
-    mysql_options(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
+    mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
 
+  if (Dsn->ReadMycnf != '\0')
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
+  }
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
      for unicode connections we use utf8
@@ -631,28 +635,25 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
 
   /* todo: error handling */
-  mysql_options(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->Charset.cs_info->csname);
+  mysql_optionsv(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->Charset.cs_info->csname);
 
   if (Dsn->InitCommand && Dsn->InitCommand[0])
-    mysql_options(Connection->mariadb, MYSQL_INIT_COMMAND, Dsn->InitCommand);
+    mysql_optionsv(Connection->mariadb, MYSQL_INIT_COMMAND, Dsn->InitCommand);
  
   if (Dsn->ConnectionTimeout)
-    mysql_options(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
 
   Connection->Options= Dsn->Options;
-  /* TODO: set DSN FLags (Options):
-           Some of them (like reconnect) can be set via mysql_options, some of them are connection
-           attributes
-  */
+
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
-    mysql_options(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
 
   if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
-    mysql_options(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
     client_flags|= CLIENT_NO_SCHEMA;
-  if (DSN_OPTION(Connection, MADB_OPT_FLAG_PAD_SPACE))
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_IGNORE_SPACE))
     client_flags|= CLIENT_IGNORE_SPACE;
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_FOUND_ROWS))
@@ -663,36 +664,66 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     client_flags|= CLIENT_MULTI_STATEMENTS;
 
   /* enable truncation reporting */
-  mysql_options(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
+  mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
 
   if (Dsn->Socket)
   {
     int protocol= MYSQL_PROTOCOL_SOCKET;
-    mysql_options(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
   }
+
+  {
+    /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
+       to have this paranoid check to make sure we dont' them */
+    const char *SslKey=    ltrim(Dsn->SslKey);
+    const char *SslCert=   ltrim(Dsn->SslCert);
+    const char *SslCa=     ltrim(Dsn->SslCa);
+    const char *SslCaPath= ltrim(Dsn->SslCaPath);
+    const char *SslCipher= ltrim(Dsn->SslCipher);
+
+    if (!MADB_IS_EMPTY(SslCa)
+     || !MADB_IS_EMPTY(SslCaPath)
+     || !MADB_IS_EMPTY(SslCipher)
+     || !MADB_IS_EMPTY(SslCert)
+     || !MADB_IS_EMPTY(SslKey))
+    {
+      if (!MADB_IS_EMPTY(SslKey))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_KEY, SslKey);
+      }
+      if (!MADB_IS_EMPTY(SslCert))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CERT, SslCert);
+      }
+      if (!MADB_IS_EMPTY(SslCa))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CA, SslCa);
+      }
+      if (!MADB_IS_EMPTY(SslCaPath))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
+      }
+      if (!MADB_IS_EMPTY(SslCipher))
+      {
+        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
+      }
+    }
   
-  if (!MADB_IS_EMPTY(Dsn->SslCa)
-   || !MADB_IS_EMPTY(Dsn->SslCaPath)
-   || !MADB_IS_EMPTY(Dsn->SslCipher)
-   || !MADB_IS_EMPTY(Dsn->SslCert)
-   || !MADB_IS_EMPTY(Dsn->SslKey))
-  {
-    mysql_ssl_set(Connection->mariadb, Dsn->SslKey, Dsn->SslCert, Dsn->SslCa, Dsn->SslCaPath, Dsn->SslCipher);
-  }
-  if (Dsn->SslVerify)
-  {
-    const uint verify= 0x01010101;
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
-  }
-  else
-  {
-    const uint verify= 0;
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+    if (Dsn->SslVerify)
+    {
+      const unsigned int verify= 0x01010101;
+      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+    }
+    else
+    {
+      const unsigned int verify= 0;
+      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+    }
   }
 
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
-    mysql_options(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
   }
 
   if (!mysql_real_connect(Connection->mariadb,
@@ -705,7 +736,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
   if (Connection->PacketSize)
   {
-    /*my_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
+    /*_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
     if (mysql_query(Connection->mariadb, StmtStr))
       goto err;*/
   }
@@ -732,7 +763,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     {
       if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
       {
-        my_snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+        _snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                     MADB_IsolationLevel[i].StrIsolation);
         if (mysql_query(Connection->mariadb, StmtStr))
           goto err;
@@ -1086,7 +1117,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_DBMS_VER:
     {
       char Version[13];
-      ulong ServerVersion= 0L;
+      unsigned long ServerVersion= 0L;
       
       if (Dbc->mariadb)
       {
@@ -1398,6 +1429,10 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_ODBC_VER:
     break;
+  case SQL_OUTER_JOINS:
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
+                                     (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Dbc->Error);
+    break;
   case SQL_OJ_CAPABILITIES:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_OJ_LEFT | SQL_OJ_RIGHT |
                                                 SQL_OJ_NESTED | SQL_OJ_INNER, StringLengthPtr);
@@ -1687,22 +1722,21 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
   case SQL_DRIVER_COMPLETE_REQUIRED:
   case SQL_DRIVER_COMPLETE:
   case SQL_DRIVER_NOPROMPT:
+
+    if (SQL_SUCCEEDED(MADB_DbcConnectDB(Dbc, Dsn)))
     {
-      SQLRETURN ret= MADB_DbcConnectDB(Dbc, Dsn);
-      if (SQL_SUCCEEDED(ret))
-      {
-        goto end;
-      }
-      else if (DriverCompletion == SQL_DRIVER_NOPROMPT)
-      {
-        /* For SQL_DRIVER_COMPLETE(_REQUIRED) this is not the end - will show prompt for user */
-        goto error;
-      }
+      goto end;
+    }
+    else if (DriverCompletion == SQL_DRIVER_NOPROMPT)
+    {
+      /* For SQL_DRIVER_COMPLETE(_REQUIRED) this is not the end - will show prompt for user */
+      goto error;
     }
     /* If we got here, it means that we had unsuccessful connect attempt with SQL_DRIVER_COMPLETE(_REQUIRED) completion
        Have to clean that error */
     MADB_CLEAR_ERROR(&Dbc->Error);
     break;
+
   case SQL_DRIVER_PROMPT:
     break;
   default:

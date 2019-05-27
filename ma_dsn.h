@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013 SkySQL AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -58,8 +58,10 @@ enum enum_dsn_item_type {
   DSN_TYPE_STRING,
   DSN_TYPE_INT,
   DSN_TYPE_BOOL,
-  DSN_TYPE_COMBO,
-  DSN_TYPE_OPTION
+  DSN_TYPE_COMBO,    /* Mainly the same as string, but the field in the dialog is combobox */
+  DSN_TYPE_OPTION,   /* Connection string option has correspondent OPTIONS bit */
+  DSN_TYPE_CBOXGROUP /* Group of checkboxes each of them represent a bit in the field's value
+                        Bitmap size is 1 byte */
 };
 
 typedef struct
@@ -82,6 +84,14 @@ typedef struct
 #define MAODBC_CONFIG           0
 #define MAODBC_PROMPT           1
 #define MAODBC_PROMPT_REQUIRED  2
+
+/* TLS version bits */
+#define MADB_TLSV11 1
+#define MADB_TLSV12 2
+#define MADB_TLSV13 4
+
+extern const char TlsVersionName[3][8];
+extern const char TlsVersionBits[3];
 
 typedef struct st_madb_dsn
 {
@@ -120,7 +130,10 @@ typedef struct st_madb_dsn
   char *SslFp;
   char *SslFpList;
   my_bool SslVerify;
+  char TlsVersion;
+  my_bool ForceTls;
   char *SaveFile;
+  my_bool ReadMycnf;
   /* --- Internal --- */
   int isPrompt;
   MADB_DsnKey *Keys;
@@ -135,9 +148,12 @@ typedef struct st_madb_dsn
 /* this structure is used to store and retrieve DSN Information */
 extern MADB_DsnKey DsnKeys[];
 
+#define GET_FIELD_PTR(DSN, DSNKEY, TYPE) ((TYPE *)((char*)(DSN) + (DSNKEY)->DsnOffset))
+
 
 /*** Function prototypes ***/
 MADB_Dsn *  MADB_DSN_Init       (void);
+void        MADB_DSN_SetDefaults(MADB_Dsn *Dsn);
 void        MADB_DSN_Free       (MADB_Dsn *Dsn);
 my_bool     MADB_ReadDSN        (MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite);
 my_bool     MADB_SaveDSN        (MADB_Dsn *Dsn);
@@ -145,7 +161,8 @@ my_bool     MADB_DSN_Exists     (const char *DsnName);
 my_bool     MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
 BOOL        MADB_ReadConnString (MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter);
 SQLULEN     MADB_DsnToString    (MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength);
-void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
+void        MADB_DsnUpdateOptionsFields (MADB_Dsn *Dsn);
+BOOL        MADB_DSN_PossibleConnect    (MADB_Dsn *Dsn);
 
 /*** Helper macros ***/
 #define DSN_OPTION(a,b)\
@@ -163,7 +180,7 @@ void        MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn);
     if ((len) == SQL_NTS)\
       (len)=(SQLSMALLINT)strlen((value));\
     MADB_FREE((dsn)->item);\
-    (dsn)->item= (char *)my_malloc(len + 1, MYF(MY_ZEROFILL));\
+    (dsn)->item= (char *)calloc(len + 1, sizeof(char));\
     memcpy((dsn)->item, (value),(len));\
   }
 

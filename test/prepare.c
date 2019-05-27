@@ -108,83 +108,83 @@ ODBC_TEST(t_prep_buffer_length)
   length= 0;
   strcpy((char *)buffer, "abcdefghij");
 
-    rc = SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 15, 10, buffer, 4, &length);
-    mystmt(Stmt,rc);
+  rc = SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 15, 10, buffer, 4, &length);
+  mystmt(Stmt,rc);
 
-    rc = SQLExecute(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLExecute(Stmt);
+  mystmt(Stmt,rc);
 
-    length= 3;
+  length= 3;
 
-    rc = SQLExecute(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLExecute(Stmt);
+  mystmt(Stmt,rc);
 
-    length= 10;    
+  length= 10;    
 
-    rc = SQLExecute(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLExecute(Stmt);
+  mystmt(Stmt,rc);
 
-    length= 9;    
+  length= 9;    
 
-    rc = SQLExecute(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLExecute(Stmt);
+  mystmt(Stmt,rc);
 
-    length= SQL_NTS;
+  length= SQL_NTS;
 
-    rc = SQLExecute(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLExecute(Stmt);
+  mystmt(Stmt,rc);
 
-    SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_prep_buffer_length");
+  OK_SIMPLE_STMT(Stmt, "select * from t_prep_buffer_length");
 
-    rc = SQLBindCol(Stmt, 1, SQL_C_CHAR, buffer, 15, &length);
-    mystmt(Stmt,rc);
+  rc = SQLBindCol(Stmt, 1, SQL_C_CHAR, buffer, 15, &length);
+  mystmt(Stmt,rc);
 
-    rc = SQLFetch(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  mystmt(Stmt,rc);
 
-    diag( "outdata: %s (%ld)\n", buffer, length);
-    is_num(length, 0);
-    is_num(buffer[0], '\0');
+  diag( "outdata: %s (%ld)\n", buffer, length);
+  is_num(length, 0);
+  is_num(buffer[0], '\0');
 
-    rc = SQLFetch(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  mystmt(Stmt,rc);
 
-    diag("outdata: %s (%ld)\n", buffer, length);
-    is_num(length, 3);
-    IS_STR(buffer, "abc", 10);
+  diag("outdata: %s (%ld)\n", buffer, length);
+  is_num(length, 3);
+  IS_STR(buffer, "abc", 10);
 
-    rc = SQLFetch(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  mystmt(Stmt,rc);
 
-    diag("outdata: %s (%ld)\n", buffer, length);
-    is_num(length, 10);
-    IS_STR(buffer, "abcdefghij", 10);
+  diag("outdata: %s (%ld)\n", buffer, length);
+  is_num(length, 10);
+  IS_STR(buffer, "abcdefghij", 10);
 
-    rc = SQLFetch(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  mystmt(Stmt,rc);
 
-    diag("outdata: %s (%ld)\n", buffer, length);
-    is_num(length, 9);
-    IS_STR(buffer, "abcdefghi", 9);
+  diag("outdata: %s (%ld)\n", buffer, length);
+  is_num(length, 9);
+  IS_STR(buffer, "abcdefghi", 9);
 
-    rc = SQLFetch(Stmt);
-    mystmt(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  mystmt(Stmt,rc);
 
-    diag("outdata: %s (%ld)\n", buffer, length);
-    is_num(length, 10);
-    IS_STR(buffer, "abcdefghij", 10);
+  diag("outdata: %s (%ld)\n", buffer, length);
+  is_num(length, 10);
+  IS_STR(buffer, "abcdefghij", 10);
 
-    rc = SQLFetch(Stmt);
-    IS(rc == SQL_NO_DATA_FOUND);
+  rc = SQLFetch(Stmt);
+  IS(rc == SQL_NO_DATA_FOUND);
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    mystmt(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  mystmt(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    mystmt(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  mystmt(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_prep_buffer_length");
 

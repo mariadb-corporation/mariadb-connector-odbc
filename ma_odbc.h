@@ -39,6 +39,11 @@
 
 #include <errmsg.h>
 #include <string.h>
+#include <stdio.h>
+#include <math.h>
+#include <stddef.h>
+#include <assert.h>
+#include <time.h>
 
 #include <ma_odbc_version.h>
 
@@ -97,20 +102,19 @@ typedef struct
   SQLULEN      *BindOffsetPtr;
   SQLULEN       BindType;
   SQLSMALLINT   Count;
+  /* TODO: In IPD this is SQLUINTEGER* field */
   SQLULEN      *RowsProcessedPtr;
   /* Header end */
 } MADB_Header;
 
 typedef struct
 {
-	SQLLEN RowsetSize; /* for ODBC3 fetch operation */
 	SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
 	SQLUSMALLINT	*RowOperationPtr;
 	SQLULEN		*RowOffsetPtr;
   MADB_ColBind *ColumnBind;
 	MYSQL_BIND *Bind;
 	SQLSMALLINT	Allocated;
-	SQLLEN		size_of_rowset_odbc2; /* for SQLExtendedFetch */
 } MADB_Ard;
 
 typedef struct
@@ -222,29 +226,6 @@ struct st_ma_desc_fldid
 
 struct st_ma_stmt_methods;
 
-struct st_bind_column
-{
-  SQLUINTEGER TargetType;
-  SQLPOINTER TargetValuePtr;
-  SQLLEN BufferLength;
-  SQLLEN Utf8BufferLength;
-  SQLLEN *StrLen_or_Ind;
-  void *InternalBuffer;
-};
-
-struct st_bind_param
-{
-  SQLSMALLINT InputOutputType;
-  SQLSMALLINT ValueType;
-  SQLSMALLINT ParameterType;
-  SQLULEN ColumnSize;
-  SQLSMALLINT DecimalDigits; 
-  SQLPOINTER ParameterValuePtr;
-  SQLLEN BufferLength;
-  SQLLEN *StrLen_or_IndPtr;
-  void *InternalBuffer;
-};
-
 typedef struct 
 {
  	SQLLEN MaxRows;
@@ -257,7 +238,7 @@ typedef struct
 	void* BookmarkPtr;
   SQLLEN BookmarkLength;
   SQLSMALLINT BookmarkType;
-	SQLUINTEGER	MetadataId;
+  SQLULEN	MetadataId;
   SQLULEN SimulateCursor;
 } MADB_StmtOptions;
 
@@ -266,6 +247,7 @@ typedef struct
 {
   char  *Name;
   SQLLEN Position;
+  SQLLEN RowsetSize;
 } MADB_Cursor;
 
 enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DAE_DELETE=3};
@@ -276,11 +258,12 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
 
+enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3, MADB_SS_OUTPARAMSFETCHED= 4};
 
-enum MADB_StmtState { MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3, MADB_SS_OUTPARAMSFETCHED= 4};
-
-#define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State > MADB_SS_EMULATED)
-#define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ? MADB_SS_PREPARED : MADB_SS_INITED
+#define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State >= MADB_SS_EMULATED)
+#define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ?\
+  (Stmt_Hndl->State == MADB_SS_EMULATED ? MADB_SS_EMULATED : MADB_SS_PREPARED) :\
+  MADB_SS_INITED
 
 /* Struct used to define column type when driver has to fix it (in catalog functions + SQLGetTypeInfo) */
 typedef struct
@@ -323,20 +306,16 @@ struct st_ma_odbc_stmt
   unsigned int              MultiStmtNr;
   unsigned int              MultiStmtMaxParam;
   SQLLEN                    LastRowFetched;
-  struct st_bind_column     *bind_columns; /* ARD */
-  struct st_bind_param      *bind_params;
   MYSQL_BIND                *result;
   MYSQL_BIND                *params;
   int                       PutParam;
   my_bool                   RebindParams;
   my_bool                   bind_done;
-  SQLBIGINT                 AffectedRows;
+  long long                 AffectedRows;
   unsigned long             *CharOffset;
   unsigned long             *Lengths;
   char                      *TableName;
   char                      *CatalogName;
-  char                      TmpBuf[1]; /* for null bindings */
-  MYSQL_FIELD               *BulkFields;
   MADB_ShortTypeInfo        *ColsTypeFixArr;
   /* Application Descriptors */
   MADB_Desc *Apd;
@@ -429,7 +408,8 @@ void            CloseClientCharset(Client_Charset *cc);
 /* Default precision of SQL_NUMERIC */
 #define MADB_DEFAULT_PRECISION 38
 #define BINARY_CHARSETNR       63
-
+/* Inexistent param id */
+#define MADB_NOPARAM           -1
 /* Macros to guard communications with the server.
    TODO: make it(locking) optional depending on designated connection string option */
 #define LOCK_MARIADB(Dbc)   EnterCriticalSection(&(Dbc)->cs)
@@ -441,10 +421,9 @@ void            CloseClientCharset(Client_Charset *cc);
 #define RETURN_ERROR_OR_CONTINUE(sqlreturn_func_call) {\
   SQLRETURN rc= (sqlreturn_func_call);\
   if (!SQL_SUCCEEDED(rc)) return rc;\
-}
+} while(0)
 
 #include <ma_error.h>
-#include <ma_parse.h>
 #include <ma_info.h>
 #include <ma_environment.h>
 #include <ma_connection.h>
@@ -456,6 +435,7 @@ void            CloseClientCharset(Client_Charset *cc);
 #include <ma_driver.h>
 #include <ma_helper.h>
 #include <ma_server.h>
+#include <ma_typeconv.h>
 
 /* SQLFunction calls inside MariaDB Connector/ODBC needs to be mapped,
  * on non Windows platforms these function calls will call the driver
@@ -475,12 +455,6 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
     SQLLEN BufferLength,
     SQLLEN *StrLen_or_IndPtr);
 
-SQLRETURN MA_SQLExecDirect(MADB_Stmt *Stmt,
-    SQLCHAR *StatementText,
-    SQLINTEGER TextLength);
-
-SQLRETURN MA_SQLExecute(MADB_Stmt *Stmt);
-
 SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
     SQLUSMALLINT Option);
 
@@ -495,10 +469,6 @@ SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
     SQLINTEGER TextLength);
 
 SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle);
-
-SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
-    SQLSMALLINT FetchOrientation,
-    SQLLEN FetchOffset);
 
 SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
     SQLHANDLE Handle,

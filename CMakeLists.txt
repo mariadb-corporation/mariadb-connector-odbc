@@ -45,7 +45,8 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_string.c
                           ma_result.c
                           ma_common.c
-                          ma_server.c)
+                          ma_server.c
+                          ma_typeconv.c)
 
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
@@ -55,6 +56,15 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_common.c)
 
+MACRO(ADD_OPTION _name _text _default)
+  IF(NOT DEFINED ${_name})
+    OPTION(${OPT}${_name} "${_text}" "${_default}")
+  ELSE()
+    OPTION(${OPT}${_name} "${_text}" "${${_name}}")
+  ENDIF()
+ENDMACRO()
+
+# This has to be before C/C's cmake run, or it will build with /MD                  
 IF(WIN32)
   IF (MSVC)
     SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO" "MINSIZEREL")
@@ -85,14 +95,17 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   ENDIF()
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 ELSE()
-  #SET(USE_SYSTEM_INSTALLED_LIB TRUE)
-  MESSAGE(STATUS "There is no Connector/C sub-project folder")
+  SET(USE_SYSTEM_INSTALLED_LIB TRUE)
+  MESSAGE(STATUS "There is no Connector/C sub-project folder, linking against libmariadb installed on the system")
 ENDIF()
 
 IF(WIN32)
   #ADD_OPTION(WITH_MSI "Build MSI installation package" OFF)
-  #ADD_OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
+  ADD_OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
 ENDIF()
+
+#ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
+#ADD_OPTION(WITH_SSL "Enables use of TLS/SSL library" ON)
 
 IF(WITH_SIGNCODE)
   IF(WIN32 AND NOT SIGN_OPTIONS)
@@ -102,6 +115,7 @@ IF(WITH_SIGNCODE)
   ENDIF()
   MARK_AS_ADVANCED(SIGN_OPTIONS)
 ENDIF()
+
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
@@ -112,7 +126,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/libmariadb/include)
 
 IF(WIN32)
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/win)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/dsn)
   SET(ODBC_LIBS odbc32)
   SET(ODBC_INSTLIBS odbccp32)
   SET(MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
@@ -133,18 +147,13 @@ IF(WIN32)
                           ma_odbc.h
                           ma_odbc_version.h
                           ma_result.h
-                          ma_server.h)
+                          ma_server.h
+                          ma_typeconv.h)
   SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                           ma_platform_win32.c)
 
   SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
-  SET(PLATFORM_DEPENDENCIES ws2_32)
-  #IF(MARIADB_LINK_DYNAMIC)
-  #  SET(MARIADB_CLIENT_FILENAME libmariadb.lib)
-  #ELSE()
-  #  SET(MARIADB_CLIENT_FILENAME mariadbclient.lib)
-  #ENDIF()
-  #SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
+  SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
     IF (NOT(MSVC_VERSION LESS 1900))
@@ -156,7 +165,6 @@ ELSE()
   SEARCH_LIBRARY(LIB_MATH floor m)
   SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES} ma_platform_posix.c)
-  SET(MARIADB_CLIENT_FILENAME libmariadbclient.a)
   SET(ODBC_LIBS odbc)
   SET(ODBC_INSTLIBS odbcinst)
 ENDIF()
@@ -223,26 +231,31 @@ ELSE()
 
 ENDIF()
 
-IF(WITH_OPENSSL)
-  FIND_PACKAGE(OpenSSL)
+IF(WIN32 OR WITH_OPENSSL)
+  IF(WITH_OPENSSL)
+    FIND_PACKAGE(OpenSSL)
 
-  IF(OPENSSL_FOUND)
-    MESSAGE(STATUS "Configuring to build with OpenSSL")
+    IF(OPENSSL_FOUND)
+      MESSAGE(STATUS "Configuring to build with OpenSSL")
 
-    ADD_DEFINITIONS(-DHAVE_OPENSSL)
-    INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
-    SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
+      ADD_DEFINITIONS(-DHAVE_OPENSSL)
+      INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+      SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
 
-    IF(OPENSSL_CRYPTO_LIBRARIES)
-      SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+      IF(OPENSSL_CRYPTO_LIBRARIES)
+        SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+      ENDIF()
+
+      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
+    ELSE()
+      MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
     ENDIF()
-
-    SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
   ELSE()
-    MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
+    MESSAGE(STATUS "Configuring SSL support using SChannel")
+    SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} version.lib)
   ENDIF()
 ELSE()
-    MESSAGE(STATUS "Configuring to build without SSL support")
+  MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
 SET(LIBRARY_NAME "maodbc")
@@ -262,23 +275,21 @@ TARGET_LINK_LIBRARIES(${LIBRARY_NAME} mariadbclient ${ODBC_INSTLIBS} ${PLATFORM_
 
 # Currently on Windows only
 IF(WIN32)
-  cmake_policy(SET CMP0026 OLD)
-  GET_TARGET_PROPERTY(DRIVER_LIB_LOCATION maodbc LOCATION)
-  GET_FILENAME_COMPONENT(DRIVER_LIB_DIR ${DRIVER_LIB_LOCATION} DIRECTORY)
   ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=${DRIVER_LIB_DIR}
+    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
                                   -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
                                   -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
                                   -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
                      )
-
+  ####### MAODBCS #######
   ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
   SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
   TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc ${ODBC_INSTLIBS})
 
-  ADD_EXECUTABLE(dsn_test WIN32 dsn_test.c)
+  ADD_EXECUTABLE(dsn_test  dsn_test.c)
   TARGET_LINK_LIBRARIES(dsn_test ${MARIADB_LIB})
 ENDIF()
+
 
 SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
 IF(WIN32)
@@ -322,7 +333,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
       COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
                                     -DTEST_DRIVER=${TEST_DRIVER}
                                     -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbcinst.ini
+                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
                                     -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
                        )
 
@@ -336,7 +347,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
                                     -DTEST_UID=${TEST_UID}
                                     -DTEST_PASSWORD=${TEST_PASSWORD}
                                     -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/test/odbc.ini
+                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
                                     -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
                        )
   ENDIF()

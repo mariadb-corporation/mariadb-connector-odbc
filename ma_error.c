@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2015 MariaDB Corporation AB
+   Copyright (C) 2013,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -158,7 +158,7 @@ char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
     strcpy_s(error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, MARIADB_ODBC_ERR_PREFIX);
     if (dbc != NULL && dbc->mariadb != NULL)
     {
-      error->PrefixLen += my_snprintf(error->SqlErrorMsg + error->PrefixLen,
+      error->PrefixLen += _snprintf(error->SqlErrorMsg + error->PrefixLen,
         SQL_MAX_MESSAGE_LENGTH + 1 - error->PrefixLen, "[%s]", mysql_get_server_info(dbc->mariadb)); 
     }
   }
@@ -183,8 +183,11 @@ SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *P
     NativeError= mysql_stmt_errno((MYSQL_STMT *)Ptr);
     break;
   }
-  if ((NativeError == 2013 || NativeError == 2006) && strcmp(Sqlstate, "HY000") == 0)
+  /* work-around of probalby a bug in mariadb_stmt_execute_direct, that returns 1160 in case of lost connection */
+  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160) && (strcmp(Sqlstate, "HY000") == 0 || strcmp(Sqlstate, "00000") == 0))
+  {
     Sqlstate= "08S01";
+  }
 
   Error->ReturnValue= SQL_ERROR;
   if (Errormsg)
@@ -210,7 +213,7 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
   unsigned int ErrorCode= SqlErrorCode;
 
   Error->ErrorNum= 0;
-  if ((NativeError == 2013 || NativeError == 2006) && SqlErrorCode == MADB_ERR_HY000)
+  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160) && SqlErrorCode == MADB_ERR_HY000)
     ErrorCode= MADB_ERR_08S01;
 
   Error->ErrRecord= &MADB_ErrorList[ErrorCode];

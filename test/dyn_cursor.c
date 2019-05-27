@@ -155,7 +155,7 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     SQLLEN      nRowCount;
     SQLHSTMT    hstmt_pos;
     SQLINTEGER  i,nData[15];
-    char        data[30],szData[15][10]={0};
+    char        data[30],szData[15][10]={0}, buff[10];
 
     /* initialize data */
     OK_SIMPLE_STMT(Stmt, "drop table if exists my_dynamic_cursor");
@@ -183,29 +183,29 @@ ODBC_TEST(my_dynamic_pos_cursor1)
                                   (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
     /* set the cursor name as 'mysqlcur' on Stmt */
-    rc = SQLSetCursorName(Stmt, (SQLCHAR *)"mysqlcur", SQL_NTS);
-    CHECK_STMT_RC(Stmt, rc);
+    CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"mysqlcur", SQL_NTS));
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+    CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, NULL));
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,20,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+    CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData[0]), NULL));
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)3,0);
-    CHECK_STMT_RC(Stmt,rc);
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)3,0));
 
     /* Open the resultset of table 'my_demo_cursor' */
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_dynamic_cursor");
 
-    /* goto the last row */
-    rc = SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 5L);
-    CHECK_STMT_RC(Stmt,rc);
+    /* goto the last row
+    TODO: This does not really go to the last row - it fetches 3 rows(SQL_ATTR_ROW_ARRAY_SIZE) starting from 5th, and then cursor should be on 5th after the command */
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 5L));
 
-    for (i=0; i < 5; i++)
+    for (i= 5; i < 5 + 3; i++)
     {
-      diag("i %d nData: %d szData: %s", i, nData[i], szData[i]);
+      diag("i %d nData: %d szData: %s", i, nData[i - 5], szData[i - 5]);
+      is_num(i, nData[i - 5]);
     }
+
+    /* Cursor is supposed to stay on the 1st row of the rowset */
+    IS_STR(my_fetch_str(Stmt, buff, 2), "MySQL5", sizeof("MySQL5"));
 
     /*rc = SQLSetPos(Stmt,SQL_POSITION,2,SQL_LOCK_NO_CHANGE);
     CHECK_STMT_RC(Stmt,rc); */
@@ -213,19 +213,15 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     /* now update the name field to 'update' using positioned cursor */
     OK_SIMPLE_STMT(hstmt_pos, "UPDATE my_dynamic_cursor SET id=999, name='updated' WHERE CURRENT OF mysqlcur");
 
-    rc = SQLRowCount(hstmt_pos, &nRowCount);
-    CHECK_STMT_RC(hstmt_pos, rc);
+    CHECK_STMT_RC(hstmt_pos, SQLRowCount(hstmt_pos, &nRowCount));
 
     diag(" total rows updated:%d\n",nRowCount);
     is_num(nRowCount, 1);
     strcpy(szData[1],"updated");
     nData[1] = 999;
 
-    rc = SQLSetPos(Stmt,2,SQL_DELETE,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLRowCount(Stmt, &nRowCount);
-    CHECK_STMT_RC(Stmt, rc);
+    CHECK_STMT_RC(Stmt,SQLSetPos(Stmt,2,SQL_DELETE,SQL_LOCK_NO_CHANGE));
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
 
     diag(" total rows deleted:%d\n",nRowCount);
     is_num(nRowCount, 1);

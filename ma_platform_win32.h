@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2015 MariaDB Corporation AB
+   Copyright (C) 2014,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -34,7 +34,17 @@
 #define HAVE_UNICODE
 
 #include <windows.h>
+#include <WinSock2.h>
+#include <shlwapi.h>
+
+#if !defined(HAVE_mit_thread) && !defined(HAVE_STRTOK_R)
+#define strtok_r(A,B,C) strtok((A),(B))
+#endif
+#define strcasecmp(A,B) _stricmp((A),(B))
 
 #define MADB_DRIVER_NAME "maodbc.dll"
+
+char *strndup(const char *s, size_t n);
+char* strcasestr(const char* HayStack, const char* Needle);
 
 #endif /*_ma_platform_x_h_ */

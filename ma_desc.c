@@ -53,7 +53,7 @@ struct st_ma_desc_fldid MADB_DESC_FLDID[]=
   {SQL_DESC_NUM_PREC_RADIX, {MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_READ}},
   {SQL_DESC_OCTET_LENGTH, {MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_READ}},
   {SQL_DESC_OCTET_LENGTH_PTR,{MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_NONE, MADB_DESC_NONE}},
-  {SQL_DESC_PARAMETER_TYPE,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_RW, MADB_DESC_RW}},
+  {SQL_DESC_PARAMETER_TYPE,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_RW, MADB_DESC_NONE}},
   {SQL_DESC_PRECISION,{MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_RW, MADB_DESC_READ}},
 #if (ODBCVER >= 0x0350)
   {SQL_DESC_ROWVER,{MADB_DESC_NONE, MADB_DESC_NONE, MADB_DESC_READ, MADB_DESC_READ}},
@@ -81,14 +81,14 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   Desc->DescType= DescType;
   MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
-  if (my_init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, MADB_DESC_INIT_REC_NUM))
+  if (init_dynamic_array(&Desc->Records, sizeof(MADB_DescRecord), 0, MADB_DESC_INIT_REC_NUM))
   {
     MADB_FREE(Desc);
     return NULL;
   }
   if (isExternal)
   {
-    if (my_init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, MADB_DESC_INIT_STMT_NUM))
+    if (init_dynamic_array(&Desc->Stmts, sizeof(MADB_Stmt**), 0, MADB_DESC_INIT_STMT_NUM))
     {
       MADB_DescFree(Desc, FALSE);
       return NULL;
@@ -201,13 +201,15 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   switch (Field->type) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 10;
-    Record->Precision= (SQLSMALLINT)Field->length - 2;
     Record->Scale= Field->decimals;
+    Record->Precision= (SQLSMALLINT)Field->length - test(Record->Unsigned == SQL_FALSE) - test(Record->Scale > 0);
+    if (Record->Precision == 0)
+    {
+      Record->Precision= Record->Scale;
+    }
     break;
   case MYSQL_TYPE_FLOAT:
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 2;
     Record->Precision= (SQLSMALLINT)Field->length - 2;
     //Record->Scale= Field->decimals;
@@ -216,9 +218,9 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_YEAR:
   case MYSQL_TYPE_LONG:
   case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_YEAR:
     Record->NumPrecRadix= 10;
     break;
   case MYSQL_TYPE_TIMESTAMP:
@@ -348,7 +350,7 @@ void MADB_FixOctetLength(MADB_DescRecord *Record)
     Record->OctetLength= sizeof(SQL_TIMESTAMP_STRUCT);
     break;
   default:
-    Record->OctetLength= MIN(INT_MAX32, Record->OctetLength);
+    Record->OctetLength= MIN(MADB_INT_MAX32, Record->OctetLength);
   }
 }
 /* }}} */
@@ -440,14 +442,12 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
   */
   switch (Record->ConciseType) {
   case SQL_DECIMAL:
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 10;
     Record->Precision= (SQLSMALLINT)Record->OctetLength - 2;
     /*Record->Scale= Fields[i].decimals;*/
     break;
   case SQL_REAL:
     /* Float*/
-    Record->FixedPrecScale= SQL_FALSE;
     Record->NumPrecRadix= 2;
     Record->Precision= (SQLSMALLINT)Record->OctetLength - 2;
     break;
@@ -493,7 +493,7 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
   MADB_FixDisplaySize(Record, Stmt->Connection->mariadb->charset);
   MADB_FixDataSize(Record, Stmt->Connection->mariadb->charset);
     
-  /*Record->TypeName= my_strdup(MADB_GetTypeName(Fields[i]), MYF(0));*/
+  /*Record->TypeName= strdup(MADB_GetTypeName(Fields[i]));*/
 
   switch(Record->ConciseType) {
   case SQL_BINARY:
@@ -574,7 +574,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->ConciseType= Record->Type= SQL_C_DEFAULT;
     break;
   case MADB_DESC_IPD:
-    Record->FixedPrecScale= SQL_TRUE;
+    Record->FixedPrecScale= SQL_FALSE;
     Record->LocalTypeName= "";
     Record->Nullable= SQL_NULLABLE;
     Record->ParameterType= SQL_PARAM_INPUT;
@@ -584,7 +584,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     break;
   case MADB_DESC_IRD:
     Record->Nullable= SQL_NULLABLE_UNKNOWN;
-    Record->FixedPrecScale= SQL_TRUE;
+    Record->FixedPrecScale= SQL_FALSE;
     Record->CaseSensitive= SQL_TRUE;
     Record->ConciseType= SQL_VARCHAR;
     Record->AutoUniqueValue= SQL_FALSE;
@@ -621,7 +621,9 @@ MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordN
 
   if (RecordNumber + 1 > Desc->Header.Count)
     Desc->Header.Count= (SQLSMALLINT)(RecordNumber + 1);
+
   DescRecord= ((MADB_DescRecord *)Desc->Records.buffer) + RecordNumber;
+
   return DescRecord;
 }
 /* }}} */
@@ -732,7 +734,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLINTEGER *)ValuePtr)= DescRecord->DateTimeIntervalPrecision;
     break;
   case SQL_DESC_FIXED_PREC_SCALE:
-    *((SQLINTEGER *)ValuePtr)= DescRecord->FixedPrecScale;
+    *((SQLSMALLINT *)ValuePtr)= DescRecord->FixedPrecScale;
     break;
   case SQL_DESC_INDICATOR_PTR:
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->IndicatorPtr;
@@ -770,7 +772,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
     *((SQLPOINTER *)ValuePtr)= (SQLPOINTER)DescRecord->OctetLengthPtr;
     break;
   case SQL_DESC_PARAMETER_TYPE:
-    *((SQLINTEGER *)ValuePtr)= DescRecord->ParameterType;
+    *((SQLSMALLINT *)ValuePtr)= DescRecord->ParameterType;
     break;
   case SQL_DESC_PRECISION:
     *((SQLINTEGER *)ValuePtr)= DescRecord->Precision;
@@ -954,7 +956,7 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
   }
   /* make sure there aren't old records */
   delete_dynamic(&DestDesc->Records);
-  if (my_init_dynamic_array(&DestDesc->Records, sizeof(MADB_DescRecord),
+  if (init_dynamic_array(&DestDesc->Records, sizeof(MADB_DescRecord),
                             SrcDesc->Records.max_element, SrcDesc->Records.alloc_increment))
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY001, NULL, 0);

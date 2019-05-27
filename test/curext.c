@@ -48,16 +48,16 @@ ODBC_TEST(my_pcbvalue)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,&int_pcbValue);
+    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData, 0, &int_pcbValue);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,15,&pcbValue);
+    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData, 15, &pcbValue);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,3,SQL_C_CHAR,szData,3,&pcbValue1);
+    rc = SQLBindCol(Stmt,3,SQL_C_CHAR,szData, 3, &pcbValue1);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,4,SQL_C_CHAR,szData,2,&pcbValue2);
+    rc = SQLBindCol(Stmt,4,SQL_C_CHAR,szData, 2, &pcbValue2);
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);

@@ -1,4 +1,4 @@
-/*
+  /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
                 2013, 2018 MariaDB Corporation AB
 
@@ -714,8 +714,8 @@ ODBC_TEST(paramarray_ignore_paramset)
 
     if (memcmp((const void*) buff, bData[i], 5 - i)!=0)
     {
-      diag("Bin data inserted wrongly. Read: 0x%02X%02X%02X%02X%02X Had to be: 0x%02X%02X%02X%02X%02X"
-        , buff[0], buff[1], buff[2], buff[3], buff[4]
+      diag("Wrong Bin data to has been inserted to the row #%d. Read: 0x%02X%02X%02X%02X%02X Expected: 0x%02X%02X%02X%02X%02X"
+        , i + 1, buff[0], buff[1], buff[2], buff[3], buff[4]
       , bData[i][0], bData[i][1], bData[i][2], bData[i][3], bData[i][4]);
       return FAIL;
     }
@@ -831,12 +831,14 @@ ODBC_TEST(t_bug56804)
 
   SQLINTEGER	len 	= 1;
   int i;
+  BOOL SolidOperation= TRUE;
 
   SQLINTEGER	c1[PARAMSET_SIZE]=      {0, 1, 2, 3, 4, 5, 1, 7, 8, 9};
   SQLINTEGER	c2[PARAMSET_SIZE]=      {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
   SQLLEN      d1[PARAMSET_SIZE]=      {4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
   SQLLEN      d2[PARAMSET_SIZE]=      {4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
   SQLUSMALLINT status[PARAMSET_SIZE]= {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  SQLUSMALLINT ExpectedStatus[PARAMSET_SIZE];
 
   SQLLEN	    paramset_size	= PARAMSET_SIZE;
 
@@ -859,7 +861,13 @@ ODBC_TEST(t_bug56804)
   CHECK_STMT_RC(Stmt, SQLBindParameter( Stmt, 2, SQL_PARAM_INPUT, SQL_C_SLONG,
     SQL_DECIMAL, 4, 0, c2, 4, d2));
 
-  FAIL_IF(SQLExecute(Stmt) != SQL_SUCCESS_WITH_INFO, "swi expected");
+  
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_SUCCESS_WITH_INFO);
+  memset(ExpectedStatus, 0x00ff & SQL_PARAM_SUCCESS, sizeof(ExpectedStatus));
+  /* all errors but last have SQL_PARAM_DIAG_UNAVAILABLE */
+  ExpectedStatus[1]= ExpectedStatus[6]= SQL_PARAM_DIAG_UNAVAILABLE;
+  ExpectedStatus[9]= SQL_PARAM_ERROR;
+  SolidOperation= FALSE;
 
   /* Following tests are here to ensure that driver works how it is currently
      expected to work, and they need to be changed if driver changes smth in the
@@ -867,20 +875,7 @@ ODBC_TEST(t_bug56804)
   for(i = 0; i < PARAMSET_SIZE; ++i )
   {
     diag("Paramset #%d (%d, %d)", i, c1[i], c2[i]);
-    switch (i)
-    {
-    case 1:
-    case 6:
-      /* all errors but last have SQL_PARAM_DIAG_UNAVAILABLE */
-      is_num(status[i], SQL_PARAM_DIAG_UNAVAILABLE);
-      break;
-    case 9:
-      /* Last error -  we are supposed to get SQL_PARAM_ERROR for it */
-      is_num(status[i], SQL_PARAM_ERROR);
-      break;
-    default:
-      is_num(status[i], SQL_PARAM_SUCCESS);
-    }
+    is_num(status[i], ExpectedStatus[i]);
   }
 
   {
@@ -899,7 +894,14 @@ ODBC_TEST(t_bug56804)
     /* just to make sure we got 1 diagnostics record ... */
     is_num(i, 2);
     /* ... and what the record is for the last error */
-    FAIL_IF(strstr(message, "Duplicate entry '9'") == NULL, "comparison failed");
+    if (SolidOperation)
+    {
+      FAIL_IF(strstr(message, "Duplicate entry '1'") == NULL, "comparison failed");
+    }
+    else
+    {
+      FAIL_IF(strstr(message, "Duplicate entry '9'") == NULL, "comparison failed");
+    }
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1548,6 +1550,37 @@ ODBC_TEST(odbc151)
 }
 
 
+ODBC_TEST(odbc182)
+{
+  char buffer[128];
+  SQL_TIMESTAMP_STRUCT ts= {0/*year*/, 0, 3, 12/*hour*/, 34, 56, 777/*fractional*/};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc182");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc182(col1 time)");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TIME, 8, 3, &ts, 0, NULL));
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc182 VALUES(?)", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22008");
+
+  ts.fraction= 0;
+  ts.hour= 24;
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc182 VALUES(?)", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "22007");
+
+  ts.hour= 12;
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc182 VALUES(?)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT col1 FROM t_odbc182");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, buffer, 1), "12:34:56", 8);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc182");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {unbuffered_result, "unbuffered_result"},
@@ -1574,6 +1607,7 @@ MA_ODBC_TESTS my_tests[]=
   {insert_fetched_null, "insert_fetched_null"},
   {odbc45, "odbc-45-binding2bit"},
   {odbc151, "odbc-151-buffer_length"},
+  {odbc182, "odbc-182-timestamp2time"},
   {NULL, NULL}
 };
 

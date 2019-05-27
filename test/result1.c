@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2018 MariaDB Corporation A
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -124,28 +124,30 @@ ODBC_TEST(my_resultset)
 ODBC_TEST(t_convert_type)
 {
   SQLRETURN   rc;
-  SQLSMALLINT SqlType, DateType;
+  SQLSMALLINT SqlType, DateType, Length;
   SQLCHAR     ColName[MAX_NAME_LEN];
   SQLCHAR     DbVersion[MAX_NAME_LEN];
   SQLINTEGER  OdbcVersion;
 
-    rc = SQLGetEnvAttr(Env,SQL_ATTR_ODBC_VERSION,&OdbcVersion,0,NULL);
-    CHECK_ENV_RC(Env,rc);
+  rc = SQLGetEnvAttr(Env,SQL_ATTR_ODBC_VERSION,&OdbcVersion,0,NULL);
+  CHECK_ENV_RC(Env,rc);
 
-    fprintf(stdout,"# odbc version:");
-    if (OdbcVersion == SQL_OV_ODBC2)
-    {
-      fprintf(stdout," SQL_OV_ODBC2\n");
-      DateType= SQL_DATE;
-    }
-    else
-    {
-      fprintf(stdout," SQL_OV_ODBC3\n");
-      DateType= SQL_TYPE_DATE;
-    }
+  fprintf(stdout,"# odbc version:");
+  if (OdbcVersion == SQL_OV_ODBC2)
+  {
+    fprintf(stdout," SQL_OV_ODBC2\n");
+    DateType= SQL_DATE;
+  }
+  else
+  {
+    fprintf(stdout," SQL_OV_ODBC3\n");
+    DateType= SQL_TYPE_DATE;
+  }
 
-    rc = SQLGetInfo(Connection,SQL_DBMS_VER,DbVersion,MAX_NAME_LEN,NULL);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLGetInfo(Connection,SQL_DBMS_VER,DbVersion,MAX_NAME_LEN, &Length);
+  CHECK_DBC_RC(Connection,rc);
+  diag("SQL_DBMS_VER: %s", DbVersion);
+  is_num(Length, strlen(DbVersion));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_convert");
 
@@ -1790,7 +1792,7 @@ ODBC_TEST(t_bug16817)
   return OK;
 }
 
-#ifdef FIX_LATER
+
 #define MYSQL_NAME_LEN 64
 
 ODBC_TEST(t_binary_collation)
@@ -1810,29 +1812,26 @@ ODBC_TEST(t_binary_collation)
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,
                                 &decimal_digits, &nullable));
-#ifdef FIX_LATER
-  if (mysql_min_version(Connection, "5.2", 3) ||
+
+  if (ServerNotOlderThan(Connection, 5, 2, 0) ||
       /* 5.0.46 or later in 5.0 series */
       (!strncmp("5.0", (char *)server_version, 3) &&
-        mysql_min_version(Connection, "5.0.46", 6)) ||
+        ServerNotOlderThan(Connection, 5, 0, 46)) ||
       /* 5.1.22 or later in 5.1 series */
       (!strncmp("5.1", (char *)server_version, 3) &&
-        mysql_min_version(Connection, "5.1.22", 6)))
+        ServerNotOlderThan(Connection, 5, 1, 22)))
   {
-#ifdef MYODBC_UNICODEDRIVER
-    is_num(data_type, SQL_WVARCHAR);
-#else
+    /*is_num(data_type, SQL_WVARCHAR);*/
     is_num(data_type, SQL_VARCHAR);
-#endif
   }
   else
   {
     is_num(data_type, SQL_VARBINARY);
-#endif
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_binary_collation");
   return OK;
 }
-#endif
+//#endif
 
 /*
  * Bug 29239 - Prepare before insert returns wrong result
@@ -1912,7 +1911,6 @@ ODBC_TEST(t_bug30958)
   is_num(outlen, 0);
 
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
-#ifdef NEEDS_TO_BE_FIXED
   outmax= 0;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
@@ -1920,7 +1918,6 @@ ODBC_TEST(t_bug30958)
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
 
-#endif
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug30958");
@@ -1970,7 +1967,6 @@ ODBC_TEST(t_bug30958_ansi)
   is_num(outbuf[0], 0);
   is_num(outlen, 0);
 
-#ifdef TO_BE_FIXED_LATER
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
   outmax= 0;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
@@ -1978,7 +1974,6 @@ ODBC_TEST(t_bug30958_ansi)
   outmax= 1;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_CHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
-#endif
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug30958");
@@ -2009,7 +2004,7 @@ ODBC_TEST(t_bug30958_wchar)
   */
   outlen= 99;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
-                                &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
+                                &outlen)!= SQL_SUCCESS_WITH_INFO, "SQL_SUCCESS_WITH_INFO expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
   CHECK_SQLSTATE(Stmt, "01004");
@@ -2017,7 +2012,7 @@ ODBC_TEST(t_bug30958_wchar)
   /* expect the same result, and not SQL_NO_DATA */
   outlen= 99;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
-                                &outlen)!= SQL_SUCCESS_WITH_INFO, "swi expected");
+                                &outlen)!= SQL_SUCCESS_WITH_INFO, "SQL_SUCCESS_WITH_INFO expected");
   IS_STR(outbuf, "bug", 3);
   is_num(outlen, 0);
   CHECK_SQLSTATE(Stmt, "01004");
@@ -2028,7 +2023,7 @@ ODBC_TEST(t_bug30958_wchar)
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax, &outlen));
   is_num(outbuf[0], 0);
   is_num(outlen, 0);
-#ifdef TO_BE_FIXED_LATER
+
   /* only now IS it unavailable (test with empty and non-empty out buffer) */
   outmax= 0;
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
@@ -2036,7 +2031,7 @@ ODBC_TEST(t_bug30958_wchar)
   outmax= 1; /* outmax greater than 0, but less than sizeof(SQLWCHAR) */
   FAIL_IF(SQLGetData(Stmt, 1, SQL_C_WCHAR, outbuf, outmax,
                                 &outlen)!= SQL_NO_DATA, "eof expected");
-#endif
+
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "drop table if exists bug30958");
@@ -2321,12 +2316,13 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29239, "t_bug29239",     NORMAL},
   {t_bug30958, "t_bug30958",     NORMAL},
   {t_bug30958_ansi, "t_bug30958_ansi",     NORMAL},
-  {t_bug30958_wchar, "t_bug30958_wchar",     KNOWN_FAILURE},
+  {t_bug30958_wchar, "t_bug30958_wchar",   NORMAL},
   {t_bug31246, "t_bug31246",     NORMAL},
   {t_bug13776, "t_bug13776",     NORMAL},
   {t_bug13776_auto, "t_bug13776_auto",     NORMAL},
   {t_bug28617, "t_bug28617",     NORMAL},
   {t_bug34429, "t_bug34429",     NORMAL},
+  {t_binary_collation, "t_binary_collation", NORMAL},
   {NULL, NULL}
 };
 

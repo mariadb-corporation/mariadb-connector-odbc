@@ -28,7 +28,6 @@
 extern Client_Charset utf8;
 char LogFile[256];
 
-
 char *strndup(const char *s, size_t n)
 {
   size_t len= MIN(strlen(s), n);
@@ -94,7 +93,7 @@ int DSNPrompt_Free(MADB_Prompt *prompt)
 }
 
 
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
+SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
   int Length;
@@ -123,10 +122,10 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
   return WStr;
 }
 
-/* {{{ MADB_ConvertFromWChar
-       Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
-       TN in the Wstr) */
-char *MADB_ConvertFromWChar(SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
+  /* {{{ MADB_ConvertFromWChar
+  Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
+  TN in the Wstr) */
+char *MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
 {
   char *AscStr;
   int AscLen, AllocLen;
@@ -283,3 +282,16 @@ int GetSourceAnsiCs(Client_Charset *cc)
   /* We don't need cs_info for this */
   return cc->CodePage;
 }
+
+/* {{{ MADB_DSN_SetDefaults() */
+BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
+{
+  return Dsn->ServerName && (Dsn->IsNamedPipe || Dsn->Port > 0);
+}
+
+
+char* strcasestr(const char* HayStack, const char* Needle)
+{
+  return StrStrIA(HayStack, Needle);
+}
+/* }}} */

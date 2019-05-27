@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -29,11 +29,17 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 
 #ifdef _WIN32
 # define _WINSOCKAPI_
 # include <windows.h>
+# include <shlwapi.h>
 
+char* strcasestr(const char* HayStack, const char* Needle)
+{
+  return StrStrIA(HayStack, Needle);
+}
 #else
 
 # include <string.h>
@@ -106,18 +112,18 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 
 #include <sql.h>
 #include <sqlext.h>
-#include <getopt.h>
 #include <time.h>
 #include <assert.h>
-/* We need mysql for CHARSET_INFO type and conversion routine */
+/* We need mysql for MARIADB_CHARSET_INFO type and conversion routine */
 #include <mysql.h>
-typedef unsigned int uint;
 
+
+BOOL   UseDsnOnly= FALSE;
 static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 static SQLCHAR *my_uid=        (SQLCHAR *)"root";
 static SQLCHAR *my_pwd=        (SQLCHAR *)"";
 static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
-static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 3.0";
+static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB Connector/ODBC 2.0";
 static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
 
 static SQLWCHAR *wdsn;
@@ -130,7 +136,7 @@ static SQLWCHAR *wstrport;
 
 static unsigned long my_options= 67108866;
 
-static SQLHANDLE     Env, Connection, Stmt;
+static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
 static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 
 static unsigned int  my_port=        3306;
@@ -200,7 +206,7 @@ void mark_all_tests_normal(MA_ODBC_TESTS *tests)
 }
 
 
-void usage()
+void Usage()
 {
   fprintf(stdout, "Valid options:\n");
   fprintf(stdout, "-d DSN Name\n");
@@ -210,6 +216,7 @@ void usage()
   fprintf(stdout, "-s default database (schema)\n");
   fprintf(stdout, "-S Server name/address\n");
   fprintf(stdout, "-P Port number\n");
+  fprintf(stdout, "-o Use only DSN for the connection");
   fprintf(stdout, "?  Displays this text\n");
 }
 
@@ -255,41 +262,51 @@ void get_env_defaults()
 
 void get_options(int argc, char **argv)
 {
-  int c= 0;
+  int  i;
 
   get_env_defaults();
 
-  while ((c=getopt(argc,argv, "d:u:p:P:s:S:?")) >= 0)
+  for (i= 1; i < argc; i+= 2) /* "d:u:p:P:s:S:?" */
   {
-    switch(c) {
+    if (argv[i][0] != '-' || argv[i][1] == 0 || argc == i + 1)
+    {
+      Usage();
+      exit(0);
+    }
+
+    switch(argv[i][1]) {
     case 'd':
-      my_dsn= (SQLCHAR*)optarg;
+      my_dsn= (SQLCHAR*)argv[i+1];
       break;
     case 'u':
-      my_uid= (SQLCHAR*)optarg;
+      my_uid= (SQLCHAR*)argv[i+1];
       break;
     case 'p':
-      my_pwd= (SQLCHAR*)optarg;
+      my_pwd= (SQLCHAR*)argv[i+1];
       break;
     case 's':
-      my_schema= (SQLCHAR*)optarg;
+      my_schema= (SQLCHAR*)argv[i+1];
       break;
     case 'P':
-      my_port= atoi(optarg);
+      my_port= atoi(argv[i+1]);
       break;
     case 'S':
-      my_servername= (SQLCHAR*)optarg;
+      my_servername= (SQLCHAR*)argv[i+1];
       break;
     case 'D':
-      my_drivername= (SQLCHAR*)optarg;
+      my_drivername= (SQLCHAR*)argv[i+1];
+      break;
+    case 'o':
+      UseDsnOnly= TRUE;
+      --i; /* -o doesn't have value, thus we need to decrement argument index so we do not miss next option */
       break;
     case '?':
-      usage();
+      Usage();
       exit(0);
       break;
     default:
-      fprintf(stdout, "Unknown option %c\n", c);
-      usage();
+      fprintf(stdout, "Unknown option %c\n", argv[i][1]);
+      Usage();
       exit(0);
     }
   }
@@ -439,8 +456,115 @@ int my_print_non_format_result(SQLHSTMT Stmt)
 }
 
 
+SQLINTEGER SqlwcsLen(SQLWCHAR *str)
+{
+  SQLINTEGER result= 0;
+
+  if (str)
+  {
+    while (*str)
+    {
+      ++result;
+      ++str;
+    }
+  }
+  return result;
+}
+
+
+wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
+{
+  static wchar_t buff[2048];
+  char *to= (char *)buff;
+
+  if (sizeof(wchar_t) == sizeof(SQLWCHAR))
+    return (wchar_t *)in;
+  else
+  {
+    size_t len= (SqlwcsLen(in) + 1)*sizeof(SQLWCHAR);
+    int    error;
+    size_t buff_size=  sizeof(buff);
+
+    madbtest_convert_string(utf16, (char*)in, &len, utf32, to, &buff_size, &error);
+  }
+
+  return buff;
+}
+
+/* Same as my_print_non_format_result_ex, but uses SQLGetData, to fetch values, and not bind buffers */
+int ma_print_result_getdata_exex(SQLHSTMT Stmt, BOOL CloseCursor, BOOL FetchAsWstr)
+{
+  SQLRETURN   rc;
+  SQLUINTEGER nRowCount=0;
+  SQLULEN     pcColDef;
+  SQLCHAR     szColName[MAX_NAME_LEN + 1];
+  SQLCHAR     szData[MAX_ROW_DATA_LEN]= {0};
+  SQLWCHAR    wData[MAX_ROW_DATA_LEN]= {0};
+  SQLSMALLINT nIndex, ncol= 0, pfSqlType, pcbScale, pfNullable;
+  SQLLEN      ind_strlen;
+
+  rc = SQLNumResultCols(Stmt, &ncol);
+
+  mystmt_rows(Stmt, rc, -1);
+
+  for (nIndex = 1; nIndex <= ncol; ++nIndex)
+  {
+    rc = SQLDescribeCol(Stmt, nIndex, szColName, MAX_NAME_LEN, NULL,
+      &pfSqlType, &pcColDef, &pcbScale, &pfNullable);
+    /* Returning in case of an error -nIndex we will see in the log column# */
+    mystmt_rows(Stmt, rc, -nIndex);
+
+    fprintf(stdout, "%s\t", szColName);
+  }
+
+  fprintf(stdout, "\n");
+
+  while (SQL_SUCCEEDED(SQLFetch(Stmt)))
+  {
+    ++nRowCount;
+    for (nIndex=0; nIndex< ncol; ++nIndex)
+    {
+      if (FetchAsWstr != FALSE)
+      {
+        rc= SQLGetData(Stmt, nIndex + 1, SQL_C_WCHAR, wData, sizeof(wData), &ind_strlen);
+        mystmt_rows(Stmt, rc, -nIndex);
+        fprintf(stdout, "%ls\t", sqlwchar_to_wchar_t(wData));
+      }
+      else
+      {
+        rc= SQLGetData(Stmt, nIndex + 1, SQL_C_CHAR, szData, sizeof(szData), &ind_strlen);
+        mystmt_rows(Stmt, rc, -nIndex);
+        fprintf(stdout, "%s\t", szData);
+      }
+    }
+
+    fprintf(stdout, "\n");
+  }
+
+  if (CloseCursor)
+  {
+    SQLFreeStmt(Stmt, SQL_CLOSE);
+  }
+
+  fprintf(stdout, "# Total rows fetched: %d\n", (int)nRowCount);
+
+  return nRowCount;
+}
+
+
+int ma_print_result_getdata_ex(SQLHSTMT Stmt, BOOL CloseCursor)
+{
+  return ma_print_result_getdata_exex(Stmt, CloseCursor, FALSE);
+}
+
+int ma_print_result_getdata(SQLHSTMT Stmt)
+{
+  return my_print_non_format_result_ex(Stmt, TRUE);
+}
+
+
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr)) != SQL_SUCCESS)\
+if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr))))\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -496,7 +620,7 @@ do {\
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
 #define IS_STR(A,B,C) do {const char *loc_a=(A), *loc_b=(B);\
 diag("%s %s", loc_a, loc_b);\
-FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "String comparison failed"); } while(0)
+FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "Strings do not match"); } while(0)
 
 #define is_num(A,B) \
 do {\
@@ -508,26 +632,36 @@ do {\
   }\
 } while(0)
 
-#define EXPECT_DBC(Dbc,Function, Expected)\
+#define EXPECT_DBC(_Dbc, _Function, _Expected)\
 do {\
-  SQLRETURN ret= (Function);\
-  if (ret != (Expected))\
+  SQLRETURN ret= (_Function);\
+  if (ret != (_Expected))\
   {\
-    CHECK_DBC_RC(Dbc, ret);\
+    CHECK_DBC_RC(_Dbc, ret);\
   }\
 } while(0)
 
-#define EXPECT_STMT(Stmt,Function, Expected)\
+#define EXPECT_STMT(_Stmt, _Function, _Expected)\
 do {\
-  SQLRETURN ret= (Function);\
-  if (ret != (Expected))\
+  SQLRETURN ret= (_Function);\
+  if (ret != (_Expected))\
   {\
-    CHECK_STMT_RC(Stmt, ret);\
-    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #Function, ret, #Expected, Expected);\
+    CHECK_STMT_RC(_Stmt, ret);\
+    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #_Function, ret, #_Expected, _Expected);\
     return FAIL;\
   }\
 } while(0)
 
+#define EXPECT_DESC(_Desc, Function, Expected)\
+do {\
+  SQLRETURN ret= (Function);\
+  if (ret != (Expected))\
+  {\
+    CHECK_DESC_RC(_Desc, ret);\
+    diag("%s %d: %s returned %d, expected %s(%d)",__FILE__, __LINE__, #Function, ret, #Expected, Expected);\
+    return FAIL;\
+  }\
+} while(0)
 
 int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
 {
@@ -547,14 +681,14 @@ SQLWCHAR *my_fetch_wstr(SQLHSTMT Stmt, SQLWCHAR *buffer, SQLUSMALLINT icol, SQLL
   return buffer;
 }
 
-const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData,SQLUSMALLINT icol)
+const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData, SQLUSMALLINT icol)
 {
     SQLLEN nLen;
 
-    SQLGetData(Stmt,icol,SQL_CHAR,szData,1000,&nLen);
+    SQLGetData(Stmt, icol, SQL_CHAR, szData, 1000, &nLen);
     /* If Null value - putting down smth meaningful. also that allows caller to
        better/(in more easy way) test the value */
-    if (nLen < 0)
+    if (nLen == SQL_NULL_DATA)
     {
       strcpy(szData, "(Null)"); 
     }
@@ -635,8 +769,11 @@ int AllocEnvConn(SQLHANDLE *Env, SQLHANDLE *Connection)
 }
 
 
+SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+
+
 /* Returns STMT handle for newly created connection, or NULL if connection is unsuccessful */
-SQLHANDLE DoConnect(SQLHANDLE Connection,
+SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
                     const char *dsn, const char *uid, const char *pwd, unsigned int port, const char *schema, unsigned long *options, const char *server,
                     const char *add_parameters)
 {
@@ -646,19 +783,39 @@ SQLHANDLE DoConnect(SQLHANDLE Connection,
   SQLSMALLINT Length;
 
   /* my_options |= 4; */ /* To enable debug */
-  _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
-           uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
-           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-           add_parameters ? add_parameters : "");
-  diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+  if (UseDsnOnly != FALSE)
+  {
+    _snprintf(DSNString, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
+    diag(DSNString);
+  }
+  else
+  {
+    _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+      uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
+      schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
+      add_parameters ? add_parameters : "");
+    diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
            add_parameters ? add_parameters : "");
-  
-  if(!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
+  }
+
+  if (DoWConnect == FALSE)
   {
-    odbc_print_error(SQL_HANDLE_DBC, Connection);
-    return NULL;
+    if (!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
+    {
+      odbc_print_error(SQL_HANDLE_DBC, Connection);
+      return NULL;
+    }
+  }
+  else
+  {
+    SQLWCHAR *DsnStringW= str2sqlwchar_on_gbuff(DSNString, strlen(DSNString) + 1, utf8, utf16);
+    if (!SQL_SUCCEEDED(SQLDriverConnectW(Connection, NULL, DsnStringW, SQL_NTS, NULL, 0, &Length, SQL_DRIVER_NOPROMPT)))
+    {
+      odbc_print_error(SQL_HANDLE_DBC, Connection);
+      return NULL;
+    }
   }
 
   if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Connection, &stmt)))
@@ -670,39 +827,30 @@ SQLHANDLE DoConnect(SQLHANDLE Connection,
   return stmt;
 }
 
+
 int ODBC_Connect(SQLHANDLE *Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
 {
-  SQLRETURN   rc;
-  char        buffer[100];
-  SQLHANDLE   Stmt1;
-
   *Env=         NULL;
   *Connection=  NULL;
 
   IS(AllocEnvConn(Env, Connection));
 
-  *Stmt= DoConnect(*Connection, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
+  *Stmt= DoConnect(*Connection, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
-  if (Stmt == NULL)
-  {
-    return FAIL;
-  }
-
-  rc= SQLAllocHandle(SQL_HANDLE_STMT, *Connection, &Stmt1);
-  FAIL_IF(rc != SQL_SUCCESS, "Couldn't allocate statement handle");
-
-  strcpy(buffer, "CREATE SCHEMA IF NOT EXISTS ");
-  strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
-  rc= SQLExecDirect(Stmt1, (SQLCHAR *)buffer, (SQLINTEGER)strlen(buffer));
-
-  strcpy(buffer, "USE ");
-  strcat(buffer, (my_schema != NULL) ? (char*)my_schema : "test");
-  OK_SIMPLE_STMT(Stmt1, buffer);
-  SQLFreeStmt(Stmt1, SQL_DROP);
-
-  return OK;
+  return (*Stmt == NULL ? FAIL : OK);
 }
 
+
+int ODBC_ConnectW(SQLHANDLE Env, SQLHANDLE *Connection, SQLHANDLE *Stmt)
+{
+  *Connection=  NULL;
+
+  FAIL_IF(!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, Env, Connection)), "Couldn't allocate connection handle");
+
+  *Stmt= DoConnect(*Connection, TRUE, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
+
+  return (*Stmt == NULL ? FAIL : OK);
+}
 
 void ODBC_Disconnect(SQLHANDLE Env, SQLHANDLE Connection, SQLHANDLE Stmt)
 {
@@ -728,7 +876,7 @@ SQLHANDLE ConnectWithCharset(SQLHANDLE *conn, const char *charset_name, const ch
 
   _snprintf(charset_clause, sizeof(charset_clause), "CHARSET=%s;%s", charset_name, add_parameters ? add_parameters : "");
 
-  return DoConnect(*conn, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
+  return DoConnect(*conn, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
 }
 
 
@@ -781,9 +929,8 @@ int reset_changed_server_variables(void)
   return error;
 }
 
-SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
 
-int run_tests(MA_ODBC_TESTS *tests)
+int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
 {
   int         rc, i=1, failed=0;
   const char *comment;
@@ -794,7 +941,7 @@ int run_tests(MA_ODBC_TESTS *tests)
   fakeUtf32le.encoding= "UTF32LE";
   fakeUtf32le.csname=   "utf32le";
 
-  utf8=  mysql_get_charset_by_name("utf8");
+  utf8= mysql_get_charset_by_name("utf8");
   utf16= mysql_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
   utf32= little_endian() ? &fakeUtf32le : mysql_get_charset_by_name("utf32");
 
@@ -823,6 +970,14 @@ int run_tests(MA_ODBC_TESTS *tests)
     fprintf(stdout, "HALT! Could not connect to the server\n");
     return 1;
   }
+  if (ProvideWConnection && ODBC_ConnectW(Env, &wConnection, &wStmt) == FAIL)
+  {
+    odbc_print_error(SQL_HANDLE_DBC, wConnection);
+    ODBC_Disconnect(Env, wConnection, wStmt);
+    fprintf(stdout, "HALT! Could not connect to the server with Unicode function\n");
+    return 1;
+  }
+
   fprintf(stdout, "1..%d\n", tests_planned);
   while (tests->title)
   {
@@ -840,9 +995,6 @@ int run_tests(MA_ODBC_TESTS *tests)
       failed++;
     }
 
-    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
-    tests++;
-
     if (reset_changed_server_variables())
     {
       fprintf(stdout, "HALT! An error occurred while tried to reset server variables changed by the test!\n");
@@ -854,6 +1006,10 @@ int run_tests(MA_ODBC_TESTS *tests)
     {
       SQLFreeStmt(Stmt, SQL_DROP);
     }
+
+    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
+    tests++;
+
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
     /* reset Statement */
     fflush(stdout);
@@ -866,6 +1022,10 @@ int run_tests(MA_ODBC_TESTS *tests)
   return 0;
 }
 
+int run_tests(MA_ODBC_TESTS *tests)
+{
+  return run_tests_ex(tests, FALSE);
+}
 
 int get_show_value(int global, const char * show_type, const char * var_name)
 {
@@ -1001,7 +1161,7 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
 SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
   SQLWCHAR   *res= buff_pos;
-  size_t      rc, buff_size= sqlwchar_buff + sizeof(sqlwchar_buff) - buff_pos;
+  size_t      rc, buff_size= sizeof(sqlwchar_buff) - (buff_pos - sqlwchar_buff)*sizeof(SQLWCHAR);
   int         error;
   const char *src= str;
 
@@ -1028,51 +1188,16 @@ SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, CHARSET_INFO *from
 }
 
 
-SQLINTEGER SqlwcsLen(SQLWCHAR *str)
-{
-  SQLINTEGER result= 0;
-
-  if (str)
-  {
-    while (*str)
-    {
-      ++result;
-      ++str;
-    }
-  }
-  return result;
-}
-
-
-wchar_t *sqlwchar_to_wchar_t(SQLWCHAR *in)
-{
-  static wchar_t buff[2048];
-  char *to= (char *)buff;
-
-  if (sizeof(wchar_t) == sizeof(SQLWCHAR))
-    return (wchar_t *)in;
-  else
-  {
-    size_t len= (SqlwcsLen(in) + 1)*sizeof(SQLWCHAR);
-    int    error;
-    size_t buff_size=  sizeof(buff);
-
-    madbtest_convert_string(utf16, (char*)in, &len, utf32, to, &buff_size, &error);
-  }
-  
-  return buff;
-}
-
 #define LW(latin_str) latin_as_sqlwchar(latin_str, sqlwchar_buff)
+/* wchar_t to SQLLWCHAR, used by both W and WW macros */
 #define WL(A,B) (sizeof(wchar_t) == sizeof(SQLWCHAR) ? (SQLWCHAR*)A : str2sqlwchar_on_gbuff((char*)(A), (B+1)*sizeof(wchar_t), utf32, utf16))
-/* Wchar_t(utf32) to sqlWchar */
+/* Converting char const to sqlWchar */
 #define WW(A) WL(L##A,wcslen(L##A))
-/* Pretty much the same as WW, but expects that L string */
+/* Converts wchar_t string into SQLWCHAR, const or variable */
 #define W(A) WL(A,wcslen(A))
 /**
  Helper for converting a (char *) to a (SQLWCHAR *)
 */
-/*#define WC(string) dup_char_as_sqlwchar((string))*/
 /* Char(utf8) to slqWchar */
 #define CW(str) str2sqlwchar_on_gbuff(str, strlen(str)+1, utf8, utf16)
 
@@ -1175,5 +1300,37 @@ BOOL UnixOdbc(HENV Env)
 #endif
   return FALSE;
  }
+
+const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
+{
+  static char AsNumber[8];
+
+  switch (TypeId)
+  {
+  case SQL_C_TINYINT: return "SQL_TINYINT";
+  case SQL_C_STINYINT: return "SQL_C_STINYINT";
+  case SQL_C_UTINYINT: return "SQL_C_UTINYINT";
+  case SQL_C_SHORT: return "SQL_SMALLINT";
+  case SQL_C_SSHORT: return "SQL_C_SSHORT";
+  case SQL_C_USHORT: return "SQL_C_USHORT";
+  case SQL_C_LONG: return "SQL_INTEGER";
+  case SQL_C_SLONG: return "SQL_C_SLONG";
+  case SQL_C_ULONG: return "SQL_C_ULONG";
+  case SQL_C_UBIGINT: return "SQL_C_UBIGINT";
+  case SQL_C_SBIGINT: return "SQL_C_SBIGINT";
+  case SQL_BIGINT: return "SQL_BIGINT";
+  case SQL_C_DOUBLE: return "SQL_DOUBLE";
+  case SQL_C_FLOAT: return "SQL_REAL";
+  case SQL_DECIMAL: return "SQL_DECIMAL";
+  case SQL_VARCHAR: return "SQL_VARCHAR";
+  default:
+    if (Buffer == NULL)
+    {
+      Buffer= AsNumber;
+    }
+    sprintf(Buffer, "%hu", TypeId);
+  }
+  return Buffer;
+}
 
 #endif      /* #ifndef _tap_h_ */

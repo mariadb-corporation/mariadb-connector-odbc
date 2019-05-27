@@ -38,13 +38,29 @@ void CloseMultiStatements(MADB_Stmt *Stmt)
 }
 
 
+MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt)
+{
+  static const my_bool UpdateMaxLength= 1;
+  MYSQL_STMT* stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+
+  if (stmt != NULL)
+  {
+    mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
+  }
+  else
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+
+  return stmt;
+}
+
 /* Required, but not sufficient condition */
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query)
 {
   return Query->QueryType != MADB_QUERY_CREATE_PROC && Query->QueryType != MADB_QUERY_CREATE_FUNC &&
          Query->QueryType != MADB_QUERY_CREATE_DEFINER;
 }
-
 
 /* Trims spaces and/or ';' at the end of query */
 int SqlRtrim(char *StmtStr, int Length)
@@ -75,7 +91,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   while (p < Stmt->Query.RefinedText + Stmt->Query.RefinedLength)
   {
-    Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : mysql_stmt_init(Stmt->Connection->mariadb);
+    Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : MADB_NewStmtHandle(Stmt);
     MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
 
     if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
@@ -88,11 +104,10 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
          prepare "multi-statement". */
       if (i == 0 && Stmt->Error.NativeError !=1295 /*ER_UNSUPPORTED_PS*/)
       {
-        Stmt->stmt= mysql_stmt_init(Stmt->Connection->mariadb);
+        Stmt->stmt= MADB_NewStmtHandle(Stmt);
         if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
         {
-          mysql_stmt_close(Stmt->stmt);
-          Stmt->stmt= NULL;
+          MADB_STMT_CLOSE_STMT(Stmt);
         }
         else
         {
@@ -153,15 +168,18 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   MADB_Stmt    *KeyStmt;
   
   Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
-  p+= my_snprintf(p, 1024, "SELECT * FROM ");
+  p+= _snprintf(p, 1024, "SELECT * FROM ");
   if (Database)
-    p+= my_snprintf(p, 1024 - strlen(p), "`%s`.", Database);
-  p+= my_snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
+  {
+    p+= _snprintf(p, 1024 - strlen(p), "`%s`.", Database);
+  }
+  p+= _snprintf(p, 1024 - strlen(p), "%s LIMIT 0", TableName);
   if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
-      Stmt->Methods->Prepare(Stmt, (SQLCHAR *)StmtStr, SQL_NTS, FALSE) == SQL_ERROR ||
-      Stmt->Methods->Execute(Stmt) == SQL_ERROR ||
-      Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
-      goto end;
+    Stmt->Methods->ExecDirect(Stmt, (SQLCHAR *)StmtStr, SQL_NTS) == SQL_ERROR ||
+    Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
+  {
+    goto end;
+  }
   KeyStmt= (MADB_Stmt *)Stmt;
   for (i=0; i < mysql_stmt_field_count(KeyStmt->stmt); i++)
     if (KeyStmt->stmt->fields[i].flags & KeyFlag)
@@ -207,7 +225,7 @@ my_bool MADB_get_single_row(MADB_Dbc *Connection,
 /* }}} */
 
 /* {{{ MADB_CheckODBCType */
-bool MADB_CheckODBCType(SQLSMALLINT Type)
+BOOL MADB_CheckODBCType(SQLSMALLINT Type)
 {
   switch(Type)
   {
@@ -251,6 +269,9 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
   case SQL_C_DATE:
   case SQL_C_TIME:
   case SQL_C_TIMESTAMP:
+  case SQL_TYPE_DATE:
+  case SQL_TYPE_TIME:
+  case SQL_TYPE_TIMESTAMP:
     return SQL_DATETIME;
   case SQL_C_INTERVAL_YEAR:
   case SQL_C_INTERVAL_YEAR_TO_MONTH:
@@ -356,9 +377,11 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
       continue;
     }
     if (dynstr_append(&DynStr, i > 0 ? ",'" : "'") ||
-        dynstr_append(&DynStr, fields[i].org_name) ||
-        dynstr_append(&DynStr, "'"))
+      dynstr_append(&DynStr, fields[i].org_name) ||
+      dynstr_append(&DynStr, "'"))
+    {
       goto error;
+    }
   }
   if (dynstr_append(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
     goto error;
@@ -465,7 +488,11 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, CHARSET_INFO *charset)
     return 7;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return Field->length;
+  {
+    /* The edge case like decimal(1,1)*/
+    size_t Precision= Field->length - test((Field->flags & UNSIGNED_FLAG) == 0) - test(Field->decimals != 0);
+    return Field->length + test(Precision == Field->decimals);
+  }
   case MYSQL_TYPE_DATE:
     return SQL_DATE_LEN; /* YYYY-MM-DD */
   case MYSQL_TYPE_TIME:
@@ -531,7 +558,11 @@ size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
     return 4;
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
-    return Field->length;
+  {
+    /* The edge case like decimal(1,1)*/
+    size_t Precision= Field->length - test((Field->flags & UNSIGNED_FLAG) == 0) - test(Field->decimals != 0);
+    return Field->length + test(Precision == Field->decimals);
+  }
   case MYSQL_TYPE_DATE:
     return sizeof(SQL_DATE_STRUCT);
   case MYSQL_TYPE_TIME:
@@ -551,9 +582,7 @@ size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    /*if (!(Field->flags & BINARY_FLAG))
-      Length *= MaxCharLen ? MaxCharLen : 1;*/
-    return Length;
+    return Length; /* Field->length is calculated using current charset */
   default:
     return SQL_NO_TOTAL;
   }
@@ -688,7 +717,7 @@ size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length)
     return sizeof(SQLINTEGER);
   case SQL_C_UBIGINT:
   case SQL_C_SBIGINT:
-    return sizeof(longlong);
+    return sizeof(long long);
   case SQL_C_DOUBLE:
     return sizeof(SQLDOUBLE);
   case SQL_C_FLOAT:
@@ -710,8 +739,8 @@ size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length)
 }
 /* }}} */
 
-/* {{{ MADB_GetTypeAndLength */
-int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length)
+/* {{{ MADB_GetMaDBTypeAndLength */
+int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length)
 {
   *Unsigned= 0;
   switch(SqlDataType)
@@ -741,7 +770,7 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
     return MYSQL_TYPE_LONG;
   case SQL_C_UBIGINT:
   case SQL_C_SBIGINT:
-    *Length= sizeof(longlong);
+    *Length= sizeof(long long);
     *Unsigned= (SqlDataType == SQL_C_UBIGINT);
     return MYSQL_TYPE_LONGLONG;
   case SQL_C_DOUBLE:
@@ -751,7 +780,7 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
     *Length =sizeof(SQLFLOAT);
     return MYSQL_TYPE_FLOAT;
   case SQL_C_NUMERIC:
-    *Length= sizeof(SQL_NUMERIC_STRUCT);
+    /**Length= sizeof(SQL_NUMERIC_STRUCT);*/
     return MYSQL_TYPE_DECIMAL;
   case SQL_C_TYPE_TIME:
   case SQL_C_TIME:
@@ -765,6 +794,10 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
   case SQL_C_TIMESTAMP:
     *Length= sizeof(SQL_TIMESTAMP_STRUCT);
     return MYSQL_TYPE_TIMESTAMP;
+  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+  case SQL_C_INTERVAL_HOUR_TO_SECOND:
+    *Length= sizeof(SQL_INTERVAL_STRUCT);
+    return MYSQL_TYPE_TIME;
   case SQL_C_CHAR:
     return MYSQL_TYPE_STRING;
   default:
@@ -773,32 +806,83 @@ int MADB_GetTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned lo
 }
 /* }}} */
 
-SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard, MADB_DescRecord *ArdRecord, int Type, unsigned long RowNumber)
+void MADB_CopyOdbcTsToMadbTime(SQL_TIMESTAMP_STRUCT *Src, MYSQL_TIME *Dst)
 {
-  void *DataPtr= GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
-  SQLLEN Dummy, *Length= ArdRecord->OctetLengthPtr ? ArdRecord->OctetLengthPtr : &Dummy,
-                *Ind= ArdRecord->IndicatorPtr ? ArdRecord->IndicatorPtr :&Dummy;
+  Dst->year=        Src->year;
+  Dst->month=       Src->month;
+  Dst->day=         Src->day;
+  Dst->hour=        Src->hour;
+  Dst->minute=      Src->minute;
+  Dst->second=      Src->second;
+  Dst->second_part= Src->fraction / 1000;
+}
 
-  switch(Type)
+void MADB_CopyMadbTimeToOdbcTs(MYSQL_TIME *Src, SQL_TIMESTAMP_STRUCT *Dst)
+{
+  Dst->year=        Src->year;
+  Dst->month=       Src->month;
+  Dst->day=         Src->day;
+  Dst->hour=        Src->hour;
+  Dst->minute=      Src->minute;
+  Dst->second=      Src->second;
+  Dst->fraction=    Src->second_part*1000;
+}
+
+SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER DataPtr, SQLLEN *Length, SQLLEN *Ind,
+                                 SQLSMALLINT CType, SQLSMALLINT SqlType)
+{
+  SQLLEN Dummy;
+
+  Length= Length == NULL ? &Dummy : Length;
+
+  switch(CType)
   {
     case SQL_C_TIMESTAMP:
     case SQL_C_TYPE_TIMESTAMP:
     {
       SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
-      ts->year= tm->year;
-      ts->month= tm->month;
-      ts->day= tm->day;
-      ts->hour= tm->hour;
-      ts->minute= tm->minute;
-      ts->second= tm->second;
-      ts->fraction= tm->second_part * 1000;
-      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
-
-      if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+      if (ts != NULL)
       {
-        *Ind= SQL_NULL_DATA;
-	    }
+        /* If time converted to timestamp - fraction is set to 0, date is set to current date */
+        if (SqlType == SQL_TIME || SqlType == SQL_TYPE_TIME)
+        {
+          time_t sec_time;
+          struct tm * cur_tm;
+
+          sec_time= time(NULL);
+          cur_tm= localtime(&sec_time);
+
+          ts->year= 1900 + cur_tm->tm_year;
+          ts->month= cur_tm->tm_mon + 1;
+          ts->day= cur_tm->tm_mday;
+          ts->fraction= 0;
+        }
+        else
+        {
+          ts->year= tm->year;
+          ts->month= tm->month;
+          ts->day= tm->day;
+          ts->fraction= tm->second_part * 1000;
+        }
+        ts->hour= tm->hour;
+        ts->minute= tm->minute;
+        ts->second= tm->second;
+
+        if (ts->year + ts->month + ts->day + ts->hour + ts->minute + ts->fraction + ts->second == 0)
+        {
+          if (Ind != NULL)
+          {
+            *Ind= SQL_NULL_DATA;
+          }
+          else
+          {
+            return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+          }
+          break;
+        }
+      }
+      *Length= sizeof(SQL_TIMESTAMP_STRUCT);
     }
     break;
     case SQL_C_TIME:
@@ -806,29 +890,55 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
     {
       SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
 
-      if (tm->hour > 23 || tm->minute > 59 || tm->second > 59)
+      if (ts != NULL)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+        /* tm(buffer from MYSQL_BIND) can be NULL. And that happens if ts(app's buffer) is null */
+        if (!VALID_TIME(tm))
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+        }
+
+        ts->hour= tm->hour;
+        ts->minute= tm->minute;
+        ts->second= tm->second;
+
+        *Length= sizeof(SQL_TIME_STRUCT);
+
+        if (tm->second_part)
+        {
+          return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+        }
       }
-      ts->hour= tm->hour;
+      /*ts->hour= tm->hour;
       ts->minute= tm->minute;
       ts->second= tm->second;
-      *Length= sizeof(SQL_TIME_STRUCT);
+      *Length= sizeof(SQL_TIME_STRUCT);*/
     }
     break;
     case SQL_C_DATE:
     case SQL_TYPE_DATE:
     {
       SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)DataPtr;
-      ts->year= tm->year;
-      ts->month= tm->month;
-      ts->day= tm->day;
-      *Length= sizeof(SQL_DATE_STRUCT);
 
-      if (ts->year + ts->month + ts->day == 0)
+      if (ts != NULL)
       {
-        *Ind= SQL_NULL_DATA;
+        ts->year= tm->year;
+        ts->month= tm->month;
+        ts->day= tm->day;
+        if (ts->year + ts->month + ts->day == 0)
+        {
+          if (Ind != NULL)
+          {
+            *Ind= SQL_NULL_DATA;
+          }
+          else
+          {
+            return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+          }
+          break;
+        }
       }
+      *Length= sizeof(SQL_DATE_STRUCT);
     }
     break;
   }
@@ -836,21 +946,34 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, MADB_Desc *Ard
   return SQL_SUCCESS;
 }
 
+
 void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN RowNumber, size_t PtrSize)
 {
   size_t BindOffset= 0;
 
-  if (!Ptr)
+  /* This is not quite clear - I'd imagine, that if BindOffset is set, then Ptr can be NULL.
+     Makes perfect sense in case of row-based binding - setting pointers to offset in structure, and BindOffset to the begin of array.
+     One of members would have 0 offset then. But specs are rather against that, and other drivers also don't support such interpretation */
+  if (Ptr == NULL)
+  {
     return NULL;
-
-  if (Desc->Header.BindOffsetPtr)
+  }
+  if (Desc->Header.BindOffsetPtr != NULL)
+  {
     BindOffset= (size_t)*Desc->Header.BindOffsetPtr;
+  }
+
   /* row wise binding */
   if (Desc->Header.BindType == SQL_BIND_BY_COLUMN ||
-      Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+    Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+  {
     BindOffset+= PtrSize * RowNumber;
+  }
   else
+  {
     BindOffset+= Desc->Header.BindType * RowNumber;
+  }
+
   return (char *)Ptr + BindOffset;
 }
 
@@ -1138,20 +1261,7 @@ size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
   *HexBuffer= 0;
   return (HexBuffer - Start);
 }
-/* }}} */
 
-unsigned long MADB_StmtDataTell(MADB_Stmt *Stmt)
-{
-  MYSQL_ROWS *ptr= Stmt->stmt->result.data;
-  unsigned long Offset= 0;
-
-  while (ptr && ptr!= Stmt->stmt->result_cursor)
-  {
-    Offset++;
-    ptr= ptr->next;
-  }
-  return ptr ? Offset : 0;
-}
 
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
 {
@@ -1199,7 +1309,6 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     Stmt->DataExecutionType= MADB_DAE_DELETE;
     break;
   case SQL_UPDATE:
-    Stmt->Methods->RefreshRowPtrs(Stmt);
     if (init_dynamic_string(&DynStmt, "UPDATE ", 1024, 1024) ||
         MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
         dynstr_append(&DynStmt, ".") ||
@@ -1227,28 +1336,42 @@ end:
 }
 
 
+int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber)
+{
+  int             i;
+  MADB_DescRecord *Record;
+
+  for (i= InitialParam > -1 ? InitialParam + 1 : 0; i < Desc->Header.Count; i++)
+  {
+    if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
+    {
+      if (Record->OctetLengthPtr)
+      {
+        /* Stmt->DaeRowNumber is 1 based */
+        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
+        if (PARAM_IS_DAE(OctetLength))
+        {
+          return i;
+        }
+      }
+    }
+  }
+
+  return MADB_NOPARAM;
+}
+
+
 BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
 {
   switch (ConciseType)
   {
-    case SQL_C_TINYINT:
-    case SQL_C_STINYINT:
-    case SQL_C_UTINYINT:
-    case SQL_C_SHORT:
-    case SQL_C_SSHORT:
-    case SQL_C_USHORT:
-    case SQL_C_LONG:
-    case SQL_C_SLONG:
-    case SQL_C_ULONG:
-    case SQL_C_UBIGINT:
-    case SQL_C_SBIGINT:
-    case SQL_BIGINT:
     case SQL_C_DOUBLE:
     case SQL_C_FLOAT:
     case SQL_DECIMAL:
       return TRUE;
   }
-  return FALSE;
+
+  return MADB_IsIntType(ConciseType);
 }
 
 
@@ -1280,11 +1403,14 @@ void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
+    MADB_DescFree(Stmt->Ird, TRUE);
     Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
   }
   else
   {
+    Stmt->AffectedRows= 0;
     MADB_StmtResetResultStructures(Stmt);
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
   }
 }
+

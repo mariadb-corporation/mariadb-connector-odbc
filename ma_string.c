@@ -138,7 +138,7 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
   MADB_DescRecord *Record;
 
   init_dynamic_string(&ColVals, "VALUES (", 32, 32);
-  if (dynstr_append(DynString, " (") )
+  if (dynstr_append(DynString, " ("))
   {
     goto dynerror;
     
@@ -149,7 +149,6 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
-    
     if (!Record->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Record) == TRUE)
     {
       continue;
@@ -209,16 +208,16 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *TableName, my_bool ParameterMarkers)
 {
   int UniqueCount=0, PrimaryCount= 0;
-  unsigned int i;
-  int Flag= 0;
+  int i, Flag= 0;
   char *Column= NULL;
   SQLLEN StrLength;
 
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt);i++)
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    if (Stmt->stmt->fields[i].flags & PRI_KEY_FLAG)
+    MYSQL_FIELD *field= mysql_fetch_field_direct(FetchMetadata(Stmt), i);
+    if (field->flags & PRI_KEY_FLAG)
       PrimaryCount++;
-    if (Stmt->stmt->fields[i].flags & UNIQUE_KEY_FLAG)
+    if (field->flags & UNIQUE_KEY_FLAG)
       UniqueCount++;
   }
   /* We need to use all columns, otherwise it will be difficult to map fields for Positioned Update */
@@ -236,12 +235,12 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
     int       FieldCount= 0;
 
     MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE*)&CountStmt);
-    my_snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
+    _snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
     CountStmt->Methods->ExecDirect(CountStmt, (SQLCHAR *)StmtStr, SQL_NTS);
     FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
     CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
 
-    if (FieldCount != mysql_stmt_field_count(Stmt->stmt))
+    if (FieldCount != MADB_STMT_COLUMN_COUNT(Stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
       return TRUE;
@@ -249,12 +248,13 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
   }
   if (dynstr_append(DynString, " WHERE 1"))
     goto memerror;
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt);i++)
+  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    if (Stmt->stmt->fields[i].flags & Flag || !Flag)
+    MYSQL_FIELD *field= mysql_fetch_field_direct(Stmt->metadata, i);
+    if (field->flags & Flag || !Flag)
     {
       if (dynstr_append(DynString, " AND ") ||
-          MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name))
+          MADB_DynStrAppendQuoted(DynString, field->org_name))
           goto memerror;
       if (ParameterMarkers)
       {
@@ -278,9 +278,11 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
           Column= MADB_CALLOC(StrLength + 1);
           Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL, TRUE);
           if (dynstr_append(DynString, "= '") ||
-                 dynstr_append(DynString, Column) ||
-                 dynstr_append(DynString, "'"))
-          goto memerror;
+            dynstr_append(DynString, Column) ||
+            dynstr_append(DynString, "'"))
+          {
+            goto memerror;
+          }
           MADB_FREE(Column);
           Column= NULL;
         }
@@ -290,12 +292,16 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString, char *Ta
   if (dynstr_append(DynString, " LIMIT 1"))
     goto memerror;
   MADB_FREE(Column);
+
   return FALSE;
+
 memerror:
   MADB_FREE(Column);
   MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+
   return TRUE;
 }
+
 
 my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, DYNAMIC_STRING *DynString)
 {
@@ -338,10 +344,10 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
     goto error;
   p= StmtStr;
   
-  p+= my_snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
+  p+= _snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (strlen(StmtStr) > Length - 100)
+    if (strlen(StmtStr) > Length - NAME_LEN - 4/* comma + 2 ticks + terminating NULL */)
     {
       Length+= 1024;
       if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
@@ -350,23 +356,26 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
         goto error;
       }
     }
-    p+= my_snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Stmt->stmt->fields[i].org_name);
+    p+= _snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Stmt->stmt->fields[i].org_name);
   }
-  p+= my_snprintf(p, Length - strlen(StmtStr), ") VALUES (");
+  p+= _snprintf(p, Length - strlen(StmtStr), ") VALUES (");
+
+  if (strlen(StmtStr) > Length - mysql_stmt_field_count(Stmt->stmt)*2 - 1)/* , and ? for each column  + (- 1 comma for 1st column + closing ')')
+                                                                            + terminating NULL */
+  {
+    Length= strlen(StmtStr) + mysql_stmt_field_count(Stmt->stmt)*2 + 1;
+    if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
+      goto error;
+    }
+  }
+
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (strlen(StmtStr) > Length - 100)
-    {
-      Length+= 1024;
-      if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
-        goto error;
-      }
-    }
-    p+= my_snprintf(p, Length - strlen(StmtStr), "%s?", (i==0) ? "" : ",");
+    p+= _snprintf(p, Length - strlen(StmtStr), "%s?", (i==0) ? "" : ",");
   }
-  p+= my_snprintf(p, Length - strlen(StmtStr), ")");
+  p+= _snprintf(p, Length - strlen(StmtStr), ")");
   return StmtStr;
 
 error:
@@ -535,20 +544,40 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
 }
 
 
-/* Length in SQLWCHAR units*/
-SQLINTEGER SqlwcsLen(SQLWCHAR *str)
+/* Length in SQLWCHAR units
+   @buff_length[in] - size of the str buffer or negative number  */
+SQLLEN SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length)
 {
   SQLINTEGER result= 0;
 
   if (str)
   {
-    while (*str)
+    /* If buff_length is negative - we will never hit 1st condition, otherwise we hit it after last character
+       of the buffer is processed */
+    while ((--buff_length) != -1 && *str)
     {
       ++result;
-      /* str+= (utf16->mb_charlen(*str))/sizeof(SQLWCHAR)); */
       ++str;
     }
   }
   return result;
 }
 
+/* Length of a string with respect to specified buffer size
+@buff_length[in] - size of the str buffer or negative number  */
+SQLLEN SafeStrlen(SQLCHAR *str, SQLLEN buff_length)
+{
+  SQLINTEGER result= 0;
+
+  if (str)
+  {
+    /* If buff_length is negative - we will never hit 1st condition, otherwise we hit it after last character
+    of the buffer is processed */
+    while ((--buff_length) != -1 && *str)
+    {
+      ++result;
+      ++str;
+    }
+  }
+  return result;
+}

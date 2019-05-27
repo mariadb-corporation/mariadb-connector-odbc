@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2019 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -43,6 +43,7 @@ SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
   {
    return SQL_NO_DATA_FOUND;
   }
+
   mysql_stmt_data_seek(Stmt->stmt, FetchOffset);
 
   return SQL_SUCCESS;  
@@ -53,11 +54,15 @@ SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
 SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 {
   SQLRETURN ret= SQL_SUCCESS;
+
   if (!Stmt->stmt)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_08S01, NULL, 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_08S01, NULL, 0);
   }
+
+  /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
+     Thus we free-ing bind structs on move to new result only */
+  MADB_FREE(Stmt->result);
 
   if (Stmt->MultiStmts)
   {
@@ -82,6 +87,14 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     {
       LOCK_MARIADB(Stmt->Connection);
       mysql_next_result(Stmt->Connection->mariadb);
+      if (mysql_field_count(Stmt->Connection->mariadb) != 0)
+      {
+        ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Can't process text result", 0);
+      }
+      else
+      {
+        Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
+      }
       UNLOCK_MARIADB(Stmt->Connection);
     }
     return ret;
@@ -103,18 +116,17 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
   
-  /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
-     Thus we free-ing bind structs on move to new result only */
-  MADB_FREE(Stmt->result);
   MADB_StmtResetResultStructures(Stmt);
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
+    MADB_DescFree(Stmt->Ird, TRUE);
     Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
   }
   else
   {
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
+    Stmt->AffectedRows= 0;
 
     if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
     {
@@ -135,3 +147,19 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   return ret;
 }
 /* }}} */
+
+/* {{{ MADB_RecordsToFetch */
+SQLULEN MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long long RowsInResultst)
+{
+  SQLLEN  Position= Cursor->Position >= 0 ? Cursor->Position : 0;
+  SQLULEN result= ArraySize;
+
+  Cursor->RowsetSize= ArraySize;
+
+  if (Position + ArraySize > RowsInResultst)
+    result= (SQLULEN)(RowsInResultst - Position);
+
+  return result >= 0 ? result : 1;
+}
+/* }}} */
+

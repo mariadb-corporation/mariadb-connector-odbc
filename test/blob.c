@@ -823,11 +823,8 @@ ODBC_TEST(t_bug_11746572)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 2, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
-#ifdef MYODBC_UNICODEDRIVER
-  is_num(SqlType, SQL_WLONGVARCHAR);
-#else
   is_num(SqlType, SQL_LONGVARCHAR);
-#endif
+
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 3, ColName, MAX_NAME_LEN, 
                         NULL, &SqlType, NULL, NULL, NULL));
@@ -865,7 +862,7 @@ ODBC_TEST(t_odbc_26)
   EXPECT_STMT(Stmt, SQLParamData(Stmt, &parameter), SQL_NEED_DATA);
   is_num(parameter, 1);
 
-  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 4));
+  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 2*sizeof(SQLWCHAR)));
   CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &parameter));
 
   /* We return "N" for SQL_NEED_LONG_DATA_LEN, and this not gonna change. Thus SQL_LEN_DATA_AT_EXEC(0) and with any other parameter should work */
@@ -876,7 +873,7 @@ ODBC_TEST(t_odbc_26)
   EXPECT_STMT(Stmt, SQLParamData(Stmt, &parameter), SQL_NEED_DATA);
   is_num(parameter, 1);
 
-  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 4));
+  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, 2*sizeof(SQLWCHAR)));
   CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &parameter));
 
   OK_SIMPLE_STMT(Stmt, "SELECT value FROM bug_odbc26");

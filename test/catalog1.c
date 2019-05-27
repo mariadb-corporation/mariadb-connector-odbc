@@ -76,155 +76,141 @@ ODBC_TEST(my_drop_table)
 
 ODBC_TEST(my_table_dbs)
 {
-    SQLCHAR    database[100];
-    SQLRETURN  rc;
-    SQLINTEGER nrows= 0 ;
-    SQLLEN lenOrNull, rowCount= 0;
-
-    diag("fix me");
-    return SKIP;
+  SQLCHAR    database[100];
+  SQLRETURN  rc;
+  SQLINTEGER nrows= 0 ;
+  SQLLEN lenOrNull, rowCount= 0;
     
-    OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test1");
-    OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test2");
-    OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test3");
-    OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test4");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test1");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test2");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test3");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS my_all_db_test4");
 
-    /* This call caused problems when database names returned as '%' */
-    CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR*)SQL_ALL_CATALOGS,1,NULL,0,NULL,0,NULL,0));
+  /* This call caused problems when database names returned as '%' */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR*)SQL_ALL_CATALOGS, 1, NULL, 0, NULL, 0, NULL, 0));
 
-    while (SQLFetch(Stmt) == SQL_SUCCESS)
-    {
-      ++nrows;
-      CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, database,
-                               sizeof(database), NULL));
-      /* the table catalog in the results must not be '%' */
-      FAIL_IF(database[0] == '%', "table catalog can't be '%'");
-    }
-    /* we should have got rows... */
-    FAIL_IF(nrows=0, "nrows should be > 0");
+  while (SQLFetch(Stmt) == SQL_SUCCESS)
+  {
+    ++nrows;
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, database,
+                              sizeof(database), NULL));
+    /* the table catalog in the results must not be '%' */
+    FAIL_IF(database[0] == '%', "table catalog can't be '%'");
+  }
+  /* we should have got rows... */
+  FAIL_IF(nrows == 0, "nrows should be > 0");
 
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS,1,"",0,"",0,NULL,0));
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS, 1, "", 0, "", 0, NULL, 0));
 
-    /* Added calls to SQLRowCount just to have tests of it with SQLTAbles. */
-    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    nrows = my_print_non_format_result(Stmt);
+  /* Added calls to SQLRowCount just to have tests of it with SQLTables. */
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+  nrows = my_print_non_format_result(Stmt);
 
-    is_num(rowCount, nrows);
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  is_num(rowCount, nrows);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS,SQL_NTS,"",0,"",0,
-                   NULL,0);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS, SQL_NTS, "", 0, "", 0,
+                  NULL, 0));
 
-    is_num(nrows, my_print_non_format_result(Stmt));
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  is_num(nrows, my_print_non_format_result(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLTables(Stmt,(SQLCHAR *)my_schema,4,NULL,0,NULL,0,NULL,0);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)my_schema, (SQLSMALLINT)strlen(my_schema), NULL, 0, NULL, 0, NULL, 0));
 
-    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    is_num(rowCount, my_print_non_format_result(Stmt));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+  is_num(rowCount, my_print_non_format_result(Stmt));
 
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    /* test fails on Win2003 x86 w/DM if len=5, SQL_NTS is used instead */
-    rc = SQLTables(Stmt,(SQLCHAR *)"mysql",SQL_NTS,NULL,0,NULL,0,NULL,0);
-    CHECK_STMT_RC(Stmt,rc);
+  /* test fails on Win2003 x86 w/DM if len=5, SQL_NTS is used instead */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)"mysql", SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
 
-    FAIL_IF(my_print_non_format_result(Stmt) == 0, "0");
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  FAIL_IF(my_print_non_format_result(Stmt) == 0, "0 tables returned for mysql");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLTables(Stmt,(SQLCHAR *)"%",1,"",0,"",0,NULL,0);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR *)"%", 1, "", 0, "", 0, NULL, 0));
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    memset(database,0,100);
-    rc = SQLGetData(Stmt,1,SQL_C_CHAR,database,100,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("catalog: %s", database);
+  memset(database,0,sizeof(database));
+  rc = SQLGetData(Stmt,1,SQL_C_CHAR,database, (SQLLEN)sizeof(database),NULL);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("catalog: %s", database);
 
-    memset(database,0,100);
-    rc = SQLGetData(Stmt,2,SQL_C_CHAR,database,100,&lenOrNull);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("schema: %s", database);
-    IS(lenOrNull == SQL_NULL_DATA);
+  memset(database,0,sizeof(database));
+  rc = SQLGetData(Stmt,2,SQL_C_CHAR,database, (SQLLEN)sizeof(database),&lenOrNull);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("schema: %s", database);
+  IS(lenOrNull == SQL_NULL_DATA);
 
-    memset(database,0,100);
-    rc = SQLGetData(Stmt,3,SQL_C_CHAR,database,100,&lenOrNull);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("table: %s", database);
-;
+  memset(database,0,sizeof(database));
+  rc = SQLGetData(Stmt,3,SQL_C_CHAR,database, (SQLLEN)sizeof(database),&lenOrNull);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("table: %s", database);
 
-    memset(database,0,100);
-    rc = SQLGetData(Stmt,4,SQL_C_CHAR,database,100,&lenOrNull);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("type: %s", database);
+  memset(database,0,sizeof(database));
+  rc = SQLGetData(Stmt,4,SQL_C_CHAR,database, (SQLLEN)sizeof(database),&lenOrNull);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("type: %s", database);
 
+  memset(database,0,sizeof(database));
+  rc = SQLGetData(Stmt,5,SQL_C_CHAR, database, (SQLLEN)sizeof(database),&lenOrNull);
+  CHECK_STMT_RC(Stmt,rc);
+  diag("database remark: %s", database);
 
-    memset(database,0,100);
-    rc = SQLGetData(Stmt,5,SQL_C_CHAR, database,100,&lenOrNull);
-    CHECK_STMT_RC(Stmt,rc);
-    diag("database remark: %s", database);
+  SQLFreeStmt(Stmt,SQL_UNBIND);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test1");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test2");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test3");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test4");
 
-    OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test1");
-    OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test2");
-    OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test3");
-    OK_SIMPLE_STMT(Stmt, "CREATE DATABASE my_all_db_test4");
+  rc = SQLTables(Stmt, (SQLCHAR *)SQL_ALL_CATALOGS, 1, "", 0, "", 0, "", 0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTables(Stmt, (SQLCHAR *)SQL_ALL_CATALOGS, 1, "", 0, "", 0, "", 0);
-    CHECK_STMT_RC(Stmt,rc);
+  nrows += 4;
+  is_num(nrows, my_print_non_format_result(Stmt));
+  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    nrows += 4;
-    is_num(nrows, my_print_non_format_result(Stmt));
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS, SQL_NTS,
+                  "", 0, "", 0, "", 0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS, SQL_NTS,
-                   "", 0, "", 0, "", 0);
-    CHECK_STMT_RC(Stmt,rc);
+  is_num(my_print_non_format_result(Stmt), nrows);
+  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    is_num(my_print_non_format_result(Stmt), nrows);
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLTables(Stmt, (SQLCHAR *)"my_all_db_test", SQL_NTS,
+                  "", 0, "", 0, "", 0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLTables(Stmt, (SQLCHAR *)"my_all_db_test", SQL_NTS,
-                   "", 0, "", 0, "", 0);
-    CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+  is_num(rowCount, 0);
 
-    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    is_num(rowCount, 0);
+  is_num(my_print_non_format_result(Stmt), 0);
+  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    is_num(my_print_non_format_result(Stmt), 0);
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLTables(Stmt, (SQLCHAR *)"my_all_db_test%", SQL_NTS,
+                  "", 0, "", 0, NULL, 0);
+  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+  is_num(my_print_non_format_result(Stmt), 0); /* MySQL's driver returns 4 rows for matching DB's here.
+                                                  But I don't think it's in accordance with specs. And MSSQL driver
+                                                  does not do that */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLTables(Stmt, (SQLCHAR *)"my_all_db_test%", SQL_NTS,
-                   "", 0, "", 0, NULL, 0);
-    CHECK_STMT_RC(Stmt,rc);
-    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-    is_num(my_print_non_format_result(Stmt), 4);
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  /* unknown table should be empty */
+  rc = SQLTables(Stmt, (SQLCHAR *)"my_all_db_test%", SQL_NTS,
+                  NULL, 0, (SQLCHAR *)"xyz", SQL_NTS, NULL, 0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    /* unknown table should be empty */
-    rc = SQLTables(Stmt, (SQLCHAR *)"my_all_db_test%", SQL_NTS,
-                   NULL, 0, (SQLCHAR *)"xyz", SQL_NTS, NULL, 0);
-    CHECK_STMT_RC(Stmt,rc);
-
-    is_num(my_print_non_format_result(Stmt), 0);
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  is_num(my_print_non_format_result(Stmt), 0);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE my_all_db_test1");
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE my_all_db_test2");
@@ -572,21 +558,20 @@ typedef struct t_table_bug
 } t_describe_col;
 
 
-t_describe_col t_tables_bug_data[5] =
+t_describe_col t_tables_bug_data[10] =
 {
-#ifdef MYODBC_UNICODEDRIVER
+  /* For "Unicode" connection */
   {"TABLE_CAT",   9, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_SCHEM",11, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NULLABLE},
   {"TABLE_NAME", 10, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_TYPE", 10, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
-  {"REMARKS",     7, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS}
-#else
+  {"REMARKS",     7, SQL_WVARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
+  /* For "ANSI" connection */
   {"TABLE_CAT",   9, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_SCHEM",11, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NULLABLE},
   {"TABLE_NAME", 10, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"TABLE_TYPE", 10, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS},
   {"REMARKS",     7, SQL_VARCHAR, MYSQL_NAME_LEN, 0, SQL_NO_NULLS}
-#endif
 };
 
 
@@ -595,9 +580,7 @@ ODBC_TEST(t_tables_bug)
   SQLSMALLINT i, ColumnCount, pcbColName, pfSqlType, pibScale, pfNullable;
   SQLULEN     pcbColDef;
   SQLCHAR     szColName[MAX_NAME_LEN];
-
-  diag("MariaDB ODBC Driver doesn't set column types for NULL columns");
-  return SKIP;
+  const int   RefArrOffset= 4; /* 4 for "ANSI" connection, which is default atm, and -1 for "Unicode" */
 
   CHECK_STMT_RC(Stmt,  SQLTables(Stmt, NULL, 0, NULL, 0, NULL, 0,
                             (SQLCHAR *)"TABLE", SQL_NTS));
@@ -619,13 +602,13 @@ ODBC_TEST(t_tables_bug)
     fprintf(stdout, "#  DecimalDigits : %d\n", pibScale);
     fprintf(stdout, "#  Nullable      : %d\n", pfNullable);
 
-    IS_STR(t_tables_bug_data[i-1].szColName, szColName, pcbColName);
-    is_num(t_tables_bug_data[i-1].pcbColName, pcbColName);
-    is_num(t_tables_bug_data[i-1].pfSqlType, pfSqlType);
+    IS_STR(t_tables_bug_data[i + RefArrOffset].szColName, szColName, pcbColName);
+    is_num(t_tables_bug_data[i + RefArrOffset].pcbColName, pcbColName);
+    is_num(t_tables_bug_data[i + RefArrOffset].pfSqlType, pfSqlType);
     /* This depends on NAME_LEN in mysql_com.h */
 
-    is_num(t_tables_bug_data[i-1].pibScale, pibScale);
-    is_num(t_tables_bug_data[i-1].pfNullable, pfNullable);
+    is_num(t_tables_bug_data[i + RefArrOffset].pibScale, pibScale);
+    is_num(t_tables_bug_data[i + RefArrOffset].pfNullable, pfNullable);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -760,28 +743,49 @@ ODBC_TEST(tmysql_showkeys)
 
 ODBC_TEST(t_sqltables)
 {
-  SQLINTEGER  rows;
-  SQLLEN      rowCount;
+  SQLLEN      rowCount, LenInd;
   SQLHDBC     hdbc1;
   SQLHSTMT    Stmt1;
+  int         AllTablesCount= 0, Rows;
+  SQLCHAR     Buffer[64];
 
-  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "DROP SCHEMA IF EXISTS mariadbodbc_sqltables", SQL_NTS))
-   || !SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE SCHEMA mariadbodbc_sqltables", SQL_NTS)))
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "DROP SCHEMA IF EXISTS mariadbodbc_sqltables", SQL_NTS)))
   {
+    odbc_print_error(SQL_HANDLE_STMT, Stmt);
+  }
+
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE SCHEMA mariadbodbc_sqltables", SQL_NTS)))
+  {
+    odbc_print_error(SQL_HANDLE_STMT, Stmt);
     skip("Test user has no rights to drop/create databases");
   }
 
   IS(AllocEnvConn(&Env, &hdbc1));
-  Stmt1= DoConnect(hdbc1, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
+  Stmt1= DoConnect(hdbc1, FALSE, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "");
 
   OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t1 (a int)");
-  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t2 LIKE t1");
-  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t3 LIKE t1");
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t2 (a int)");
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t3 (a int)");
 
   CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, NULL, 0, NULL, 0, NULL, 0));
 
-  myrowcount(Stmt1);
+  AllTablesCount= myrowcount(Stmt1);
+  FAIL_IF(AllTablesCount <= 3, "There should be more than 3 tables"); /* 3 tables in current db */
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
+
+  Rows= 0;
+  while (SQLFetch(Stmt1) != SQL_NO_DATA_FOUND)
+  {
+    ++Rows;
+    CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 3, SQL_C_CHAR, Buffer, sizeof(Buffer), &LenInd));
+    FAIL_IF(LenInd == SQL_NULL_DATA, "Table Name should not be NULL")
+  }
+  /* % catalog should give the same result as NULL. May fail if any table added/dropped between calls */
+  is_num(Rows, AllTablesCount);
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
@@ -794,38 +798,29 @@ ODBC_TEST(t_sqltables)
 
   CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, NULL, 0, NULL, 0,
                                (SQLCHAR *)"TABLE", SQL_NTS));
+  Rows= my_print_non_format_result_ex(Stmt1, FALSE);
   CHECK_STMT_RC(Stmt1, SQLRowCount(Stmt1, &rowCount));
 
-  is_num(myrowcount(Stmt1), rowCount);
-
+  is_num(Rows, rowCount);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt1,SQLTables(Stmt1, (SQLCHAR *)"TEST", SQL_NTS,
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"TEST", SQL_NTS,
                  (SQLCHAR *)"TEST", SQL_NTS, NULL, 0,
                  (SQLCHAR *)"TABLE", SQL_NTS));
 
-  myrowcount(Stmt1);
-
-  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
-
-  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
-
-  myrowcount(Stmt1);
-
-  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  is_num(my_print_non_format_result(Stmt1), 0);
 
   CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0));
 
-  myrowcount(Stmt1);
+  diag("all schemas %d", myrowcount(Stmt1));
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
+  /* List of table types - table, view, system view */
   CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, "", 0, "", 0, "", 0, (SQLCHAR *)"%", SQL_NTS));
 
-  rows= myrowcount(Stmt1);
-  is_num(rows, 3);
-
-  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  is_num(my_print_non_format_result(Stmt1), 3);
+  /* my_print_non_format_result closes cursor by default */
 
   OK_SIMPLE_STMT(Stmt, "DROP SCHEMA mariadbodbc_sqltables");
 
@@ -867,14 +862,14 @@ ODBC_TEST(my_information_schema)
                                  SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(Connection1, SQLAllocStmt(Connection1, &Stmt1));
 
-  rc = SQLTables(Stmt1, "istest__", SQL_NTS, "", 0, "istab%", SQL_NTS, NULL, 0);
+  rc = SQLTables(Stmt1, "istest__", SQL_NTS, NULL, 0, "istab%", SQL_NTS, NULL, 0);
   CHECK_STMT_RC(Stmt1,rc);
 
   /* all tables from all databases should be displayed */
   is_num(my_print_non_format_result(Stmt1), 3);
   rc = SQLFreeStmt(Stmt1, SQL_CLOSE);
 
-  rc = SQLTables(Stmt1, NULL, 0, NULL, 0, "istab%", SQL_NTS, NULL, 0);
+  rc = SQLTables(Stmt1, "istest\\_\\_", SQL_NTS, NULL, 0, "istab%", SQL_NTS, NULL, 0);
   CHECK_STMT_RC(Stmt1,rc);
 
   is_num(my_print_non_format_result(Stmt1), 1);
@@ -1004,7 +999,7 @@ ODBC_TEST(empty_set)
   /* SQLTables(): empty catalog with existing table */
   OK_SIMPLE_STMT(Stmt, "drop table if exists t_sqltables_empty");
   OK_SIMPLE_STMT(Stmt, "create table t_sqltables_empty (x int)");
-  CHECK_STMT_RC(Stmt, SQLTables(Stmt, "", SQL_NTS, NULL, 0,
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, NULL, 0,
 			   (SQLCHAR *) "t_sqltables_empty", SQL_NTS,
 			   NULL, SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &columns));

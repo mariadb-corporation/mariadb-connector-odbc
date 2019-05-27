@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2015 MariaDB Corporation AB
+   Copyright (C) 2014,2016 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,7 +26,7 @@
 #include <ma_odbc.h>
 #include <stdarg.h>
 
-extern CHARSET_INFO  *utf16;
+extern CHARSET_INFO *utf16;
 extern Client_Charset utf8;
 
 char LogFile[256];
@@ -119,7 +119,7 @@ const char* GetDefaultLogDir()
 
 
 /* CharLen < 0 - treat as NTS */
-SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)
+SQLINTEGER SqlwcsOctetLen(const SQLWCHAR *str, SQLINTEGER *CharLen)
 {
   SQLINTEGER result= 0, inChars= *CharLen;
 
@@ -141,7 +141,7 @@ SQLINTEGER SqlwcsOctetLen(SQLWCHAR *str, SQLINTEGER *CharLen)
 }
 
 
-SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
+SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 {
   SQLWCHAR *WStr= NULL;
   size_t Length= 0;
@@ -173,7 +173,7 @@ SQLWCHAR *MADB_ConvertToWchar(char *Ptr, SQLLEN PtrLength, Client_Charset* cc)
 
 
 /* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
+char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
                             BOOL *Error)
 {
   char *AscStr;
@@ -384,3 +384,10 @@ int GetSourceAnsiCs(Client_Charset *cc)
 
   return 0;
 }
+
+/* {{{ MADB_DSN_SetDefaults() */
+BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
+{
+  return Dsn->Socket || Dsn->ServerName && Dsn->Port > 0 && Dsn->IsTcpIp;
+}
+

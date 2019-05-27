@@ -47,27 +47,29 @@ void ma_debug_print_error(MADB_Error *err);
 #ifdef WIN32
 #define MDBUG_C_ENTER(C,A)\
   if (MDBUG_C_IS_ON(C))\
-  {\
+    {\
     SYSTEMTIME st;\
     GetSystemTime(&st);\
     ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
-  }
+    }
 #else
 #define MDBUG_C_ENTER(C,A)\
   if ((C) && (((MADB_Dbc*)(C))->Options & MA_DEBUG_FLAG))\
-  {\
+    {\
     time_t t = time(NULL);\
     struct tm st= *gmtime(&t);\
     ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, st.tm_hour, st.tm_min, st.tm_sec,  A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
-  }
+    }
 #endif
 
 #define MDBUG_C_RETURN(C,A,E)\
   if (MDBUG_C_IS_ON(C))\
   {\
-    if ((A) && (E)->ReturnValue)\
-      ma_debug_print_error(E);\
-    ma_debug_print(0, "<<< --- end of function, returning %d ---", (A));\
+    SQLRETURN _ret= (A);\
+    if (_ret && (E)->ReturnValue)\
+      ma_debug_print_error(E); \
+    ma_debug_print(0, "<<< --- end of function, returning %d ---", _ret); \
+    return _ret;\
   }\
   return (A);
 

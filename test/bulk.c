@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2018 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -516,17 +516,60 @@ ODBC_TEST(t_odbc90)
 }
 #undef MAODBC_ROWS
 
+/* This is test of DELETE statemten with param array. The primary goal is to test MariaDB bulk operation,
+   thus putting it into "bulk". ODBC-117 is corresponding bug report */
+ODBC_TEST(t_bulk_delete)
+{
+  SQLINTEGER a[3]= {1, 3, 2};
+  SQLCHAR val[7], insert_val[][7]= {"first", "third", "second"};
+  SQLLEN val_indicator[]= {SQL_NTS, SQL_NTS, SQL_NTS}, id_ind[]= {4, 4, 4};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_delete");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_delete (id INT unsigned not null primary key, val VARCHAR(20) not null)");
+  /*OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bulk_delete VALUES(1, 'first'), (2, 'second'), (3, 'third')");*/
+         
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+    (SQLPOINTER)3, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, id_ind));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, insert_val, 7, val_indicator));
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bulk_delete VALUES(?, ?)");
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+                                (SQLPOINTER)2, 0));
+  OK_SIMPLE_STMT(Stmt, "DELETE FROM t_bulk_delete WHERE id=?");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_bulk_delete");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 2);
+  IS_STR(my_fetch_str(Stmt, val, 2), "second", 7);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+                                (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_delete");
+
+  return OK;
+}
+
 #define MAODBC_ROWS 3
 ODBC_TEST(t_odbc149)
 {
   SQL_TIMESTAMP_STRUCT  Val[MAODBC_ROWS];
-  SQLINTEGER id[]={ 2, 1, 3 }, idBuf, row= 0;
+  SQLINTEGER id[]= {2, 1, 3}, idBuf, row= 0;
   /* Garbage in Len */
-  SQLLEN tsLen[]={ 0x01800000, SQL_NULL_DATA, 0x01800000 }, bLen[]={ 5, 3, 6 }, bBufLen;
-  SQLCHAR c[][8]={ "str1", "abcd", "xxxxxxy" }, cBuf[16];
-  SQLCHAR b[][8]={ "\x1f\x1f\x1f\x00\x1f", "\x00\x44\x88", "\xcd\xcd\xcd\xcd\xcd\xcd" }, bBuf[256];
-  SQLLEN  cInd[]={ SQL_NTS, SQL_NTS, SQL_NTS }, wLen;
-  SQLWCHAR w[][8]={ { 'x', 'x', 'x', 0 },{ 'y', 'y', 0 },{ 'z', 'z', 'z', 'a', 0 } }, wBuf[16];
+  SQLLEN tsLen[]= {0x01800000, SQL_NULL_DATA, 0x01800000}, bLen[]= {5, 3, 6}, bBufLen;
+  SQLCHAR c[][8]= {"str1", "abcd", "xxxxxxy"}, cBuf[16];
+  SQLCHAR b[][8]= {"\x1f\x1f\x1f\x00\x1f", "\x00\x44\x88", "\xcd\xcd\xcd\xcd\xcd\xcd"}, bBuf[256];
+  SQLLEN  cInd[]= {SQL_NTS, SQL_NTS, SQL_NTS}, wLen; 
+  SQLWCHAR w[][8]= {{'x', 'x', 'x', 0}, {'y', 'y', 0}, {'z', 'z', 'z', 'a', 0}}, wBuf[16];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc149");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc149 (id int not null, ts timestamp, c varchar(16), b tinyblob, w varchar(16))");
@@ -554,12 +597,12 @@ ODBC_TEST(t_odbc149)
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   OK_SIMPLE_STMT(Stmt, "SELECT id, ts, c, b, w FROM odbc149")
-    CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &idBuf, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &idBuf, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_TIMESTAMP, &Val[1], 0, tsLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, cBuf, sizeof(cBuf), cInd));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_BINARY, bBuf, sizeof(bBuf), &bBufLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_WCHAR, wBuf, sizeof(wBuf), &wLen));
-
+ 
   for (row= 0; row < MAODBC_ROWS; ++row)
   {
     memset(&Val[1], 0, sizeof(SQL_TIMESTAMP_STRUCT));
@@ -604,7 +647,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bulk_insert_indicator, "t_bulk_insert_indicator"},
   {t_bulk_insert_rows, "t_bulk_insert_rows"},
   {t_odbc90, "odbc90_insert_with_ts_col"},
-  {t_odbc149, "odbc149_ts_col_insert"},
+  {t_bulk_delete, "t_bulk_delete"},
+  {t_odbc149, "odbc149_ts_col_insert" },
   {NULL, NULL}
 };
 

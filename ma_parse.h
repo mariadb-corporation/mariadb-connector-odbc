@@ -55,7 +55,7 @@ typedef struct {
 
   DYNAMIC_ARRAY Tokens;
   DYNAMIC_ARRAY SubQuery; /* List of queries or batches of queries, that can be executed together at once */
-  unsigned int  MultiStmtCount;
+  /*unsigned int  MultiStmtCount;*/
   /* So far only falg whether we have any parameters */
   my_bool       HasParameters;
   /* This is more for multistatements for optimization - if none of queries returns result,
