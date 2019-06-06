@@ -31,13 +31,17 @@ char LogFile[256];
 
 char *strndup(const char *s, size_t n)
 {
-  size_t len= MIN(strlen(s), n);
-  char  *res= (char*)malloc(len + 1);
+  char *res= NULL;
 
-  if (res != NULL)
+  if (s != NULL)
   {
-    memcpy(res, s, len);
-    res[len]= '\0';
+    size_t len= MIN(strlen(s), n);
+    res= (char*)malloc(len + 1);
+    if (res != NULL)
+    {
+      memcpy(res, s, len);
+      res[len]= '\0';
+    }
   }
 
   return res;

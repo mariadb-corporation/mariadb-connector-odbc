@@ -59,6 +59,14 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ma_error.c
                      ma_common.c)
 
+MACRO(ADD_OPTION _name _text _default)
+  IF(NOT DEFINED ${_name})
+    OPTION(${OPT}${_name} "${_text}" "${_default}")
+  ELSE()
+    OPTION(${OPT}${_name} "${_text}" "${${_name}}")
+  ENDIF()
+ENDMACRO()
+
 # This has to be before C/C's cmake run, or it will build with /MD                  
 IF(WIN32)
   IF (MSVC)

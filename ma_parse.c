@@ -76,7 +76,7 @@ int MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLe
 {
   MADB_DeleteQuery(&Stmt->Query);
 
-  if (OriginalQuery != NULL && OriginalLength > 0)
+  if (OriginalQuery != NULL)
   {
     /* We can have here not NULL-terminated string as a source, thus we need to allocate, copy meaningful characters and
     add NULL. strndup does that for us. StmtSopy may change, p points to the allocated memory */
@@ -350,7 +350,7 @@ const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt)
 /* Function assumes that query string has been trimmed */
 char* FixIsoFormat(char * StmtString, size_t *Length)
 {
-  if (StmtString[0] == '{' && StmtString[*Length -1] == '}')
+  if (*Length > 0 && StmtString[0] == '{' && StmtString[*Length -1] == '}')
   {
     char *Res;
 

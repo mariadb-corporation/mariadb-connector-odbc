@@ -1559,6 +1559,15 @@ ODBC_TEST(t_odbc203)
   return OK;
 }
 
+/* ODBC-253 - a try to directly execute empty string, crashes the connector */
+ODBC_TEST(t_odbc253)
+{
+  EXPECT_STMT(wStmt, SQLExecDirectW(wStmt, WW(""), SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(wStmt, "42000");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1590,6 +1599,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc19,          "test_issue_odbc19",  NORMAL},
   {t_odbc72,          "odbc72_surrogate_pairs",  NORMAL},
   {t_odbc203,         "t_odbc203",          NORMAL},
+  {t_odbc253,         "t_odbc253_empty_str_crash", NORMAL},
   {NULL, NULL}
 };
 

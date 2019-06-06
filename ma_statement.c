@@ -18,6 +18,8 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
+#define MADB_MIN_QUERY_LEN 5
+
 struct st_ma_stmt_methods MADB_StmtMethods; /* declared at the end of file */
 
 /* {{{ MADB_StmtInit */
@@ -526,6 +528,11 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   /* After this point we can't have SQL_NTS*/
   ADJUST_LENGTH(StatementText, TextLength);
 
+  /* There is no need to send anything to the server to find out there is syntax error here */
+  if (TextLength < MADB_MIN_QUERY_LEN)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_42000, NULL, 0);
+  }
   MADB_ResetParser(Stmt, StatementText, TextLength);
   MADB_ParseQuery(&Stmt->Query);
 
