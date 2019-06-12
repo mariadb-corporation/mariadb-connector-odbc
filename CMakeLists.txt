@@ -88,6 +88,17 @@ IF(WIN32)
     ENDFOREACH()
   ENDIF()
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+ELSE()
+  # This has been done before C/C cmake scripts are included
+  IF(NOT DEFINED INSTALL_LIB_SUFFIX)
+    SET(INSTALL_LIB_SUFFIX "lib" CACHE STRING "Directory, under which to install libraries, e.g. lib or lib64")
+    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")
+      SET(INSTALL_LIB_SUFFIX "lib64")
+    ENDIF()
+  ENDIF()
+  MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIB_SUFFIX}")
+  SET(INSTALL_PLUGINDIR "${INSTALL_LIB_SUFFIX}/mariadb/plugin")
+  MESSAGE(STATUS "Autentication Plugins installation dir: ${INSTALL_PLUGINDIR}")
 ENDIF()
 
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
@@ -96,6 +107,7 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
     SET(GIT_BUILD_SRCPKG FALSE)
     SET(ODBC_GIT_BUILD_SRCPKG TRUE)
   ENDIF()
+  MESSAGE(STATUS "Running C/C cmake scripts")
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 ELSE()
   SET(USE_SYSTEM_INSTALLED_LIB TRUE)
@@ -180,7 +192,6 @@ ENDIF()
 IF(NOT WIN32)
   # Looking for DM(UnixODBC) files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
-  MESSAGE(STATUS "DM_FOUND: ${DM_FOUND}, ODBC_LIB_DIR: ${ODBC_LIB_DIR}, ODBC_INCLUDE_DIR: ${ODBC_INCLUDE_DIR}")
   
   IF(APPLE)
     SET(ODBC_LIB_DIR "/usr/local/Cellar/libiodbc/3.52.12/lib/")
@@ -210,8 +221,8 @@ ENDIF()
 SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
 
 SET(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-#SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
-SET(CPACK_COMPONENTS_ALL ODBCLibs Documentation)
+SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
+#SET(CPACK_COMPONENTS_ALL ODBCLibs Documentation)
 SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
 
 # TODO: Make it optional
@@ -329,13 +340,6 @@ ELSE()
     MESSAGE(STATUS "Configuring to generate PKG package")
     ADD_SUBDIRECTORY(osxinstall)
   ENDIF()
-  IF(NOT DEFINED INSTALL_LIB_SUFFIX)
-    SET(INSTALL_LIB_SUFFIX "lib")
-    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")
-      SET(INSTALL_LIB_SUFFIX "lib")
-    ENDIF()
-  ENDIF()
-
   INSTALL(TARGETS
           maodbc
           LIBRARY DESTINATION ./${INSTALL_LIB_SUFFIX}
