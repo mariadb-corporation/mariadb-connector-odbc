@@ -168,12 +168,12 @@ char *test_status[]= {"not ok", "ok", "skip"};
 /* Test for the known problem waiting for a fix. */
 #define TO_FIX        3
 
-const char comments[][2][60]= { {"\t#TODO: not ok - test is known to fail, unknown reason",
+const char comments[][2][64]= { {"\t#TODO: not ok - test is known to fail, unknown reason",
                                  "\t#Yay, seems like this problem has been magically fixed"},
                                 {"",""},
                                 {"\t#TODO: Test is marked as requiring fix",
                                  "\t#TODO: Test is marked as requiring fix"},
-                                {"\t#TODO: Test is for known problem that is waiting for fix",
+                                {"\t#TODO: Test is for the known problem that is waiting for a fix",
                                  "\t#The problem seems to be fixed. Mark test as normal"}
                               };
 #define MAX_ROW_DATA_LEN 1000
@@ -566,7 +566,7 @@ int ma_print_result_getdata(SQLHSTMT Stmt)
 
 
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen(stmtstr))))\
+if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen((const char*)stmtstr))))\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -1392,5 +1392,10 @@ const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
     sprintf(Buffer, "%hu", TypeId);
   }
   return Buffer;
+}
+
+BOOL WindowsDM(HDBC hdbc)
+{
+  return using_dm(hdbc) && UnixOdbc() == FALSE && iOdbc() == FALSE;
 }
 #endif      /* #ifndef _tap_h_ */

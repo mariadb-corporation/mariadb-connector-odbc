@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2015 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -125,7 +125,7 @@ ODBC_TEST(t_decimal)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
   
   fprintf(stdout,"decimal(SQL_C_DOUBLE) : %s\n",str);
-  FAIL_IF(strcmp(str, "189.456700") != 0, "expected str=189.456700");
+  FAIL_IF(strcmp((const char*)str, "189.456700") != 0, "expected str=189.456700");
 
   rc = SQLFetch(Stmt);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -134,7 +134,7 @@ ODBC_TEST(t_decimal)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
     
   fprintf(stdout,"decimal(SQL_C_INTEGER): %s\n",str);
-  FAIL_IF(strcmp(str,"189.000000")!=0,"expected 189.000000");
+  FAIL_IF(strcmp((const char*)str,"189.000000")!=0,"expected 189.000000");
 
   rc = SQLFetch(Stmt);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -142,26 +142,26 @@ ODBC_TEST(t_decimal)
   rc = SQLGetData(Stmt,1,SQL_C_CHAR,&str,19,NULL);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
   fprintf(stdout,"decimal(SQL_C_CHAR)   : %s\n",str);
-  FAIL_IF(strcmp(str,"189.456700")!=0,"expected 189.456700");
+  FAIL_IF(strcmp((const char*)str,"189.456700")!=0,"expected 189.456700");
 
-    rc = SQLFetch(Stmt);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+  rc = SQLFetch(Stmt);
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    rc = SQLGetData(Stmt,1,SQL_C_CHAR,&str,19,NULL);
-    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-    fprintf(stdout,"decimal(SQL_C_LONG)   : %s\n",str);
-    FAIL_IF(strcmp(str, "-23.000000") != 0, "expected -23.00000");
+  rc = SQLGetData(Stmt,1,SQL_C_CHAR,&str,19,NULL);
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+  fprintf(stdout,"decimal(SQL_C_LONG)   : %s\n",str);
+  FAIL_IF(strcmp((const char*)str, "-23.000000") != 0, "expected -23.00000");
 
-    rc = SQLFetch(Stmt);
-    FAIL_IF(rc != SQL_NO_DATA_FOUND, "expected eof");
+  rc = SQLFetch(Stmt);
+  FAIL_IF(rc != SQL_NO_DATA_FOUND, "expected eof");
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_decimal");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_decimal");
 
   return OK;
 }
@@ -683,7 +683,7 @@ ODBC_TEST(sqlwchar)
   SQLWCHAR wbuff[30]= {0};
   SQLWCHAR wcdata[]= {'S','\x00e3', 'o', 'P', 'a', 'o', 'l', 'o'};
 
-  diag(data);
+  diag((const char*)data);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_sqlwchar");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_sqlwchar (a VARCHAR(30)) DEFAULT CHARSET utf8");
@@ -754,7 +754,7 @@ ODBC_TEST(t_sqlnum_msdn)
   SQLCHAR exp_data[SQL_MAX_NUMERIC_LEN]=
           {0x7c, 0x62, 0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-  sqlnum->sign= sqlnum->precision= sqlnum->scale= 128;
+  sqlnum->sign= sqlnum->precision= sqlnum->scale= (SQLCHAR)128;
 
   OK_SIMPLE_STMT(Stmt, "select 25.212");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
@@ -1141,7 +1141,7 @@ ODBC_TEST(t_bug29402)
   SQLLEN      buflen= 0;
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
-  const SQLCHAR *expected= "\x80""100";
+  const SQLCHAR *expected= (const SQLCHAR*)"\x80""100";
 
   IS(AllocEnvConn(&Env, &hdbc1));
 
@@ -1163,7 +1163,7 @@ ODBC_TEST(t_bug29402)
 
   is_num(buflen, 4);
 
-  if (strncmp(wbuf, expected, buflen) != 0)
+  if (strncmp((const char*)wbuf, (const char*)expected, buflen) != 0)
   {
     /* Because of this
        http://msdn.microsoft.com/en-us/library/ms716540%28v=vs.85%29.aspx
@@ -1211,7 +1211,7 @@ ODBC_TEST(t_sqlnum_truncate)
   SQLCHAR exp_data[SQL_MAX_NUMERIC_LEN]=
           {0x60, 0xb4, 0x80, 1,0,0,0,0,0,0,0,0,0,0,0,0};
 
-  sqlnum.sign= sqlnum.precision= sqlnum.scale= 128;
+  sqlnum.sign= sqlnum.precision= sqlnum.scale= (SQLCHAR)128;
 
   OK_SIMPLE_STMT(Stmt, "select 25.212");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));

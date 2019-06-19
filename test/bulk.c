@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -85,7 +85,7 @@ ODBC_TEST(t_bulk_insert_test)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
                                 (SQLPOINTER)2, 0));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_bulk_insert VALUES (?,?,?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t_bulk_insert VALUES (?,?,?)", SQL_NTS));
   
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, &a[0], 30, indicator));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_DOUBLE, &b[0], 8, b_indicator));
@@ -443,8 +443,8 @@ ODBC_TEST(t_odbc90)
                                             nval int not null, sval varchar(32) not null, ts timestamp)");
   id[0]= 2;
   ind4[0]= SQL_COLUMN_IGNORE;
-  strcpy(sval[0], "Record 1");
-  strcpy(sval[1], "Record 21");
+  strcpy((char*)(sval[0]), "Record 1");
+  strcpy((char*)(sval[1]), "Record 21");
   nval[0]= 100;
 
   sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s%s;",
@@ -454,7 +454,7 @@ ODBC_TEST(t_odbc90)
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
     (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
-  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen((const char*)conn), NULL, 0,
     NULL, SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
 
@@ -580,7 +580,7 @@ ODBC_TEST(t_odbc149)
   /* This cursor closing is required, otherwise DM(not on Windows) freaks out */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO odbc149(id, ts, c, b, w) values(?, ?, ?, ?, ?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO odbc149(id, ts, c, b, w) values(?, ?, ?, ?, ?)", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, id, 0, NULL));
@@ -629,7 +629,7 @@ ODBC_TEST(t_odbc149)
     }
     
     is_num(idBuf, id[row]);
-    IS_STR(cBuf, c[row], strlen(c[row]) + 1);
+    IS_STR(cBuf, c[row], strlen((const char*)(c[row])) + 1);
     is_num(bBufLen, bLen[row]);
     memcmp(bBuf, b[row], bBufLen);
     IS_WSTR(wBuf, w[row], wLen/sizeof(SQLWCHAR));

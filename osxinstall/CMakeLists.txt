@@ -28,11 +28,20 @@ ELSE()
 ENDIF()
 
 MESSAGE(STATUS "PKG package file name ${PKG_PACKAGE}")
+IF(WITH_SIGNCODE)
+  SET(SIGN_WITH_DEVID "--sign \"${DEVELOPER_ID}\"")
+ELSE()
+  SET(SIGN_WITH_DEVID "")
+ENDIF()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/WELCOME.html.in
                ${CMAKE_CURRENT_BINARY_DIR}/WELCOME.html @ONLY)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/scripts/postinstall.in
                ${CMAKE_CURRENT_BINARY_DIR}/scripts/postinstall @ONLY)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/distribution.plist.in
+               ${CMAKE_CURRENT_BINARY_DIR}/distribution.plist @ONLY)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build_package.sh.in
+               ${CMAKE_CURRENT_BINARY_DIR}/build_package.sh @ONLY)
 
 ADD_EXECUTABLE(install_driver install_driver.c)
 TARGET_LINK_LIBRARIES(install_driver ${ODBC_INSTLIBS})#${PLATFORM_DEPENDENCIES})

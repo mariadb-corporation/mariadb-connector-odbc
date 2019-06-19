@@ -304,6 +304,8 @@ ODBC_TEST(all_other_fields_test)
       /* IsNamedPipe is switched off when TcpIp is switched on(since TcpIp goes after NamedPipe in the DsnKeys.
          Do detect IsNamedPipe, comparing its offset in the MADB_Dsn with offset recorded in the DsnKeys */
       is_num(*(my_bool*)((char*)Dsn + DsnKeys[i].DsnOffset), DsnKeys[i].DsnOffset == (size_t)&((MADB_Dsn*)NULL)->IsNamedPipe ? 0 : 1);
+    case DSN_TYPE_CBOXGROUP:
+      break;
     }
 
     ++i;

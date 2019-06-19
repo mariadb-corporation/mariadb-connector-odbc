@@ -60,7 +60,7 @@ ODBC_TEST(test_multi_on_off)
   my_options= 0;
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
-  rc= SQLPrepare(myStmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
+  rc= SQLPrepare(myStmt, (SQLCHAR*)"DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
   FAIL_IF(SQL_SUCCEEDED(rc), "Error expected"); 
 
   ODBC_Disconnect(myEnv, myDbc, myStmt);
@@ -68,7 +68,7 @@ ODBC_TEST(test_multi_on_off)
   my_options= 67108866;
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
-  rc= SQLPrepare(myStmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
+  rc= SQLPrepare(myStmt, (SQLCHAR*)"DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
   FAIL_IF(!SQL_SUCCEEDED(rc), "Success expected");
 
   ODBC_Disconnect(myEnv, myDbc, myStmt);
@@ -84,7 +84,7 @@ ODBC_TEST(test_params)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?), (?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t1 VALUES (?), (?)", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
 
@@ -110,7 +110,7 @@ ODBC_TEST(test_params_last_count_smaller)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t1 VALUES (?,?); INSERT INTO t2 VALUES (?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t1 VALUES (?,?); INSERT INTO t2 VALUES (?)", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
 
@@ -282,7 +282,7 @@ ODBC_TEST(t_odbc74)
 
 ODBC_TEST(t_odbc95)
 {
-  EXPECT_STMT(Stmt, SQLPrepare(Stmt, "SELECT 1;INSERT INTO non_existing VALUES(2)", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT 1;INSERT INTO non_existing VALUES(2)", SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   Stmt= NULL;
 

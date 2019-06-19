@@ -28,7 +28,10 @@ IF (WIN32 AND (BUILD_INTERACTIVE_TESTS OR USE_INTERACTIVE_TESTS))
   MESSAGE(STATUS "Configuring to build interactive test")
   SET (ODBC_TESTS ${ODBC_TESTS} "interactive")
 ENDIF()
-
+# iOdbc has 
+IF(WITH_IODBC)
+  SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-Wno-pointer-sign")
+ENDIF()
 FOREACH (ODBC_TEST ${ODBC_TESTS})
   IF (${ODBC_TEST} STREQUAL "interactive")
     ADD_EXECUTABLE(odbc_${ODBC_TEST} ${ODBC_TEST}.c tap.h)

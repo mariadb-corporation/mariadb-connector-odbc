@@ -650,7 +650,7 @@ ODBC_TEST(sqlgetdiagrec)
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
 
-  FAIL_IF(SQLExecDirect(hstmt1, "DROP TABLE t_odbc3_non_existent_table", SQL_NTS) != SQL_ERROR, "error expected");
+  FAIL_IF(SQLExecDirect(hstmt1, (SQLCHAR*)"DROP TABLE t_odbc3_non_existent_table", SQL_NTS) != SQL_ERROR, "error expected");
 
 #if UNIXODBC_BUG_FIXED
   /*
@@ -699,7 +699,7 @@ ODBC_TEST(sqlgetdiagfield)
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
 
-  FAIL_IF(SQLExecDirect(hstmt1, "DROP TABLE t_odbc3_non_existent_table", SQL_NTS) != SQL_ERROR, "Error expected");
+  FAIL_IF(SQLExecDirect(hstmt1, (SQLCHAR*)"DROP TABLE t_odbc3_non_existent_table", SQL_NTS) != SQL_ERROR, "Error expected");
 
   CHECK_STMT_RC(Stmt, SQLGetDiagFieldW(SQL_HANDLE_STMT, hstmt1, 0,
                                   SQL_DIAG_NUMBER, &data, 0, NULL));

@@ -1017,8 +1017,7 @@ ODBC_TEST(t_empty_str_bug)
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "select * from t_empty_str_bug");
 
   IS( 1 == myrowcount(Stmt));
 
@@ -1026,8 +1025,7 @@ ODBC_TEST(t_empty_str_bug)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  rc = SQLExecDirect(Stmt,"select * from t_empty_str_bug", SQL_NTS);
-  CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "select * from t_empty_str_bug");
 
   rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,1,NULL,NULL);
   CHECK_STMT_RC(Stmt,rc);

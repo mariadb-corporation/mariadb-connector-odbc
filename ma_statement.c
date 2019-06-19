@@ -3422,7 +3422,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%"
      if that is not the special case of call for schemas list. Otherwise we return empty resultset*/
   else if (SchemaName &&
-    (!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0 ||
+    ((!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0) ||
       strcmp(SchemaName, SQL_ALL_SCHEMAS)))
   {
     MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "

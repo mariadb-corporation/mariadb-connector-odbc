@@ -119,6 +119,11 @@ IF(WIN32)
   ADD_OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
 ENDIF()
 
+IF(APPLE)
+  OPTION(WITH_IODBC "Build with iOdbc" ON)
+ELSE()
+  OPTION(WITH_IODBC "Build with iOdbc" OFF)
+ENDIF()
 #ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
 #ADD_OPTION(WITH_SSL "Enables use of TLS/SSL library" ON)
 
@@ -192,12 +197,6 @@ ENDIF()
 IF(NOT WIN32)
   # Looking for DM(UnixODBC) files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
-  
-  IF(APPLE)
-    SET(ODBC_LIB_DIR "/usr/local/Cellar/libiodbc/3.52.12/lib/")
-    SET(ODBC_INCLUDE_DIR "/usr/local/Cellar/libiodbc/3.52.12/include")
-    SET(DM_FOUND TRUE)
-  ENDIF()
   
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2019 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -237,7 +237,7 @@ ODBC_TEST(t_bug3456)
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, (SQLCHAR *)buf, SQL_NTS));
 
   /* Now check that the connection killed returns the right SQLSTATE */
-  EXPECT_STMT(Stmt2, SQLExecDirect(Stmt2, "SELECT connection_id()", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt2, SQLExecDirect(Stmt2, (SQLCHAR*)"SELECT connection_id()", SQL_NTS), SQL_ERROR);
   CHECK_SQLSTATE(Stmt2, "08S01");
 
   return OK;
@@ -471,14 +471,15 @@ ODBC_TEST(t_bug14285620)
     apparently because the driver manager always provides the buffer even
     when the client application passes NULL
   */
-#ifdef NOTSKIO
-  /* 
-    This check is only relevant to Windows Driver Manager 
-  */
-  FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, NULL, 0, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
+  if (WindowsDM(Connection))
+  {
+    /*
+      This check is only relevant to Windows Driver Manager
+    */
+    FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, NULL, 0, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
 
-  FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, szData, 0, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
-#endif
+    FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, szData, 0, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
+  }
   /*
   MSDN Says about the last parameter &cblen for SQLGetInfo,
   functions:
@@ -509,13 +510,13 @@ ODBC_TEST(t_bug14285620)
 #else
   if (iOdbc())
   {
-    is_num(cblen, strlen(szData)*sizeof(SQLWCHAR));
+    is_num(cblen, strlen((const char*)szData)*sizeof(SQLWCHAR));
     is_num(SQLGetInfoW(Connection, SQL_DATABASE_NAME, NULL, 0, &cblen), SQL_SUCCESS);
-    is_num(cblen, strlen(szData)*sizeof(SQLWCHAR));
+    is_num(cblen, strlen((const char*)szData)*sizeof(SQLWCHAR));
   }
   else
   {
-    is_num(cblen, strlen(szData));
+    is_num(cblen, strlen((const char*)szData));
   }
 #endif
 
@@ -525,18 +526,18 @@ ODBC_TEST(t_bug14285620)
   is_num(SQLGetInfo(Connection, SQL_DATABASE_NAME, szData, 0, NULL), iOdbc() ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS);
 
   /* Get the native string for further checks */
-  FAIL_IF(SQLNativeSql(Connection, "SELECT 10", SQL_NTS, szData, sizeof(szData), NULL) !=SQL_SUCCESS, "success expected");
-  FAIL_IF(SQLNativeSql(Connection, "SELECT 10", SQL_NTS, NULL, 0, &cbilen)!= iOdbc() ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS, "success expected");
+  FAIL_IF(SQLNativeSql(Connection, (SQLCHAR*)"SELECT 10", SQL_NTS, szData, sizeof(szData), NULL) !=SQL_SUCCESS, "success expected");
+  FAIL_IF(SQLNativeSql(Connection, (SQLCHAR*)"SELECT 10", SQL_NTS, NULL, 0, &cbilen)!= iOdbc() ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS, "success expected");
   
   /* Do like MSSQL, which does calculate as char_count*sizeof(SQLWCHAR) */
-  is_num(cbilen, strlen(szData));
+  is_num(cbilen, strlen((const char*)szData));
   if (iOdbc())
   { 
     is_num(SQLNativeSqlW(Connection, WW("SELECT 10"), SQL_NTS, NULL, 0, &cbilen), SQL_SUCCESS);
     /* SQLNativeSql(W) returns number of characters. Thus stlen is fine*/
-    is_num(cbilen, strlen(szData));
+    is_num(cbilen, strlen((const char*)szData));
   }
-  FAIL_IF( SQLNativeSql(Connection, "SELECT 10", SQL_NTS, szData, 0, NULL)!= SQL_SUCCESS_WITH_INFO, "swi expected");
+  FAIL_IF( SQLNativeSql(Connection, (SQLCHAR*)"SELECT 10", SQL_NTS, szData, 0, NULL)!= SQL_SUCCESS_WITH_INFO, "swi expected");
 
   /* iODBC returns error on SQLGetCursorName call if no cursor open */
   OK_SIMPLE_STMT(Stmt, "SELECT 1");
@@ -545,13 +546,13 @@ ODBC_TEST(t_bug14285620)
   FAIL_IF(!SQL_SUCCEEDED(SQLGetCursorName(Stmt, NULL, 0, &cblen)), "success expected");
   
   /* Do like MSSQL, which does calculate as char_count*sizeof(SQLWCHAR) */
-  is_num(cblen, strlen(szData));
+  is_num(cblen, strlen((const char*)szData));
 
   FAIL_IF(SQLGetCursorName(Stmt, szData, 0, NULL) != SQL_SUCCESS_WITH_INFO, "swi expected");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "ERROR SQL QUERY", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"ERROR SQL QUERY", SQL_NTS), SQL_ERROR);
 
   EXPECT_STMT(Stmt, SQLGetDiagField(SQL_HANDLE_STMT, Stmt, 1, SQL_DIAG_SQLSTATE, NULL, 0, NULL), iOdbc() ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS);
 
@@ -567,11 +568,11 @@ ODBC_TEST(t_bug14285620)
                                     &native_error, message, 0, NULL) != SQL_SUCCESS, "success expected");
   }
 
-  SQLExecDirect(Stmt, "drop table bug14285620", SQL_NTS);
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug14285620");
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "CREATE TABLE bug14285620 (id INT)", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "INSERT INTO bug14285620 (id) VALUES (1)", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SELECT * FROM bug14285620", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug14285620 (id INT)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO bug14285620 (id) VALUES (1)");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM bug14285620");
 
   FAIL_IF(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS, "Success expected");
   FAIL_IF(SQLDescribeCol(Stmt, 1, szData, 0, &cblen, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS_WITH_INFO, "swi expected");
@@ -648,11 +649,11 @@ ODBC_TEST(t_odbc94)
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
     (SQLPOINTER)SQL_OV_ODBC2, SQL_IS_INTEGER));
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_DBC, henv1, &Connection1));
-  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), NULL, 0,
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen((const char*)conn), NULL, 0,
     NULL, SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
 
-  EXPECT_STMT(Stmt1, SQLExecDirect(Stmt1, "GRANT ALL PRIVILEGES on odbc94 to public", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt1, SQLExecDirect(Stmt1, (SQLCHAR*)"GRANT ALL PRIVILEGES on odbc94 to public", SQL_NTS), SQL_ERROR);
 
   CHECK_STMT_RC(Stmt, SQLGetDiagRec(SQL_HANDLE_STMT, Stmt1, 1, sqlstate, &error,
     message, sizeof(message), &len));
@@ -721,7 +722,7 @@ ODBC_TEST(t_odbc43)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc43");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc43 (d DATE, t TIME)");
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_odbc43(d, t) \
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t_odbc43(d, t) \
                                         VALUES (?, ?)", SQL_NTS));
 
   /* First valid values */

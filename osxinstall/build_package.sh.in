@@ -19,4 +19,4 @@
 # *************************************************************************************/
 
 pkgbuild --root ROOT --scripts scripts --identifier $1 --version $2 libmaodbc.pkg
-productbuild --distribution distribution.plist --resources . --package-path libmaodbc.pkg $3
+productbuild --distribution distribution.plist --resources . --package-path libmaodbc.pkg @SIGN_WITH_DEVID@ $3

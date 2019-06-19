@@ -52,12 +52,12 @@ IF(ODBC_CONFIG)
   IF(WITH_IODBC)
     STRING(REPLACE "-I" "" ODBC_INCLUDE_DIR ${ODBC_INCLUDE_DIR})
     STRING(REPLACE "-L" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
-    STRING(REPLACE " -liodbc -liodbcinst" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
+    STRING(REGEX REPLACE " +-liodbc -liodbcinst" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
   ENDIF()
 ELSE()
   MESSAGE(STATUS "${ODBC_CONFIG_EXEC} is not found ")
   # Try to find the include directory, giving precedence to special variables
-  SET(LIB_PATHS /usr/local /usr)
+  SET(LIB_PATHS /usr/local /usr /usr/local/Cellar/libiodbc/3.52.12)
 
   IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
     SET(LIB_PATHS "${LIB_PATHS}" "/usr/lib/x86_64-linux-gnu")
@@ -80,6 +80,7 @@ ELSE()
             ENV DM_DIR
       PATHS /usr/local
             /usr
+            /usr/local/Cellar/libiodbc/3.52.12
       PATH_SUFFIXES include include/iodbc
       NO_DEFAULT_PATH
       DOC "Driver Manager Includes")

@@ -626,15 +626,15 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         {
           Value= "1";
         }
-      default:
-        /* To avoid warning with some compilers */
-        break;
       case DSN_TYPE_CBOXGROUP:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
         {
           _snprintf(IntVal, sizeof(IntVal), "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
           Value= IntVal;
         }
+        break;
+      default:
+        /* To avoid warning with some compilers */
         break;
       }
     }
