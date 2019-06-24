@@ -625,7 +625,7 @@ ODBC_TEST(t_sqlprocedurecolumns)
                 );
 
   OK_SIMPLE_STMT(Hstmt1, "create function procedure_columns_test4_func(re_paramF int) returns varchar(32) deterministic "\
-                "begin return CONCAT('abc', paramF); end;"
+                "begin return CONCAT('abc', re_paramF); end;"
                 );
 
   OK_SIMPLE_STMT(Hstmt1, "create function procedure_columns_test4_func_noparam() returns varchar(32) deterministic "\
