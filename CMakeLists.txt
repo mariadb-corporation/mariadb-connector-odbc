@@ -331,7 +331,7 @@ IF(WIN32)
 ENDIF()
 
 
-SET(CPACK_PACKAGE_NAME "mariadb_connector_odbc")
+SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
 ELSE()
@@ -344,11 +344,25 @@ ELSE()
           LIBRARY DESTINATION ./${INSTALL_LIB_SUFFIX}
           COMPONENT ODBCLibs)
 
+  IF(NOT DEFINED INSTALL_DOC_DIR)
+    SET(INSTALL_DOC_DIR "./share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install documentation(README)")
+  ENDIF()
+
+  IF(NOT DEFINED INSTALL_LICENSE_DIR)
+    SET(INSTALL_LICENSE_DIR "./share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
+  ENDIF()
+  MESSAGE(STATUS "Documetnation installed to ${INSTALL_DOC_DIR}")
+  MESSAGE(STATUS "License file installed to ${INSTALL_LICENSE_DIR}")
+
   INSTALL(FILES
-          ${CMAKE_SOURCE_DIR}/COPYING
           ${CMAKE_SOURCE_DIR}/README
           DESTINATION
-          ./share/doc/${CPACK_PACKAGE_NAME}/
+          ${INSTALL_DOC_DIR}
+          COMPONENT Documentation)
+  INSTALL(FILES
+          ${CMAKE_SOURCE_DIR}/COPYING
+          DESTINATION
+          ${INSTALL_LICENSE_DIR}
           COMPONENT Documentation)
 ENDIF()
 
@@ -393,9 +407,6 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
 ENDIF()
 
 # Packaging
-SET(CPACK_PACKAGE_VERSION_MAJOR "${MARIADB_ODBC_VERSION_MAJOR}")
-SET(CPACK_PACKAGE_VERSION_MINOR "${MARIADB_ODBC_VERSION_MINOR}")
-SET(CPACK_PACKAGE_VERSION_MINOR "${MARIADB_ODBC_VERSION_PATCH}")
 SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation Ab")
 SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. ODBC driver library for connecting to MariaDB and MySQL servers")
 IF(NOT SYSTEM_NAME)
