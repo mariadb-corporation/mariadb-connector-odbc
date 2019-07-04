@@ -50,7 +50,7 @@ void ma_debug_print_error(MADB_Error *err);
     {\
     SYSTEMTIME st;\
     GetSystemTime(&st);\
-    ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
+    ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, A, ((MADB_Dbc*)(C))->mariadb ? mysql_thread_id(((MADB_Dbc*)(C))->mariadb) : 0);\
     }
 #else
 #define MDBUG_C_ENTER(C,A)\
@@ -58,7 +58,7 @@ void ma_debug_print_error(MADB_Error *err);
     {\
     time_t t = time(NULL);\
     struct tm st= *gmtime(&t);\
-    ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, st.tm_hour, st.tm_min, st.tm_sec,  A, ((MADB_Dbc*)(C))->mariadb ? ((MADB_Dbc*)(C))->mariadb->thread_id : 0);\
+    ma_debug_print(0, ">>> %d-%02d-%02d %02d:%02d:%02d --- %s (thread: %d) ---", st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, st.tm_hour, st.tm_min, st.tm_sec,  A, ((MADB_Dbc*)(C))->mariadb ? mysql_thread_id(((MADB_Dbc*)(C))->mariadb) : 0);\
     }
 #endif
 

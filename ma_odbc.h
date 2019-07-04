@@ -406,8 +406,11 @@ typedef struct
   PromptDSN Call;
 } MADB_Prompt;
 
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName, MADB_Dbc *Dbc);
-int       DSNPrompt_Free  (MADB_Prompt *prompt);
+#define MADB_PROMPT_NOT_SUPPORTED 1
+#define MADB_PROMPT_COULDNT_LOAD  2
+int DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName);
+
+int DSNPrompt_Free  (MADB_Prompt *prompt);
 
 int             InitClientCharset  (Client_Charset *cc, const char * name);
 void            CopyClientCharset(Client_Charset * Src, Client_Charset * Dst);

@@ -174,10 +174,15 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
 my_bool
 MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
 {
+  MY_CHARSET_INFO cs;
+  MARIADB_CHARSET_INFO *FieldCs;
+
   if (Record == NULL)
   {
     return 1;
   }
+
+  mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
 
   MADB_RESET(Record->CatalogName,    Field->db);
   MADB_RESET(Record->TableName,      Field->table);
@@ -265,9 +270,10 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
   Record->DisplaySize= MADB_GetDisplaySize(Field, mariadb_get_charset_by_nr(Field->charsetnr));
-  Record->OctetLength= MADB_GetOctetLength(Field, Stmt->Connection->mariadb->charset->char_maxlen);
+  Record->OctetLength= MADB_GetOctetLength(Field, cs.mbmaxlen);
+  FieldCs= mariadb_get_charset_by_nr(Field->charsetnr);
   Record->Length= MADB_GetDataSize(Record->ConciseType, Field->length, Record->Unsigned == SQL_TRUE,
-                                   Record->Precision, Record->Scale, mariadb_get_charset_by_nr(Field->charsetnr));
+                                   Record->Precision, Record->Scale, FieldCs!= NULL ? FieldCs->char_maxlen : 1);
     
   MADB_RESET(Record->TypeName, MADB_GetTypeName(Field));
 
@@ -359,7 +365,7 @@ void MADB_FixOctetLength(MADB_DescRecord *Record)
 /* }}} */
 
 /* {{{ MADB_FixDisplayLength */
-void MADB_FixDisplaySize(MADB_DescRecord *Record, const MARIADB_CHARSET_INFO *charset)
+void MADB_FixDisplaySize(MADB_DescRecord *Record, const MY_CHARSET_INFO *charset)
 {
   switch (Record->ConciseType) {
   case SQL_BIT:
@@ -406,22 +412,22 @@ void MADB_FixDisplaySize(MADB_DescRecord *Record, const MARIADB_CHARSET_INFO *ch
     Record->DisplaySize= 36;
     break;
   default:
-    if (charset == NULL || charset->char_maxlen < 2/*i.e.0||1*/)
+    if (charset == NULL || charset->mbmaxlen < 2/*i.e.0||1*/)
     {
       Record->DisplaySize=Record->OctetLength;
     }
     else
     {
-      Record->DisplaySize=Record->OctetLength/charset->char_maxlen;
+      Record->DisplaySize=Record->OctetLength/charset->mbmaxlen;
     }
   }
 }
 /* }}} */
 
 /* {{{ MADB_FixDataSize - aka Column size */
-void MADB_FixDataSize(MADB_DescRecord *Record, const MARIADB_CHARSET_INFO *charset)
+void MADB_FixDataSize(MADB_DescRecord *Record, const MY_CHARSET_INFO *charset)
 {
-  Record->Length= MADB_GetDataSize(Record->ConciseType, Record->OctetLength, Record->Unsigned == TRUE, Record->Precision, Record->Scale, charset );
+  Record->Length= MADB_GetDataSize(Record->ConciseType, Record->OctetLength, Record->Unsigned == TRUE, Record->Precision, Record->Scale, charset->mbmaxlen );
 }
 /* }}} */
 
@@ -429,6 +435,8 @@ void MADB_FixDataSize(MADB_DescRecord *Record, const MARIADB_CHARSET_INFO *chars
 my_bool
 MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
 {
+  MY_CHARSET_INFO cs;
+
   if (Record == NULL)
   {
     return 1;
@@ -493,8 +501,10 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
                         Record->ConciseType == SQL_WLONGVARCHAR ||
                         Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
-  MADB_FixDisplaySize(Record, Stmt->Connection->mariadb->charset);
-  MADB_FixDataSize(Record, Stmt->Connection->mariadb->charset);
+  mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
+
+  MADB_FixDisplaySize(Record, &cs);
+  MADB_FixDataSize(Record, &cs);
     
   /*Record->TypeName= strdup(MADB_GetTypeName(Fields[i]));*/
 

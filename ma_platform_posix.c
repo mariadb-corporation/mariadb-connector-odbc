@@ -41,10 +41,9 @@ void InitializeCriticalSection(CRITICAL_SECTION *cs)
   pthread_mutex_init(cs, &attr);
 }
 
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
+SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
 {
-  MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
-  return Dbc->Error.ReturnValue;
+  return  MADB_PROMPT_NOT_SUPPORTED;
 }
 
 
@@ -399,6 +398,7 @@ BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
 
 
 /* Stub - atm it looks like we don't need to do anything here */
-void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc)
+const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc)
 {
+  return NULL;
 }

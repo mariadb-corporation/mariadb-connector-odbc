@@ -406,9 +406,13 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     {
       char *ServerName= "";
       if (Stmt && Stmt->stmt)
-        ServerName= Stmt->stmt->mysql->host;
+      {
+        mariadb_get_infov(Stmt->stmt->mysql, MARIADB_CONNECTION_HOST, (void*)&ServerName);
+      }
       else if (Dbc && Dbc->mariadb)
-        ServerName= Dbc->mariadb->host;
+      {
+        mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_HOST, (void*)&ServerName);
+      }
       Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr, 
                                         isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength, 
                                         ServerName ? ServerName : "", ServerName ? strlen(ServerName) : 0, &Error);

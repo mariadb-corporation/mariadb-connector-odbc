@@ -29,7 +29,7 @@ unsigned long ExtCapabilitiesMap[][2]= {{MARIADB_CLIENT_STMT_BULK_OPERATIONS >> 
 void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion)
 {
   int i;
-  unsigned long ServerExtCapabilities;
+  unsigned long ServerCapabilities, ServerExtCapabilities;
 
   for (i= 0; i < sizeof(VersionCapabilityMap)/sizeof(VersionCapabilityMap[0]); ++i)
   {
@@ -40,6 +40,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion)
   }
 
   mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_EXTENDED_SERVER_CAPABILITIES, (void*)&ServerExtCapabilities);
+  mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_SERVER_CAPABILITIES, (void*)&ServerCapabilities);
 
   for (i= 0; i < sizeof(ExtCapabilitiesMap)/sizeof(ExtCapabilitiesMap[0]); ++i)
   {

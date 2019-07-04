@@ -32,17 +32,12 @@ void MADB_CopyMadbTimeToOdbcTs(MYSQL_TIME *Src, SQL_TIMESTAMP_STRUCT *Dst);
 SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER DataPtr, SQLLEN *Length, SQLLEN *Ind,
                                  SQLSMALLINT CType, SQLSMALLINT SqlType);
 int  MADB_GetWCharType(int Type);
-my_bool MADB_get_single_row(MADB_Dbc *Connection,
-                            const char *StmtString,
-                            SQLINTEGER Length,
-                            unsigned int NumCols,
-                            char **Buffers,
-                            size_t *Buffer_Lengths);
+
 BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
 SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
-                        SQLSMALLINT Precision, SQLSMALLINT Scale, const MARIADB_CHARSET_INFO *Charset);
+                        SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen);
 int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);

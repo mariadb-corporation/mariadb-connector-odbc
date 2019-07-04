@@ -537,12 +537,15 @@ end:
 }
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
 {
+  unsigned int ServerStatus;
+
+  mariadb_get_infov(Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
   switch (SqlMode)
   {
   case MADB_NO_BACKSLASH_ESCAPES:
-    return test(Connection->mariadb->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
+    return test(ServerStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
   case MADB_ANSI_QUOTES:
-    return test(Connection->mariadb->server_status & SERVER_STATUS_ANSI_QUOTES);
+    return test(ServerStatus & SERVER_STATUS_ANSI_QUOTES);
   }
   return FALSE;
 }
@@ -606,7 +609,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
   else
   {
-    MADB_SetDefaultPluginsDir(Connection);
+    const char *DefaultLocation= MADB_GetDefaultPluginsDir(Connection);
+    if (DefaultLocation != NULL)
+    {
+      mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, DefaultLocation);
+    }
   }
 
   if (Dsn->ReadMycnf != '\0')
@@ -1015,10 +1022,14 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                       StringLengthPtr);
     break;
   case SQL_COLLATION_SEQ:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
-                                     (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
-                                     Dbc->mariadb->charset->name, SQL_NTS, &Dbc->Error);
+  {
+    MY_CHARSET_INFO cs;
+    mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL,
+      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+      cs.name, SQL_NTS, &Dbc->Error);
     break;
+  }
   case SQL_COLUMN_ALIAS:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, 
                            (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Dbc->Error);
@@ -1428,7 +1439,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_MAX_STATEMENT_LEN:
     {
       size_t max_packet_size;
-      mariadb_get_infov(Dbc->mariadb, MARIADB_MAX_ALLOWED_PACKET, &max_packet_size);
+      mariadb_get_infov(Dbc->mariadb, MARIADB_MAX_ALLOWED_PACKET, (void*)&max_packet_size);
       MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, (SQLUINTEGER)max_packet_size, StringLengthPtr);
     }
     break;
@@ -1539,10 +1550,17 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                      "\\", SQL_NTS, &Dbc->Error);
     break;
   case SQL_SERVER_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, 
-                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
-                                     !(Dbc->mariadb) ? "" : Dbc->mariadb->host_info, SQL_NTS, &Dbc->Error);
+  {
+    const char *Host= "";
+    if (Dbc->mariadb)
+    {
+      mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_HOST, (void*)&Host);
+    }
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
+      BUFFER_CHAR_LEN(BufferLength, isWChar),
+      Host, SQL_NTS, &Dbc->Error);
     break;
+  }
   case SQL_SPECIAL_CHARACTERS:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, 
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
@@ -1679,10 +1697,17 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_U_UNION | SQL_U_UNION_ALL, StringLengthPtr);
     break;
   case SQL_USER_NAME:
+  {
+    const char *User= "";
+    if (Dbc->mariadb)
+    {
+      mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_USER, (void *)&User);
+    }
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar), 
-                                     (Dbc->mariadb) ? Dbc->mariadb->user : "", SQL_NTS, &Dbc->Error);
+                                      User, SQL_NTS, &Dbc->Error);
     break;
+  }
   case SQL_XOPEN_CLI_YEAR:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
@@ -1828,8 +1853,14 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
     goto error;
   }
  
-  if (!SQL_SUCCEEDED(DSNPrompt_Lookup(&DSNPrompt, Drv->SetupLibrary, Dbc)))
+  switch (DSNPrompt_Lookup(&DSNPrompt, Drv->SetupLibrary))
   {
+  case 0: break;
+  case MADB_PROMPT_NOT_SUPPORTED:
+    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Prompting is not supported on this platform", 0);
+    goto error;
+  case MADB_PROMPT_COULDNT_LOAD:
+    MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load the setup library", 0);
     goto error;
   }
 

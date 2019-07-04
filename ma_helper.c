@@ -166,7 +166,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   char         *p= StmtStr;
   char         Database[65]= {'\0'};
   MADB_Stmt    *Stmt= NULL;
-  MADB_Stmt    *KeyStmt;
+  MYSQL_FIELD  *Field;
   
   Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
   p+= _snprintf(p, 1024, "SELECT * FROM ");
@@ -181,49 +181,23 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
   {
     goto end;
   }
-  KeyStmt= (MADB_Stmt *)Stmt;
-  for (i=0; i < mysql_stmt_field_count(KeyStmt->stmt); i++)
-    if (KeyStmt->stmt->fields[i].flags & KeyFlag)
-      Count++;
+
+  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  {
+    Field= mysql_fetch_field_direct(Stmt->metadata, i);
+    if (Field->flags & KeyFlag)
+    {
+      ++Count;
+    }
+  }
 end:
   if (Stmt)
+  {
     Stmt->Methods->StmtFree(Stmt, SQL_DROP);
+  }
   return Count;
 }
 
-/* {{{ MADB_get_single_row */
-my_bool MADB_get_single_row(MADB_Dbc *Connection,
-    const char *StmtString,
-    SQLINTEGER Length,
-    unsigned int NumCols,
-    char **Buffers,
-    size_t *Buffer_Lengths)
-{
-  MYSQL_RES *result;
-  MYSQL_ROW row;
-
-  LOCK_MARIADB(Connection);
-  if (mysql_real_query(Connection->mariadb, StmtString, Length) ||
-      mysql_field_count(Connection->mariadb) < NumCols)
-    return 1;
-
-  if ((result= mysql_store_result(Connection->mariadb)) &&
-      (row= mysql_fetch_row(result)))
-  {
-    unsigned int i;
-
-    UNLOCK_MARIADB(Connection);
-
-    for (i=0; i < NumCols; i++)
-      strncpy_s(Buffers[i], Buffer_Lengths[i], row[i], Connection->mariadb->fields[i].max_length);
-    mysql_free_result(result);
-    return 0;
-  }
-  UNLOCK_MARIADB(Connection);
-
-  return 1;
-}
-/* }}} */
 
 /* {{{ MADB_CheckODBCType */
 BOOL MADB_CheckODBCType(SQLSMALLINT Type)
@@ -414,7 +388,7 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
 }
 
 SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
-                        SQLSMALLINT Precision, SQLSMALLINT Scale, const MARIADB_CHARSET_INFO *Charset)
+                        SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen)
 {
   switch(SqlType)
   {
@@ -450,13 +424,13 @@ SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
     return 36;;
   default:
     {
-      if (Charset == NULL || Charset->char_maxlen < 2/*i.e.0||1*/)
+      if (CharMaxLen < 2/*i.e.0||1*/)
       {
         return OctetLength;
       }
       else
       {
-        return OctetLength/Charset->char_maxlen;
+        return OctetLength/CharMaxLen;
       }
     }
   }

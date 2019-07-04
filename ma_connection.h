@@ -57,7 +57,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);
 /* Has platform versions */
-void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc);
+const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc);
 
 #define MADB_SUPPORTED_CONVERSIONS  SQL_CVT_BIGINT | SQL_CVT_BIT | SQL_CVT_CHAR | SQL_CVT_DATE |\
                                     SQL_CVT_DECIMAL | SQL_CVT_DOUBLE | SQL_CVT_FLOAT |\
@@ -72,12 +72,6 @@ void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc);
 
 #define MADB_Dbc_DSN(a) \
 (a) && (a)->Dsn  
-
-#define MADB_Dbc_AUTOCOMMIT(a) \
-  ((a)->mariadb && ((a)->mariadb->server_status && SERVER_STATUS_AUTOCOMMIT))
-
-#define MADB_Dbc_TRANSACTION(a) \
-  ((a)->mariadb && ((a)->mariadb->server_capabilities && CLIENT_TRANSACTIONS)) 
 
 #define MADB_CONNECTED(DbConnHandler) (DbConnHandler->mariadb && mysql_get_socket(DbConnHandler->mariadb) != MARIADB_INVALID_SOCKET)
 #endif /* _ma_connection_h */

@@ -980,9 +980,12 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   }
   else
   {
+    unsigned int ServerStatus;
+
     Stmt->State= MADB_SS_EXECUTED;
 
-    if (Stmt->stmt->mysql->server_status & SERVER_PS_OUT_PARAMS)
+    mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
+    if (ServerStatus & SERVER_PS_OUT_PARAMS)
     {
       Stmt->State= MADB_SS_OUTPARAMSFETCHED;
       ret= Stmt->Methods->GetOutParams(Stmt, 0);

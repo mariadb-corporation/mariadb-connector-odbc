@@ -125,10 +125,14 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   }
   else
   {
+    unsigned int ServerStatus;
+
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
     Stmt->AffectedRows= 0;
 
-    if (Stmt->Connection->mariadb->server_status & SERVER_PS_OUT_PARAMS)
+    mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
+
+    if (ServerStatus & SERVER_PS_OUT_PARAMS)
     {
       Stmt->State= MADB_SS_OUTPARAMSFETCHED;
       ret= Stmt->Methods->GetOutParams(Stmt, 0);

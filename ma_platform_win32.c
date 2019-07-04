@@ -70,15 +70,15 @@ const char* GetDefaultLogDir()
 
 
 /* Connection is needed to set custom error */
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName, MADB_Dbc *Dbc)
+int DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
 {
   if (!(prompt->LibraryHandle=(void*) LoadLibrary(SetupLibName)))
   {
-    return MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't load setup library", 0);
+    return MADB_PROMPT_COULDNT_LOAD;
   }
   if (!(prompt->Call= (PromptDSN)GetProcAddress((HMODULE)prompt->LibraryHandle, "DSNPrompt")))
   {
-    return MADB_SetError(&Dbc->Error, MADB_ERR_HY000, "Couldn't find DSNPrompt function in setup library", 0);
+    return MADB_PROMPT_COULDNT_LOAD;
   }
 
   return SQL_SUCCESS;
@@ -295,10 +295,10 @@ BOOL MADB_DirectoryExists(const char *Path)
   return (FileAttributes != INVALID_FILE_ATTRIBUTES) && (FileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc)
+const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc)
 {
   HMODULE hModule = GetModuleHandle(MADB_DRIVER_NAME);
-  char OurLocation[_MAX_PATH];
+  static char OurLocation[_MAX_PATH];
   const char *PluginsSubDirName= "\\"MADB_DEFAULT_PLUGINS_SUBDIR;
 
   GetModuleFileName(hModule, OurLocation, _MAX_PATH);
@@ -310,9 +310,10 @@ void MADB_SetDefaultPluginsDir(MADB_Dbc *Dbc)
 
     if (MADB_DirectoryExists(OurLocation) != FALSE)
     {
-      mysql_options(Dbc->mariadb, MYSQL_PLUGIN_DIR, OurLocation);
+      return OurLocation;
     }
   }
+  return NULL;
 }
 
 /* {{{ MADB_DSN_PossibleConnect() */
