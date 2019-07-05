@@ -41,9 +41,9 @@ void InitializeCriticalSection(CRITICAL_SECTION *cs)
   pthread_mutex_init(cs, &attr);
 }
 
-SQLRETURN DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
+int DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
 {
-  return  MADB_PROMPT_NOT_SUPPORTED;
+  return MADB_PROMPT_NOT_SUPPORTED;
 }
 
 
