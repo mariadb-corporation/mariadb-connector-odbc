@@ -8,17 +8,21 @@
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of @PRODUCT_NAME@ is already installed." />
     <MediaTemplate EmbedCab="yes"/>
-
-    <UIRef Id="WixUI_Mondo" />
-    <WixVariable Id="WixUILicenseRtf" Value="@ODBC_SOURCE_WIX_DIR@/license.rtf" />
-    <WixVariable Id="WixUIBannerBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIBannerBmp.jpg" />
-    <WixVariable Id="WixUIDialogBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIDialogBmp.jpg" />
+      <UIRef Id="WixUI_Mondo" />
+      <UI>
+        <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="MoveExistingDsnsToNewDriver">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+      </UI>
+      <WixVariable Id="WixUILicenseRtf" Value="@ODBC_SOURCE_WIX_DIR@/license.rtf" />
+      <WixVariable Id="WixUIBannerBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIBannerBmp.jpg" />
+      <WixVariable Id="WixUIDialogBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIDialogBmp.jpg" />
+      <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Make User DSN's for older Connnector versions to use this version" />
 
     <Feature Id="ProductFeature" Title="@PRODUCT_NAME@ @PRODUCT_VERSION@" Level="1">
       <ComponentRef Id="RegistryKeys" />
       <ComponentRef Id="Setup" />
       <ComponentRef Id="Driver" />
       <ComponentRef Id="CcPlugins" />
+      <ComponentRef Id="InstallerTools" />
     </Feature>
     <Feature Id="DebugFeature" Title="Debug Information" Level="2">
       <ComponentRef Id="Debug" />
@@ -27,6 +31,8 @@
       <ComponentRef Id="CcPlugins" />
       <ComponentRef Id="PluginsDebug" />
     </Feature>
+    <Property Id="WixQuietExec@IS64@CmdLine" Value='"[INSTALLFOLDER]change_dsns_driver.exe" --reg-direct --quiet' />
+    <CustomAction Id="MoveExistingDsnsToNewDriver" BinaryKey="WixCA" DllEntry="WixQuietExec@IS64@" Impersonate="yes" />
   </Product>
 
   <Fragment>
@@ -77,6 +83,9 @@
       <File Id="mysql_clear_password_pdb" Name="mysql_clear_password.pdb" DiskId="1" Source="$(var.plugins_source_dir)/mysql_clear_password.pdb" />
       <File Id="sha256_password_pdb" Name="sha256_password.pdb" DiskId="1" Source="$(var.plugins_source_dir)/sha256_password.pdb" />
       <CreateFolder />
+    </Component>
+    <Component Id="InstallerTools" Guid="@GUID_INSTALLER_TOOLS@" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
+        <File Id="change_dsns_driver" Name="change_dsns_driver.exe"  DiskId="1"  Source="$(var.installer_tools_dir)/change_dsns_driver.exe" />
     </Component>
   <!--  </ComponentGroup> -->
   </Fragment>

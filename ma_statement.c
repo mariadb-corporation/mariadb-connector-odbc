@@ -1843,10 +1843,6 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         {
           SQLLEN CharLen= MADB_SetString(&Stmt->Connection->Charset, DataPtr, ArdRec->OctetLength, (char *)Stmt->result[i].buffer,
             *Stmt->stmt->bind[i].length, &Stmt->Error);
-
-
-          /*MADB_ConvertAnsi2Unicode(&Stmt->Connection->Charset, (char *)Stmt->result[i].buffer, *Stmt->stmt->bind[i].length,
-                                   (SQLWCHAR *)DataPtr, ArdRec->OctetLength, &CharLen, 1, &Stmt->Error);*/
           /* Not quite right */
           *LengthPtr= CharLen * sizeof(SQLWCHAR);
         }

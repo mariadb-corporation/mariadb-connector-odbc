@@ -316,6 +316,7 @@ IF(WIN32)
   ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
                                   -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
+                                  -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
                                   -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
                                   -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
                                   -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml

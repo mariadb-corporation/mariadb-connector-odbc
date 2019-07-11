@@ -21,6 +21,7 @@ IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(PRODUCT_NAME "${PRODUCT_NAME} 64-bit")
   SET(PLATFORM "win64")
   SET(IS_WIN64 "yes")
+  SET(IS64 "64")
   SET(WIXPLATFORM "x64")
   SET(FOLDER "ProgramFiles64Folder")
   SET(GUID_REGISTRY "E35BF41F-89A1-4691-8F62-09922C04C13B")
@@ -29,9 +30,11 @@ IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(GUID_DEBUG "4FA6E79A-4630-4CB8-A4E1-00A4740E9280")
   SET(GUID_PLUGINS "9D1B41AA-CE86-4c6d-93C8-FDCD40D5D2E9")
   SET(GUID_PLUGINS_DEBUG "63541EC9-9C2B-4763-8C18-03313DAE6F8E")
+  SET(GUID_INSTALLER_TOOLS "9FF07852-2A99-4699-A6E8-889B9745C5B9")
 ELSE()
   SET(PLATFORM "win32")
   SET(IS_WIN64 "no")
+  SET(IS64 "")
   SET(WIXPLATFORM "x86")
   SET(FOLDER "ProgramFilesFolder")
   SET(GUID_REGISTRY "ACFC9B33-5D1F-4EA2-A4DB-1E37A2BAF86B")
@@ -40,7 +43,12 @@ ELSE()
   SET(GUID_DEBUG "2EA8B4DD-F470-4362-8D87-59090D255981")
   SET(GUID_PLUGINS "B6355F5E-FA0B-427a-AC77-BC145887D11B")
   SET(GUID_PLUGINS_DEBUG "B2CB2291-249C-4258-83CB-A3E9C4DC9CFE")
+  SET(GUID_INSTALLER_TOOLS "786BD2C3-20B0-4b8f-8D9B-374C736E3A1B")
 ENDIF()
+
+ADD_EXECUTABLE(change_dsns_driver change_dsns_driver.c ${CMAKE_SOURCE_DIR}/ma_dsn.c ${CMAKE_SOURCE_DIR}/ma_platform_win32.c ${CMAKE_SOURCE_DIR}/ma_common.c)
+TARGET_LINK_LIBRARIES(change_dsns_driver ${ODBC_LIBS} ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi)
+
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
                ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)
 IF(${revno})
@@ -69,17 +77,17 @@ MESSAGE(STATUS "MSI package name ${MSI_PACKAGE}")
 
 ADD_CUSTOM_TARGET(
         ${MSI_PACKAGE}
-        COMMAND ${WIX_DIR}light.exe -ext WixUIExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
+        COMMAND ${WIX_DIR}light.exe -ext WixUIExtension -ext WixUtilExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
 
 SET_TARGET_PROPERTIES(${MSI_PACKAGE} PROPERTIES EXCLUDE_FROM_ALL OFF)
 
 ADD_CUSTOM_TARGET(
         ODBC_WIX
         DEPENDS mariadb_odbc.xml
-        COMMAND ${WIX_DIR}candle.exe mariadb_odbc.xml -o mariadb_odbc.wixobj)
+        COMMAND ${WIX_DIR}candle.exe -ext WixUIExtension -ext WixUtilExtension mariadb_odbc.xml -o mariadb_odbc.wixobj)
 
 ADD_DEPENDENCIES(${MSI_PACKAGE} ODBC_WIX)
-ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs)
+ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs change_dsns_driver binaries_dir.xml mariadb_odbc.xml)
 IF(NOT USE_SYSTEM_INSTALLED_LIB)
   ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password)
 ENDIF()
