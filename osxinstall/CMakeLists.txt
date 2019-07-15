@@ -22,9 +22,9 @@ SET(PRODUCT_SERIES "${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}"
 SET(PRODUCT_IDENTIFIER "com.mariadb.connector.odbc")
 
 IF(${revno})
-  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-r${revno}-${PLATFORM}.pkg")
+  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-r${revno}-osx-${PLATFORM}.pkg")
 ELSE()
-  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-${PLATFORM}.pkg")
+  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-osx-${PLATFORM}.pkg")
 ENDIF()
 
 MESSAGE(STATUS "PKG package file name ${PKG_PACKAGE}")
