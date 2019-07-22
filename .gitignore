@@ -28,6 +28,7 @@ ipch
 *.bak
 *.so
 *.dylib
+.idea/
 Makefile
 CPackConfig.cmake
 CPackSourceConfig.cmake
