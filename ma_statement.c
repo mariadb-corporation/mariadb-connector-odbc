@@ -310,7 +310,7 @@ BOOL MADB_CheckIfExecDirectPossible(MADB_Stmt *Stmt)
 }
 /* }}} */
 
-/* {{{ MADB_CheckIfExecDirectPossible
+/* {{{ MADB_BulkInsertPossible
        Checking if we can deploy mariadb_stmt_execute_direct */
 BOOL MADB_BulkInsertPossible(MADB_Stmt *Stmt)
 {
@@ -1206,7 +1206,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
           Stmt->RebindParams= FALSE;
         }
 
-        ret= MADB_DoExecute(Stmt, ExecDirect);
+        ret= MADB_DoExecute(Stmt, ExecDirect && MADB_CheckIfExecDirectPossible(Stmt));
 
         if (!SQL_SUCCEEDED(ret))
         {
