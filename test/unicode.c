@@ -1153,11 +1153,11 @@ ODBC_TEST(t_bug28168)
   SQLWCHAR *grantQuery= W(L"GRANT ALL ON t_bug28168 to "
     L"'\x03A8\x0391\x03A1\x039F uid'@"
     L"localhost identified by "
-    L"'\x03A8\x0391\x03A1\x039F pwd'");
+    L"'\x03A8\x0391\x03A1\x039F pWd@2019'");
   SQLWCHAR *grantQuery2= W(L"GRANT ALL ON t_bug28168 to "
     L"'\x03A8\x0391\x03A1\x039F uid'@"
     L"'%' identified by "
-    L"'\x03A8\x0391\x03A1\x039F pwd'");
+    L"'\x03A8\x0391\x03A1\x039F pWd@2019'");
   SQLSMALLINT errmsglen;
   SQLINTEGER native_error= 0;
 
@@ -1201,7 +1201,7 @@ ODBC_TEST(t_bug28168)
   wcscat(conn_in, L";UID=");
   wcscat(conn_in, L"{\x03A8\x0391\x03A1\x039F uid}");
   wcscat(conn_in, L";PWD=");
-  wcscat(conn_in, L"{\x03A8\x0391\x03A1\x039F pwd}");
+  wcscat(conn_in, L"{\x03A8\x0391\x03A1\x039F pWd@2019}");
   wcscat(conn_in, L";DATABASE=");
   mbstowcs(dummy, (char *)my_schema, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
@@ -1217,7 +1217,7 @@ ODBC_TEST(t_bug28168)
   CHECK_DBC_RC(hdbc2, SQLDisconnect(hdbc2));
 
   /* we change the password in the connection string to test the error msg */
-  wstr= wcsstr(conn_in, L" pwd}") - 4;
+  wstr= wcsstr(conn_in, L" pWd@2019}") - 4;
   *wstr++= 'x';
 
   FAIL_IF(SQLDriverConnectW(hdbc2, NULL, W(conn_in), SQL_NTS,

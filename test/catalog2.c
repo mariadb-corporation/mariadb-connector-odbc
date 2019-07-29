@@ -295,7 +295,7 @@ ODBC_TEST(t_bug50195)
   {
     diag("Test is run in Travis");
     SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@'%'", SQL_NTS);
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@'%' IDENTIFIED BY 'a'");
+    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@'%' IDENTIFIED BY 's3CureP@wd'");
 
     OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'%'");
     OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@'%'");
@@ -305,8 +305,8 @@ ODBC_TEST(t_bug50195)
     SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@127.0.0.1", SQL_NTS);
     SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@localhost", SQL_NTS);
 
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@127.0.0.1 IDENTIFIED BY 'a'");
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@localhost IDENTIFIED BY 'a'");
+    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@127.0.0.1 IDENTIFIED BY 's3CureP@wd'");
+    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@localhost IDENTIFIED BY 's3CureP@wd'");
 
     OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'127.0.0.1'");
     OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'localhost'");
@@ -319,11 +319,11 @@ ODBC_TEST(t_bug50195)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  hstmt1= DoConnect(hdbc1, FALSE, my_dsn, "bug50195", "a",  0, NULL, NULL, NULL, NULL);
+  hstmt1= DoConnect(hdbc1, FALSE, my_dsn, "bug50195", "s3CureP@wd",  0, NULL, NULL, NULL, NULL);
 
   if (hstmt1 == NULL)
   {
-    diag("Couldn't connect with new user of allocate the stmt");
+    diag("Couldn't connect with new user or allocate the stmt");
 
     if (Travis != 0  && TravisOnOsx == 0)
     {

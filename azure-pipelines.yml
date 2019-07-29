@@ -75,6 +75,14 @@ jobs:
           cmake -G "Visual Studio 16 2019" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL -DWITH_OPENSSL=OFF
           cmake --build . --config RelWithDebInfo
         displayName: 'build connector'
+      - task: CopyFiles@2
+        inputs:
+          contents: 'wininstall/**.msi'
+          targetFolder: $(Build.ArtifactStagingDirectory)
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)'
+          artifactName: msi_package
 
       - task: PowerShell@2
         inputs:
@@ -85,7 +93,7 @@ jobs:
             $regPath = "HKCU:\Software\ODBC\ODBC.INI\test"
             New-Item -Path $regPath
             New-ItemProperty -Path $regPath -Name "CONN_TIMEOUT" -Value "0"
-            New-ItemProperty -Path $regPath -Name "DATABASE" -Value "testo"
+            New-ItemProperty -Path $regPath -Name "DATABASE" -Value "test"
             New-ItemProperty -Path $regPath -Name "DESCRIPTION" -Value "MariaDB ODBC test"
             New-ItemProperty -Path $regPath -Name "Driver" -Value "MariaDB ODBC 3.1 Driver"
             New-ItemProperty -Path $regPath -Name "OPTIONS" -Value "0"
@@ -103,14 +111,14 @@ jobs:
         inputs:
           targetType: inline
           script: |
-            $msifile = Get-ChildItem $env:$(System.DefaultWorkingDirectory)\mariadb-connector-odbc*.msi | Select-Object -First 1
-            Push-AppveyorArtifact $msifile.FullName -FileName $msifile.Name
+            $msifile = Get-ChildItem $env:$(System.DefaultWorkingDirectory)\wininstall\mariadb-connector-odbc*.msi | Select-Object -First 1
             Write $msifile
-            msiexec /i $msifile INSTALLDIR=c:\mariadb-odbc /qn
+            msiexec /i $msifile.fullname INSTALLDIR=c:\mariadb-odbc /qn
           displayName: 'install odbc'
 
       - script: |
           set MARIADB_PLUGIN_DIR=$(System.DefaultWorkingDirectory)\libmariadb\plugins\lib\RelWithDebInfo
+          SET TEST_SCHEMA=test
 
           timeout /T 1
           cd test
@@ -225,12 +233,19 @@ jobs:
 
       - script: |
           sudo apt-get install -f -y make cmake
-          cd libmariadb
-          cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL -DCERT_PATH=$(System.DefaultWorkingDirectory)/tmp
-          make
+          #cd libmariadb
+          #cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL -DCERT_PATH=$(System.DefaultWorkingDirectory)/tmp
+          #make
 
-          cd ..
-          cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL
+          #cd ..
+          export TEST_SCHEMA=testo
+          export TEST_DRIVER=maodbc_test
+          export TEST_DSN=maodbc_test
+          export TEST_SERVER=mariadb.example.com
+          export TEST_UID=someUser
+          export TEST_PASSWORD=Passw@rd2
+
+          cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL .
           cmake --build . --config RelWithDebInfo
         displayName: 'Build'
 
@@ -261,6 +276,9 @@ jobs:
           cd ../test
           export ODBCINI="$(System.DefaultWorkingDirectory)/test/odbc.ini"
           export ODBCSYSINI=$(System.DefaultWorkingDirectory)/test
+
+          cat $ODBCINI
+          cat $ODBCSYSINI/odbcinst.ini
 
           ctest -V
 

@@ -232,7 +232,7 @@ ODBC_TEST(my_colpriv)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE test_colprev3(a INT,b INT,c INT, d INT)");
 
   (void)SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER my_colpriv", SQL_NTS);
-  OK_SIMPLE_STMT(Stmt, "CREATE USER my_colpriv");
+  OK_SIMPLE_STMT(Stmt, "CREATE USER my_colpriv IDENTIFIED BY 's3CureP@wd'");
 
   OK_SIMPLE_STMT(Stmt, "GRANT SELECT(a,b),INSERT(d),UPDATE(c) ON test_colprev1 TO my_colpriv");
   OK_SIMPLE_STMT(Stmt, "GRANT SELECT(c,a),UPDATE(a,b) ON test_colprev3 TO my_colpriv");
