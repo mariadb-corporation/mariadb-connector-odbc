@@ -4,18 +4,18 @@ services: docker
 addons:
   hosts:
     - mariadb.example.com
-  homebrew:
-    packages:
-      - openssl
-      - libiodbc
-      - mariadb
+#  homebrew:
+#    packages:
+#      - openssl
+#      - libiodbc
+#      - mariadb
 
 before_install:
-  - chmod +x .travis/script.sh
-  - chmod +x .travis/osx.sh
-  - chmod +x .travis/gen-ssl.sh
-  - chmod +x .travis/build/build.sh
-  - chmod +x .travis/build/docker-entrypoint.sh
+  #- chmod +x .travis/script.sh
+  #- chmod +x .travis/osx.sh
+  #- chmod +x .travis/gen-ssl.sh
+  #- chmod +x .travis/build/build.sh
+  #- chmod +x .travis/build/docker-entrypoint.sh
   - chmod 777 .travis/build/
   - export PROJ_PATH=`pwd`
   - export ENTRYPOINT=$PROJ_PATH/.travis/sql
@@ -57,6 +57,13 @@ matrix:
     - os: osx
       compiler: gcc
       env: DB=mariadb:10.4
+      addons:
+        mariadb: '10.4'
+      before_script:
+        - brew update
+        - brew install openssl
+        - brew install libiodbc
+        - brew install mariadb
     - os: linux
       env: DB=mariadb:10.2 PACKET=8M MAXSCALE_VERSION=2.1.8
     - os: linux
