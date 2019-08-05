@@ -13,8 +13,8 @@
         <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="MoveExistingDsnsToNewDriver">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
       </UI>
       <WixVariable Id="WixUILicenseRtf" Value="@ODBC_SOURCE_WIX_DIR@/license.rtf" />
-      <WixVariable Id="WixUIBannerBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIBannerBmp.jpg" />
-      <WixVariable Id="WixUIDialogBmp" Value="@ODBC_SOURCE_WIX_DIR@/WixUIDialogBmp.jpg" />
+      <WixVariable Id="WixUIBannerBmp" Value="@ODBC_SOURCE_WIX_DIR@/mdb-connector-odbc.png" />
+      <WixVariable Id="WixUIDialogBmp" Value="@ODBC_SOURCE_WIX_DIR@/mdb-dialog-popup.png" />
       <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Make User DSN's for older Connnector versions to use this version" />
 
     <Feature Id="ProductFeature" Title="@PRODUCT_NAME@ @PRODUCT_VERSION@" Level="1">
