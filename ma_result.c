@@ -50,6 +50,27 @@ SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
 }
 /* }}} */
 
+/* {{{  */
+void QuickDropAllPendingResults(MYSQL* Mariadb)
+{
+  int Next= 0;
+  do {
+    if (Next == 0)
+    {
+      if (mysql_field_count(Mariadb) > 0)
+      {
+        MYSQL_RES *Res= mysql_store_result(Mariadb);
+
+        if (Res)
+        {
+          mysql_free_result(Res);
+        }
+      }
+    }
+  } while ((Next= mysql_next_result(Mariadb)) != -1);
+}
+/* }}} */
+
 /* {{{ MADB_StmtMoreResults */
 SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 {
@@ -85,11 +106,23 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
       return SQL_NO_DATA;
     else
     {
+      int Next;
+
       LOCK_MARIADB(Stmt->Connection);
-      mysql_next_result(Stmt->Connection->mariadb);
-      if (mysql_field_count(Stmt->Connection->mariadb) != 0)
+      Next= mysql_next_result(Stmt->Connection->mariadb);
+
+      if (Next > 0)
       {
-        ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Can't process text result", 0);
+        ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY000, mysql_error(Stmt->Connection->mariadb), 0);
+      }
+      else if (mysql_field_count(Stmt->Connection->mariadb) != 0)
+      {
+        MYSQL_RES *Res= mysql_store_result(Stmt->Connection->mariadb);
+        if (Res != NULL)
+        {
+          mysql_free_result(Res);
+        }
+        ret= MADB_SetError(&Stmt->Error, MADB_ERR_01000, "Internal error - unexpected text result received", 0);
       }
       else
       {

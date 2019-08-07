@@ -754,6 +754,23 @@ ODBC_TEST(t_odbc43)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc226)
+{
+  /* The testcase relies on the fact, that default connection provided to tests, allows multistatement */
+  EXPECT_STMT(Stmt, SQLExecDirect( Stmt, "drop temporary table if exists test.odbc226;"
+    "create temporary table test.odbc226 as select 1 from nonexistend_table.field", SQL_NTS), SQL_SUCCESS);
+  
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
+  odbc_print_error(SQL_HANDLE_STMT, Stmt);
+  CHECK_SQLSTATE(Stmt, "HY000");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_odbc3_error, "t_odbc3_error"},
@@ -776,6 +793,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc115, "t_odbc115"},
   {t_odbc123, "t_odbc123"},
   {t_odbc43, "t_odbc43_datetime_overflow"},
+  {t_odbc226, "t_odbc226"},
   {NULL, NULL}
 };
 
