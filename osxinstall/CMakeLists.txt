@@ -70,6 +70,6 @@ SET_TARGET_PROPERTIES(maodbcpkg PROPERTIES EXCLUDE_FROM_ALL OFF)
 ADD_DEPENDENCIES(maodbcpkg copypkgfiles)
 ADD_DEPENDENCIES(copypkgfiles maodbc)
 IF(NOT USE_SYSTEM_INSTALLED_LIB)
-  ADD_DEPENDENCIES(copypkgfiles maodbc dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password)
+  ADD_DEPENDENCIES(copypkgfiles maodbc dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password client_ed25519)
 ENDIF()
 
