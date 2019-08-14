@@ -45,7 +45,6 @@ jobs:
           source: 'specific'
           project: '550599d3-6165-4abd-8c86-e3f7e53a1847'
           artifact: 'Windows'
-          pipeline: 3
           runVersion: 'latestFromBranch'
           runBranch: 'refs/heads/10.4-enterprise'
           downloadPath: $(System.DefaultWorkingDirectory)
@@ -161,7 +160,6 @@ jobs:
           source: 'specific'
           project: '550599d3-6165-4abd-8c86-e3f7e53a1847'
           artifact: '$(containerImage)'
-          pipeline: 3
           runVersion: 'latestFromBranch'
           runBranch: 'refs/heads/10.4-enterprise'
           downloadPath: $(System.DefaultWorkingDirectory)
@@ -173,7 +171,6 @@ jobs:
           project: '550599d3-6165-4abd-8c86-e3f7e53a1847'
           artifact: $(containerImage)
           runVersion: 'latestFromBranch'
-          pipeline: 2
           runBranch: 'refs/heads/es-mariadb-4.x'
           downloadPath: $(System.DefaultWorkingDirectory)
 
