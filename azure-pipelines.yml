@@ -42,12 +42,13 @@ jobs:
       - task: DownloadPipelineArtifact@2
         displayName: 'Download 10.4 server'
         inputs:
-          source: 'specific'
+          buildType: 'specific'
           project: '550599d3-6165-4abd-8c86-e3f7e53a1847'
-          artifact: 'Windows'
-          runVersion: 'latestFromBranch'
-          runBranch: 'refs/heads/10.4-enterprise'
-          downloadPath: $(System.DefaultWorkingDirectory)
+          definition: '3'
+          buildVersionToDownload: 'latestFromBranch'
+          branchName: 'refs/heads/10.4-enterprise'
+          artifactName: 'Windows-Release'
+          targetPath: '$(System.DefaultWorkingDirectory)'
 
       - script: |
           for /f %%a in ('dir /B $(System.DefaultWorkingDirectory)\win_build\mariadb-enterprise-10.*-winx64.msi') do set servername=$(System.DefaultWorkingDirectory)\win_build\%%a
