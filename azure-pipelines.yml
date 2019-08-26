@@ -46,7 +46,7 @@ jobs:
           project: '550599d3-6165-4abd-8c86-e3f7e53a1847'
           definition: '3'
           buildVersionToDownload: 'latestFromBranch'
-          branchName: 'refs/heads/10.4-enterprise'
+          branchName: 'refs/heads/10.4-enterprise-abychko'
           artifactName: 'Windows-Release'
           itemPattern: '*.msi'
           targetPath: '$(System.DefaultWorkingDirectory)'
