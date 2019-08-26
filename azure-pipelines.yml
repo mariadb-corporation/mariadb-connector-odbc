@@ -48,6 +48,7 @@ jobs:
           buildVersionToDownload: 'latestFromBranch'
           branchName: 'refs/heads/10.4-enterprise'
           artifactName: 'Windows-Release'
+          itemPattern: '*.msi'
           targetPath: '$(System.DefaultWorkingDirectory)'
 
       - script: |
