@@ -94,6 +94,8 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[32], 4, cbTls13,              4, 0},
   {&DsnKeys[33], 4, cbForceTls,           0, 0},
   {&DsnKeys[34], 4, txtServerKey,       260, 0},
+  {&DsnKeys[25], 4, txtTlsPeerFp,       41, 0},
+  {&DsnKeys[26], 4, txtTlsPeerFpList,   260, 0 },
   {NULL, 0, 0, 0, 0}
 };
 
@@ -654,6 +656,10 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       return res;
     case pbServerKeyBrowse:
       res=   SelectPath(hDlg, txtServerKey, L"Select Server Public Key File", FALSE, OpenCurSelection);
+      OpenCurSelection= OpenCurSelection && !res;
+      return res;
+    case pbFpListBrowse:
+      res=   SelectPath(hDlg, txtTlsPeerFpList, L"Select File with SHA1 fingerprints of server certificates", FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
     case rbTCP:

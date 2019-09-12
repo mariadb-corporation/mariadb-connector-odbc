@@ -27,6 +27,9 @@
 #define DSNKEY_UID_INDEX       8
 #define DSNKEY_PWD_INDEX       9
 #define DSNKEY_DATABASE_INDEX 10
+#define DSNKEY_FP_INDEX       25
+#define DSNKEY_FPLIST_INDEX   26
+
 
 MADB_DsnKey DsnKeys[]=
 {
@@ -60,8 +63,8 @@ MADB_DsnKey DsnKeys[]=
   {"SSLCAPATH",      offsetof(MADB_Dsn, SslCaPath),         DSN_TYPE_STRING, 0, 0},
   {"SSLCIPHER",      offsetof(MADB_Dsn, SslCipher),         DSN_TYPE_STRING, 0, 0},
   {"SSLVERIFY",      offsetof(MADB_Dsn, SslVerify),         DSN_TYPE_BOOL,   0, 0},
-  {"SSLFP",          offsetof(MADB_Dsn, SslFp),             DSN_TYPE_STRING, 0, 0},
-  {"SSLFPLIST",      offsetof(MADB_Dsn, SslFpList),         DSN_TYPE_STRING, 0, 0},
+  {"TLSPEERFP",      offsetof(MADB_Dsn, TlsPeerFp),         DSN_TYPE_STRING, 0, 0},
+  {"TLSPEERFPLIST",  offsetof(MADB_Dsn, TlsPeerFpList),     DSN_TYPE_STRING, 0, 0},
   {"SSLCRL",         offsetof(MADB_Dsn, SslCrl),            DSN_TYPE_STRING, 0, 0},
   {"SSLCRLPATH",     offsetof(MADB_Dsn, SslCrlPath),        DSN_TYPE_STRING, 0, 0},
   {"SOCKET",         offsetof(MADB_Dsn, Socket),            DSN_TYPE_STRING, 0, 0},
@@ -75,6 +78,8 @@ MADB_DsnKey DsnKeys[]=
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},
   {"PASSWORD",       DSNKEY_PWD_INDEX,                      DSN_TYPE_STRING, 0, 1},
   {"DB",             DSNKEY_DATABASE_INDEX,                 DSN_TYPE_COMBO,  0, 1},
+  {"SSLFP",          DSNKEY_FP_INDEX,                       DSN_TYPE_STRING, 0, 1},
+  {"SSLFPLIST",      DSNKEY_FPLIST_INDEX,                   DSN_TYPE_STRING, 0, 1},
 
   /* Terminating Null */
   {NULL, 0, DSN_TYPE_BOOL,0,0}
@@ -147,9 +152,10 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->SslCipher);
   MADB_FREE(Dsn->SslCrl);
   MADB_FREE(Dsn->SslCrlPath);
-  MADB_FREE(Dsn->SslFp);
-  MADB_FREE(Dsn->SslFpList);
+  MADB_FREE(Dsn->TlsPeerFp);
+  MADB_FREE(Dsn->TlsPeerFpList);
   MADB_FREE(Dsn->SaveFile);
+  MADB_FREE(Dsn->ServerKey);
 
   if (Dsn->FreeMe)
     MADB_FREE(Dsn); 

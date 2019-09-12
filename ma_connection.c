@@ -786,6 +786,15 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MYSQL_SERVER_PUBLIC_KEY, Dsn->ServerKey);
   }
 
+  if (!MADB_IS_EMPTY(Dsn->TlsPeerFp))
+  {
+    mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PEER_FP, (void*)Dsn->TlsPeerFp);
+  }
+  if (!MADB_IS_EMPTY(Dsn->TlsPeerFpList))
+  {
+    mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PEER_FP_LIST, (void*)Dsn->TlsPeerFpList);
+  }
+
   if (!mysql_real_connect(Connection->mariadb,
       Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password,
         Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, Dsn->Socket, client_flags))
