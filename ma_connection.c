@@ -781,6 +781,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
   }
 
+  if (!MADB_IS_EMPTY(Dsn->ServerKey))
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_SERVER_PUBLIC_KEY, Dsn->ServerKey);
+  }
+
   if (!mysql_real_connect(Connection->mariadb,
       Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password,
         Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, Dsn->Socket, client_flags))

@@ -106,7 +106,7 @@ BEGIN
     LTEXT           "How do you want to connect to MariaDB",IDC_STATIC,9,7,130,10,0,WS_EX_TRANSPARENT
     LTEXT           "Server Name:",lblServerName,86,21,49,11,0,WS_EX_TRANSPARENT | WS_EX_RIGHT
     LTEXT           "Please specify a user name and password to connect to MariaDB",IDC_STATIC,9,54,207,8,0,WS_EX_TRANSPARENT
-    LTEXT           "Please specify a user name and password to connect to MariaDB",IDC_STATIC,9,105,207,8,0,WS_EX_TRANSPARENT
+    LTEXT           "Please specify a database to use",IDC_STATIC,9,105,207,8,0,WS_EX_TRANSPARENT
     LTEXT           "User name:",IDC_STATIC,26,70,38,8,0,WS_EX_TRANSPARENT | WS_EX_RIGHT
     LTEXT           "Password:",IDC_STATIC,30,88,34,8,0,WS_EX_TRANSPARENT | WS_EX_RIGHT
     LTEXT           "Database:",IDC_STATIC,20,121,34,8,0,WS_EX_TRANSPARENT | WS_EX_RIGHT
@@ -169,35 +169,40 @@ Page_4 DIALOGEX 0, 0, 299, 182
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    GROUPBOX        "SSL Settings",IDC_STATIC,7,7,277,124,0,WS_EX_TRANSPARENT
+    GROUPBOX        "SSL Settings",IDC_STATIC,7,-2,278,148,0,WS_EX_TRANSPARENT
 
-    LTEXT           "Key",IDC_STATIC,15,20,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslKey,84,20,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbKeyBrowse,195,18,30,14
+    LTEXT           "Key",IDC_STATIC,15,10,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslKey,84,10,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbKeyBrowse,195,8,30,14
 
-    LTEXT           "Certificate",IDC_STATIC,15,34,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCert,84,34,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbCertBrowse,195,32,30,14
+    LTEXT           "Certificate",IDC_STATIC,15,24,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCert,84,24,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCertBrowse,195,22,30,14
 
-    LTEXT           "Certificate Authority",IDC_STATIC,15,48,68,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCertAuth,84,48,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbCaCertBrowse,195,46,30,14
+    LTEXT           "Certificate Authority",IDC_STATIC,15,38,68,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCertAuth,84,38,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCaCertBrowse,195,36,30,14
 
-    LTEXT           "CA Path",IDC_STATIC,15,62,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCaPath,84,62,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbCaPathBrowse,195,60,30,14
+    LTEXT           "CA Path",IDC_STATIC,15,52,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCaPath,84,52,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbCaPathBrowse,195,50,30,14
 
-    LTEXT           "Cipher",IDC_STATIC,15,76,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtSslCipher,84,76,110,10,ES_AUTOHSCROLL
+    LTEXT           "Cipher",IDC_STATIC,15,66,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtSslCipher,84,66,110,10,ES_AUTOHSCROLL
 
-    CONTROL         "Verify Certificate",cbSslVerify,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,90,68,10,WS_EX_TRANSPARENT
+    CONTROL         "Verify Certificate",cbSslVerify,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,80,68,10,WS_EX_TRANSPARENT
 
-    CONTROL         "Force TLS Use",cbForceTls,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,90,97,10,WS_EX_TRANSPARENT
+    CONTROL         "Force TLS Use",cbForceTls,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,80,97,10,WS_EX_TRANSPARENT
 
-    LTEXT           "Allowed TLS versions(Not checking any means that all are allowed)",IDC_STATIC,15,104,264,8,0,WS_EX_TRANSPARENT
-    CONTROL         "v.1.1",cbTls11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,115,30,10,WS_EX_TRANSPARENT
-    CONTROL         "v.1.2",cbTls12,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,45,115,30,10,WS_EX_TRANSPARENT
-    CONTROL         "v.1.3",cbTls13,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,75,115,30,10,WS_EX_TRANSPARENT
+    LTEXT           "Allowed TLS versions(Not checking any means, that all are allowed)",IDC_STATIC,15,94,264,8,0,WS_EX_TRANSPARENT
+    CONTROL         "v.1.1",cbTls11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,105,30,10,WS_EX_TRANSPARENT
+    CONTROL         "v.1.2",cbTls12,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,45,105,30,10,WS_EX_TRANSPARENT
+    CONTROL         "v.1.3",cbTls13,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,75,105,30,10,WS_EX_TRANSPARENT
+
+    LTEXT           "Server public key",IDC_STATIC,15,119,68,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtServerKey,84,119,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbServerKeyBrowse,195,117,30,14
+
 
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
     PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14

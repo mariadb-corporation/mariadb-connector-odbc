@@ -69,6 +69,7 @@ MADB_DsnKey DsnKeys[]=
   {"USE_MYCNF",      offsetof(MADB_Dsn, ReadMycnf),         DSN_TYPE_OPTION, MADB_OPT_FLAG_USE_CNF, 0},
   {"TLSVERSION",     offsetof(MADB_Dsn, TlsVersion),        DSN_TYPE_CBOXGROUP, 0, 0},
   {"FORCETLS",       offsetof(MADB_Dsn, ForceTls),          DSN_TYPE_BOOL,   0, 0},
+  {"SERVERKEY",      offsetof(MADB_Dsn, ServerKey),         DSN_TYPE_STRING,   0, 0},
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},
