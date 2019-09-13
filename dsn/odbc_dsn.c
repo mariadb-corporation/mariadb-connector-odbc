@@ -379,6 +379,7 @@ void DSN_Set_Database(SQLHANDLE Connection)
   SQLRETURN ret= SQL_ERROR;
   char Database[65];
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
+  HWND DbCombobox= GetDlgItem(hwndTab[1], cbDatabase);
   
 
   if (DBFilled)
@@ -393,15 +394,17 @@ void DSN_Set_Database(SQLHANDLE Connection)
     goto end;
 
   SQLBindCol(Stmt, 1, SQL_C_CHAR, Database, 65, 0);
-  ComboBox_ResetContent(GetDlgItem(hwndTab[1], cbDatabase));
+  ComboBox_ResetContent(DbCombobox);
   while (SQLFetch(Stmt) == SQL_SUCCESS)
-    ComboBox_InsertString(GetDlgItem(hwndTab[1], cbDatabase), -1, Database);
+  {
+    ComboBox_InsertString(DbCombobox, -1, Database);
+  }
   if (Dsn->Catalog)
   {
-    int Idx= ComboBox_FindString(GetDlgItem(hwndTab[2], cbDatabase), 0, Dsn->Catalog);
-    ComboBox_SetCurSel(GetDlgItem(hwndTab[2], cbDatabase), Idx);
+    int Idx= ComboBox_FindString(DbCombobox, 0, Dsn->Catalog);
+    ComboBox_SetCurSel(DbCombobox, Idx);
   }
-  ComboBox_SetMinVisible(GetDlgItem(hwndTab[1], cbDatabase),5);
+  ComboBox_SetMinVisible(GetDlgItem(hwndTab[1], cbDatabase), 5);
   DBFilled= TRUE;
 
 end:
