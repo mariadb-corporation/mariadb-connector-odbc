@@ -61,8 +61,8 @@ ELSE()
 ENDIF()
 
 ADD_CUSTOM_TARGET(maodbcpkg
-                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build_package.sh ${PRODUCT_IDENTIFIER} ${PRODUCT_VERSION} ${PKG_PACKAGE}
-                  DEPENDS copypkgfiles ${CMAKE_CURRENT_BINARY_DIR}/scripts/postinstall distribution.plist README.html WELCOME.html LICENSE.html
+                  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build_package.sh ${PRODUCT_IDENTIFIER} ${PRODUCT_VERSION} ${PKG_PACKAGE}
+                  DEPENDS copypkgfiles ${CMAKE_CURRENT_BINARY_DIR}/scripts/postinstall ${CMAKE_CURRENT_BINARY_DIR}/distribution.plist README.html ${CMAKE_CURRENT_BINARY_DIR}/WELCOME.html LICENSE.html
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 SET_TARGET_PROPERTIES(maodbcpkg PROPERTIES EXCLUDE_FROM_ALL OFF)
