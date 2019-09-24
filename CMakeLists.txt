@@ -120,8 +120,6 @@ IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
       #ENDIF()
 
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
-      # Temporary workarond for the (typo) issue in the c/c 3.1.4
-      SET(CRYT_LIBS ${SSL_LIBRARIES})
     ELSE()
       MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
     ENDIF()

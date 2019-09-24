@@ -244,9 +244,10 @@ typedef struct
 /* TODO: To check is it 0 or 1 based? not quite clear from its usage */
 typedef struct
 {
-  char  *Name;
-  SQLLEN Position;
-  SQLLEN RowsetSize;
+  char            *Name;
+  SQLLEN           Position;
+  SQLLEN           RowsetSize;
+  MYSQL_ROW_OFFSET Next;
 } MADB_Cursor;
 
 enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DAE_DELETE=3};

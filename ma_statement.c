@@ -1967,7 +1967,7 @@ else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
 /* {{{ MADB_StmtFetch */
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
-  unsigned int     row_num, j, rc;
+  unsigned int     RowNum, j, rc;
   SQLULEN          Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
   MYSQL_ROW_OFFSET SaveCursor= NULL;
   SQLRETURN        Result= SQL_SUCCESS, RowResult;
@@ -1985,9 +1985,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
-
-  /* We don't know if any of the ARD parameter changed, so we need to rebind */
-  //MADB_FREE(Stmt->result);
 
   /* We don't have much to do if ArraySize == 0 */
   if (Stmt->Ard->Header.ArraySize == 0)
@@ -2030,30 +2027,31 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   {
     SaveCursor= mysql_stmt_row_tell(Stmt->stmt);
     /* Skipping current row for for reading now, it will be read when the Cursor is returned to it */
-    MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position > 0 ? Stmt->Cursor.Position + 1 : 1);
+    MoveNext(Stmt, 1LL);
   }
 
   for (j= 0; j < Rows2Fetch; ++j)
   {
     RowResult= SQL_SUCCESS;
-    /* If we need to return to cursor to 1st row in the rowset, we start to read it from 2nd, and 1st row we read the last */
+    /* If we need to return the cursor to 1st row in the rowset, we start to read it from 2nd, and 1st row we read the last */
     if (SaveCursor != NULL)
     {
-      row_num= j + 1;
-      if (row_num == Rows2Fetch)
+      RowNum= j + 1;
+      if (RowNum == Rows2Fetch)
       {
-        row_num= 0;
+        RowNum= 0;
+        Stmt->Cursor.Next= mysql_stmt_row_tell(Stmt->stmt);
         mysql_stmt_row_seek(Stmt->stmt, SaveCursor);
       }
     }
     else
     {
-      row_num= j;
+      RowNum= j;
     }
     /*************** Setting up BIND structures ********************/
     /* Basically, nothing should happen here, but if happens, then it will happen on each row.
     Thus it's ok to stop */
-    RETURN_ERROR_OR_CONTINUE(MADB_PrepareBind(Stmt, row_num));
+    RETURN_ERROR_OR_CONTINUE(MADB_PrepareBind(Stmt, RowNum));
 
     /************************ Bind! ********************************/  
     mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
@@ -2062,7 +2060,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     {
       /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
       long *p= (long *)Stmt->Options.BookmarkPtr;
-      p+= row_num * Stmt->Options.BookmarkLength;
+      p+= RowNum * Stmt->Options.BookmarkLength;
       *p= (long)Stmt->Cursor.Position;
     }
     /************************ Fetch! ********************************/
@@ -2081,9 +2079,9 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       /* If mysql_stmt_fetch returned error, there is no sense to continue */
       if (Stmt->Ird->Header.ArrayStatusPtr)
       {
-        Stmt->Ird->Header.ArrayStatusPtr[row_num]= MADB_MapToRowStatus(RowResult);
+        Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
       }
-      CALC_ALL_ROWS_RC(Result, RowResult, row_num);
+      CALC_ALL_ROWS_RC(Result, RowResult, RowNum);
       return Result;
 
     case MYSQL_DATA_TRUNCATED:
@@ -2101,7 +2099,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
           /* If (numeric) field value and buffer are of the same size - ignoring truncation.
           In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
           some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
-          signed, or vice versa, why we should prevent that. Plus it seems there is the bug in C/C atm */
+          signed, or vice versa, why we should prevent that. */
           if (ArdRec->OctetLength == IrdRec->OctetLength
            && MADB_IsIntType(IrdRec->ConciseType) && MADB_IsIntType(ArdRec->ConciseType))
           {
@@ -2122,7 +2120,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       /* We have already incremented this counter, since there was no more rows, need to decrement */
       --*ProcessedPtr;
       /* SQL_NO_DATA should be only returned if first fetched row is already beyond end of the resultset */
-      if (row_num > 0)
+      if (RowNum > 0)
       {
         continue;
       }
@@ -2133,7 +2131,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     ++Stmt->PositionedCursor;
 
     /*Conversion etc. At this point, after fetch we can have RowResult either SQL_SUCCESS or SQL_SUCCESS_WITH_INFO */
-    switch (MADB_FixFetchedValues(Stmt, row_num, SaveCursor))
+    switch (MADB_FixFetchedValues(Stmt, RowNum, SaveCursor))
     {
     case SQL_ERROR:
       RowResult= SQL_ERROR;
@@ -2143,11 +2141,11 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     /* And if result of conversions - success, just leaving that we had before */
     }
 
-    CALC_ALL_ROWS_RC(Result, RowResult, row_num);
+    CALC_ALL_ROWS_RC(Result, RowResult, RowNum);
 
     if (Stmt->Ird->Header.ArrayStatusPtr)
     {
-      Stmt->Ird->Header.ArrayStatusPtr[row_num]= MADB_MapToRowStatus(RowResult);
+      Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
     }
   }
     
@@ -4069,43 +4067,10 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
 }
 /* }}} */
 
+/* {{{ MADB_RefreshRowPtrs */
 SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
 {
-  SQLRETURN    result= SQL_SUCCESS;
-
-  if (Stmt->result != NULL)
-  {
-    unsigned int i;
-    char        *saved_flag;
-
-    saved_flag= (char*)MADB_CALLOC(mysql_stmt_field_count(Stmt->stmt));
-
-    if (saved_flag == NULL)
-    {
-      return SQL_ERROR;
-    }
-
-    for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
-    {
-      saved_flag[i]= Stmt->stmt->bind[i].flags & MADB_BIND_DUMMY;
- 
-      Stmt->stmt->bind[i].flags|= MADB_BIND_DUMMY;
-    }
-
-    if (mysql_stmt_fetch(Stmt->stmt) == 1)
-    {
-      result= SQL_ERROR;
-    }
-
-    for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
-    {
-      Stmt->stmt->bind[i].flags &= (~MADB_BIND_DUMMY | saved_flag[i]);
-    }
-
-    MADB_FREE(saved_flag);
-  }
-
-  return result;
+  return MoveNext(Stmt, 1LL);
 }
 
 /* {{{ MADB_RefreshDynamicCursor */
@@ -4127,21 +4092,7 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
   Stmt->LastRowFetched= LastRowFetched;
   Stmt->AffectedRows=   AffectedRows;
 
-  if (Stmt->Cursor.Position > 0)
-  {
-    /* Looks likt this is not needed altogether. Leaving it commented out, so far */
-    /*MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
-    if (SQL_SUCCEEDED(ret))
-    {*/
-      /* We need to prevent that bound variables will be overwritten
-          by fetching data again: For subsequent GetData we need to update
-          bind->row_ptr */
-      /*Stmt->Methods->RefreshRowPtrs(Stmt);
- 
-      MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
-    }*/
-  }
-  else
+  if (Stmt->Cursor.Position < 0)
   {
     Stmt->Cursor.Position= 0;
   }
@@ -4334,7 +4285,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       while (Start <= End)
       {
         SQLSMALLINT param= 0, column;
-        MADB_StmtDataSeek(Stmt,Start);
+        MADB_StmtDataSeek(Stmt, Start);
         Stmt->Methods->RefreshRowPtrs(Stmt);
         
         /* We don't need to prepare the statement, if SetPos was called
@@ -4493,7 +4444,9 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       Stmt->Ard->Header.ArraySize= SaveArraySize;
       /* if we have a dynamic cursor we need to adjust the rowset size */
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
+      {
         Stmt->LastRowFetched-= (unsigned long)Stmt->AffectedRows;
+      }
     }
     break;
   case SQL_REFRESH:
@@ -4535,20 +4488,18 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
       return Stmt->Error.ReturnValue;
     }
   }
+
+  if (FetchOrientation != SQL_FETCH_NEXT)
+  {
+    MADB_STMT_FORGET_NEXT_POS(Stmt);
+  }
+
   switch(FetchOrientation) {
   case SQL_FETCH_NEXT:
     Position= Stmt->Cursor.Position < 0 ? 0 : Stmt->Cursor.Position + RowsProcessed;
-/*    if (Stmt->Ird->Header.RowsProcessedPtr)
-      Position+= MAX(1, *Stmt->Ird->Header.RowsProcessedPtr);
-    else
-      Position++; */
     break;
   case SQL_FETCH_PRIOR:
     Position= Stmt->Cursor.Position < 0 ? - 1: Stmt->Cursor.Position - MAX(1, Stmt->Ard->Header.ArraySize);
-     /* if (Stmt->Ird->Header.RowsProcessedPtr)
-        Position-= MAX(1, *Stmt->Ird->Header.RowsProcessedPtr);
-    else
-      Position--; */
     break;
   case SQL_FETCH_RELATIVE:
     Position= Stmt->Cursor.Position + FetchOffset;
@@ -4616,9 +4567,21 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
     return SQL_NO_DATA;
   }
 
-  if (FetchOrientation != SQL_FETCH_NEXT || RowsProcessed > 1 || Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
+  /* For dynamic cursor we "refresh" resultset eachtime(basically re-executing), and thus the (c/c)cursor is before 1st row at this point,
+     and thux we need to restore the last position. For array fetch with not forward_only cursor, the (c/c)cursor is at 1st row of the last
+     fetched rowset */
+  if (FetchOrientation != SQL_FETCH_NEXT || (RowsProcessed > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY) ||
+      Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
   {
-    ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+    if (Stmt->Cursor.Next != NULL)
+    {
+      mysql_stmt_row_seek(Stmt->stmt, Stmt->Cursor.Next);
+      ret= SQL_SUCCESS;
+    }
+    else
+    {
+      ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+    }
   }
   
   /* Assuming, that ret before previous "if" was SQL_SUCCESS */

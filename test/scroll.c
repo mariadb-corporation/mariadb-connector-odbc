@@ -164,10 +164,10 @@ ODBC_TEST(t_array_relative_10)
 
     diag("1-10, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
+    for (index= 0; index < nrows; index++)
     {
-        diag(" %d ",iarray[index-1]);
-        IS(iarray[index-1] == index);
+        diag("%d %d ", index, iarray[index]);
+        is_num(iarray[index], index + 1);
     }    
 
     rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 10-20 */
@@ -175,10 +175,10 @@ ODBC_TEST(t_array_relative_10)
 
     diag("\n10-20, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
+    for (index= 0; index < nrows; index++)
     {
-        diag(" %d ",iarray[index-1]);
-        IS(iarray[index-1] == index+10);
+        diag("%d %d ", index, iarray[index]);
+        is_num(iarray[index], index + 1 + 10);
     }    
 
     rc = SQLFetchScroll(Stmt,SQL_FETCH_PREV,0);/* 1-10 */

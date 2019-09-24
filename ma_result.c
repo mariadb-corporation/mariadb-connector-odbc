@@ -34,6 +34,50 @@ void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+/* {{{ MoveNext - moves C/C cursor forward for Offset positions */
+SQLRETURN MoveNext(MADB_Stmt *Stmt, unsigned long long Offset)
+{
+  SQLRETURN  result= SQL_SUCCESS;
+
+  if (Stmt->result != NULL)
+  {
+    unsigned int i;
+    char        *SavedFlag;
+
+    SavedFlag= (char*)MADB_CALLOC(mysql_stmt_field_count(Stmt->stmt));
+
+    if (SavedFlag == NULL)
+    {
+      return SQL_ERROR;
+    }
+
+    for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+    {
+      SavedFlag[i]= Stmt->stmt->bind[i].flags & MADB_BIND_DUMMY;
+
+      Stmt->stmt->bind[i].flags|= MADB_BIND_DUMMY;
+    }
+
+    while (Offset--)
+    {
+      if (mysql_stmt_fetch(Stmt->stmt) == 1)
+      {
+        result= SQL_ERROR;
+        break;
+      }
+    }
+
+    for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+    {
+      Stmt->stmt->bind[i].flags &= (~MADB_BIND_DUMMY | SavedFlag[i]);
+    }
+
+    MADB_FREE(SavedFlag);
+  }
+  return result;
+}
+/* }}} */
+
 /* {{{ MADB_StmtDataSeek */
 SQLRETURN MADB_StmtDataSeek(MADB_Stmt *Stmt, my_ulonglong FetchOffset)
 {

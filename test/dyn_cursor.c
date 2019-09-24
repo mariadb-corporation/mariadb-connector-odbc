@@ -354,14 +354,9 @@ ODBC_TEST(my_position)
     OK_SIMPLE_STMT(Stmt, "select * from my_position");
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
     rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
