@@ -31,6 +31,7 @@
 
 #pragma comment(lib, "ComCtl32.lib")
 
+#define CONNSTR_BUFFER_SIZE 1024
 #define LASTPAGE 5
 
 HINSTANCE     hInstance;
@@ -455,19 +456,32 @@ end:
 }
 
 
-static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn)
+static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn, SQLCHAR *ConnStrBuffer)
 {
   SQLHANDLE Connection= NULL;
   SQLRETURN Result;
-  char * InitCommand= Dsn->InitCommand;
+  SQLCHAR LocalBuffer[CONNSTR_BUFFER_SIZE], *ConnStr= LocalBuffer;
+  char *InitCommand= Dsn->InitCommand;
+  char *DsName=      Dsn->DSNName;
+  char *Description= Dsn->Description;
 
   Dsn->InitCommand= NULL;
+  Dsn->DSNName=     NULL;
+  Dsn->Description= NULL;
+
+  if (ConnStrBuffer != NULL)
+  {
+    ConnStr= ConnStrBuffer;
+  }
+  MADB_DsnToString(Dsn, ConnStr, CONNSTR_BUFFER_SIZE);
 
   SQLAllocHandle(SQL_HANDLE_DBC, Environment, (SQLHANDLE *)&Connection);
   assert(Connection != NULL);
-  Result= ((MADB_Dbc *)Connection)->Methods->ConnectDB((MADB_Dbc *)Connection, Dsn);
+  Result= SQLDriverConnect(Connection, NULL, ConnStr, CONNSTR_BUFFER_SIZE, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
 
   Dsn->InitCommand= InitCommand;
+  Dsn->DSNName= DsName;
+  Dsn->Description= Description;
 
   if (Conn != NULL)
   {
@@ -483,27 +497,77 @@ static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn)
 }
 
 
+/* Connstr has to be null-terminated */
+char* HidePwd(char *ConnStr)
+{
+  char *Ptr= ConnStr;
+
+  while (*Ptr)
+  {
+    BOOL IsPwd=          FALSE;
+    char *KeyValBorder= strchr(Ptr, '=');
+    char StopChr=        ';';
+
+    Ptr= ltrim(Ptr);
+
+    if (_strnicmp(Ptr, "PWD", 3) == 0 || _strnicmp(Ptr, "PASSWORD", 8) == 0)
+    {
+      IsPwd= TRUE;
+    }
+    if (KeyValBorder != NULL)
+    {
+      Ptr= ltrim(KeyValBorder + 1);
+    }
+    if (*Ptr == '{')
+    {
+      StopChr= '}';
+    }
+    while (*Ptr && *Ptr != StopChr)
+    {
+      if (IsPwd)
+      {
+        *Ptr= '*';
+      }
+      ++Ptr;
+    }
+    ++Ptr;
+  }
+
+  return ConnStr;
+}
+
+
 void MADB_WIN_TestDsn(my_bool ShowSuccess)
 {
   SQLHANDLE Connection;
   SQLRETURN ret;
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
+  SQLCHAR ConnStr[CONNSTR_BUFFER_SIZE];
 
   GetDialogFields();
 
-  ret= TestDSN(Dsn, &Connection);
+  ret= TestDSN(Dsn, &Connection, ConnStr);
 
   if (ShowSuccess)
   {
     char Info[1024];
+
+    HidePwd(ConnStr);
+
     if (SQL_SUCCEEDED(ret))
     {
-      _snprintf(Info, 1024, "Connection successfully established\n\nServer information: %s", mysql_get_server_info(((MADB_Dbc *)Connection)->mariadb));
+      char DbmsName[16], DbmsVer[16];
+      SQLGetInfo(Connection, SQL_DBMS_NAME, DbmsName, sizeof(DbmsName), NULL);
+      SQLGetInfo(Connection, SQL_DBMS_VER, DbmsVer, sizeof(DbmsVer), NULL);
+      _snprintf(Info, sizeof(Info), "Connection successfully established\n\nServer Information: %s %s\n\nConnection String:\n\n%s", DbmsName, DbmsVer, ConnStr);
       MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
     }
     else
     {
-      MessageBox(hwndTab[CurrentPage], ((MADB_Dbc *)Connection)->Error.SqlErrorMsg, "Connection test", MB_ICONINFORMATION| MB_OK);
+      SQLCHAR SqlState[6], ErrMsg[SQL_MAX_MESSAGE_LENGTH];
+      SQLGetDiagRec(SQL_HANDLE_DBC,   Connection, 1, SqlState, NULL, ErrMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
+      _snprintf(Info, sizeof(Info), "Connection failed: [%s] %s\n\nConnection String:\n\n%s", SqlState, ErrMsg, ConnStr);
+      MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
     }
   }
 
@@ -838,7 +902,7 @@ BOOL DSNDialog(HWND     hwndParent,
         Dsn->Driver= _strdup(lpszDriver);
       }
 
-      if (SQL_SUCCEEDED(TestDSN(Dsn, NULL)))
+      if (SQL_SUCCEEDED(TestDSN(Dsn, NULL, NULL)))
       {
         return MADB_SaveDSN(Dsn);
       }
@@ -870,7 +934,7 @@ BOOL DSNDialog(HWND     hwndParent,
 
       if (hwndParent == NULL)
       {
-        if (SQL_SUCCEEDED(TestDSN(Dsn, NULL)))
+        if (SQL_SUCCEEDED(TestDSN(Dsn, NULL, NULL)))
         {
           return MADB_SaveDSN(Dsn);
         }

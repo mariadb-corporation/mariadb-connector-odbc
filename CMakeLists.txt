@@ -57,8 +57,7 @@ SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
                      ${CMAKE_SOURCE_DIR}/dsn/resource.h
                      ma_dsn.c
-                     ma_driver.c
-                     ma_error.c
+#                     ma_error.c
                      ma_common.c)
 
 MACRO(ADD_OPTION _name _text _default)
@@ -201,15 +200,16 @@ IF(WIN32)
                           ma_legacy_helpers.h
                           ma_typeconv.h
                           ma_bulk.h)
-  SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
-                          ma_platform_win32.c)
+                        #  SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
+                        #  ma_platform_win32.c)
 
   SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
     IF (NOT(MSVC_VERSION LESS 1900))
       MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions") 
-      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} legacy_stdio_definitions)
+      SET(LEGACY_STDIO legacy_stdio_definitions)
+      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${LEGACY_STDIO})
     ENDIF()
   ENDIF()
 ELSE()
@@ -328,7 +328,7 @@ IF(WIN32)
   ####### MAODBCS #######
   ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
   SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
-  TARGET_LINK_LIBRARIES(maodbcs comctl32 ${MARIADB_LIB} maodbc ${ODBC_INSTLIBS})
+  TARGET_LINK_LIBRARIES(maodbcs comctl32 ${LEGACY_STDIO} Shlwapi ${ODBC_LIBS} ${ODBC_INSTLIBS})
 
   ADD_EXECUTABLE(dsn_test  dsn_test.c)
   TARGET_LINK_LIBRARIES(dsn_test ${MARIADB_LIB})

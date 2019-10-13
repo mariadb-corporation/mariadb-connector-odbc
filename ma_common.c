@@ -62,3 +62,14 @@ char* trim(char *Str)
 }
 /* }}} */
 
+/* Windows only common functions */
+#ifdef _WIN32
+
+/* {{{ strcasestr() */
+char* strcasestr(const char* HayStack, const char* Needle)
+{
+  return StrStrIA(HayStack, Needle);
+}
+/* }}} */
+
+#endif

@@ -804,7 +804,7 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
 
   if (DoWConnect == FALSE)
   {
-    if (!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, 1024, &Length, SQL_DRIVER_NOPROMPT)))
+    if (!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, sizeof(DSNOut), &Length, SQL_DRIVER_NOPROMPT)))
     {
       odbc_print_error(SQL_HANDLE_DBC, Connection);
       return NULL;
@@ -1231,55 +1231,6 @@ int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
   }
 
   return n != 0 && *s1!=*s2;
-}
-
-
-char* ltrim(char *str)
-{
-  while (*str && iswspace(*str))
-    ++str;
-
-  return str;
-}
-
-
-/* connstr has to be null-terminated */
-char* hide_pwd(char *connstr)
-{
-  char *ptr= connstr;
-
-  while (*ptr)
-  {
-    BOOL is_pwd=          FALSE;
-    char *key_val_border= strchr(ptr, '=');
-    char stop_chr=        ';';
-
-    ptr= ltrim(ptr);
-
-    if (_strnicmp(ptr, "PWD", 3) == 0 || _strnicmp(ptr, "PASSWORD", 8) == 0)
-    {
-      is_pwd= TRUE;
-    }
-    if (key_val_border != NULL)
-    {
-      ptr= ltrim(key_val_border + 1);
-    }
-    if (*ptr == '{')
-    {
-      stop_chr= '}';
-    }
-    while (*ptr && *ptr != stop_chr)
-    {
-      if (is_pwd)
-      {
-        *ptr= '*';
-      }
-      ++ptr;
-    }
-    ++ptr;
-  }
-
-  return connstr;
 }
 
 

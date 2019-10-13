@@ -111,139 +111,139 @@ ODBC_TEST(t_scroll)
 /* Testing SQL_FETCH_RELATIVE with row_set_size as 10 */
 ODBC_TEST(t_array_relative_10)
 {
-    SQLRETURN rc;
-    SQLINTEGER iarray[15];
-    SQLLEN   nrows, index;
-    SQLUINTEGER i;
-    char name[21];
+  SQLRETURN rc;
+  SQLINTEGER iarray[15];
+  SQLLEN   nrows, index;
+  SQLUINTEGER i;
+  char name[21];
 
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_array_relative_10");
 
-    OK_SIMPLE_STMT(Stmt, "create table t_array_relative_10(id int,name char(20))");
+  OK_SIMPLE_STMT(Stmt, "create table t_array_relative_10(id int,name char(20))");
 
-    rc = SQLPrepare(Stmt,(SQLCHAR *)"insert into t_array_relative_10 values(?,?)",SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLPrepare(Stmt,(SQLCHAR *)"insert into t_array_relative_10 values(?,?)",SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
-                          SQL_INTEGER,0,0,&i,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-    rc = SQLBindParameter(Stmt,2,SQL_PARAM_INPUT, SQL_C_CHAR,
-                          SQL_CHAR,20,0,name,20,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
+                        SQL_INTEGER,0,0,&i,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindParameter(Stmt,2,SQL_PARAM_INPUT, SQL_C_CHAR,
+                        SQL_CHAR,20,0,name,20,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    for ( i = 1; i <= 50; i++ )
-    {
-        sprintf(name,"my%d",i);
-        rc = SQLExecute(Stmt);
-        CHECK_STMT_RC(Stmt,rc);
-    }
+  for ( i = 1; i <= 50; i++ )
+  {
+      sprintf(name,"my%d",i);
+      rc = SQLExecute(Stmt);
+      CHECK_STMT_RC(Stmt,rc);
+  }
 
-    SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    rc = SQLEndTran(SQL_HANDLE_DBC,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLEndTran(SQL_HANDLE_DBC,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    /* set row size as 10 */
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)10,0);
-    CHECK_STMT_RC(Stmt,rc);
+  /* set row size as 10 */
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)10,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROWS_FETCHED_PTR, &nrows, 0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROWS_FETCHED_PTR, &nrows, 0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_array_relative_10");
+  OK_SIMPLE_STMT(Stmt, "select * from t_array_relative_10");
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 1-10 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 1-10 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("1-10, total rows:%ld\n",(long)nrows);
+  diag("1-10, total rows:%ld\n",(long)nrows);
 
-    for (index= 0; index < nrows; index++)
-    {
-        diag("%d %d ", index, iarray[index]);
-        is_num(iarray[index], index + 1);
-    }    
+  for (index= 0; index < nrows; index++)
+  {
+      diag("%d %d ", index, iarray[index]);
+      is_num(iarray[index], index + 1);
+  }    
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 10-20 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 10-20 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("\n10-20, total rows:%ld\n",(long)nrows);
+  diag("\n10-20, total rows:%ld\n",(long)nrows);
 
-    for (index= 0; index < nrows; index++)
-    {
-        diag("%d %d ", index, iarray[index]);
-        is_num(iarray[index], index + 1 + 10);
-    }    
+  for (index= 0; index < nrows; index++)
+  {
+      diag("%d %d ", index, iarray[index]);
+      is_num(iarray[index], index + 1 + 10);
+  }    
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_PREV,0);/* 1-10 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_PREV,0);/* 1-10 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("\n1-10, total rows:%ld\n",(long)nrows);
+  diag("\n1-10, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
-    {
-        diag(" %d ",iarray[index-1]);
-        IS(iarray[index-1] == index);
-    }    
+  for (index=1; index<=nrows; index++)
+  {
+      diag(" %d ",iarray[index-1]);
+      IS(iarray[index-1] == index);
+  }    
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 2-11 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 2-11 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("\n2-12, total rows:%ld\n",(long)nrows);
+  diag("\n2-12, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
-    {
-        diag(" %d ",iarray[index-1]);
-        IS(iarray[index-1] == index+1);
-    } 
+  for (index=1; index<=nrows; index++)
+  {
+      diag(" %d ",iarray[index-1]);
+      IS(iarray[index-1] == index+1);
+  } 
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* 1-10 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* 1-10 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("\n1-10, total rows:%ld\n",(long)nrows);
+  diag("\n1-10, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
-    {
-        diag(" %d",iarray[index-1]);
-        IS(iarray[index-1] == index);
-    }       
+  for (index=1; index<=nrows; index++)
+  {
+      diag(" %d",iarray[index-1]);
+      IS(iarray[index-1] == index);
+  }       
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,0);/* 1-10 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,0);/* 1-10 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("\n1-10, total rows:%ld\n",(long)nrows);
+  diag("\n1-10, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
-    {
-        diag(" %d",iarray[index-1]);
-        IS(iarray[index-1] == index);
-    }      
+  for (index=1; index<=nrows; index++)
+  {
+      diag(" %d",iarray[index-1]);
+      IS(iarray[index-1] == index);
+  }      
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* BOF */
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* BOF */
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 1-10 */
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 1-10 */
+  CHECK_STMT_RC(Stmt,rc);
 
-    diag("\n1-10, total rows:%ld\n",(long)nrows);
+  diag("\n1-10, total rows:%ld\n",(long)nrows);
 
-    for (index=1; index<=nrows; index++)
-    {
-        diag(" %d",iarray[index-1]);
-        IS(iarray[index-1] == index);
-    } 
+  for (index=1; index<=nrows; index++)
+  {
+      diag(" %d",iarray[index-1]);
+      IS(iarray[index-1] == index);
+  } 
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);    
-    SQLFreeStmt(Stmt,SQL_CLOSE);          
+  SQLFreeStmt(Stmt,SQL_UNBIND);    
+  SQLFreeStmt(Stmt,SQL_CLOSE);          
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_array_relative_10");
 

@@ -323,9 +323,3 @@ BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
 }
 /* }}} */
 
-/* {{{ strcasestr() */
-char* strcasestr(const char* HayStack, const char* Needle)
-{
-  return StrStrIA(HayStack, Needle);
-}
-/* }}} */
