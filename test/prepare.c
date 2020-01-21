@@ -1219,6 +1219,37 @@ ODBC_TEST(t_odbc141)
 }
 
 
+ODBC_TEST(t_odbc269)
+{
+  unsigned int i;
+
+  OK_SIMPLE_STMT(Stmt, "BEGIN NOT ATOMIC SET @SOME_ODBC267= 'someinfo';  SELECT 1, @SOME_ODBC267; SELECT 127, 'value',2020; END");
+
+  for (i= 0; i < 2; ++i)
+  {
+    IS(my_print_non_format_result_ex(Stmt, FALSE) == 1);
+    CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt)/* == SQL_SUCCESS*/);
+  }
+
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "BEGIN NOT ATOMIC SET @SOME_ODBC267= 'someinfo';  SELECT 1, @SOME_ODBC267; SELECT 127, 'value',2020; END", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  for (i= 0; i < 2; ++i)
+  {
+    IS(my_print_non_format_result_ex(Stmt, FALSE) == 1);
+    CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt)/* == SQL_SUCCESS*/);
+  }
+
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_prep_basic, "t_prep_basic"},
@@ -1237,8 +1268,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29871, "t_bug29871"},
   {t_bug67340, "t_bug67340"},
   {t_bug67702, "t_bug67702"},
-  {t_odbc57, "odbc-57-query_in_parenthesis" },
-  {t_odbc141, "odbc-141-load_data_infile" },
+  {t_odbc57, "odbc-57-query_in_parenthesis"},
+  {t_odbc141, "odbc-141-load_data_infile"},
+  {t_odbc269, "odbc-269-begin_not_atomic"},
   {NULL, NULL}
 };
 

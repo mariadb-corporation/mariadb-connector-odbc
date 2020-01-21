@@ -59,7 +59,7 @@ MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt)
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query)
 {
   return Query->QueryType != MADB_QUERY_CREATE_PROC && Query->QueryType != MADB_QUERY_CREATE_FUNC &&
-         Query->QueryType != MADB_QUERY_CREATE_DEFINER;
+         Query->QueryType != MADB_QUERY_CREATE_DEFINER && Query->QueryType != MADB_NOT_ATOMIC_BLOCK;
 }
 
 
