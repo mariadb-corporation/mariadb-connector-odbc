@@ -1,11 +1,15 @@
 environment: 
     matrix:
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-          DB: 10.4.6
+          DB: 10.4.12
           CMAKE_PARAM_G: 'Visual Studio 14 2015 Win64'
 
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-          DB: 10.4.6
+          DB: 10.4.12
+          CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
+
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+          DB: 10.5.0
           CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
 
 # scripts that are called at very beginning, before repo cloning
@@ -38,8 +42,7 @@ before_build:
 
 after_build:
     # download and install MariaDB Server
-    - cmd: set FILE=http://ftp.hosteurope.de/mirror/archive.mariadb.org//mariadb-%DB%/winx64-packages/mariadb-%DB%-winx64.msi
-    - ps: Start-FileDownload $Env:FILE -FileName server.msi -Timeout 900000
+    - cmd: appveyor-download.bat
     - msiexec /i server.msi INSTALLDIR=c:\mariadb-server SERVICENAME=mariadb /qn
     # create test database
     - c:\mariadb-server\bin\mysql.exe -e "CREATE DATABASE odbc_test" --user=root
