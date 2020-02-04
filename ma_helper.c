@@ -101,7 +101,7 @@ unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
       CloseMultiStatements(Stmt);
 
       /* Last paranoid attempt make sure that we did not have a parsing error.
-         More to preserve "backward-compatimility" - we did this before, but before trying to
+         More to preserve "backward-compatibility" - we did this before, but before trying to
          prepare "multi-statement". */
       if (i == 0 && Stmt->Error.NativeError !=1295 /*ER_UNSUPPORTED_PS*/)
       {
