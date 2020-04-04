@@ -119,8 +119,8 @@ ODBC_TEST(my_positioned_cursor)
 ODBC_TEST(my_setpos_cursor)
 {
   SQLLEN      nRowCount;
-  SQLINTEGER  id;
-  SQLCHAR     name[50];
+  SQLINTEGER  id= 0;
+  SQLCHAR     name[50]= {0};
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_demo_cursor");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE my_demo_cursor (id INT, name VARCHAR(20))");
@@ -194,7 +194,7 @@ ODBC_TEST(t_bug5853)
 {
   SQLRETURN rc;
   SQLHSTMT  hstmt_pos;
-  SQLCHAR   nData[4];
+  SQLCHAR   nData[4]= {0};
   SQLLEN    nLen= SQL_DATA_AT_EXEC;
   int       i= 0;
 
@@ -269,8 +269,8 @@ ODBC_TEST(t_bug5853)
 
 ODBC_TEST(t_setpos_del_all)
 {
-  SQLINTEGER nData[4];
-  SQLCHAR szData[4][10];
+  SQLINTEGER nData[4]= {0};
+  SQLCHAR szData[4][10]= {{0}, {0}, {0}, {0}};
   SQLUSMALLINT rgfRowStatus[4];
   SQLLEN nlen;
 
@@ -332,7 +332,7 @@ ODBC_TEST(t_setpos_del_all)
 
 ODBC_TEST(t_setpos_upd_decimal)
 {
-  SQLINTEGER   rec;
+  SQLINTEGER   rec= 0;
   SQLUSMALLINT status;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_upd_decimal");
@@ -3290,6 +3290,101 @@ ODBC_TEST(odbc251)
 }
 
 
+ODBC_TEST(odbc276)
+{
+  SQLINTEGER nData= 500;
+  SQLLEN nlen;
+  SQLCHAR szData[255]= { 0 };
+  SQLULEN pcrow;
+  SQLUSMALLINT rgfRowStatus;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos_bin");
+  OK_SIMPLE_STMT(Stmt, "create table tmysql_setpos_bin(col1 int, col2 binary(6))");
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(100,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(200,'My\\0QL2')");
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(400,'MySQL4')");
+
+  CHECK_DBC_RC(Connection, SQLTransact(NULL, Connection, SQL_COMMIT));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+    (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+
+  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos_bin");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 100, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_BINARY, szData, 100, NULL));
+
+  // Fetch Row 2 (That does not have a null) and update it
+  CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 2, &pcrow, &rgfRowStatus));
+
+  diag(" pcrow:%d\n", pcrow);
+
+  diag(" row2:%d,%s\n", nData, szData);
+
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
+
+  nData = 1000;
+  strcpy((char*)szData, "updat1");
+
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
+
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
+
+  diag(" rows affected:%d\n", nlen);
+  is_num(nlen, 1);
+
+  // Fetch Row 3 (That does have a null) and update it
+  CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 3, &pcrow, &rgfRowStatus));
+
+  diag(" pcrow:%d\n", pcrow);
+  diag(" row3:%d,%s\n", nData, szData);
+
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
+
+  nData = 1001;
+  strcpy((char*)szData, "updat2");
+
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
+
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nlen));
+
+  diag(" rows affected:%d\n", nlen);
+  is_num(nlen, 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos_bin");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 100);
+  IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL1", sizeof("MySQL1"));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1000);
+  IS_STR(my_fetch_str(Stmt, szData, 2), "updat1", sizeof("updat1"));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1001);
+  IS_STR(my_fetch_str(Stmt, szData, 2), "updat2", sizeof("updat2"));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 300);
+  IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL3", sizeof("MySQL3"));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 400);
+  IS_STR(my_fetch_str(Stmt, szData, 2), "MySQL4", sizeof("MySQL4"));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos_bin");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_positioned_cursor, "my_positioned_cursor",     NORMAL},
@@ -3341,6 +3436,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug39961, "t_bug39961",        NORMAL},
   {t_bug41946, "t_bug41946",        NORMAL},
   {odbc251, "odbc251-mblob_update", TO_FIX},
+  {odbc276, "odbc276-bin_update", NORMAL},
   {NULL, NULL}
 };
 

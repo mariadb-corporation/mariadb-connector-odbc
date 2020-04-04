@@ -209,8 +209,9 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
 {
   int UniqueCount=0, PrimaryCount= 0;
   int i, Flag= 0;
-  char *Column= NULL;
+  char *Column= NULL, *Escaped= NULL;
   SQLLEN StrLength;
+  unsigned long EscapedLength;
 
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
@@ -276,15 +277,18 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
         else
         {
           Column= MADB_CALLOC(StrLength + 1);
-          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, NULL, TRUE);
+          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, &StrLength, TRUE);
+          Escaped = MADB_CALLOC(2 * StrLength + 1);
+          EscapedLength= mysql_real_escape_string(Stmt->Connection->mariadb, Escaped, Column, (unsigned long)StrLength);
+
           if (MADB_DynstrAppend(DynString, "= '") ||
-            MADB_DynstrAppend(DynString, Column) ||
+            MADB_DynstrAppend(DynString, Escaped) ||//, EscapedLength) ||
             MADB_DynstrAppend(DynString, "'"))
           {
             goto memerror;
           }
           MADB_FREE(Column);
-          Column= NULL;
+          MADB_FREE(Escaped);
         }
       }
     }
