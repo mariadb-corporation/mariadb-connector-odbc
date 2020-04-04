@@ -270,7 +270,7 @@ enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Toke
   {
     return MADB_QUERY_SELECT;
   }
-  if (_strnicmp(Token1, "INSERT", 6) == 0)
+  if (_strnicmp(Token1, "INSERT", 6) == 0 || _strnicmp(Token1, "REPLACE", 7) == 0)
   {
     return MADB_QUERY_INSERT;
   }
@@ -415,6 +415,7 @@ int ParseQuery(MADB_QUERY *Query)
       {
         /* We are currently at 2nd token of statement, and getting previous token position from Tokens array*/
         StmtType= MADB_GetQueryType(MADB_Token(Query, Query->Tokens.elements - 2), p);
+
         Query->ReturnsResult= Query->ReturnsResult || !QUERY_DOESNT_RETURN_RESULT(StmtType);
         MADB_AddSubQuery(Query, CurQuery, StmtType);
 

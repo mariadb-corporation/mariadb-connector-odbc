@@ -536,6 +536,12 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   MADB_ResetParser(Stmt, StatementText, TextLength);
   MADB_ParseQuery(&Stmt->Query);
 
+  if ((Stmt->Query.QueryType == MADB_QUERY_INSERT || Stmt->Query.QueryType == MADB_QUERY_UPDATE || Stmt->Query.QueryType == MADB_QUERY_DELETE)
+    && MADB_FindToken(&Stmt->Query, "RETURNING"))
+  {
+    Stmt->Query.ReturnsResult= '\1';
+  }
+
   /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
      and store the number in Stmt->MultiStmts */
   if (QueryIsPossiblyMultistmt(&Stmt->Query) && QUERY_IS_MULTISTMT(Stmt->Query) &&
