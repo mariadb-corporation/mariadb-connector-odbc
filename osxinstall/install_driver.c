@@ -19,6 +19,10 @@
 
 #define SQL_NOUNICODEMAP
 
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+
 #ifdef _WIN32
 # include <windows.h>
 # include <Shlwapi.h>
@@ -42,8 +46,7 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 #endif
 
 #include <odbcinst.h>
-#include <stdio.h>
-#include <string.h>
+
 
 
 int Usage()

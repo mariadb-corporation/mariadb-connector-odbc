@@ -1336,7 +1336,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_GB_NO_RELATION, StringLengthPtr);
     break;
   case SQL_IDENTIFIER_CASE:
-    MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_IC_MIXED, StringLengthPtr);
+    MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_IC_MIXED, StringLengthPtr);
     break;
   case SQL_IDENTIFIER_QUOTE_CHAR:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 

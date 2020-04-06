@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2020 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -664,8 +664,9 @@ ODBC_TEST(odbc71)
 
 /* ODBC-123 Test for SQL_CATALOG_LOCATION info type. The connector incorrectly wrote to the buffer SQLUINTEGER,
    while it has to be SQLUSMALLINT,
-   Also testing SQL_GROUP_BY, which has the same problem */
-ODBC_TEST(odbc123)
+   Also testing SQL_GROUP_BY, which has the same problem
+   Adding here test from ODBC-277 about SQL_IDENTIFIER_CASE. It's also has to be SQLUSMALLINT*/
+ODBC_TEST(odbc123odbc277)
 {
   SQLUSMALLINT Info;
 
@@ -673,7 +674,8 @@ ODBC_TEST(odbc123)
   is_num(Info, SQL_CL_START);
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_GROUP_BY, &Info, 0, NULL));
   is_num(Info, SQL_GB_NO_RELATION);
-
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_IDENTIFIER_CASE, &Info, 0, NULL));
+  is_num(Info, SQL_IC_MIXED);
 
   return OK;
 }
@@ -767,7 +769,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc61, "odbc61_SQL_FILE_USAGE", NORMAL },
   { odbc84_62, "odbc84_WCHAR_types_odbc62_CREATE_PARAMS", NORMAL },
   { odbc71, "odbc71_some_odbc2_types", NORMAL },
-  { odbc123, "odbc123_catalog_start", NORMAL },
+  { odbc123odbc277, "odbc123_catalog_start_odbc277", NORMAL },
   { odbc109, "odbc109_shema_owner_term", NORMAL },
   { odbc143, "odbc143_odbc160_ANSI_QUOTES", NORMAL },
   { NULL, NULL }

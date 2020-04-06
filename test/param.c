@@ -1610,6 +1610,24 @@ ODBC_TEST(odbc212)
   return OK;
 }
 
+
+ODBC_TEST(timestruct_param)
+{
+  SQL_TIMESTAMP_STRUCT ts= { 2020/*year*/, 4, 7, 1/*hour*/, 28, 56, 0/*fractional*/ },
+    tt= {0, 0, 0, 15, 58, 33, 0};
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TYPE_TIMESTAMP, 20, 0, &ts, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TYPE_TIME, 8, 0, &tt, 0, NULL));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM DUAL WHERE '2020-04-07 01:28:56'=? AND '15:58:33'= ?");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {unbuffered_result, "unbuffered_result"},
@@ -1638,6 +1656,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc151, "odbc-151-buffer_length"},
   {odbc182, "odbc-182-timestamp2time"},
   {odbc212, "odbc-212-sqlbindparam_inout_type"},
+  {timestruct_param, "timestruct_param-seconds"},
   {NULL, NULL}
 };
 
