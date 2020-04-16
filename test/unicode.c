@@ -78,7 +78,7 @@ ODBC_TEST(test_count)
   SQLBindCol(Stmt, 1, SQL_INTEGER, &columnsize, sizeof(SQLINTEGER), NULL);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
 
-  wprintf(L"%s: %lu\n", columnname, columnsize);
+  wprintf(L"%s: %lu\n", columnname, (unsigned long)columnsize);
 
   return (OK);
 }
@@ -277,24 +277,31 @@ ODBC_TEST(sqldriverconnect)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  *conn_in= L'\0';
+  *conn_in = L'\0';
   wcscat(conn_in, L"DRIVER=");
-  mbstowcs(dummy, (char *)my_drivername, sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char*)my_drivername, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";UID=");
-  mbstowcs(dummy, (char *)my_uid, sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char*)my_uid, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";PWD=");
-  mbstowcs(dummy, (char *)my_pwd, sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char*)my_pwd, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";DATABASE=");
-  mbstowcs(dummy, (char *)my_schema, sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char*)my_schema, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";SERVER=");
-  mbstowcs(dummy, (char*)my_servername, sizeof(dummy)/sizeof(wchar_t));
+  mbstowcs(dummy, (char*)my_servername, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  mbstowcs(dummy, (char*)ma_strport, sizeof(dummy)/sizeof(wchar_t));
+  wcscat(conn_in, L";");
+  mbstowcs(dummy, (char*)ma_strport, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
+  if (strlen(add_connstr) > 0)
+  {
+    wcscat(conn_in, L";");
+    mbstowcs(dummy, (char*)add_connstr, sizeof(dummy) / sizeof(wchar_t));
+    wcscat(conn_in, dummy);
+  }
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, W(conn_in),
                                   (SQLSMALLINT)wcslen(conn_in), conn_out, sizeof(conn_out),
@@ -1190,7 +1197,15 @@ ODBC_TEST(t_bug28168)
     Grant for localhost and for all other hosts if the test server
     runs remotely
   */
-  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, grantQuery, SQL_NTS));
+  if (!SQL_SUCCEEDED(SQLExecDirectW(hstmt1, grantQuery, SQL_NTS)))
+  {
+    odbc_print_error(SQL_HANDLE_STMT, hstmt1);
+    if (get_native_errcode(hstmt1) == 1142)
+    {
+      skip("Test user doesn't have enough privileges to run this test");
+    }
+    return FAIL;
+  }
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, grantQuery2, SQL_NTS));
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1, CW("FLUSH PRIVILEGES"), SQL_NTS));
 
@@ -1208,9 +1223,15 @@ ODBC_TEST(t_bug28168)
   wcscat(conn_in, L";SERVER=");
   mbstowcs(dummy, (char *)my_servername, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
+  wcscat(conn_in, L";");
   mbstowcs(dummy, (char *)ma_strport, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
-
+  if (strlen(add_connstr) > 0)
+  {
+    wcscat(conn_in, L";");
+    mbstowcs(dummy, (char*)add_connstr, sizeof(dummy) / sizeof(wchar_t));
+    wcscat(conn_in, dummy);
+  }
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc2));
   CHECK_DBC_RC(hdbc2, SQLDriverConnectW(hdbc2, NULL, W(conn_in), SQL_NTS, NULL, 0,
     NULL, SQL_DRIVER_NOPROMPT));
@@ -1288,9 +1309,15 @@ ODBC_TEST(t_bug14363601)
   wcscat(conn_in, L";SERVER=");
   mbstowcs(dummy, (char *)my_servername, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
+  wcscat(conn_in, L";");
   mbstowcs(dummy, (char *)ma_strport, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
- 
+  if (strlen(add_connstr) > 0)
+  {
+    wcscat(conn_in, L";");
+    mbstowcs(dummy, (char*)add_connstr, sizeof(dummy) / sizeof(wchar_t));
+    wcscat(conn_in, dummy);
+  }
   wcscat(conn_in, L";CHARSET=utf8");
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, WL(conn_in, wcslen(conn_in)),

@@ -309,10 +309,20 @@ ODBC_TEST(my_colpriv)
 
 ODBC_TEST(t_sqlprocedures)
 {
-
-
   /* avoid errors in case binary log is activated */
-  OK_SIMPLE_STMT(Stmt, "SET GLOBAL log_bin_trust_function_creators = 1");
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "SET GLOBAL log_bin_trust_function_creators = 1", SQL_NTS)))
+  {
+    odbc_print_error(SQL_HANDLE_STMT, Stmt);
+    if (get_native_errcode(Stmt) == 1227)
+    {
+      /* Or maybe just skip it. The best would be recreate those errors and skip in more appropriate place */
+      diag("Test user doesn't have enough privileges to run this test - this test may fail in some cases");
+    }
+    else
+    {
+      return FAIL;
+    }
+  }
 
   OK_SIMPLE_STMT(Stmt, "DROP FUNCTION IF EXISTS t_sqlproc_func");
   OK_SIMPLE_STMT(Stmt,
@@ -596,7 +606,7 @@ ODBC_TEST(t_tables_bug)
     fprintf(stdout, "#  Column Name   : %s\n", szColName);
     fprintf(stdout, "#  NameLengh     : %d\n", pcbColName);
     fprintf(stdout, "#  DataType      : %d\n", pfSqlType);
-    fprintf(stdout, "#  ColumnSize    : %lu\n", pcbColDef);
+    fprintf(stdout, "#  ColumnSize    : %lu\n", (unsigned long)pcbColDef);
     fprintf(stdout, "#  DecimalDigits : %d\n", pibScale);
     fprintf(stdout, "#  Nullable      : %d\n", pfNullable);
 
@@ -1492,8 +1502,8 @@ ODBC_TEST(t_bug30770)
 
   /* Connect with no default daabase */
   sprintf((char *)conn, "DRIVER=%s;SERVER=%s;" \
-                        "UID=%s;PASSWORD=%s;DATABASE=%s;PORT=%u", my_drivername, my_servername,
-                        my_uid, my_pwd, my_schema, my_port);
+                        "UID=%s;PASSWORD=%s;DATABASE=%s;PORT=%u;%s", my_drivername, my_servername,
+                        my_uid, my_pwd, my_schema, my_port, add_connstr);
   
   is_num(mydrvconnect(&Env1, &Connection1, &Stmt1, conn), OK);
 

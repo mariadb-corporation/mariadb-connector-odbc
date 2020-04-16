@@ -219,8 +219,8 @@ ODBC_TEST(t_bug3780)
   SQLINTEGER attrlen;
 
   /* The connection string must not include DATABASE. */
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
-          my_drivername, my_servername, my_uid, my_pwd, my_port);
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;%s;%s",
+          my_drivername, my_servername, my_uid, my_pwd, ma_strport, add_connstr);
   diag(conn);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
@@ -302,8 +302,8 @@ ODBC_TEST(t_bug30626)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* odbc 2 */
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
-          my_drivername, my_servername, my_uid, my_pwd, my_port);
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;%s;%s",
+          my_drivername, my_servername, my_uid, my_pwd, ma_strport, add_connstr);
   
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
@@ -567,8 +567,8 @@ ODBC_TEST(odbc84_62)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* odbc 2 */
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
-    my_drivername, my_servername, my_uid, my_pwd, my_port);
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;%s;%s",
+    my_drivername, my_servername, my_uid, my_pwd, ma_strport, add_connstr);
 
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,
@@ -699,8 +699,8 @@ ODBC_TEST(odbc109)
   is_num(tn, 0);
 
   /* odbc 2 */
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;PORT=%d",
-    my_drivername, my_servername, my_uid, my_pwd, my_port);
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;%s;%s",
+    my_drivername, my_servername, my_uid, my_pwd, ma_strport, add_connstr);
 
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,

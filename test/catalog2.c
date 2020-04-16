@@ -308,7 +308,16 @@ ODBC_TEST(t_bug50195)
     OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@127.0.0.1 IDENTIFIED BY 's3CureP@wd'");
     OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@localhost IDENTIFIED BY 's3CureP@wd'");
 
-    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'127.0.0.1'");
+    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "GRANT ALL ON bug50195 TO bug50195@'127.0.0.1'", SQL_NTS)))
+    {
+      odbc_print_error(SQL_HANDLE_STMT, Stmt);
+      if (get_native_errcode(Stmt) == 1142)
+      {
+        skip("Test user doesn't have enough privileges to run this test");
+      }
+      return FAIL;
+    }
+
     OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'localhost'");
 
     OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@127.0.0.1");
@@ -736,10 +745,18 @@ ODBC_TEST(t_bug57182)
   SQLCHAR buff[24];
 
   OK_SIMPLE_STMT(Stmt, "drop procedure if exists bug57182");
-  OK_SIMPLE_STMT(Stmt, "CREATE DEFINER=`adb`@`%` PROCEDURE `bug57182`(in id int, in name varchar(20)) "
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE DEFINER=`adb`@`%` PROCEDURE `bug57182`(in id int, in name varchar(20)) "
     "BEGIN"
     "  insert into simp values (id, name);"
-    "END");
+    "END", SQL_NTS)))
+  {
+    odbc_print_error(SQL_HANDLE_STMT, Stmt);
+    if (get_native_errcode(Stmt) == 1227)
+    {
+      skip("Test user doesn't have enough privileges to run this test - this test may fail in some cases");
+    }
+    return FAIL;
+  }
 
   CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, my_schema, SQL_NTS, NULL, 0,
     "bug57182", SQL_NTS, 
@@ -984,8 +1001,8 @@ ODBC_TEST(sqlcolumns_nodbselected)
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
   /* Connecting not specifying default db */
-  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;PORT=%d", my_drivername,
-                              my_servername, my_uid, my_pwd, my_port);
+  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;PORT=%d;%s", my_drivername,
+                              my_servername, my_uid, my_pwd, my_port, add_connstr);
 
   
 

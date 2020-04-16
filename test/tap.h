@@ -125,6 +125,7 @@ static SQLCHAR *my_pwd=        (SQLCHAR *)"";
 static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
 static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB ODBC 3.1 Driver";
 static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
+static SQLCHAR *add_connstr=   (SQLCHAR*)"";
 
 static SQLWCHAR *wdsn;
 static SQLWCHAR *wuid;
@@ -133,6 +134,7 @@ static SQLWCHAR *wschema;
 static SQLWCHAR *wdrivername;
 static SQLWCHAR *wservername;
 static SQLWCHAR *wstrport;
+static SQLWCHAR *wadd_connstr;
 
 static unsigned long my_options= 67108866;
 
@@ -140,7 +142,7 @@ static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
 static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 
 static unsigned int  my_port=        3306;
-char          ma_strport[12]= ";PORT=3306";
+char          ma_strport[12]= "PORT=3306";
 
 static int Travis= 0, TravisOnOsx= 0;
 
@@ -218,7 +220,8 @@ void Usage()
   fprintf(stdout, "-s default database (schema)\n");
   fprintf(stdout, "-S Server name/address\n");
   fprintf(stdout, "-P Port number\n");
-  fprintf(stdout, "-o Use only DSN for the connection");
+  fprintf(stdout, "-o Use only DSN for the connection\n");
+  fprintf(stdout, "-a Additional connection string parameters\n");
   fprintf(stdout, "?  Displays this text\n");
 }
 
@@ -258,6 +261,10 @@ void get_env_defaults()
     {
       my_port= port;
     }
+  }
+  if ((env_val= getenv("TEST_ADD_PARAM")) != NULL)
+  {
+    add_connstr= env_val;
   }
 }
 
@@ -302,6 +309,9 @@ void get_options(int argc, char **argv)
       UseDsnOnly= TRUE;
       --i; /* -o doesn't have value, thus we need to decrement argument index so we do not miss next option */
       break;
+    case 'a':
+      add_connstr= (SQLCHAR*)argv[i+1];
+      break;
     case '?':
       Usage();
       exit(0);
@@ -313,7 +323,7 @@ void get_options(int argc, char **argv)
     }
   }
 
-  _snprintf(ma_strport, sizeof(ma_strport), ";PORT=%u", my_port);
+  _snprintf(ma_strport, sizeof(ma_strport), "PORT=%u", my_port);
 }
 
 
@@ -721,6 +731,15 @@ int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 #define CHECK_SQLSTATE(A,C) CHECK_SQLSTATE_EX(A, SQL_HANDLE_STMT, C)
 
 
+int get_native_errcode(SQLHSTMT Stmt)
+{
+  SQLINTEGER  err_code = 0;
+
+  SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, NULL, &err_code, NULL, 0, NULL);
+  return err_code;
+}
+
+
 int using_dm(HDBC hdbc)
 {
   SQLCHAR val[20];
@@ -969,7 +988,7 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
   wservername= str2sqlwchar_on_gbuff((const char*)my_servername, strlen((const char*)my_servername) + 1, utf8, DmUnicode);
   wdrivername= str2sqlwchar_on_gbuff((const char*)my_drivername, strlen((const char*)my_drivername) + 1, utf8, DmUnicode);
   wstrport=    str2sqlwchar_on_gbuff((const char*)ma_strport,    strlen((const char*)ma_strport) + 1,    utf8, DmUnicode);
-
+  wadd_connstr=str2sqlwchar_on_gbuff((const char*)add_connstr,   strlen((const char*)add_connstr) + 1,   utf8, DmUnicode);
   if (getenv("TRAVIS") != NULL)
   {
     Travis= 1;

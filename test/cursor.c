@@ -2763,8 +2763,8 @@ ODBC_TEST(t_bug32420)
      broken
   */
   sprintf((char *)conn,"DRIVER=%s;UID=%s;PASSWORD=%s;"
-          "DATABASE=%s;SERVER=%s;port=%d",
-          my_drivername, my_uid, my_pwd, my_schema, my_servername, my_port);
+          "DATABASE=%s;SERVER=%s;%s;%s",
+          my_drivername, my_uid, my_pwd, my_schema, my_servername, ma_strport, add_connstr);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 

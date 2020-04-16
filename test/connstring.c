@@ -126,7 +126,7 @@ ODBC_TEST(connstring_test)
   IS(SQLRemoveDSNFromIni(DsnName));
   FAIL_IF(MADB_DSN_Exists(DsnName), "DSN exsists!");
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DESCRIPTION={%s};DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;OPTIONS=%u;NO_PROMPT=1", DsnName,
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DESCRIPTION={%s};DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;OPTIONS=%u;NO_PROMPT=1", DsnName,
     Description, my_drivername, my_uid, my_pwd, my_servername, ma_strport, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -329,7 +329,7 @@ ODBC_TEST(aliases_tests)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DATABASE=%s;OPTIONS=%u", LocalDSName,
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DATABASE=%s;OPTIONS=%u", LocalDSName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, options);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -380,7 +380,7 @@ ODBC_TEST(dependent_fields)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DB=%s;OPTIONS=%u;TCPIP=1", LocalDSName,
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DB=%s;OPTIONS=%u;TCPIP=1", LocalDSName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, MADB_OPT_FLAG_NAMED_PIPE);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -425,7 +425,7 @@ ODBC_TEST(driver_vs_dsn)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s%s;DB=%s;OPTIONS=%u", DsnName,
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DB=%s;OPTIONS=%u", DsnName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, MADB_OPT_FLAG_NAMED_PIPE);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));

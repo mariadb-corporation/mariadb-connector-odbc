@@ -592,8 +592,8 @@ ODBC_TEST(t_desc_curcatalog)
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Connection1));
 
   /* Connecting not specifying default db */
-  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;PORT=%u", my_drivername, my_servername,
-                              my_uid, my_pwd, my_port);
+  sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;%s;%s", my_drivername, my_servername,
+                              my_uid, my_pwd, ma_strport, add_connstr);
   
   CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn_in, sizeof(conn_in), NULL,
                                  0, NULL,

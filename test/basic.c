@@ -1430,7 +1430,7 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
 
   /* Connecting to newly created tatabase */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=%lu;SERVER=%s%s",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=%lu;SERVER=%s;%s",
     my_dsn, my_uid, my_pwd, "t_odbc91", my_options, my_servername, ma_strport);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc));
@@ -1444,7 +1444,7 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE t_odbc91");
 
   /* Now we do not specify any database */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;DATABASE=%s%s",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;DATABASE=%s;%s",
     my_dsn, my_uid, my_pwd, my_options, my_servername, my_schema, ma_strport);
 
   CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
@@ -1464,8 +1464,8 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
   CHECK_DBC_RC(hdbc, SQLSetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"t_odbc91", SQL_NTS));
 
-  sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s%s",
-    my_drivername, my_uid, my_pwd, my_options, my_servername, ma_strport);
+  sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
+    my_drivername, my_uid, my_pwd, my_options, my_servername, add_connstr, ma_strport);
 
   CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,

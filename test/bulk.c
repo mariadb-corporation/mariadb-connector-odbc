@@ -447,8 +447,8 @@ ODBC_TEST(t_odbc90)
   strcpy((char*)(sval[1]), "Record 21");
   nval[0]= 100;
 
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s%s;",
-    my_drivername, my_servername, my_uid, my_pwd, my_schema, ma_strport);
+  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s;%s;%s;",
+    my_drivername, my_servername, my_uid, my_pwd, my_schema, add_connstr, ma_strport);
 
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,

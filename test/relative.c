@@ -682,7 +682,7 @@ ODBC_TEST(t_rows_fetched_ptr1)
   rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);
   while (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
   {
-    fprintf(stdout,"total rows fetched: %ld\n", rowsFetched);
+    fprintf(stdout,"total rows fetched: %ld\n", (long)rowsFetched);
     IS(rowsFetched == rowsSize);
     i++; rowsFetched= 0;
     rc = SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0);
@@ -704,7 +704,7 @@ ODBC_TEST(t_rows_fetched_ptr1)
   rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);
   while (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
   {
-    fprintf(stdout,"total rows fetched: %ld\n", rowsFetched);
+    fprintf(stdout,"total rows fetched: %ld\n", (long)rowsFetched);
     IS(rowsFetched == rowsSize);
     i++;rowsFetched= 0;
     rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);
