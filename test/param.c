@@ -1613,16 +1613,95 @@ ODBC_TEST(odbc212)
 
 ODBC_TEST(timestruct_param)
 {
-  SQL_TIMESTAMP_STRUCT ts= { 2020/*year*/, 4, 7, 1/*hour*/, 28, 56, 0/*fractional*/ },
-    tt= {0, 0, 0, 15, 58, 33, 0};
+  SQL_TIMESTAMP_STRUCT ts= { 2020/*year*/, 4, 7, 1/*hour*/, 28, 56, 0/*fractional*/ };
+  SQL_TIME_STRUCT tp= {15, 58, 33}, tr;
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIME, SQL_TYPE_TIME, 8, 0, &tp, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIME, SQL_TYPE_TIME, 8, 0, &tp, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_TIME, SQL_TYPE_TIME, 8, 0, &tp, 0, NULL));
+  OK_SIMPLE_STMT(Stmt, "SELECT ?, CAST('15:58:33' AS TIME) = ?, {t '15:58:33'} = ?");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIME, &tr, sizeof(SQL_TIME_STRUCT), NULL));
+  is_num(tr.hour, 15);
+  is_num(tr.minute, 58);
+  is_num(tr.second, 33);
+  is_num(my_fetch_int(Stmt, 2), 1);
+  is_num(my_fetch_int(Stmt, 3), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TYPE_TIMESTAMP, 20, 0, &ts, 0, NULL));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TYPE_TIME, 8, 0, &tt, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIME, SQL_TYPE_TIME, 8, 0, &tp, 0, NULL));
 
-  OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM DUAL WHERE '2020-04-07 01:28:56'=? AND '15:58:33'= ?");
+  OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM DUAL WHERE '2020-04-07 01:28:56'=? AND CAST('15:58:33' AS TIME) = ?");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 1);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
+/* Test of subsequent direct execution calls with decreasing number of parameters */
+ODBC_TEST(consequent_direxec)
+{
+  SQLINTEGER p1= 1, p2= 2, p3= 3;
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &p1, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &p2, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &p3, 0, NULL));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT ?, ?, ?");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 2);
+  is_num(my_fetch_int(Stmt, 3), 3);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+
+  p2= 7;
+  p3= 5;
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &p2, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &p3, 0, NULL));
+  OK_SIMPLE_STMT(Stmt, "SELECT ?, ?");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(my_fetch_int(Stmt, 1), 7);
+  is_num(my_fetch_int(Stmt, 2), 5);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
+ODBC_TEST(odbc279)
+{
+  char buffer[128];
+  SQL_TIME_STRUCT ts= { 12/*hour*/, 34, 56 };
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc279");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc279(col1 time)");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_TIME, SQL_TIME, 8, 0, &ts, 0, NULL));
+  
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc279 VALUES(?)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT col1 FROM t_odbc279");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(my_fetch_str(Stmt, buffer, 1), "12:34:56", 8);
+
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  ts.hour= ts.minute= ts.second= 0;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIME, &ts, sizeof(SQL_TIME_STRUCT), NULL));
+
+  
+  is_num(ts.hour, 12);
+  is_num(ts.minute, 34);
+  is_num(ts.second, 56);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc279");
 
   return OK;
 }
@@ -1657,6 +1736,8 @@ MA_ODBC_TESTS my_tests[]=
   {odbc182, "odbc-182-timestamp2time"},
   {odbc212, "odbc-212-sqlbindparam_inout_type"},
   {timestruct_param, "timestruct_param-seconds"},
+  {consequent_direxec, "consequent_direxec"},
+  {odbc279, "odbc-279-timestruct"},
   {NULL, NULL}
 };
 

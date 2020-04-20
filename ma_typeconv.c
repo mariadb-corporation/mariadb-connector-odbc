@@ -575,14 +575,19 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
     tm->month= cur_tm->tm_mon + 1;
     tm->day= cur_tm->tm_mday;
     tm->second_part= 0;
+    
+    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
+    MaBind->buffer_type= MYSQL_TYPE_TIMESTAMP;
   }
   else
   {
     tm->year=  0;
     tm->month= 0;
     tm->day=   0;
-  }
 
+    tm->time_type = MYSQL_TIMESTAMP_TIME;
+    MaBind->buffer_type= MYSQL_TYPE_TIME;
+  }
 
   tm->hour=   ts->hour;
   tm->minute= ts->minute;
@@ -590,9 +595,6 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
 
   tm->second_part= 0;
 
-  tm->time_type= MYSQL_TIMESTAMP_DATETIME;
-
-  MaBind->buffer_type= MYSQL_TYPE_DATETIME;
   *LengthPtr= sizeof(MYSQL_TIME);
 
   return SQL_SUCCESS;
