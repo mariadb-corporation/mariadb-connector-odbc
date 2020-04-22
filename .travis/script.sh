@@ -52,7 +52,8 @@ fi
 ls -lrt ${SSLCERT}
 
 
-DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc
+DEBIAN_FRONTEND=noninteractive sudo apt-get update
+DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc-dev odbcinst1debian2 libodbc1 
 
 #build odbc connector
 export TEST_DRIVER=maodbc_test

@@ -1695,7 +1695,6 @@ ODBC_TEST(odbc279)
   ts.hour= ts.minute= ts.second= 0;
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIME, &ts, sizeof(SQL_TIME_STRUCT), NULL));
 
-  
   is_num(ts.hour, 12);
   is_num(ts.minute, 34);
   is_num(ts.second, 56);

@@ -301,6 +301,7 @@ const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc)
   static char OurLocation[_MAX_PATH];
   const char *PluginsSubDirName= "\\"MADB_DEFAULT_PLUGINS_SUBDIR;
 
+  memset(OurLocation, 0, sizeof(OurLocation));
   GetModuleFileName(hModule, OurLocation, _MAX_PATH);
   PathRemoveFileSpec(OurLocation);
 
