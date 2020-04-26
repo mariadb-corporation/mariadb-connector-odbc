@@ -398,7 +398,7 @@ BOOL MADB_DSN_PossibleConnect(MADB_Dsn *Dsn)
 
 
 /* Stub - atm it looks like we don't need to do anything here */
-const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc)
+char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size)
 {
   return NULL;
 }

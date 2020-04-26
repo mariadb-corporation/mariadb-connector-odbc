@@ -18,6 +18,8 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
+extern const char* DefaultPluginLocation;
+
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
   {SQL_TRANSACTION_REPEATABLE_READ, "REPEATABLE READ"},
@@ -140,7 +142,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
   if (!Dbc)
   {
     /* Todo: check */
-    if (Attribute != SQL_ATTR_TRACE ||
+    if (Attribute != SQL_ATTR_TRACE &&
         Attribute != SQL_ATTR_TRACEFILE)
       return SQL_INVALID_HANDLE;
     return SQL_SUCCESS;
@@ -609,10 +611,9 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
   else
   {
-    const char *DefaultLocation= MADB_GetDefaultPluginsDir(Connection);
-    if (DefaultLocation != NULL)
+    if (DefaultPluginLocation != NULL)
     {
-      mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, DefaultLocation);
+      mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, DefaultPluginLocation);
     }
   }
 

@@ -222,8 +222,8 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
         mysql_stmt_data_seek(Stmt->stmt, 0);
       }
     }
-    UNLOCK_MARIADB(Stmt->Connection);
   }
+  UNLOCK_MARIADB(Stmt->Connection);
 
   return ret;
 }
@@ -232,7 +232,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 /* {{{ MADB_RecordsToFetch */
 SQLULEN MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long long RowsInResultst)
 {
-  SQLLEN  Position= Cursor->Position >= 0 ? Cursor->Position : 0;
+  SQLULEN  Position= Cursor->Position >= 0 ? Cursor->Position : 0;
   SQLULEN result= ArraySize;
 
   Cursor->RowsetSize= ArraySize;

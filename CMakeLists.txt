@@ -203,7 +203,7 @@ IF(WIN32)
                         #  SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
                         #  ma_platform_win32.c)
 
-  SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi)
+			SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
     IF (NOT(MSVC_VERSION LESS 1900))

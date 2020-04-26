@@ -22,6 +22,11 @@ extern Client_Charset utf8;
 extern MARIADB_CHARSET_INFO* DmUnicodeCs;
 extern MARIADB_CHARSET_INFO  dummyUtf32le;
 Client_Charset SourceAnsiCs= {0, 0}; /* Basically it should be initialized with 0 anyway */
+char* DefaultPluginLocation= NULL;
+#ifndef _MAX_PATH
+# define _MAX_PATH 260
+#endif
+static char PluginLocationBuf[_MAX_PATH];
 
 MARIADB_CHARSET_INFO * mysql_find_charset_name(const char *name);
 
@@ -114,7 +119,11 @@ MADB_Env *MADB_EnvInit()
   utf8.cs_info= mariadb_get_charset_by_name("utf8mb4");
   GetDefaultLogDir();
   GetSourceAnsiCs(&SourceAnsiCs);
-
+  /* If we have something in the buffer - then we've already tried to get default location w/out much success */
+  if (DefaultPluginLocation == NULL && strlen(PluginLocationBuf) == 0)
+  {
+    DefaultPluginLocation= MADB_GetDefaultPluginsDir(PluginLocationBuf, sizeof(PluginLocationBuf));
+  }
 cleanup:
 #ifdef _WIN32  
   if (!Env)

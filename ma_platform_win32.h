@@ -28,7 +28,10 @@
 
 #define _ma_platform_x_h_
 
-#define WIN32_LEAN_AND_MEAN
+#ifndef WIN32_LEAN_AND_MEAN
+# define WIN32_LEAN_AND_MEAN
+#endif // !WIN32_LEAN_AND_MEAN
+
 #define _WINSOCKAPI_
 #define DONT_DEFINE_VOID
 #define HAVE_UNICODE

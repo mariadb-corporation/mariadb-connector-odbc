@@ -56,7 +56,7 @@ ELSE()
 ENDIF()
 
 ADD_EXECUTABLE(change_dsns_driver change_dsns_driver.c ${CMAKE_SOURCE_DIR}/ma_dsn.c ${CMAKE_SOURCE_DIR}/ma_platform_win32.c ${CMAKE_SOURCE_DIR}/ma_common.c)
-TARGET_LINK_LIBRARIES(change_dsns_driver ${ODBC_LIBS} ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi)
+TARGET_LINK_LIBRARIES(change_dsns_driver ${ODBC_LIBS} ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi Pathcch)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
                ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)

@@ -57,7 +57,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);
 /* Has platform versions */
-const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc);
+char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size);
 
 #define MADB_SUPPORTED_CONVERSIONS  SQL_CVT_BIGINT | SQL_CVT_BIT | SQL_CVT_CHAR | SQL_CVT_DATE |\
                                     SQL_CVT_DECIMAL | SQL_CVT_DOUBLE | SQL_CVT_FLOAT |\

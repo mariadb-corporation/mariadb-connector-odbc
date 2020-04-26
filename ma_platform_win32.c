@@ -23,8 +23,8 @@
 /* NOTE If you change something in this program, please consider if other platform's version 
         of the function you are changing, needs to be changed accordingly */
 
-#include <ma_odbc.h>
-#include "Shlwapi.h"
+#include "ma_odbc.h"
+#include <pathcch.h>
 
 extern Client_Charset utf8;
 char LogFile[256];
@@ -295,23 +295,25 @@ BOOL MADB_DirectoryExists(const char *Path)
   return (FileAttributes != INVALID_FILE_ATTRIBUTES) && (FileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-const char* MADB_GetDefaultPluginsDir(MADB_Dbc *Dbc)
+char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size)
 {
   HMODULE hModule = GetModuleHandle(MADB_DRIVER_NAME);
-  static char OurLocation[_MAX_PATH];
+  wchar_t wOurLocation[_MAX_PATH];
   const char *PluginsSubDirName= "\\"MADB_DEFAULT_PLUGINS_SUBDIR;
+  HRESULT hr;
 
-  memset(OurLocation, 0, sizeof(OurLocation));
-  GetModuleFileName(hModule, OurLocation, _MAX_PATH);
-  PathRemoveFileSpec(OurLocation);
+  memset(Buffer, 0, Size);
+  GetModuleFileNameW(hModule, wOurLocation, _MAX_PATH);
+  hr= PathCchRemoveFileSpec(wOurLocation, _MAX_PATH);
 
-  if (strlen(OurLocation) < _MAX_PATH - strlen(PluginsSubDirName))
+  WideCharToMultiByte(GetACP(), 0, wOurLocation, -1, Buffer, Size, NULL, NULL);
+  if (strlen(Buffer) < Size - strlen(PluginsSubDirName))
   {
-    strcpy(OurLocation + strlen(OurLocation), PluginsSubDirName);
+    strcpy(Buffer + strlen(Buffer), PluginsSubDirName);
 
-    if (MADB_DirectoryExists(OurLocation) != FALSE)
+    if (MADB_DirectoryExists(Buffer) != FALSE)
     {
-      return OurLocation;
+      return Buffer;
     }
   }
   return NULL;
