@@ -777,6 +777,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&ForceTls);
   }
 
+  if (!MADB_IS_EMPTY(Dsn->SslCrl))
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRL, Dsn->SslCrl);
+  }
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
@@ -794,6 +798,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (!MADB_IS_EMPTY(Dsn->TlsPeerFpList))
   {
     mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PEER_FP_LIST, (void*)Dsn->TlsPeerFpList);
+  }
+
+  if (!MADB_IS_EMPTY(Dsn->TlsKeyPwd))
+  {
+    mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
   }
 
   if (!mysql_real_connect(Connection->mariadb,

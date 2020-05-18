@@ -129,6 +129,7 @@ typedef struct st_madb_dsn
   char *SslCrlPath;
   char *TlsPeerFp;
   char *TlsPeerFpList;
+  char *TlsKeyPwd;
   my_bool SslVerify;
   char TlsVersion;
   my_bool ForceTls;

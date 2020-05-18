@@ -16,7 +16,6 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#define WIN32_LEAN_AND_MEAN
 
 #include <Windows.h>
 #include <stdlib.h>
@@ -83,6 +82,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[14], 2, ckReconnect,          0, 0},
   {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[16], 2, cbCharset,            0, 0},
+  {&DsnKeys[34], 2, txtServerKey,       260, 0},
   {&DsnKeys[18], 3, txtPluginDir,       260, 0},
   {&DsnKeys[19], 4, txtSslKey,          260, 0},
   {&DsnKeys[20], 4, txtSslCert,         260, 0},
@@ -94,7 +94,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[32], 4, cbTls12,              2, 0},
   {&DsnKeys[32], 4, cbTls13,              4, 0},
   {&DsnKeys[33], 4, cbForceTls,           0, 0},
-  {&DsnKeys[34], 4, txtServerKey,       260, 0},
+  {&DsnKeys[27], 4, txtCrl,               0, 0},
   {&DsnKeys[25], 4, txtTlsPeerFp,       41, 0},
   {&DsnKeys[26], 4, txtTlsPeerFpList,   260, 0 },
   {NULL, 0, 0, 0, 0}
@@ -728,6 +728,10 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     case pbFpListBrowse:
       res=   SelectPath(hDlg, txtTlsPeerFpList, L"Select File with SHA1 fingerprints of server certificates", FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
+      return res;
+    case pbCrlBrowse:
+      res = SelectPath(hDlg, txtCrl, L"Select PEM File Certificate Revocation List(CRL)", FALSE, OpenCurSelection);
+      OpenCurSelection = OpenCurSelection && !res;
       return res;
     case rbTCP:
 	  case rbPipe:
