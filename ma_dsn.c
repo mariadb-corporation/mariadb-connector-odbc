@@ -485,7 +485,7 @@ size_t ConnStringLength(const char * String, char Delimiter)
 /* {{{ MADB_ParseConnString */
 my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter)
 {
-  char    *Buffer, *Key, *Value;
+  char    *Buffer, *Key, *Value, *ValueBuf;
   my_bool ret;
 
   if (!String)
@@ -499,10 +499,12 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
   Buffer= MADB_ALLOC(Length + 1);
   Buffer= memcpy(Buffer, String, Length + 1);
   Key=    Buffer;
+  ValueBuf= MADB_ALLOC(Length - 4); /*DSN=<value> - DSN or DRIVER must be in */
 
   while (Key && Key < ((char *)Buffer + Length))
   {
     int i= 0;
+
     if (!(Value= strchr(Key, '=')))
     {
       ret= FALSE;
@@ -517,34 +519,51 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
     {
       if (_stricmp(DsnKeys[i].DsnKey, Key) == 0)
       {
-        char    *p;
-        my_bool special= FALSE;
+        char *p= NULL;
 
         if (DsnKeys[i].IsAlias)
         {
           i= DsnKeys[i].DsnOffset; /* For aliases DsnOffset is index of aliased "main" key */
         }
 
-        Value= trim(Value);
+        Value= ltrim(Value);
 
         if (Value[0] == '{')
         {
-          ++Value;
-          if ((p = strchr(Value, '}')))
+          char *valueBufPtr= ValueBuf;
+          char *prev= ++Value;
+          *valueBufPtr= '\0';
+          while ((p = strchr(prev, '}')) != NULL )
           {
-            *p= 0;
-            special= TRUE;
+            memcpy(valueBufPtr, prev, p - prev);
+            valueBufPtr+= p - prev;
+            if (*(p + 1) == '}')
+            {
+              *(valueBufPtr++)= '}';
+              *valueBufPtr= '\0';
+              prev= p + 2;
+            }
+            else
+            {
+              *valueBufPtr= '\0';
+              ++p;
+              break;
+            }
           }
+          Value= ValueBuf;
         }
         else if ((p= strchr(Value, Delimiter)))
         {
           *p= 0;
         }
+        /* TODO: 3.2 we should not trim enclosed in braces, I think */
         Value= trim(Value);
 
         /* Overwriting here - if an option repeated more than once in the string, its last entrance will determine the value */
         if (!MADB_DsnStoreValue(Dsn, i, Value, TRUE))
+        {
           return FALSE;
+        }
         if (IS_OPTIONS_BITMAP(i))
         {
           MADB_DsnUpdateOptionsFields(Dsn);
@@ -552,18 +571,29 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
 
         if (p)
         {
-          *p= (special) ? ' ' : Delimiter;
+          Key= p + 1;
+        }
+        else
+        {
+          Key= NULL;
         }
         break;
       }
       ++i;
     }
-    if ((Key= strchr(Value, Delimiter)))
+    /* Unknown keyword */
+    if (DsnKeys[i].DsnKey == NULL)
     {
-      ++Key;
+      //TODO: shouldn't some error/warning be thrown?
+      Key= strchr(Value, Delimiter);
+      if (Key != NULL)
+      {
+        ++Key;
+      }
     }
   }
   MADB_FREE(Buffer);
+  MADB_FREE(ValueBuf);
   return TRUE;
 }
 /* }}} */

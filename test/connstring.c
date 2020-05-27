@@ -57,19 +57,27 @@ BOOL VerifyOptionFields(MADB_Dsn *Dsn)
 
 #define VERIFY_OPTIONS(dsn, value) is_num(dsn->Options,value);IS(VerifyOptionFields(dsn))
 
-/* Copy of the function from connector - required for (easier) linking */
+/* Copy of the function from connector - required for (easier) linking. They are unlikely to be changed there. But one should be careful */
+/* {{{ ltrim */
+char* ltrim(char* Str)
+{
+  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
+  while (Str && iswspace(Str[0]))
+    ++Str;
+  return Str;
+}
+/* }}} */
 char *trim(char *Str)
 {
   char *end;
-  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
-  while (Str && iswspace(Str[0]))
-    Str++;
+
+  Str = ltrim(Str);
   end= Str + strlen(Str) - 1;
   while (iswspace(*end))
     *end--= 0;
   return Str;
 }
-
+/* End of copied functions*/
 
 int CreateTestDsn(MADB_Dsn *dsn)
 {
@@ -514,7 +522,7 @@ ODBC_TEST(odbc_188)
 }
 
 
-/* Only testing that opion is saved/red */
+/* Only testing that option is saved/read */
 ODBC_TEST(odbc_229)
 {
   const char *LocalDSName=  "madb_connstr_usecnf";
@@ -598,6 +606,39 @@ ODBC_TEST(odbc_228)
   return OK;
 }
 
+/* Testing escaping of closing curly brace in the attribute(aka connstring option) value*/
+ODBC_TEST(odbc_284)
+{
+  const char* pdwWithEscapedBraces= "pwd}}sec}}}}ure}}";
+  const char* realPwd=              "pwd}sec}}ure}";
+  const char* user=                 "user_with_brace_in_pwd";
+  const char* descr=                "Test dsn";
+  const char* host=                 "testhost.mariadb.com";
+  char connstr4dsn[512];
+
+  RESET_DSN(Dsn);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s;DESCRIPTION=%s ;USER={%s}; SERVER = %s ;PASSWORD={%s}", my_drivername, descr, user, host, pdwWithEscapedBraces);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
+  IS_STR(Dsn->Password,    realPwd, strlen(realPwd) + 1);
+  IS_STR(Dsn->UserName,    user,    strlen(user) + 1);
+  IS_STR(Dsn->Description, descr,   strlen(descr) + 1);
+  IS_STR(Dsn->ServerName,  host,    strlen(host) + 1);
+
+  RESET_DSN(Dsn);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s%cDESCRIPTION=%s %cUSER={%s}%c SERVER = %s %cPASSWORD={%s}\0\0", my_drivername, '\0', descr, '\0', user, '\0', host, '\0', pdwWithEscapedBraces);
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
+
+  IS_STR(Dsn->Password, realPwd, strlen(realPwd) + 1);
+  IS_STR(Dsn->UserName, user, strlen(user) + 1);
+  IS_STR(Dsn->Description, descr, strlen(descr) + 1);
+  IS_STR(Dsn->ServerName, host, strlen(host) + 1);
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -610,6 +651,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc_188,              "odbc188_nt_pairs",        NORMAL},
   {odbc_229,              "odbc229_usecnf",          NORMAL},
   {odbc_228,              "odbc228_tlsversion",      NORMAL},
+  {odbc_284,              "odbc284_escapebrace",     NORMAL},
   {NULL, NULL, 0}
 };
 
