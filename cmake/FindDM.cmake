@@ -34,86 +34,90 @@ ELSE() #UnixODBC
   SET(ODBC_INSTLIBS odbcinst)
 ENDIF()
 
-FIND_PROGRAM(ODBC_CONFIG ${ODBC_CONFIG_EXEC}
-             PATH
-             /usr/bin
-             ${DM_DIR}
-             )
-
-IF(ODBC_CONFIG)
-  MESSAGE(STATUS "Found ${ODBC_CONFIG_EXEC}: ${ODBC_CONFIG}")
-  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} ${ODBC_CONFIG_INCLUDES} 
-                  OUTPUT_VARIABLE result)
-  STRING(REPLACE "\n" "" ODBC_INCLUDE_DIR ${result})
-  EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} ${ODBC_CONFIG_LIBS} 
-                  OUTPUT_VARIABLE result)
-  STRING(REPLACE "\n" "" ODBC_LIB_DIR ${result})
-
-  IF(WITH_IODBC)
-    STRING(REPLACE "-I" "" ODBC_INCLUDE_DIR ${ODBC_INCLUDE_DIR})
-    STRING(REPLACE "-L" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
-    STRING(REGEX REPLACE " +-liodbc -liodbcinst" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
-  ENDIF()
+IF(ODBC_LIB_DIR AND ODBC_INCLUDE_DIR)
+  MESSAGE(STATUS "Using preset values for DM dirs") 
 ELSE()
-  MESSAGE(STATUS "${ODBC_CONFIG_EXEC} is not found ")
-  # Try to find the include directory, giving precedence to special variables
-  SET(LIB_PATHS /usr/local /usr /usr/local/Cellar/libiodbc/3.52.12)
+  FIND_PROGRAM(ODBC_CONFIG ${ODBC_CONFIG_EXEC}
+               PATH
+               /usr/bin
+               ${DM_DIR}
+               )
 
-  IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    SET(LIB_PATHS "${LIB_PATHS}" "/usr/lib/x86_64-linux-gnu")
+  IF(ODBC_CONFIG)
+    MESSAGE(STATUS "Found ${ODBC_CONFIG_EXEC}: ${ODBC_CONFIG}")
+    EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} ${ODBC_CONFIG_INCLUDES} 
+                    OUTPUT_VARIABLE result)
+    STRING(REPLACE "\n" "" ODBC_INCLUDE_DIR ${result})
+    EXECUTE_PROCESS(COMMAND ${ODBC_CONFIG} ${ODBC_CONFIG_LIBS} 
+                    OUTPUT_VARIABLE result)
+    STRING(REPLACE "\n" "" ODBC_LIB_DIR ${result})
 
-    IF(EXISTS "/usr/lib64/")
-      SET(LIB_SUFFIX "lib64" "x86_64-linux-gnu")
-    ELSE()
-      SET(LIB_SUFFIX "lib" "x86_64-linux-gnu")
+    IF(WITH_IODBC)
+      STRING(REPLACE "-I" "" ODBC_INCLUDE_DIR ${ODBC_INCLUDE_DIR})
+      STRING(REPLACE "-L" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
+      STRING(REGEX REPLACE " +-liodbc -liodbcinst" "" ODBC_LIB_DIR ${ODBC_LIB_DIR})
     ENDIF()
- 
   ELSE()
-    SET(LIB_PATHS "${LIB_PATHS}" "/usr/local/lib/i386-linux-gnu" "/usr/lib/i386-linux-gnu" "/usr/local/lib/i686-linux-gnu" "/usr/lib/i686-linux-gnu")
-    SET(LIB_SUFFIX "lib" "i386-linux-gnu" "i686-linux-gnu")
-  ENDIF()
+    MESSAGE(STATUS "${ODBC_CONFIG_EXEC} is not found ")
+    # Try to find the include directory, giving precedence to special variables
+    SET(LIB_PATHS /usr/local /usr /usr/local/Cellar/libiodbc/3.52.12)
 
-  FIND_PATH(ODBC_INCLUDE_DIR sql.h
-      HINTS ${DM_INCLUDE_DIR}
-            ${DM_DIR}
-            ENV DM_INCLUDE_DIR
-            ENV DM_DIR
-      PATHS /usr/local
-            /usr
-            /usr/local/Cellar/libiodbc/3.52.12
-      PATH_SUFFIXES include include/iodbc
-      NO_DEFAULT_PATH
-      DOC "Driver Manager Includes")
-  # Giving chance to cmake_(environment)path
-  FIND_PATH(ODBC_INCLUDE_DIR sql.h
-      DOC "Driver Manager Includes")
+    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+      SET(LIB_PATHS "${LIB_PATHS}" "/usr/lib/x86_64-linux-gnu")
 
-  IF(ODBC_INCLUDE_DIR)
-    MESSAGE(STATUS "Found ODBC Driver Manager includes: ${ODBC_INCLUDE_DIR}")
+      IF(EXISTS "/usr/lib64/")
+        SET(LIB_SUFFIX "lib64" "x86_64-linux-gnu")
+      ELSE()
+        SET(LIB_SUFFIX "lib" "x86_64-linux-gnu")
+      ENDIF()
+   
+    ELSE()
+      SET(LIB_PATHS "${LIB_PATHS}" "/usr/local/lib/i386-linux-gnu" "/usr/lib/i386-linux-gnu" "/usr/local/lib/i686-linux-gnu" "/usr/lib/i686-linux-gnu")
+      SET(LIB_SUFFIX "lib" "i386-linux-gnu" "i686-linux-gnu")
+    ENDIF()
+
+    FIND_PATH(ODBC_INCLUDE_DIR sql.h
+        HINTS ${DM_INCLUDE_DIR}
+              ${DM_DIR}
+              ENV DM_INCLUDE_DIR
+              ENV DM_DIR
+        PATHS /usr/local
+              /usr
+              /usr/local/Cellar/libiodbc/3.52.12
+        PATH_SUFFIXES include include/iodbc
+        NO_DEFAULT_PATH
+        DOC "Driver Manager Includes")
+    # Giving chance to cmake_(environment)path
+    FIND_PATH(ODBC_INCLUDE_DIR sql.h
+        DOC "Driver Manager Includes")
+
+    IF(ODBC_INCLUDE_DIR)
+      MESSAGE(STATUS "Found ODBC Driver Manager includes: ${ODBC_INCLUDE_DIR}")
+    ENDIF()
+    # Try to find DM libraries, giving precedence to special variables
+    FIND_PATH(ODBC_LIB_DIR "lib${ODBC_LIBS}.so"
+        HINTS ${DM_LIB_DIR}
+              ${DM_DIR}
+              ENV DM_LIB_DIR
+              ENV DM_DIR
+        PATHS ${LIB_PATHS}
+        PATH_SUFFIXES ${LIB_SUFFIX} 
+        NO_DEFAULT_PATH
+        DOC "Driver Manager Libraries")
+    FIND_PATH(ODBC_LIB_DIR "lib${ODBC_LIBS}.so"
+        DOC "Driver Manager Libraries")
+    FIND_PATH(ODBCINST_LIB_DIR "lib${ODBC_INSTLIBS}.so"
+        HINTS ${DM_LIB_DIR}
+              ${DM_DIR}
+              ENV DM_LIB_DIR
+              ENV DM_DIR
+        PATHS ${LIB_PATHS}
+        PATH_SUFFIXES ${LIB_SUFFIX} 
+        NO_DEFAULT_PATH
+        DOC "Driver Manager Libraries")
+    FIND_PATH(ODBCINST_LIB_DIR "lib${ODBC_INSTLIBS}.so"
+        DOC "Driver Manager Libraries")
   ENDIF()
-  # Try to find DM libraries, giving precedence to special variables
-  FIND_PATH(ODBC_LIB_DIR "lib${ODBC_LIBS}.so"
-      HINTS ${DM_LIB_DIR}
-            ${DM_DIR}
-            ENV DM_LIB_DIR
-            ENV DM_DIR
-      PATHS ${LIB_PATHS}
-      PATH_SUFFIXES ${LIB_SUFFIX} 
-      NO_DEFAULT_PATH
-      DOC "Driver Manager Libraries")
-  FIND_PATH(ODBC_LIB_DIR "lib${ODBC_LIBS}.so"
-      DOC "Driver Manager Libraries")
-  FIND_PATH(ODBCINST_LIB_DIR "lib${ODBC_INSTLIBS}.so"
-      HINTS ${DM_LIB_DIR}
-            ${DM_DIR}
-            ENV DM_LIB_DIR
-            ENV DM_DIR
-      PATHS ${LIB_PATHS}
-      PATH_SUFFIXES ${LIB_SUFFIX} 
-      NO_DEFAULT_PATH
-      DOC "Driver Manager Libraries")
-  FIND_PATH(ODBCINST_LIB_DIR "lib${ODBC_INSTLIBS}.so"
-      DOC "Driver Manager Libraries")
 ENDIF()
 
 IF(ODBC_LIB_DIR AND ODBC_INCLUDE_DIR)

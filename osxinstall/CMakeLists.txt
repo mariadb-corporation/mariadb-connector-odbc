@@ -53,17 +53,17 @@ IF(USE_SYSTEM_INSTALLED_LIB)
   ADD_CUSTOM_TARGET(copypkgfiles
                   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc>
                   DEPENDS maodbc install_driver
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ELSE()
   ADD_CUSTOM_TARGET(copypkgfiles
                   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:dialog>
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF()
 
 ADD_CUSTOM_TARGET(maodbcpkg
                   COMMAND ${CMAKE_CURRENT_BINARY_DIR}/build_package.sh ${PRODUCT_IDENTIFIER} ${PRODUCT_VERSION} ${PKG_PACKAGE}
                   DEPENDS copypkgfiles ${CMAKE_CURRENT_BINARY_DIR}/scripts/postinstall ${CMAKE_CURRENT_BINARY_DIR}/distribution.plist README.html ${CMAKE_CURRENT_BINARY_DIR}/WELCOME.html LICENSE.html
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 SET_TARGET_PROPERTIES(maodbcpkg PROPERTIES EXCLUDE_FROM_ALL OFF)
 

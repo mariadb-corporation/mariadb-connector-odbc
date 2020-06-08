@@ -130,6 +130,20 @@ ELSE()
   MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
+IF(APPLE)
+  SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+  SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
+  OPTION(WITH_IODBC "Build with iOdbc" ON)
+  CMAKE_POLICY(SET CMP0042 NEW)
+  CMAKE_POLICY(SET CMP0068 NEW)
+  set(CMAKE_INSTALL_RPATH "")
+  SET(CMAKE_INSTALL_NAME_DIR "")
+  SET(CMAKE_MACOSX_RPATH ON)
+ELSE()
+  OPTION(WITH_IODBC "Build with iOdbc" OFF)
+ENDIF()
+
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   IF(GIT_BUILD_SRCPKG)
     # We don't want conn/c (wrong) src pkg to be built.
@@ -148,11 +162,6 @@ IF(WIN32)
   ADD_OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
 ENDIF()
 
-IF(APPLE)
-  OPTION(WITH_IODBC "Build with iOdbc" ON)
-ELSE()
-  OPTION(WITH_IODBC "Build with iOdbc" OFF)
-ENDIF()
 #ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
 #ADD_OPTION(WITH_SSL "Enables use of TLS/SSL library" ON)
 
@@ -230,7 +239,10 @@ IF(NOT WIN32)
   
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
-    LINK_DIRECTORIES(${ODBC_LIB_DIR})
+#    IF(APPLE)
+#    ELSE()
+      LINK_DIRECTORIES(${ODBC_LIB_DIR})
+#    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Driver Manager was not found")
   ENDIF()
@@ -305,7 +317,12 @@ ELSE()
   ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} maodbcu.rc)
   
   IF(APPLE)
-    SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LINK_FLAGS "-Wl")
+    SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib")
+    SET_TARGET_PROPERTIES(${LIBRARY_NAME}
+                          PROPERTIES LINK_FLAGS "-Wl"
+                                     INSTALL_RPATH_USE_LINK_PATH 0
+                                     BUILD_WITH_INSTALL_RPATH 1
+                                     INSTALL_RPATH "${MAODBC_INSTALL_RPATH}")
   ELSE()
     SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/maodbc.def")
   ENDIF()
@@ -332,8 +349,11 @@ IF(WIN32)
 
   ADD_EXECUTABLE(dsn_test  dsn_test.c)
   TARGET_LINK_LIBRARIES(dsn_test ${MARIADB_LIB})
+ELSEIF(APPLE)
+  ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+    COMMAND ${CMAKE_SOURCE_DIR}/osxpostbuild.sh ARGS $<TARGET_FILE:${LIBRARY_NAME}>
+  )
 ENDIF()
-
 
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
@@ -346,7 +366,7 @@ ELSE()
     ADD_SUBDIRECTORY(osxinstall)
   ENDIF()
   INSTALL(TARGETS
-          maodbc
+          ${LIBRARY_NAME}
           LIBRARY DESTINATION ./${INSTALL_LIB_SUFFIX}
           COMPONENT ODBCLibs)
 
