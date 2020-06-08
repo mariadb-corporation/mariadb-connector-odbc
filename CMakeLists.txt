@@ -33,6 +33,8 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/maodbcu.rc.in
                ${CMAKE_SOURCE_DIR}/maodbcu.rc)
 
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
+
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_error.c
                           ma_connection.c
@@ -100,7 +102,7 @@ ELSE()
   ENDIF()
   MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIB_SUFFIX}")
   SET(INSTALL_PLUGINDIR "${INSTALL_LIB_SUFFIX}/mariadb/plugin")
-  MESSAGE(STATUS "Autentication Plugins installation dir: ${INSTALL_PLUGINDIR}")
+  MESSAGE(STATUS "Authentication Plugins installation dir: ${INSTALL_PLUGINDIR}")
 ENDIF()
 
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
@@ -261,7 +263,6 @@ ENDIF()
 
 SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
 
-SET(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
 #SET(CPACK_COMPONENTS_ALL ODBCLibs Documentation)
 SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
@@ -367,17 +368,17 @@ ELSE()
   ENDIF()
   INSTALL(TARGETS
           ${LIBRARY_NAME}
-          LIBRARY DESTINATION ./${INSTALL_LIB_SUFFIX}
+          LIBRARY DESTINATION ${INSTALL_LIBDIR}
           COMPONENT ODBCLibs)
 
   IF(NOT DEFINED INSTALL_DOC_DIR)
-    SET(INSTALL_DOC_DIR "./share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install documentation(README)")
+    SET(INSTALL_DOC_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install documentation(README)")
   ENDIF()
 
   IF(NOT DEFINED INSTALL_LICENSE_DIR)
-    SET(INSTALL_LICENSE_DIR "./share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
+    SET(INSTALL_LICENSE_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
   ENDIF()
-  MESSAGE(STATUS "Documetnation installed to ${INSTALL_DOC_DIR}")
+  MESSAGE(STATUS "Documentation installed to ${INSTALL_DOC_DIR}")
   MESSAGE(STATUS "License file installed to ${INSTALL_LICENSE_DIR}")
 
   INSTALL(FILES
