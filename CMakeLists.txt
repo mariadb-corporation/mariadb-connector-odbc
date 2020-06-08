@@ -154,8 +154,14 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   ENDIF()
   MESSAGE(STATUS "Running C/C cmake scripts")
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
+
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/libmariadb/include)
 ELSE()
   SET(USE_SYSTEM_INSTALLED_LIB TRUE)
+  # Adding mariadb subdirs of standard include locations
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/local/include/mariadb")
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/include/mariadb")
   MESSAGE(STATUS "There is no Connector/C sub-project folder, linking against libmariadb installed on the system")
 ENDIF()
 
@@ -181,9 +187,6 @@ ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/libmariadb/include)
 
 IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/dsn)
