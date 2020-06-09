@@ -146,6 +146,8 @@ ELSE()
   OPTION(WITH_IODBC "Build with iOdbc" OFF)
 ENDIF()
 
+ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
+
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   IF(GIT_BUILD_SRCPKG)
     # We don't want conn/c (wrong) src pkg to be built.
@@ -170,7 +172,6 @@ IF(WIN32)
   ADD_OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
 ENDIF()
 
-#ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
 #ADD_OPTION(WITH_SSL "Enables use of TLS/SSL library" ON)
 
 IF(WITH_SIGNCODE)
@@ -244,10 +245,7 @@ IF(NOT WIN32)
   
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
-#    IF(APPLE)
-#    ELSE()
-      LINK_DIRECTORIES(${ODBC_LIB_DIR})
-#    ENDIF()
+    LINK_DIRECTORIES(${ODBC_LIB_DIR})
   ELSE()
     MESSAGE(FATAL_ERROR "Driver Manager was not found")
   ENDIF()
@@ -288,14 +286,12 @@ ELSE()
   ADD_DEFINITIONS(-DSQLCOLATTRIB_SQLLEN_PTR)
 ENDIF()
 
-# This is interim, we port ascii version to Linux first
 IF(WIN32)
   SET(UNICODE "W")
 ELSE()
   IF (DIRECT_LINK_TESTS)
     ADD_DEFINITIONS(-DHAVE_UNICODE)
   ENDIF()
-
 ENDIF()
 
 SET(LIBRARY_NAME "maodbc")
@@ -321,7 +317,7 @@ ELSE()
   ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} maodbcu.rc)
   
   IF(APPLE)
-    SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib")
+    SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "@loader_path" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib" "/usr/local/opt/openssl@1.1/lib" "/usr/local/opt/libressl/lib")
     SET_TARGET_PROPERTIES(${LIBRARY_NAME}
                           PROPERTIES LINK_FLAGS "-Wl"
                                      INSTALL_RPATH_USE_LINK_PATH 0
@@ -333,6 +329,7 @@ ELSE()
 ENDIF()
 
 SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LANGUAGE C)
+MESSAGE(STATUS "All linked targets/external dependencies: ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES}")
 TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
 # Currently on Windows only
@@ -398,41 +395,43 @@ ENDIF()
 
 # Tests. Checking if we have them. May be not the case if we are building from source package
 IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
-  ADD_SUBDIRECTORY(test)
-  IF(NOT WIN32)
-    # Configuring ini files for testing with UnixODBC
-    SET_VALUE(TEST_DRIVER "maodbc_test")
-    SET_VALUE(TEST_DSN "maodbc_test")
-    SET_VALUE(TEST_PORT "3306")
-    SET_VALUE(TEST_SERVER "localhost")
-    SET_VALUE(TEST_SOCKET "")
-    SET_VALUE(TEST_SCHEMA "test")
-    SET_VALUE(TEST_UID "root")
-    SET_VALUE(TEST_PASSWORD "")
+  IF(WITH_UNIT_TESTS)
+    ADD_SUBDIRECTORY(test)
+    IF(NOT WIN32)
+      # Configuring ini files for testing with UnixODBC
+      SET_VALUE(TEST_DRIVER "maodbc_test")
+      SET_VALUE(TEST_DSN "maodbc_test")
+      SET_VALUE(TEST_PORT "3306")
+      SET_VALUE(TEST_SERVER "localhost")
+      SET_VALUE(TEST_SOCKET "")
+      SET_VALUE(TEST_SCHEMA "test")
+      SET_VALUE(TEST_UID "root")
+      SET_VALUE(TEST_PASSWORD "")
 
-    MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
+      MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
 
-    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
-                                    -DTEST_DRIVER=${TEST_DRIVER}
-                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
-                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                       )
+      ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+        COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
+                                      -DTEST_DRIVER=${TEST_DRIVER}
+                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                      -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
+                                      -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                         )
 
-    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-      COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
-                                    -DTEST_DSN=${TEST_DSN}
-                                    -DTEST_PORT=${TEST_PORT}
-                                    -DTEST_SERVER=${TEST_SERVER}
-                                    -DTEST_SOCKET=${TEST_SOCKET}
-                                    -DTEST_SCHEMA=${TEST_SCHEMA}
-                                    -DTEST_UID=${TEST_UID}
-                                    -DTEST_PASSWORD=${TEST_PASSWORD}
-                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
-                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                       )
+      ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
+                                      -DTEST_DSN=${TEST_DSN}
+                                      -DTEST_PORT=${TEST_PORT}
+                                      -DTEST_SERVER=${TEST_SERVER}
+                                      -DTEST_SOCKET=${TEST_SOCKET}
+                                      -DTEST_SCHEMA=${TEST_SCHEMA}
+                                      -DTEST_UID=${TEST_UID}
+                                      -DTEST_PASSWORD=${TEST_PASSWORD}
+                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                      -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
+                                      -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                         )
+    ENDIF()
   ENDIF()
 ENDIF()
 

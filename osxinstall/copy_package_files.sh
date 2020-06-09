@@ -32,7 +32,16 @@ if [ $2 ]; then
   cp $2/auth_gssapi_client.so ./ROOT/${LibPath}/plugin/
   cp $2/caching_sha2_password.so ./ROOT/${LibPath}/plugin/
   cp $2/mysql_clear_password.so ./ROOT/${LibPath}/plugin/
-  cp $2/sha256_password.so ./ROOT/${LibPath}/plugin/
   cp $2/client_ed25519.so ./ROOT/${LibPath}/plugin/
+  cp $2/sha256_password.so ./ROOT/${LibPath}/plugin/
 fi
 
+if [ $3 ]; then
+  if [ -L $3 ]; then
+    LibRealName=`readlink $3`
+    cp $3 ./ROOT/${LibPath}/${LibRealName}
+    cp -a $3 ./ROOT/${LibPath}/
+  else
+    cp $3 ./ROOT/${LibPath}/
+  fi
+fi

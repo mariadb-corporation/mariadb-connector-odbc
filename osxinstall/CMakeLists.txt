@@ -22,9 +22,13 @@ SET(PRODUCT_SERIES "${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}"
 SET(PRODUCT_IDENTIFIER "com.mariadb.connector.odbc")
 
 IF(${revno})
-  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-r${revno}-osx-${PLATFORM}.pkg")
+  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-r${revno}-osx-${CMAKE_SYSTEM_PROCESSOR}.pkg")
 ELSE()
-  SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-osx-${PLATFORM}.pkg")
+  IF(PACKAGE_PLATFORM_SUFFIX)
+    SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-osx-${CMAKE_SYSTEM_PROCESSOR}-${PACKAGE_PLATFORM_SUFFIX}.pkg")
+  ELSE()
+    SET(PKG_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-osx-${CMAKE_SYSTEM_PROCESSOR}.pkg")
+  ENDIF()
 ENDIF()
 
 MESSAGE(STATUS "PKG package file name ${PKG_PACKAGE}")
@@ -55,8 +59,13 @@ IF(USE_SYSTEM_INSTALLED_LIB)
                   DEPENDS maodbc install_driver
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ELSE()
+  SET(GNUTLS_LIB "")
+  IF("${WITH_SSL}" STREQUAL "GNUTLS")
+    SET(GNUTLS_LIB "${GNUTLS_LIBRARY}")
+    MESSAGE(STATUS "Configuring to include gnutls library(${GNUTLS_LIB}) into the package")
+  ENDIF()
   ADD_CUSTOM_TARGET(copypkgfiles
-                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:dialog>
+                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:dialog> ${GNUTLS_LIB}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF()
 
