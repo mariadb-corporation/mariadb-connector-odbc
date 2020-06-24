@@ -1475,6 +1475,51 @@ ODBC_TEST(t_odbc274)
   return OK;
 }
 
+/* The testcase doesn't really recreate the reported issue, but just test
+   things around mediumint column type */
+ODBC_TEST(t_odbc214)
+{
+  SQLINTEGER val= 111, val2= -111555;
+
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc214");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc214 (v1 MEDIUMINT UNSIGNED NOT NULL, v2 MEDIUMINT NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc214(v1, v2) VALUES(1234321, -7654321)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT v1, V2 FROM t_odbc214");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1234321);
+  is_num(my_fetch_int(Stmt, 2), -7654321);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DELETE FROM t_odbc214");
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_DEFAULT, SQL_INTEGER, 0, 0, &val, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_DEFAULT, SQL_INTEGER, 0, 0, &val2, 0, NULL));
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc214(v1, v2) VALUES(?, ?)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT v1, V2 FROM t_odbc214");
+  val= val2= 0;
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_DEFAULT, &val, sizeof(SQLINTEGER), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_DEFAULT, &val2, sizeof(SQLINTEGER), NULL));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(my_fetch_int(Stmt, 1), 111);
+  is_num(my_fetch_int(Stmt, 2), -111555);
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc214");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1506,6 +1551,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc192, "t_odbc192"},
   {t_odbc232, "t_odbc232"},
   {t_odbc274, "t_odbc274_InsDelReplace_returning"},
+  {t_odbc214, "t_odbc214_medium"},
   {NULL, NULL}
 };
 

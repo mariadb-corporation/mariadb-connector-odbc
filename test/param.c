@@ -1691,6 +1691,11 @@ ODBC_TEST(odbc279)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buffer, 1), "12:34:56", 8);
 
+  if (iOdbc())
+  {
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    OK_SIMPLE_STMT(Stmt, "SELECT col1 FROM t_odbc279");
+  }
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   ts.hour= ts.minute= ts.second= 0;
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIME, &ts, sizeof(SQL_TIME_STRUCT), NULL));

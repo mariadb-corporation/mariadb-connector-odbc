@@ -1006,7 +1006,7 @@ ODBC_TEST(sqlcolumns_nodbselected)
 
   
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn_in, sizeof(conn_in), NULL,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn_in, strlen(conn_in), NULL,
                                  0, NULL,
                                  SQL_DRIVER_NOPROMPT));
 

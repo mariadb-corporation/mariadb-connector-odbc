@@ -93,7 +93,7 @@ int CreateTestDsn(MADB_Dsn *dsn)
     ++CreatedDsnCount;
     return OK;
   }
-  diag("An error occured while saved DSN %s", dsn->DSNName);
+  diag("An error occured while saving DSN %s", dsn->DSNName);
   return FAIL;
 }
 
@@ -466,8 +466,8 @@ ODBC_TEST(odbc_188)
   IS(SQLRemoveDSNFromIni(DsnName));
   FAIL_IF(MADB_DSN_Exists(DsnName), "DSN exsists!");
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s%cDESCRIPTION={%s}%cDRIVER=%s%cUID=%s%cPWD=%s%cSERVER=%s%cPORT=%u%cOPTIONS=%u%cNO_PROMPT=1\0\0", DsnName, '\0',
-    Description, '\0', my_drivername, '\0', my_uid, '\0', my_pwd, '\0', my_servername, '\0', my_port, '\0', MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT, '\0');
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s%cDESCRIPTION={%s}%cDRIVER=%s%cUID=%s%cPWD=%s%cSERVER=%s%cPORT=%u%cOPTIONS=%u%cNO_PROMPT=1%c", DsnName, '\0',
+    Description, '\0', my_drivername, '\0', my_uid, '\0', my_pwd, '\0', my_servername, '\0', my_port, '\0', MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT, '\0', '\0');
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
 
@@ -501,8 +501,8 @@ ODBC_TEST(odbc_188)
   IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);
 
   /* Checking that value in the connection string prevails over value in the dsn */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cDESCRIPTION=%s\0\0", DsnConnStr, '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
-    '\0', "Changed description");
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cDESCRIPTION=%s%c", DsnConnStr, '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
+    '\0', "Changed description", '\0');
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS);
@@ -511,8 +511,8 @@ ODBC_TEST(odbc_188)
   RESET_DSN(Dsn);
 
   /* Same as previous, but also that last ent*/
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cNO_PROMPT=0%cAUTO_RECONNECT=1\0\0", DsnConnStr,
-    '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE, '\0', '\0');
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cNO_PROMPT=0%cAUTO_RECONNECT=1%c", DsnConnStr,
+    '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE, '\0', '\0', '\0');
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE|MADB_OPT_FLAG_AUTO_RECONNECT);

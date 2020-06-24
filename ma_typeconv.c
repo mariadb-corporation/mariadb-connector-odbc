@@ -24,7 +24,7 @@
 /* Borrowed from C/C and adapted */
 SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Interval, MADB_Error *Error, BOOL *isTime)
 {
-  char *Start= MADB_ALLOC(Length + 1), *Frac, *End= Start + Length;
+  char *localCopy= MADB_ALLOC(Length + 1), *Start= localCopy, *Frac, *End= Start + Length;
   my_bool isDate= 0;
 
   if (Start == NULL)
@@ -36,11 +36,11 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Inter
   memcpy(Start, Str, Length);
   Start[Length]= '\0';
 
-  while (Length && isspace(*Start)) Start++, Length--;
+  while (Length && isspace(*Start)) ++Start, --Length;
 
   if (Length == 0)
   {
-    return SQL_SUCCESS;//MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+    goto end;//MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
   }  
 
   /* Determine time type:
@@ -113,7 +113,9 @@ check:
       }
     }
   }
- 
+
+end:
+  MADB_FREE(localCopy);
   return SQL_SUCCESS;
 }
 

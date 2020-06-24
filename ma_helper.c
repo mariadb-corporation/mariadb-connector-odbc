@@ -80,7 +80,7 @@ int SqlRtrim(char *StmtStr, int Length)
   return Length;
 }
 
-
+/* Function assumes that the query is multistatement. And, e.g. STMT_COUNT(Stmt->Query) > 1 */
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
   int          i= 0;
@@ -521,7 +521,6 @@ size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_SHORT:
     return 2;
   case MYSQL_TYPE_INT24:
-    return 3;
   case MYSQL_TYPE_LONG:
     return 4;
   case MYSQL_TYPE_LONGLONG:

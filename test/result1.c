@@ -1123,8 +1123,8 @@ int desccol(SQLHSTMT Stmt, char *cname, SQLSMALLINT clen,
     rc = SQLExecDirect(Stmt,select,SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLDescribeCol( Stmt,1,lcname,  sizeof(lcname),&lclen,
-                         &lsqltype,&lsize,&lscale,&lisNull);
+    rc = SQLDescribeCol( Stmt,1,lcname,  sizeof(lcname), &lclen,
+                         &lsqltype, &lsize, &lscale, &lisNull);
     CHECK_STMT_RC(Stmt,rc);
 
     diag("name: %s (%d)",lcname,lclen);
@@ -1133,7 +1133,7 @@ int desccol(SQLHSTMT Stmt, char *cname, SQLSMALLINT clen,
     IS_STR(lcname, cname, clen);
     IS(lclen == clen);
     IS(lsqltype == sqltype);
-    IS(lsize == size);
+    is_num(lsize, size);
     IS(lscale == scale);
     IS(lisNull == isNull);
 
@@ -1215,11 +1215,15 @@ ODBC_TEST(t_desccolext)
     IS(desccol(Stmt,"s1",2,SQL_SMALLINT,5,0,SQL_NULLABLE) == OK);
     IS(desccol(Stmt,"s2",2,SQL_SMALLINT,5,0,SQL_NULLABLE) == OK);
     IS(desccol(Stmt,"s3",2,SQL_SMALLINT,5,0,SQL_NULLABLE) == OK);
- /*
-    IS(desccol(Stmt,"m1",2,SQL_INTEGER,8,0,SQL_NULLABLE) == OK);
-    IS(desccol(Stmt,"m2",2,SQL_INTEGER,8,0,SQL_NULLABLE) == OK);
-    IS(desccol(Stmt,"m3",2,SQL_INTEGER,8,0,SQL_NULLABLE) == OK);
-    */
+ 
+    /* mediumint column size is 8, but it is mapped to SQL_INTEGER
+       ODBC type, and for it standard says column size is 10.
+       I don't think it would hurt any app, if we returned 8.
+       But let's stick with 10 */
+    IS(desccol(Stmt,"m1",2,SQL_INTEGER, 10, 0,SQL_NULLABLE) == OK);
+    IS(desccol(Stmt,"m2",2,SQL_INTEGER, 10, 0,SQL_NULLABLE) == OK);
+    IS(desccol(Stmt,"m3",2,SQL_INTEGER, 10, 0,SQL_NULLABLE) == OK);
+    
     IS(desccol(Stmt,"i1",2,SQL_INTEGER,10,0,SQL_NULLABLE) == OK);
     IS(desccol(Stmt,"i2",2,SQL_INTEGER,10,0,SQL_NO_NULLS) == OK);
     IS(desccol(Stmt,"i3",2,SQL_INTEGER,10,0,SQL_NULLABLE) == OK);

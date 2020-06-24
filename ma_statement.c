@@ -884,7 +884,9 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       return Stmt->Error.ReturnValue;
     }
     if (Stmt->Query.QueryType == SQL_DELETE)
+    {
       MADB_STMT_RESET_CURSOR(Stmt->PositionedCursor);
+    }
       
   }
   //MADB_FREE(DataPtr);
@@ -1128,7 +1130,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       }
 
       memset(Stmt->params, 0, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
-      
     }
 
     if (MADB_DOING_BULK_OPER(Stmt))

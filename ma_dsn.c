@@ -486,7 +486,7 @@ size_t ConnStringLength(const char * String, char Delimiter)
 my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char Delimiter)
 {
   char    *Buffer, *Key, *Value, *ValueBuf;
-  my_bool ret;
+  my_bool ret= TRUE;
 
   if (!String)
     return FALSE;
@@ -505,6 +505,13 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
   {
     int i= 0;
 
+    /* The case of ;; - "empty key/value pair. Probably that shouldn't be allowed. But parser uset to digest this, so leaving this as a feature so far
+       TODO: check and maybe remove for the next version */
+    if (Delimiter != '\0' && *Key == Delimiter)
+    {
+      ++Key;
+      continue;
+    }
     if (!(Value= strchr(Key, '=')))
     {
       ret= FALSE;
@@ -562,7 +569,8 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
         /* Overwriting here - if an option repeated more than once in the string, its last entrance will determine the value */
         if (!MADB_DsnStoreValue(Dsn, i, Value, TRUE))
         {
-          return FALSE;
+          ret= FALSE;
+          goto end;
         }
         if (IS_OPTIONS_BITMAP(i))
         {
@@ -592,9 +600,12 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
       }
     }
   }
+
+end:
   MADB_FREE(Buffer);
   MADB_FREE(ValueBuf);
-  return TRUE;
+
+  return ret;
 }
 /* }}} */
 
@@ -629,7 +640,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
   SQLULEN TotalLength= 0;
   char    *p=          OutString;
   char    *Value=      NULL;
-  char    TmpStr[1024];
+  char    TmpStr[1024]= { '\0' };
   char    IntVal[12];
   int     CpyLength;
 
@@ -664,6 +675,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         {
           Value= "1";
         }
+        break;
       case DSN_TYPE_CBOXGROUP:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
         {

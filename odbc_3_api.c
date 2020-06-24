@@ -697,6 +697,7 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
   if (ServerName && !ServerName[0])
   {
     MADB_SetError(&Connection->Error, MADB_ERR_HY000, "Invalid DSN", 0);
+    MADB_DSN_Free(Dsn);
     return Connection->Error.ReturnValue;
   }
 
@@ -1441,7 +1442,7 @@ SQLRETURN SQL_API SQLFetchScroll(SQLHSTMT StatementHandle,
 SQLRETURN SQL_API SQLFreeHandle(SQLSMALLINT HandleType,
                                 SQLHANDLE Handle)
 {
-  SQLRETURN ret;
+  SQLRETURN ret= SQL_INVALID_HANDLE;
   MADB_CHECK_HANDLE_CLEAR_ERROR(HandleType, Handle);
 
   switch (HandleType)
