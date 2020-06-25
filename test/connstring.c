@@ -627,7 +627,7 @@ ODBC_TEST(odbc_284)
   IS_STR(Dsn->ServerName,  host,    strlen(host) + 1);
 
   RESET_DSN(Dsn);
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s%cDESCRIPTION=%s %cUSER={%s}%c SERVER = %s %cPASSWORD={%s}\0\0", my_drivername, '\0', descr, '\0', user, '\0', host, '\0', pdwWithEscapedBraces);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s%cDESCRIPTION=%s %cUSER={%s}%c SERVER = %s %cPASSWORD={%s}%c", my_drivername, '\0', descr, '\0', user, '\0', host, '\0', pdwWithEscapedBraces, '\0');
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
 

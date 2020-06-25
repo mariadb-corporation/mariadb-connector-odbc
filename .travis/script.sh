@@ -43,9 +43,12 @@ done
 docker-compose -f ${COMPOSE_FILE} logs
 
 if [ "$i" = 0 ]; then
-    echo 'SELECT 1' | "${mysql[@]}"
+#    echo 'SELECT 1' | "${mysql[@]}"
+    set +e
+    echo 'SELECT 1' | "${mysql[@]}" --ssl-ca=$SSLCERT/server.crt --ssl-key=$SSLCERT/client.key --ssl-cert=$SSLCERT/client.crt
     echo >&2 'data server init process failed.'
-    exit 1
+    set -e
+#    exit 1
 fi
 
 #list ssl certificates
