@@ -33,8 +33,6 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/maodbcu.rc.in
                ${CMAKE_SOURCE_DIR}/maodbcu.rc)
 
-INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
-
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_error.c
                           ma_connection.c
@@ -356,6 +354,8 @@ ELSEIF(APPLE)
   )
 ENDIF()
 
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
+
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
@@ -371,25 +371,25 @@ ELSE()
           LIBRARY DESTINATION ${INSTALL_LIBDIR}
           COMPONENT ODBCLibs)
 
-  IF(NOT DEFINED INSTALL_DOC_DIR)
-    SET(INSTALL_DOC_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install documentation(README)")
-  ENDIF()
+  #IF(NOT DEFINED INSTALL_DOC_DIR)
+  #  SET(INSTALL_DOC_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install documentation(README)")
+  #ENDIF()
 
-  IF(NOT DEFINED INSTALL_LICENSE_DIR)
-    SET(INSTALL_LICENSE_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
-  ENDIF()
-  MESSAGE(STATUS "Documentation installed to ${INSTALL_DOC_DIR}")
-  MESSAGE(STATUS "License file installed to ${INSTALL_LICENSE_DIR}")
+  #IF(NOT DEFINED INSTALL_LICENSE_DIR)
+  #  SET(INSTALL_LICENSE_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
+  #ENDIF()
+  MESSAGE(STATUS "Documentation and License file are installed to ${INSTALL_DOCDIR}")
+  #  MESSAGE(STATUS "License file installed to ${INSTALL_LICENSE_DIR}")
 
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/README
           DESTINATION
-          ${INSTALL_DOC_DIR}
+          "${INSTALL_DOCDIR}"
           COMPONENT Documentation)
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/COPYING
           DESTINATION
-          ${INSTALL_LICENSE_DIR}
+          "${INSTALL_DOCDIR}"
           COMPONENT Documentation)
 ENDIF()
 
