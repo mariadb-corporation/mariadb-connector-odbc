@@ -9,10 +9,12 @@ body {
 </head>
 <body>
 <p>MariaDB Connector/ODBC files will be installed in /Library/MariaDB/MariaDB-Connector-ODBC.</p>
-<p>The connector requires the libraries for OpenSSL and iODBC to be installed. With homebrew they are easy to install:</p>
+<p><strong><font color="red">Warning:</font>The driver library requires latest versions of <a href="https://www.openssl.org/">openssl</a> libraries</strong>, that are not available natively, and can be obtained with <a href="https://brew.sh/">Homebrew</a></p>
+<p>Homebrew installation instructions can be found <a href="https://docs.brew.sh/Installation">here</a>. The short version at the moment is to run the following command in the terminal:
+<div><strong>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"</strong></div></p>
+<p>The command to install openssl is: <div><strong>brew install openssl@1.1</strong></div></p>
 <ul>
 <li>brew install openssl</li>
-<li>brew install libiodbc</li>
 </ul>
 </body>
 </html>

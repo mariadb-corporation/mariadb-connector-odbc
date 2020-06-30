@@ -1,3 +1,22 @@
+# ************************************************************************************
+#   Copyright (C) 2019,2020 MariaDB Corporation AB
+#   
+#   This library is free software; you can redistribute it and/or
+#   modify it under the terms of the GNU Library General Public
+#   License as published by the Free Software Foundation; either
+#   version 2.1 of the License, or (at your option) any later version.
+#   
+#   This library is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#   Library General Public License for more details.
+#   
+#   You should have received a copy of the GNU Library General Public
+#   License along with this library; if not see <http://www.gnu.org/licenses>
+#   or write to the Free Software Foundation, Inc., 
+#   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
+# *************************************************************************************/
+
 SET(ODBC_SOURCE_PKG_DIR ${CMAKE_SOURCE_DIR}/osxinstall)
 
 # Get revision number
@@ -66,6 +85,7 @@ ELSE()
   ENDIF()
   ADD_CUSTOM_TARGET(copypkgfiles
                   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:dialog> ${GNUTLS_LIB}
+                  DEPENDS maodbc install_driver
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF()
 

@@ -20,6 +20,7 @@
 
 LibPath="Library/MariaDB/MariaDB-Connector-ODBC"
 
+set -e
 rm -rf ./ROOT
 
 mkdir -p ./ROOT/${LibPath}/bin

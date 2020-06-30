@@ -23,8 +23,10 @@ echo $1
 LinkedLibName=`otool -L $1 | grep -i iodbcinst | sed 's/	//' | sed 's/ [(].*$//'`
 install_name_tool -change $LinkedLibName @rpath/libiodbcinst.dylib $1
 LinkedLibName=`otool -L $1 | grep -i libgnutls | sed 's/	//' | sed 's/ [(].*$//'`
-LinkedLibFileName=`echo $LinkedLibName | sed 's/.*[/]//'`
-install_name_tool -change $LinkedLibName @rpath/$LinkedLibFileName $1
+if [ $LinkedLibName ] ; then
+  LinkedLibFileName=`echo $LinkedLibName | sed 's/.*[/]//'`
+  install_name_tool -change $LinkedLibName @rpath/$LinkedLibFileName $1
+fi
 
 #LinkedLibName=`otool -L $1 | grep -i libcrypto | sed 's/	//' | sed 's/ [(].*$//'`
 #install_name_tool -change $LinkedLibName @rpath/libcrypto.1.1.dylib $1
