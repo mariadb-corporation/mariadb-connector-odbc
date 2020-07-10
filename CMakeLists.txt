@@ -378,7 +378,7 @@ ELSE()
   #IF(NOT DEFINED INSTALL_LICENSE_DIR)
   #  SET(INSTALL_LICENSE_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
   #ENDIF()
-  MESSAGE(STATUS "Documentation and License file are installed to ${INSTALL_DOCDIR}")
+  MESSAGE(STATUS "Documentation and License file are installed to ${INSTALL_DOCDIR} and ${INSTALL_LICENSEDIR}")
   #  MESSAGE(STATUS "License file installed to ${INSTALL_LICENSE_DIR}")
 
   INSTALL(FILES
@@ -389,7 +389,7 @@ ELSE()
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/COPYING
           DESTINATION
-          "${INSTALL_DOCDIR}"
+          "${INSTALL_LICENSEDIR}"
           COMPONENT Documentation)
 ENDIF()
 
