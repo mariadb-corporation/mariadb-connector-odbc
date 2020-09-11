@@ -21,6 +21,7 @@
  * Moved to avoid redundant dependencies */
 
 #include <ma_odbc.h>
+#include <wctype.h>
 
 static unsigned int ValidChar(const char *start, const char *end)
 {
