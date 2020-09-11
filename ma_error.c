@@ -144,7 +144,7 @@ MADB_ERROR MADB_ErrorList[] =
   { "S1000", "", "General error", SQL_ERROR},
   { "S1107", "", "Row value out of range", SQL_ERROR},
   { "S1C00", "", "Optional feature not implemented", SQL_ERROR},
-  { 0,0,0, -1}
+  { "", "", "", -1}
 };
 /* }}} */
 
