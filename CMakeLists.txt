@@ -316,7 +316,7 @@ IF(WIN32)
   ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
 ELSE()
   MESSAGE(STATUS "Version script: ${CMAKE_SOURCE_DIR}/maodbc.def")
-  ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} maodbcu.rc)
+  ADD_LIBRARY(${LIBRARY_NAME} MODULE ${MARIADB_ODBC_SOURCES} maodbcu.rc)
   
   IF(APPLE)
     SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "@loader_path" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib" "/usr/local/opt/openssl@1.1/lib" "/usr/local/opt/libressl/lib")
