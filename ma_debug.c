@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+#include <wchar.h>
 
 #ifdef MAODBC_DEBUG
 extern char LogFile[];
