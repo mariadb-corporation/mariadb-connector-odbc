@@ -93,9 +93,11 @@ extern my_bool DummyError;
 
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
-#define MADB_FREE(a) \
+#define MADB_FREE(a) do { \
   free((a));\
-  (a)= NULL;
+  (a)= NULL; \
+} while(0)
+
 #define MADB_ALLOC(a) malloc((a))
 #define MADB_CALLOC(a) calloc((a) > 0 ? (a) : 1, sizeof(char))
 #define MADB_REALLOC(a,b) realloc((a),(b))

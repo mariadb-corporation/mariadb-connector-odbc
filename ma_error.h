@@ -159,12 +159,13 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
                             DiagInfoPtr, SQLSMALLINT BufferLength,
                             SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 
-#define MADB_CLEAR_ERROR(a) \
+#define MADB_CLEAR_ERROR(a) do { \
   strcpy_s((a)->SqlState, SQL_SQLSTATE_SIZE+1, MADB_ErrorList[MADB_ERR_00000].SqlState); \
   (a)->SqlErrorMsg[(a)->PrefixLen]= 0; \
   (a)->NativeError= 0;\
   (a)->ReturnValue= SQL_SUCCESS;\
-  (a)->ErrorNum= 0;
+  (a)->ErrorNum= 0; \
+} while (0)
 
 #define MADB_CLEAR_HANDLE_ERROR(handle_type, handle) \
   switch (handle_type) { \
