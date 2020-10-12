@@ -45,6 +45,7 @@ char* strcasestr(const char* HayStack, const char* Needle)
 # include <string.h>
 # include <errno.h>
 # include <wchar.h>
+# include "ma_conv_charset.h"
 
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
@@ -150,7 +151,14 @@ static int Travis= 0, TravisOnOsx= 0;
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
 SQLWCHAR *buff_pos= sqlwchar_buff;
 
-static MARIADB_CHARSET_INFO  *utf8= NULL, *utf16= NULL, *utf32= NULL, *DmUnicode= NULL;
+/* Copied from C/C(+ added utf32le). Otherwise we would need to link libmariadb.
+   On Windows we need only codepages and utf8 and utf16 only, charset names and utf16 and/or utf32 - on others */
+static MARIADB_CHARSET_INFO  utf8mb3= { 33, 1, "utf8", "utf8_general_ci", "", 65001, "UTF-8", 1, 3, NULL, NULL}
+, utf16be= { 54, 1, "utf16", "utf16_general_ci", "", 0, "UTF16", 2, 4, NULL, NULL}
+, utf16le= { 56, 1, "utf16le", "utf16_general_ci", "", 1200, "UTF16LE", 2, 4, NULL, NULL}
+, utf32be= { 60, 1, "utf32", "utf32_general_ci", "", 0, "UTF32", 4, 4, NULL, NULL }
+, utf32le= { 0, 1, "utf32le", "", "", 0, "UTF32LE", 4, 4, NULL, NULL }
+, *utf8= &utf8mb3, *utf16= NULL, *utf32= NULL, *DmUnicode= NULL;
 
 int   tests_planned= 0;
 char *test_status[]= {"not ok", "ok", "skip"};
@@ -381,18 +389,23 @@ size_t madbtest_convert_string(MARIADB_CHARSET_INFO *from_cs, const char *from, 
 {
   size_t rc= -1;
   size_t save_len= *to_len;
-  int    dummy;
+  int    dummy, converted_len;
 
   if (errorcode == NULL)
     errorcode= &dummy;
 
   *errorcode= 0;
-
-  if ((rc= mariadb_convert_string(from, from_len, from_cs, to, to_len, to_cs, errorcode)) == -1)
+#ifdef _WIN32
+  converted_len= MultiByteToWideChar(from_cs->codepage, 0, from, (int)*from_len, (wchar_t*)to, (int)*to_len);
+  rc= (converted_len < 1 ? -1 : 0);
+  *errorcode= GetLastError();
+#else
+  rc= MADB_ConvertString(from, from_len, from_cs, to, to_len, to_cs, errorcode);
+#endif
+  if (rc == -1)
   {
     diag("An error occurred while converting from %s to  %s. Error code %d", from_cs->csname, to_cs->name, *errorcode);
   }
-
   return rc;
 }
 
@@ -956,15 +969,9 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
   int         rc, i=1, failed=0;
   const char *comment;
   SQLWCHAR   *buff_before_test;
-  /*Dirty hack*/
-  MARIADB_CHARSET_INFO fakeUtf32le;
 
-  fakeUtf32le.encoding= "UTF32LE";
-  fakeUtf32le.csname=   "utf32le";
-
-  utf8= mariadb_get_charset_by_name("utf8");
-  utf16= mariadb_get_charset_by_name(little_endian() ? "utf16le" : "utf16");
-  utf32= little_endian() ? &fakeUtf32le : mariadb_get_charset_by_name("utf32");
+  utf16= (little_endian() ? &utf16le : &utf16be);
+  utf32= (little_endian() ? &utf32le : &utf32be);
 
   if (sizeof(SQLWCHAR) == 4)
   {

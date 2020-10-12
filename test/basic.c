@@ -305,8 +305,7 @@ ODBC_TEST(t_disconnect)
            passwd[64];
   rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
-  rc= SQLConnectW(hdbc1, latin_as_sqlwchar((char*)my_dsn, dsn), SQL_NTS, latin_as_sqlwchar((char*)my_uid, username), SQL_NTS,
-                   latin_as_sqlwchar((char*)my_pwd, passwd), SQL_NTS);
+  rc= SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS, wpwd, SQL_NTS);
   CHECK_DBC_RC(hdbc1, rc);
 
   for (i=0; i < 100; i++)
@@ -1609,7 +1608,8 @@ ODBC_TEST(t_odbc139)
   HANDLE Thread;
   DWORD WaitRc;
 
-  if (ServerNotOlderThan(Connection, 10, 2, 0))
+  /* Not sure when this was fixed, but works with 10.4, it seems */
+  if (ServerNotOlderThan(Connection, 10, 2, 0) && !ServerNotOlderThan(Connection, 10, 4, 0))
   {
     skip("Waiting for the fix in Connector/C for servers > 10.2.0");
   }

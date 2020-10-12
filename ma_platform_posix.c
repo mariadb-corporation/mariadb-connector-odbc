@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2016 MariaDB Corporation AB
+   Copyright (C) 2014,2020 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -25,6 +25,7 @@
 
 #include <ma_odbc.h>
 #include <stdarg.h>
+#include "ma_conv_charset.h"
 
 extern MARIADB_CHARSET_INFO *DmUnicodeCs;
 extern Client_Charset utf8;
@@ -163,8 +164,8 @@ SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset*
   if ((WStr= (SQLWCHAR *)MADB_CALLOC(sizeof(SQLWCHAR) * (PtrLength + 1))))
   {
     size_t wstr_octet_len= sizeof(SQLWCHAR) * (PtrLength + 1);
-    /* TODO: Need error processing. i.e. if mariadb_convert_string returns -1 */
-    mariadb_convert_string(Ptr, &Length, cc->cs_info, (char*)WStr, &wstr_octet_len, DmUnicodeCs, NULL);
+    /* TODO: Need error processing. i.e. if MADB_ConvertString returns -1 */
+    MADB_ConvertString(Ptr, &Length, cc->cs_info, (char*)WStr, &wstr_octet_len, DmUnicodeCs, NULL);
   }
 
   return WStr;
@@ -203,7 +204,7 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
   }
   else
   {
-    /* PtrLength is in characters. mariadb_convert_string(iconv) needs bytes */
+    /* PtrLength is in characters. MADB_ConvertString(iconv) needs bytes */
     PtrOctetLen= SqlwcsOctetLen(Ptr, &PtrLength);
     AscLen= PtrLength*cc->cs_info->char_maxlen;
   }
@@ -211,7 +212,7 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
   if (!(AscStr = (char *)MADB_CALLOC(AscLen)))
     return NULL;
 
-  AscLen= mariadb_convert_string((char*)Ptr, &PtrOctetLen, DmUnicodeCs, AscStr, &AscLen, cc->cs_info, Error);
+  AscLen= MADB_ConvertString((char*)Ptr, &PtrOctetLen, DmUnicodeCs, AscStr, &AscLen, cc->cs_info, Error);
 
   if (AscLen != (size_t)-1)
   {
@@ -290,7 +291,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
   SrcOctetLen= AnsiLength + IsNull;
   DestOctetLen= sizeof(SQLWCHAR) * RequiredLength;
 
-  RequiredLength= mariadb_convert_string(AnsiString, &SrcOctetLen, cc->cs_info, 
+  RequiredLength= MADB_ConvertString(AnsiString, &SrcOctetLen, cc->cs_info, 
                                         (char*)Tmp, &DestOctetLen, DmUnicodeCs, &error);
 
   if (RequiredLength < 1)

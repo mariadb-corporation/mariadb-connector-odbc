@@ -3255,7 +3255,7 @@ ODBC_TEST(t_bug41946)
 
 
 /*
-ODBC-251 - Updating row with mefiumblob field
+ODBC-251 - Updating row with mediumblob field
 */
 ODBC_TEST(odbc251)
 {
@@ -3385,6 +3385,42 @@ ODBC_TEST(odbc276)
 }
 
 
+/*
+ * ODBC-289 - Crash on new use of previously closed cursor with SQL_ATTR_ROW_ARRAY_SIZE > 1
+ * Putting it here cuz it's mainly about closing the cursor
+ */
+ODBC_TEST(odbc289)
+{
+  SQLLEN i, rowsToInsert= 3, rowsToFetch= 2;
+  SQLINTEGER value[2]= {0, 0};
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc289");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc289 (`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+
+  for (i = 0; i < rowsToInsert; ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc289 VALUES()");
+  }
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)rowsToFetch, 0));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT id FROM t_odbc289", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &value, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc289");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_positioned_cursor, "my_positioned_cursor",     NORMAL},
@@ -3437,6 +3473,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug41946, "t_bug41946",        NORMAL},
   {odbc251, "odbc251-mblob_update", TO_FIX},
   {odbc276, "odbc276-bin_update", NORMAL},
+  {odbc289, "odbc289-fetch_after_close", NORMAL},
   {NULL, NULL}
 };
 

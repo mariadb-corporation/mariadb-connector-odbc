@@ -217,8 +217,6 @@ IF(WIN32)
                           ma_legacy_helpers.h
                           ma_typeconv.h
                           ma_bulk.h)
-                        #  SET(DSN_DIALOG_FILES ${DSN_DIALOG_FILES}
-                        #  ma_platform_win32.c)
 
 			SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
   IF (MSVC)
@@ -232,7 +230,9 @@ IF(WIN32)
 ELSE()
   SEARCH_LIBRARY(LIB_MATH floor m)
   SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
-  SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES} ma_platform_posix.c)
+  SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
+                        ma_platform_posix.c
+                        ma_conv_charset.c)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
