@@ -146,6 +146,10 @@ ENDIF()
 
 ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
 
+### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those 
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
+
+### Including C/C subproject
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   IF(GIT_BUILD_SRCPKG)
     # We don't want conn/c (wrong) src pkg to be built.
@@ -354,8 +358,6 @@ ELSEIF(APPLE)
   )
 ENDIF()
 
-INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
-
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
@@ -370,16 +372,6 @@ ELSE()
           ${LIBRARY_NAME}
           LIBRARY DESTINATION ${INSTALL_LIBDIR}
           COMPONENT ODBCLibs)
-
-  #IF(NOT DEFINED INSTALL_DOC_DIR)
-  #  SET(INSTALL_DOC_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install documentation(README)")
-  #ENDIF()
-
-  #IF(NOT DEFINED INSTALL_LICENSE_DIR)
-  #  SET(INSTALL_LICENSE_DIR "${CMAKE_INSTALL_PREFIX}/share/doc/${CPACK_PACKAGE_NAME}/" CACHE STRING "Directory, where to install license file")   
-  #ENDIF()
-  MESSAGE(STATUS "Documentation and License file are installed to ${INSTALL_DOCDIR} and ${INSTALL_LICENSEDIR}")
-  #  MESSAGE(STATUS "License file installed to ${INSTALL_LICENSE_DIR}")
 
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/README
