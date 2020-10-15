@@ -2000,14 +2000,23 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   }
 
   Stmt->LastRowFetched= 0;
+  Rows2Fetch= MADB_RowsToFetch(&Stmt->Cursor, Stmt->Ard->Header.ArraySize, mysql_stmt_num_rows(Stmt->stmt));
 
-  if (Stmt->result == NULL && !(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
+  if (Stmt->result == NULL)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-    return Stmt->Error.ReturnValue;
+    if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      return Stmt->Error.ReturnValue;
+    }
+    if (Rows2Fetch > 1)
+    {
+      // We need something to be bound after executing for MoveNext function
+      mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
+    }
   }
 
-  Rows2Fetch= MADB_RowsToFetch(&Stmt->Cursor, Stmt->Ard->Header.ArraySize, mysql_stmt_num_rows(Stmt->stmt));
+  
   if (Rows2Fetch == 0)
   {
     return SQL_NO_DATA;

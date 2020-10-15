@@ -3394,7 +3394,7 @@ ODBC_TEST(odbc289)
   SQLLEN i, rowsToInsert= 3, rowsToFetch= 2;
   SQLINTEGER value[2]= {0, 0};
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc289");
+ /* OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc289");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc289 (`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT)");
 
   for (i = 0; i < rowsToInsert; ++i)
@@ -3415,7 +3415,38 @@ ODBC_TEST(odbc289)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc289");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc289");*/
+  SQLCHAR value2[60];
+  SQLLEN length[2];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS CUST");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE CUST (`LAST_NAME` VARCHAR(29) NOT NULL)");
+  for (i = 0; i < rowsToInsert; ++i)
+  {
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO CUST VALUES('whatever')");
+  }
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT LAST_NAME FROM CUST", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)2, SQL_IS_INTEGER));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_CHAR, value2, 30, length));
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  printf("fetch: %s\n", value2);
+
+  printf("fetch: %s\n", value2 + 30);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  printf("fetch: %s\n", value2);
+  printf("fetch: %s\n", value2 + 30);
 
   return OK;
 }

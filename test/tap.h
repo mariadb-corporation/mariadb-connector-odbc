@@ -397,7 +397,7 @@ size_t madbtest_convert_string(MARIADB_CHARSET_INFO *from_cs, const char *from, 
   *errorcode= 0;
 #ifdef _WIN32
   converted_len= MultiByteToWideChar(from_cs->codepage, 0, from, (int)*from_len, (wchar_t*)to, (int)*to_len);
-  rc= (converted_len < 1 ? -1 : 0);
+  rc= (converted_len < 1 ? -1 : converted_len*sizeof(SQLWCHAR));
   *errorcode= GetLastError();
 #else
   rc= MADB_ConvertString(from, from_len, from_cs, to, to_len, to_cs, errorcode);

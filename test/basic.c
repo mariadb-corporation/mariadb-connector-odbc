@@ -300,9 +300,7 @@ ODBC_TEST(t_disconnect)
   SQLRETURN rc;
   int i;
   SQLHSTMT hstmt;
-  SQLWCHAR dsn[256],
-           username[64],
-           passwd[64];
+
   rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
   rc= SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS, wpwd, SQL_NTS);
