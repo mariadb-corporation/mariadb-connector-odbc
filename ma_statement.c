@@ -50,7 +50,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   UNLOCK_MARIADB(Connection);
   Stmt->PutParam= -1;
   Stmt->Methods= &MADB_StmtMethods;
-  /* default behaviour is SQL_CURSOR_STATIC */
+  /* default behaviour is SQL_CURSOR_STATIC. But should be SQL_CURSOR_FORWARD_ONLY according to specs(see bug ODBC-290) */
   Stmt->Options.CursorType= SQL_CURSOR_STATIC;
   Stmt->Options.UseBookmarks= SQL_UB_OFF;
   Stmt->Options.MetadataId= Connection->MetadataId;

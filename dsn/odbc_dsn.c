@@ -79,6 +79,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[11], 1, txtPort,              5, 0},
   {&DsnKeys[12], 2, txtInitCmd,        2048, 0},
   {&DsnKeys[13], 2, txtConnectionTimeOut, 5, 0},
+  {&DsnKeys[27], 2, cbInteractive,        0, 0},
   {&DsnKeys[14], 2, ckReconnect,          0, 0},
   {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[16], 2, cbCharset,            0, 0},

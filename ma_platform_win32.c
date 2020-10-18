@@ -306,7 +306,7 @@ char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size)
   GetModuleFileNameW(hModule, wOurLocation, _MAX_PATH);
   hr= PathCchRemoveFileSpec(wOurLocation, _MAX_PATH);
 
-  WideCharToMultiByte(GetACP(), 0, wOurLocation, -1, Buffer, Size, NULL, NULL);
+  WideCharToMultiByte(GetACP(), 0, wOurLocation, -1, Buffer, (int)Size, NULL, NULL);
   if (strlen(Buffer) < Size - strlen(PluginsSubDirName))
   {
     strcpy(Buffer + strlen(Buffer), PluginsSubDirName);

@@ -229,7 +229,7 @@ int DoSingleRegBranch(HKEY Branch, const char *NewDriverName)
   char  DsnSubkey[64 /*> sizeof("Software\\ODBC\\ODBC.INI\\ODBC Data Sources") */ + SQL_MAX_DSN_LENGTH],
     **DsnToChange= (char**)NULL;
   HKEY  OdbcIni, OdbcDataSources;
-  DWORD DriverLen, NewDriverNameLen= strlen(NewDriverName) + 1/*Should be with TN*/;
+  DWORD DriverLen, NewDriverNameLen= (DWORD)(strlen(NewDriverName) + 1)/*Should be with TN*/;
   DWORD DsNameLen= sizeof(DsName), DsnCount= 0, i, TargetDsnCount= 0;
 
   OdbcIni= MA_OpenRegKey(Branch, "Software\\ODBC\\ODBC.INI", TRUE);

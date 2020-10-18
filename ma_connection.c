@@ -686,6 +686,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
     client_flags|= CLIENT_MULTI_STATEMENTS;
 
+  if (Dsn->InteractiveClient)
+  {
+    mysql_optionsv(Connection->mariadb, MARIADB_OPT_INTERACTIVE, 1);
+  }
   /* enable truncation reporting */
   mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
 
