@@ -79,7 +79,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[11], 1, txtPort,              5, 0},
   {&DsnKeys[12], 2, txtInitCmd,        2048, 0},
   {&DsnKeys[13], 2, txtConnectionTimeOut, 5, 0},
-  {&DsnKeys[27], 2, cbInteractive,        0, 0},
+  {&DsnKeys[36], 2, cbInteractive,        0, 0},
   {&DsnKeys[14], 2, ckReconnect,          0, 0},
   {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[16], 2, cbCharset,            0, 0},
@@ -96,8 +96,8 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[32], 4, cbTls13,              4, 0},
   {&DsnKeys[33], 4, cbForceTls,           0, 0},
   {&DsnKeys[27], 4, txtCrl,               0, 0},
-  {&DsnKeys[25], 4, txtTlsPeerFp,       41, 0},
-  {&DsnKeys[26], 4, txtTlsPeerFpList,   260, 0 },
+  {&DsnKeys[25], 4, txtTlsPeerFp,        41, 0},
+  {&DsnKeys[26], 4, txtTlsPeerFpList,   260, 0},
   {NULL, 0, 0, 0, 0}
 };
 

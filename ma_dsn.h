@@ -137,6 +137,7 @@ typedef struct st_madb_dsn
   char *SaveFile;
   my_bool ReadMycnf;
   my_bool InteractiveClient;
+  my_bool ForceForwardOnly;
   /* --- Internal --- */
   int isPrompt;
   MADB_DsnKey *Keys;

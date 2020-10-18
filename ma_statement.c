@@ -51,7 +51,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   Stmt->PutParam= -1;
   Stmt->Methods= &MADB_StmtMethods;
   /* default behaviour is SQL_CURSOR_STATIC. But should be SQL_CURSOR_FORWARD_ONLY according to specs(see bug ODBC-290) */
-  Stmt->Options.CursorType= SQL_CURSOR_STATIC;
+  Stmt->Options.CursorType= MA_ODBC_CURSOR_FORWARD_ONLY(Connection) ? SQL_CURSOR_FORWARD_ONLY : SQL_CURSOR_STATIC;
   Stmt->Options.UseBookmarks= SQL_UB_OFF;
   Stmt->Options.MetadataId= Connection->MetadataId;
 

@@ -672,6 +672,25 @@ ODBC_TEST(odbc_288)
 }
 
 
+ODBC_TEST(odbc_290)
+{
+  SQLHDBC  hdbc;
+  SQLHSTMT hstmt;
+  SQLULEN  CursorType;
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
+  hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, my_servername, "FORWARDONLY=1");
+
+  IS(hstmt != NULL);
+  CHECK_STMT_RC(hstmt, SQLGetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE, &CursorType, sizeof(SQLULEN), NULL));
+  is_num(CursorType, SQL_CURSOR_FORWARD_ONLY);
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeConnect(hdbc));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {connstring_test,       "connstring_parsing_test", NORMAL},
@@ -685,6 +704,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc_228,              "odbc228_tlsversion",      NORMAL},
   {odbc_284,              "odbc284_escapebrace",     NORMAL},
   {odbc_288,              "odbc288_interactive",     NORMAL},
+  {odbc_290,              "odbc290_forwardonly",     NORMAL},
   {NULL, NULL, 0}
 };
 
