@@ -25,11 +25,17 @@
 #include <strings.h>
 #include <string.h>
 #include <iconv.h>
+#include <errno.h>
 #else
 #include <string.h>
 #endif
 #include <ma_odbc.h>
-#include "ma_global.h"
+
+#if defined(SOLARIS) || defined(__sun)
+#define IF_SOLARIS(A,B) A
+#else
+#define IF_SOLARIS(A,B) B
+#endif
 
 #define HAVE_ICONV
 
@@ -109,7 +115,7 @@ size_t STDCALL MADB_ConvertString(const char *from __attribute__((unused)),
     *errorcode= errno;
     goto error;
   }
-  if ((rc= iconv(conv, IF_WIN(,IF_SOLARIS(,(char **)))&from, from_len, &to, to_len)) == (size_t)-1)
+  if ((rc= iconv(conv, IF_SOLARIS(,(char **))&from, from_len, &to, to_len)) == (size_t)-1)
   {
     *errorcode= errno;
     goto error;
