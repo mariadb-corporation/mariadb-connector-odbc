@@ -59,14 +59,14 @@ typedef struct st_ma_odbc_error
 
 typedef struct
 {
-  char SqlState[SQLSTATE_LENGTH + 1];
-  SQLINTEGER NativeError;
-  char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
   size_t PrefixLen;
-  SQLRETURN ReturnValue;
   MADB_ERROR *ErrRecord;
+  SQLINTEGER NativeError;
   /* Order number of last requested error record */
   unsigned int ErrorNum;
+  char SqlState[SQLSTATE_LENGTH + 1];  
+  SQLRETURN ReturnValue;
+  char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
 } MADB_Error;
 
 typedef struct
@@ -337,16 +337,23 @@ struct st_ma_odbc_stmt
   MADB_Desc *IIpd;
 };
 
+enum MADB_AppType{
+  ATypeGeneral= 0,
+  ATypeMSAccess= 1
+};
+
 typedef struct st_ma_odbc_environment {
   MADB_Error Error;
   CRITICAL_SECTION cs;
   MADB_List *Dbcs;
-  SQLUINTEGER Trace;
   SQLWCHAR *TraceFile;
+  SQLUINTEGER Trace;
   SQLINTEGER OdbcVersion;
   SQLINTEGER OutputNTS;
+  enum MADB_AppType AppType;
 } MADB_Env;
 
+//const size_t sizeOfT = sizeof(MADB_Env);
 
 #include <ma_dsn.h>
 

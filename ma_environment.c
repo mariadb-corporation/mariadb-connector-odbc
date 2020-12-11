@@ -64,6 +64,19 @@ const char* GetDefaultLogDir();
 int         GetSourceAnsiCs(Client_Charset *cc);
 
 /* {{{ MADB_EnvInit */
+static DetectAppType(MADB_Env* Env)
+{
+  Env->AppType= ATypeGeneral;
+#ifdef _WIN32
+  if (GetModuleHandle("msaccess.exe") != NULL)
+  {
+    Env->AppType = ATypeMSAccess;
+  }
+#endif
+}
+/* }}} */
+
+/* {{{ MADB_EnvInit */
 MADB_Env *MADB_EnvInit()
 {
   MADB_Env *Env= NULL;
@@ -124,6 +137,8 @@ MADB_Env *MADB_EnvInit()
   {
     DefaultPluginLocation= MADB_GetDefaultPluginsDir(PluginLocationBuf, sizeof(PluginLocationBuf));
   }
+
+  DetectAppType(Env);
 cleanup:
 #ifdef _WIN32  
   if (!Env)

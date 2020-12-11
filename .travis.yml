@@ -36,12 +36,12 @@ matrix:
     - os: linux
       env: DB=mysql:5.7
     - os: osx
-      env: DB=mariadb:10.4
+      env: DB=mariadb:10.5
+    - os: linux
+      env: DB=mariadb:10.1
   include:
     - os: linux
       env: DB=build
-    - os: linux
-      env: DB=mariadb:5.5
     - os: linux
       env: DB=mariadb:10.1
     - os: linux
@@ -49,16 +49,18 @@ matrix:
     - os: linux
       env: DB=mariadb:10.3
     - os: linux
-      compiler: gcc
       env: DB=mariadb:10.4
     - os: linux
+      compiler: gcc
+      env: DB=mariadb:10.5
+    - os: linux
       compiler: clang
-      env: DB=mariadb:10.4
+      env: DB=mariadb:10.5
     - os: osx
       compiler: gcc
-      env: DB=mariadb:10.4
+      env: DB=mariadb:10.5
       addons:
-        mariadb: '10.4'
+        mariadb: '10.5'
       before_script:
         - brew update
         - brew install openssl

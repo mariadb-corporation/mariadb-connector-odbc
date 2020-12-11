@@ -3457,13 +3457,17 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
       strcpy(Quote, "'");
     }
 
-    if (CatalogName)
+    if (CatalogName != NULL)
     {
       MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA ");
       MADB_DynstrAppend(&StmtStr, "LIKE ");
       MADB_DynstrAppend(&StmtStr, Quote);
       MADB_DynstrAppend(&StmtStr, CatalogName);
       MADB_DynstrAppend(&StmtStr, Quote);
+    }
+    else if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
+    {
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA=DATABASE()");
     }
 
     if (TableName && TableNameLength)

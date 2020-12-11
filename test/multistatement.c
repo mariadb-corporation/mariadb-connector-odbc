@@ -358,7 +358,6 @@ ODBC_TEST(diff_column_binding)
   SQLRETURN Expected= SQL_SUCCESS;
   SQLLEN indicator = 0, indicator2 = 0, indicator3 = 0, indicator4 = 0;
   SQLLEN indicatorc = SQL_NTS;
-  
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS diff_column_binding");
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS diff_column_binding_1");
