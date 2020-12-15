@@ -7,7 +7,7 @@
   MySQL Connectors. There are special exceptions to the terms and
   conditions of the GPLv2 as it is applied to this software, see the
   FLOSS License Exception
-  <http://www.mysql.com/about/legal/licensing/foss-exception.html>.
+  <http://www.mysql.com   q/about/legal/licensing/foss-exception.html>.
   
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published

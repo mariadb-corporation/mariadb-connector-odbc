@@ -534,7 +534,7 @@ SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLI
     *StringLengthPtr= isWChar ? (SQLSMALLINT)Size * sizeof(SQLWCHAR) : (SQLSMALLINT)Size;
   
 end:
-  MA_SQLFreeStmt(Stmt, SQL_DROP);
+  Stmt->Methods->StmtFree(Stmt, SQL_DROP);
   return Connection->Error.ReturnValue;
 }
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)

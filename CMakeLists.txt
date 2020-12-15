@@ -34,6 +34,7 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/maodbcu.rc.in
                ${CMAKE_SOURCE_DIR}/maodbcu.rc)
 
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
+                          ma_api_internal.c   
                           ma_error.c
                           ma_connection.c
                           ma_helper.c
@@ -211,6 +212,7 @@ IF(WIN32)
                           ma_desc.h
                           ma_string.h
                           ma_odbc.h
+                          ma_api_internal.h
                           ma_odbc_version.h
                           ma_result.h
                           ma_server.h

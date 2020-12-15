@@ -459,66 +459,7 @@ void            CloseClientCharset(Client_Charset *cc);
 #include <ma_typeconv.h>
 #include <ma_bulk.h>
 
-/* SQLFunction calls inside MariaDB Connector/ODBC needs to be mapped,
- * on non Windows platforms these function calls will call the driver
- * manager function instead of our own function */
-SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
-    SQLHANDLE InputHandle,
-    SQLHANDLE *OutputHandlePtr);
-
-SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
-    SQLUSMALLINT ParameterNumber,
-    SQLSMALLINT InputOutputType,
-    SQLSMALLINT ValueType,
-    SQLSMALLINT ParameterType,
-    SQLULEN ColumnSize,
-    SQLSMALLINT DecimalDigits,
-    SQLPOINTER ParameterValuePtr,
-    SQLLEN BufferLength,
-    SQLLEN *StrLen_or_IndPtr);
-
-SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
-    SQLUSMALLINT Option);
-
-SQLRETURN MA_SQLGetConnectAttr(SQLHDBC ConnectionHandle,
-    SQLINTEGER Attribute,
-    SQLPOINTER ValuePtr,
-    SQLINTEGER BufferLength,
-    SQLINTEGER *StringLengthPtr);
-
-SQLRETURN MA_SQLPrepare(MADB_Stmt *Stmt,
-    SQLCHAR *StatementText,
-    SQLINTEGER TextLength);
-
-SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle);
-
-SQLRETURN MA_SQLGetDiagRec(SQLSMALLINT HandleType,
-    SQLHANDLE Handle,
-    SQLSMALLINT RecNumber,
-    SQLCHAR *SQLState,
-    SQLINTEGER *NativeErrorPtr,
-    SQLCHAR *MessageText,
-    SQLSMALLINT BufferLength,
-    SQLSMALLINT *TextLengthPtr);
-
-SQLRETURN MA_SQLGetStmtAttr(SQLHSTMT StatementHandle,
-    SQLINTEGER Attribute,
-    SQLPOINTER ValuePtr,
-    SQLINTEGER BufferLength,
-    SQLINTEGER *StringLengthPtr);
-
-SQLRETURN MA_SQLSetConnectAttr(SQLHDBC ConnectionHandle,
-    SQLINTEGER Attribute,
-    SQLPOINTER ValuePtr,
-    SQLINTEGER StringLength);
-
-SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
-    SQLINTEGER Attribute,
-    SQLPOINTER ValuePtr,
-    SQLINTEGER StringLength);
-
-SQLRETURN MA_SQLAllocConnect(SQLHANDLE InputHandle,
-                             SQLHANDLE *OutputHandlePtr);
+#include "ma_api_internal.h"
 
 SQLRETURN MADB_GetBookmark(MADB_Stmt  *StatementHandle,
                            SQLSMALLINT TargetType,
