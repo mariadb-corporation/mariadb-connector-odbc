@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2018 MariaDB Corporation AB
+   Copyright (C) 2013, 2020 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -269,7 +269,7 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
 /* }}} */
 
 /* {{{ MADB_GetTypeName */
-char *MADB_GetTypeName(MYSQL_FIELD *Field)
+const char *MADB_GetTypeName(MYSQL_FIELD *Field)
 {
   switch(Field->type) {
   case MYSQL_TYPE_DECIMAL:
@@ -713,7 +713,7 @@ size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length)
 /* }}} */
 
 /* {{{ MADB_GetMaDBTypeAndLength */
-int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length)
+enum enum_field_types MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length)
 {
   *Unsigned= 0;
   switch(SqlDataType)

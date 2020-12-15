@@ -23,21 +23,6 @@
 #include <ma_odbc.h>
 #include <wctype.h>
 
-static unsigned int ValidChar(const char *start, const char *end)
-{
-  return 4;
-}
-
-
-static unsigned CharOctetLen(unsigned int utf32)
-{
-  return 4;
-}
-
-MARIADB_CHARSET_INFO dummyUtf32le= {0, 1, "utf32le", "utf32_general_ci", "", 0, "UTF-32LE", 4, 4, CharOctetLen, ValidChar};
-
-MARIADB_CHARSET_INFO*  DmUnicodeCs= NULL;
-Client_Charset utf8=  {CP_UTF8, NULL};
 
 /* {{{ ltrim */
 char* ltrim(char *Str)

@@ -276,9 +276,9 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
         }
         else
         {
-          Column= MADB_CALLOC(StrLength + 1);
+          Column= static_cast<char*>(MADB_CALLOC(StrLength + 1));
           Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, &StrLength, TRUE);
-          Escaped = MADB_CALLOC(2 * StrLength + 1);
+          Escaped = static_cast<char*>(MADB_CALLOC(2 * StrLength + 1));
           EscapedLength= mysql_real_escape_string(Stmt->Connection->mariadb, Escaped, Column, (unsigned long)StrLength);
 
           if (MADB_DynstrAppend(DynString, "= '") ||
@@ -339,7 +339,7 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
   char *TableName;
   unsigned int i;
 
-  if (!(StmtStr= MADB_CALLOC(1024)))
+  if (!(StmtStr= static_cast<char*>(MADB_CALLOC(1024))))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
     return NULL;
@@ -354,7 +354,7 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
     if (strlen(StmtStr) > Length - NAME_LEN - 4/* comma + 2 ticks + terminating NULL */)
     {
       Length+= 1024;
-      if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
+      if (!(StmtStr= static_cast<char*>(MADB_REALLOC(StmtStr, Length))))
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
         goto error;
@@ -368,7 +368,7 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
                                                                             + terminating NULL */
   {
     Length= strlen(StmtStr) + mysql_stmt_field_count(Stmt->stmt)*2 + 1;
-    if (!(StmtStr= MADB_REALLOC(StmtStr, Length)))
+    if (!(StmtStr= static_cast<char*>(MADB_REALLOC(StmtStr, Length))))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
       goto error;

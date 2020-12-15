@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2020 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,7 +19,7 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
-#include <ma_odbc_version.h>
+#include "ma_odbc_version.h"
 
 #ifdef _WIN32
 # include "ma_platform_win32.h"
@@ -283,7 +283,9 @@ typedef struct
 } MADB_BulkOperationInfo;
 
 /* Stmt struct needs definitions from my_parse.h */
-#include <ma_parse.h>
+#include "ma_c_stuff.h"
+#include "ma_parse.h"
+#include "ma_dsn.h"
 
 #define STMT_STRING(STMT) (STMT)->Query.Original
 
@@ -352,11 +354,6 @@ typedef struct st_ma_odbc_environment {
   SQLINTEGER OutputNTS;
   enum MADB_AppType AppType;
 } MADB_Env;
-
-//const size_t sizeOfT = sizeof(MADB_Env);
-
-#include <ma_dsn.h>
-
 
 typedef struct st_client_charset
 {
@@ -452,7 +449,7 @@ void  CloseClientCharset(Client_Charset *cc);
 #include <ma_debug.h>
 #include <ma_desc.h>
 #include <ma_statement.h>
-#include <ma_string.h>
+#include "ma_string.h"
 #include <ma_result.h>
 #include <ma_driver.h>
 #include <ma_helper.h>

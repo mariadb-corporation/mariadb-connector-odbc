@@ -38,7 +38,7 @@ void ma_debug_print(my_bool ident, char *format, ...);
 #include <time.h>
 #endif
 
-void ma_debug_print(my_bool ident, char *format, ...);
+void ma_debug_print(my_bool ident, const char *format, ...);
 void ma_debug_print_error(MADB_Error *err);
 
 /* Debug is on for connection */

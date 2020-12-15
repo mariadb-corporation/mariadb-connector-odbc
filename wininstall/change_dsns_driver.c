@@ -44,7 +44,7 @@ int Usage()
 #include <string.h>
 
 #ifdef _WIN32
-# include "ma_platform_win32.h"
+# include <shlwapi.h>
 #else
 
 int _snprintf(char *buffer, size_t count, const char *format, ...)
@@ -250,7 +250,7 @@ int DoSingleRegBranch(HKEY Branch, const char *NewDriverName)
       {
         if (DsnToChange == NULL)
         {
-          DsnToChange= calloc(DsnCount - i, sizeof(char*));
+          DsnToChange= (char**)calloc(DsnCount - i, sizeof(char*));
           if (DsnToChange == NULL)
           {
             Die("Could not allocate memory");
@@ -274,13 +274,13 @@ int DoSingleRegBranch(HKEY Branch, const char *NewDriverName)
     OdbcIni= MA_OpenRegKey(Branch, DsnSubkey, FALSE);
     if (OdbcIni != NULL)
     {
-      LSTATUS s= RegSetValueExA(OdbcIni, "Driver", 0, REG_SZ, NewDriverName, NewDriverNameLen);
+      LSTATUS s= RegSetValueExA(OdbcIni, "Driver", 0, REG_SZ, (const BYTE*)NewDriverName, NewDriverNameLen);
       if (s != ERROR_SUCCESS)
       {
         Error(RegOpError());
       }
       RegCloseKey(OdbcIni);
-      RegSetValueExA(OdbcDataSources, DsnToChange[i], 0, REG_SZ, NewDriverName, NewDriverNameLen);
+      RegSetValueExA(OdbcDataSources, DsnToChange[i], 0, REG_SZ, (const BYTE*)NewDriverName, NewDriverNameLen);
     }
   }
   RegCloseKey(OdbcDataSources);
@@ -309,7 +309,7 @@ void DoOdbcWay(const char *NewDriverName, BOOL AlsoSystem)
 
   SQLAllocHandle(SQL_HANDLE_ENV, NULL, &Env);
   SQLSetEnvAttr(Env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)(SQLLEN)SQL_OV_ODBC2, 0);
-  rc= SQLDataSources(Env, Direction, DsName, sizeof(DsName), &DsnLen, DriverName, sizeof(DriverName), &DriverLen);
+  rc= SQLDataSources(Env, Direction, (SQLCHAR*)DsName, sizeof(DsName), &DsnLen, (SQLCHAR*)DriverName, sizeof(DriverName), &DriverLen);
   while (rc != SQL_ERROR && rc != SQL_NO_DATA)
   {
     if (DriverToChange(DriverName))
@@ -337,7 +337,7 @@ void DoOdbcWay(const char *NewDriverName, BOOL AlsoSystem)
       MADB_DSN_Free(Dsn);
     }
     Direction= SQL_FETCH_NEXT;
-    rc= SQLDataSources(Env, Direction, DsName, sizeof(DsName), &DsnLen, DriverName, sizeof(DriverName), &DriverLen);
+    rc= SQLDataSources(Env, Direction, (SQLCHAR*)DsName, sizeof(DsName), &DsnLen, (SQLCHAR*)DriverName, sizeof(DriverName), &DriverLen);
   }
 
   if (rc != SQL_NO_DATA) /* i.e. There was an error */

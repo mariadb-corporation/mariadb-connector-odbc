@@ -32,6 +32,8 @@
 #define DSNKEY_FPLIST_INDEX   26
 
 
+//extern "C" {
+
 MADB_DsnKey DsnKeys[]=
 {
   {"DSN",            offsetof(MADB_Dsn, DSNName),           DSN_TYPE_STRING, 0, 0}, /* 0 */
@@ -332,7 +334,7 @@ void MADB_DsnUpdateOptionsFields(MADB_Dsn *Dsn)
 /* {{{ MADB_ReadDSN */
 my_bool MADB_ReadDSN(MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite)
 {
-  char *Value;
+  const char *Value;
   /* if no key/value pair was specified, we will try to read Dsn->DSNName */
   if (!KeyValue)
   {
@@ -499,10 +501,10 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
     Length= ConnStringLength(String, Delimiter);
   }
 
-  Buffer= MADB_ALLOC(Length + 1);
-  Buffer= memcpy(Buffer, String, Length + 1);
+  Buffer= (char*)(MADB_ALLOC(Length + 1));
+  Buffer= (char*)(memcpy(Buffer, String, Length + 1));
   Key=    Buffer;
-  ValueBuf= MADB_ALLOC(Length - 4); /*DSN=<value> - DSN or DRIVER must be in */
+  ValueBuf= (char*)(MADB_ALLOC(Length - 4)); /*DSN=<value> - DSN or DRIVER must be in */
 
   while (Key && Key < ((char *)Buffer + Length))
   {
@@ -709,3 +711,5 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
   return TotalLength;
 }
 /* }}} */
+
+//} /* End of "extern C" */

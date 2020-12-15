@@ -38,7 +38,7 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
 SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen);
-int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
+enum enum_field_types MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
 SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
@@ -46,10 +46,7 @@ size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
 
 size_t  MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset);
 size_t  MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen);
-char *  MADB_GetTypeName(MYSQL_FIELD *Field);
-
-char *  ltrim(char *Str);
-char *  trim(char *Str);
+const char *  MADB_GetTypeName(MYSQL_FIELD *Field);
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
 void *  GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
@@ -94,7 +91,7 @@ extern my_bool DummyError;
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
 #define MADB_FREE(a) do { \
-  free((a));\
+  free((void*)(a));\
   (a)= NULL; \
 } while(0)
 
@@ -104,7 +101,7 @@ extern my_bool DummyError;
 
 /* If required to free old memory pointed by current ptr, and set new value */
 #define MADB_RESET(ptr, newptr) do {\
-  char *local_new_ptr= (newptr);\
+  const char *local_new_ptr= (newptr);\
   if (local_new_ptr != ptr) {\
     free((char*)(ptr));\
     if (local_new_ptr != NULL)\

@@ -119,7 +119,7 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
 
 SQLRETURN MADB_InitIndicatorArray(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, char InitValue)
 {
-  MaBind->u.indicator= MADB_ALLOC(Stmt->Bulk.ArraySize);
+  MaBind->u.indicator= static_cast<char*>(MADB_ALLOC(Stmt->Bulk.ArraySize));
 
   if (MaBind->u.indicator == NULL)
   {
@@ -148,7 +148,7 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
 
   if (VariableLengthMadbType)
   {
-    MaBind->length= MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long));
+    MaBind->length= static_cast<unsigned long*>(MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long)));
     if (MaBind->length == NULL)
     {
       return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
@@ -205,21 +205,21 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
   case CHAR_BINARY_TYPES:
     if (SqlType == SQL_BIT)
     {
-      CRec->InternalBuffer= MADB_CALLOC(Stmt->Bulk.ArraySize);
+      CRec->InternalBuffer= static_cast<char*>(MADB_CALLOC(Stmt->Bulk.ArraySize));
       MaBind->buffer_length= 1;
       break;
     }
   case DATETIME_TYPES:
     if (CanUseStructArrForDatetime(Stmt) == TRUE)
     {
-      CRec->InternalBuffer= MADB_ALLOC(Stmt->Bulk.ArraySize*sizeof(MYSQL_TIME));
+      CRec->InternalBuffer= static_cast<char*>(MADB_ALLOC(Stmt->Bulk.ArraySize*sizeof(MYSQL_TIME)));
       MaBind->buffer_length= sizeof(MYSQL_TIME);
       break;
     }
     /* Otherwise falling thru and allocating array of pointers */
   case WCHAR_TYPES:
   case SQL_C_NUMERIC:
-    CRec->InternalBuffer= MADB_CALLOC(Stmt->Bulk.ArraySize*sizeof(char*));
+    CRec->InternalBuffer= static_cast<char*>(MADB_CALLOC(Stmt->Bulk.ArraySize*sizeof(char*)));
     MaBind->buffer_length= sizeof(char*);
     break;
   default:

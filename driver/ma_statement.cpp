@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2020 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20,68 +20,6 @@
 
 #define MADB_MIN_QUERY_LEN 5
 
-struct st_ma_stmt_methods MADB_StmtMethods; /* declared at the end of file */
-
-/* {{{ MADB_StmtInit */
-SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
-{
-  MADB_Stmt *Stmt= NULL;
-
-  if (!(Stmt = (MADB_Stmt *)MADB_CALLOC(sizeof(MADB_Stmt))))
-    goto error;
- 
-  MADB_PutErrorPrefix(Connection, &Stmt->Error);
-  *pHStmt= Stmt;
-  Stmt->Connection= Connection;
- 
-  LOCK_MARIADB(Connection);
-
-  if (!(Stmt->stmt= MADB_NewStmtHandle(Stmt)) ||
-    !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
-    !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
-    !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
-    !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
-  {
-    UNLOCK_MARIADB(Stmt->Connection);
-    goto error;
-  }
-
-  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-  UNLOCK_MARIADB(Connection);
-  Stmt->PutParam= -1;
-  Stmt->Methods= &MADB_StmtMethods;
-  /* default behaviour is SQL_CURSOR_STATIC. But should be SQL_CURSOR_FORWARD_ONLY according to specs(see bug ODBC-290) */
-  Stmt->Options.CursorType= MA_ODBC_CURSOR_FORWARD_ONLY(Connection) ? SQL_CURSOR_FORWARD_ONLY : SQL_CURSOR_STATIC;
-  Stmt->Options.UseBookmarks= SQL_UB_OFF;
-  Stmt->Options.MetadataId= Connection->MetadataId;
-
-  Stmt->Apd= Stmt->IApd;
-  Stmt->Ard= Stmt->IArd;
-  Stmt->Ipd= Stmt->IIpd;
-  Stmt->Ird= Stmt->IIrd;
-  
-  Stmt->ListItem.data= (void *)Stmt;
-  EnterCriticalSection(&Stmt->Connection->ListsCs);
-  Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
-  LeaveCriticalSection(&Stmt->Connection->ListsCs);
-
-  Stmt->Ard->Header.ArraySize= 1;
-
-  return SQL_SUCCESS;
-
-error:
-  if (Stmt && Stmt->stmt)
-  {
-    MADB_STMT_CLOSE_STMT(Stmt);
-  }
-  MADB_DescFree(Stmt->IApd, TRUE);
-  MADB_DescFree(Stmt->IArd, TRUE);
-  MADB_DescFree(Stmt->IIpd, TRUE);
-  MADB_DescFree(Stmt->IIrd, TRUE);
-  MADB_FREE(Stmt);
-  return SQL_ERROR;
-}
-/* }}} */
 
 /* {{{ MADB_ExecuteQuery */
 SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER TextLength)
@@ -614,7 +552,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     /* TODO: LIMIT is not always the last clause. And not applicable to each query type.
        Thus we need to check query type and last tokens, and possibly put limit before them */
     char *p;
-    STMT_STRING(Stmt)= realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40);
+    STMT_STRING(Stmt)= static_cast<char*>(realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40));
     p= STMT_STRING(Stmt) + strlen(STMT_STRING(Stmt));
     _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
   }
@@ -795,7 +733,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   /* To make sure that we will not consume the doble amount of memory, we need to send
      data via mysql_send_long_data directly to the server instead of allocating a separate
      buffer. This means we need to process Update and Insert statements row by row. */
-  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, (ConvertedDataPtr ? (char *)ConvertedDataPtr : DataPtr), (unsigned long)Length))
+  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, static_cast<const char*>(ConvertedDataPtr ? ConvertedDataPtr : DataPtr), (unsigned long)Length))
   {
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
   }
@@ -1828,7 +1766,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             if (ArdRec->Type == SQL_C_INTERVAL_HOUR_TO_MINUTE)
             {
               ts->intval.day_second.second= 0;
-              ts->interval_type= SQL_INTERVAL_HOUR_TO_MINUTE;
+              ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_MINUTE;
               if (tm->second)
               {
                 FieldRc= MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
@@ -1838,7 +1776,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             }
             else
             {
-              ts->interval_type= SQL_INTERVAL_HOUR_TO_SECOND;
+              ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_SECOND;
               ts->intval.day_second.second= tm->second;
             }
           }
@@ -2571,7 +2509,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 {
   MADB_Stmt       *Stmt= (MADB_Stmt *)StatementHandle;
   SQLUSMALLINT    Offset= Col_or_Param_Num - 1;
-  SQLSMALLINT     OdbcType= 0, MadbType= 0;
+  SQLSMALLINT     OdbcType = 0;
+  enum enum_field_types MadbType = MYSQL_TYPE_DECIMAL;
   MYSQL_BIND      Bind;
   my_bool         IsNull= FALSE;
   my_bool         ZeroTerminated= 0;
@@ -2733,7 +2672,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if (TargetType == SQL_C_INTERVAL_HOUR_TO_MINUTE)
       {
         ts->intval.day_second.second= 0;
-        ts->interval_type= SQL_INTERVAL_HOUR_TO_MINUTE;
+        ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_MINUTE;
         if (tm.second)
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
@@ -2741,7 +2680,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       else
       {
-        ts->interval_type= SQL_INTERVAL_HOUR_TO_SECOND;
+        ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_SECOND;
         ts->intval.day_second.second= tm.second;
       }
       if (StrLen_or_IndPtr)
@@ -3011,7 +2950,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       return Stmt->Error.ReturnValue;
     }
 
-    rc= MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, TargetValuePtr, 0);
+    rc= MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, static_cast<SQL_NUMERIC_STRUCT*>(TargetValuePtr), 0);
 
     /* Ugly */
     if (rc != SQL_SUCCESS)
@@ -3603,7 +3542,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   MADB_DynString StmtStr;
   SQLRETURN ret;
   size_t Length= strlen(MADB_CATALOG_COLUMNSp3);
-  char *ColumnsPart= MADB_CALLOC(Length);
+  char *ColumnsPart= static_cast<char*>(MADB_CALLOC(Length));
   unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 && Stmt->Connection->Charset.cs_info->char_maxlen < 10 ? Stmt->Connection->Charset.cs_info->char_maxlen : 1;
 
   MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
@@ -3699,7 +3638,7 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  if (!(StmtStr= MADB_CALLOC(Length)))
+  if (!(StmtStr= static_cast<char*>(MADB_CALLOC(Length))))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
@@ -4068,7 +4007,7 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
     }
   }
   MADB_FREE(Stmt->Cursor.Name);
-  Stmt->Cursor.Name= MADB_CALLOC(BufferLength + 1);
+  Stmt->Cursor.Name= static_cast<char*>(MADB_CALLOC(BufferLength + 1));
   MADB_SetString(0, Stmt->Cursor.Name, BufferLength + 1, Buffer, BufferLength, NULL);
   return SQL_SUCCESS;
 }
@@ -4347,7 +4286,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
             /* TODO: shouldn't here be IndicatorPtr? */
             if (Rec->OctetLengthPtr)
-              LengthPtr= GetBindOffset(Stmt->Ard, Rec, Rec->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN)/*Rec->OctetLength*/);
+              LengthPtr= static_cast<SQLLEN*>(GetBindOffset(Stmt->Ard, Rec, Rec->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN)));
             if (!Rec->inUse ||
                 (LengthPtr && *LengthPtr == SQL_COLUMN_IGNORE))
             {
@@ -4671,3 +4610,65 @@ struct st_ma_stmt_methods MADB_StmtMethods=
   MADB_RefreshRowPtrs,
   MADB_GetOutParams
 };
+
+/* {{{ MADB_StmtInit */
+SQLRETURN MADB_StmtInit(MADB_Dbc* Connection, SQLHANDLE* pHStmt)
+{
+  MADB_Stmt* Stmt = NULL;
+
+  if (!(Stmt = (MADB_Stmt*)MADB_CALLOC(sizeof(MADB_Stmt))))
+    goto error;
+
+  MADB_PutErrorPrefix(Connection, &Stmt->Error);
+  *pHStmt = Stmt;
+  Stmt->Connection = Connection;
+
+  LOCK_MARIADB(Connection);
+
+  if (!(Stmt->stmt = MADB_NewStmtHandle(Stmt)) ||
+    !(Stmt->IApd = MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
+    !(Stmt->IArd = MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
+    !(Stmt->IIpd = MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
+    !(Stmt->IIrd = MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
+  {
+    UNLOCK_MARIADB(Stmt->Connection);
+    goto error;
+  }
+
+  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
+  UNLOCK_MARIADB(Connection);
+  Stmt->PutParam = -1;
+  Stmt->Methods = &MADB_StmtMethods;
+  /* default behaviour is SQL_CURSOR_STATIC. But should be SQL_CURSOR_FORWARD_ONLY according to specs(see bug ODBC-290) */
+  Stmt->Options.CursorType = MA_ODBC_CURSOR_FORWARD_ONLY(Connection) ? SQL_CURSOR_FORWARD_ONLY : SQL_CURSOR_STATIC;
+  Stmt->Options.UseBookmarks = SQL_UB_OFF;
+  Stmt->Options.MetadataId = Connection->MetadataId;
+
+  Stmt->Apd = Stmt->IApd;
+  Stmt->Ard = Stmt->IArd;
+  Stmt->Ipd = Stmt->IIpd;
+  Stmt->Ird = Stmt->IIrd;
+
+  Stmt->ListItem.data = (void*)Stmt;
+  EnterCriticalSection(&Stmt->Connection->ListsCs);
+  Stmt->Connection->Stmts = MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
+  LeaveCriticalSection(&Stmt->Connection->ListsCs);
+
+  Stmt->Ard->Header.ArraySize = 1;
+
+  return SQL_SUCCESS;
+
+error:
+  if (Stmt && Stmt->stmt)
+  {
+    MADB_STMT_CLOSE_STMT(Stmt);
+  }
+  MADB_DescFree(Stmt->IApd, TRUE);
+  MADB_DescFree(Stmt->IArd, TRUE);
+  MADB_DescFree(Stmt->IIpd, TRUE);
+  MADB_DescFree(Stmt->IIrd, TRUE);
+  MADB_FREE(Stmt);
+  return SQL_ERROR;
+}
+/* }}} */
+

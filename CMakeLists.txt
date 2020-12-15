@@ -16,43 +16,24 @@
 #   or write to the Free Software Foundation, Inc., 
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
-PROJECT(mariadb_connector_odbc C)
 
 cmake_minimum_required(VERSION 2.8)
 
-SET(MARIADB_ODBC_VERSION_MAJOR 3)
-SET(MARIADB_ODBC_VERSION_MINOR 2)
-SET(MARIADB_ODBC_VERSION_PATCH 0)
+CMAKE_POLICY(SET CMP0048 NEW)
+
+PROJECT(mariadb_connector_odbc 
+        VERSION 3.2.0
+        LANGUAGES CXX C)
+
+SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 SET(MARIADB_ODBC_VERSION_QUALITY "alpha")
 
 SET(MARIADB_ODBC_VERSION "03.02.0000")
 
 SET(MARIADB_DEFAULT_PLUGINS_SUBDIR "plugin")
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/ma_odbc_version.h.in
-               ${CMAKE_SOURCE_DIR}/ma_odbc_version.h)
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/maodbcu.rc.in
-               ${CMAKE_SOURCE_DIR}/maodbcu.rc)
 
-SET (MARIADB_ODBC_SOURCES odbc_3_api.c
-                          ma_api_internal.c   
-                          ma_error.c
-                          ma_connection.c
-                          ma_helper.c
-                          ma_debug.c
-                          ma_dsn.c
-                          ma_driver.c
-                          ma_info.c
-                          ma_environment.c
-                          ma_parse.c
-                          ma_statement.c
-                          ma_desc.c
-                          ma_string.c
-                          ma_result.c
-                          ma_common.c
-                          ma_server.c
-                          ma_legacy_helpers.c
-                          ma_typeconv.c
-                          ma_bulk.c)
 
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
@@ -100,8 +81,6 @@ ELSE()
     ENDIF()
   ENDIF()
   MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIB_SUFFIX}")
-  SET(INSTALL_PLUGINDIR "${INSTALL_LIB_SUFFIX}/mariadb/plugin")
-  MESSAGE(STATUS "Authentication Plugins installation dir: ${INSTALL_PLUGINDIR}")
 ENDIF()
 
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
@@ -114,10 +93,6 @@ IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
       ADD_DEFINITIONS(-DHAVE_OPENSSL)
       INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
       SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
-
-      #IF(OPENSSL_CRYPTO_LIBRARIES)
-      #  SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
-      #ENDIF()
 
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
     ELSE()
@@ -207,31 +182,7 @@ IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/dsn)
   SET(ODBC_LIBS odbc32)
   SET(ODBC_INSTLIBS odbccp32)
-  SET(MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
-                          ma_dll.c
-                          ma_platform_win32.c
-                          ma_error.h
-                          ma_connection.h
-                          ma_helper.h
-                          ma_debug.h
-                          ma_dsn.h
-                          ma_driver.h
-                          ma_info.h
-                          ma_environment.h
-                          ma_parse.h
-                          ma_statement.h
-                          ma_desc.h
-                          ma_string.h
-                          ma_odbc.h
-                          ma_api_internal.h
-                          ma_odbc_version.h
-                          ma_result.h
-                          ma_server.h
-                          ma_legacy_helpers.h
-                          ma_typeconv.h
-                          ma_bulk.h)
-
-			SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
+  SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
   IF (MSVC)
     MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
     IF (NOT(MSVC_VERSION LESS 1900))
@@ -243,12 +194,7 @@ IF(WIN32)
 ELSE()
   SEARCH_LIBRARY(LIB_MATH floor m)
   SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
-  SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
-                        ma_platform_posix.c
-                        ma_conv_charset.c)
 ENDIF()
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR})
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
@@ -277,19 +223,10 @@ IF(APPLE)
   ENDIF()
 ENDIF()
 
-SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
+SET(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
 SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
-#SET(CPACK_COMPONENTS_ALL ODBCLibs Documentation)
 SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
-
-# TODO: Make it optional
-# Disable dbug information for release builds 
-#SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
-#SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
-#SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
-#SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
-
 
 # We need to determine the last parameter for SQLColAttribute:
 # Older UnixODBC version expect SQLPOINTER while Windows expects SQLLEN *
@@ -310,76 +247,13 @@ ELSE()
 ENDIF()
 
 SET(LIBRARY_NAME "maodbc")
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
-               ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 
-IF(MARIADB_LINK_DYNAMIC)# OR USE_SYSTEM_INSTALLED_LIB)
-  IF(USE_SYSTEM_INSTALLED_LIB)
-    SET(MARIADB_CLIENT_TARGET_NAME mariadb)
-  ELSE()
-    SET(MARIADB_CLIENT_TARGET_NAME libmariadb)
-  ENDIF()
-  MESSAGE(STATUS "Linking Connector/C library dynamically(${MARIADB_CLIENT_TARGET_NAME})")
-ELSE()
-  SET(MARIADB_CLIENT_TARGET_NAME mariadbclient)
-  MESSAGE(STATUS "Linking Connector/C library statically(${MARIADB_CLIENT_TARGET_NAME})")
-ENDIF()
+ADD_SUBDIRECTORY(driver)
 
-IF(WIN32)
-  ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def maodbcu.rc)
-ELSE()
-  MESSAGE(STATUS "Version script: ${CMAKE_SOURCE_DIR}/maodbc.def")
-  ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} maodbcu.rc)
-  
-  IF(APPLE)
-    SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "@loader_path" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib" "/usr/local/opt/openssl@1.1/lib" "/usr/local/opt/libressl/lib")
-    SET_TARGET_PROPERTIES(${LIBRARY_NAME}
-                          PROPERTIES LINK_FLAGS "-Wl"
-                                     INSTALL_RPATH_USE_LINK_PATH 0
-                                     BUILD_WITH_INSTALL_RPATH 1
-                                     INSTALL_RPATH "${MAODBC_INSTALL_RPATH}")
-  ELSE()
-    SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/maodbc.def")
-  ENDIF()
-ENDIF()
+####### MAODBCS #######
+ADD_SUBDIRECTORY(dsn)
 
-SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LANGUAGE C)
-MESSAGE(STATUS "All linked targets/external dependencies: ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES}")
-TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
-
-# Currently on Windows only
-IF(WIN32)
-  IF(ALL_PLUGINS_STATIC)
-    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
-                                    -DPLUGINS_LIB_DIR=""
-                                    -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
-                                    -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
-                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
-                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
-                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
-  ELSE()
-    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
-                                    -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
-                                    -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
-                                    -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
-                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
-                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
-                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
-  ENDIF()
-  ####### MAODBCS #######
-  ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
-  SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)
-  TARGET_LINK_LIBRARIES(maodbcs comctl32 ${LEGACY_STDIO} Shlwapi ${ODBC_LIBS} ${ODBC_INSTLIBS})
-
-  ADD_EXECUTABLE(dsn_test  dsn_test.c)
-  TARGET_LINK_LIBRARIES(dsn_test ${MARIADB_LIB})
-ELSEIF(APPLE)
-  ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-    COMMAND ${CMAKE_SOURCE_DIR}/osxpostbuild.sh ARGS $<TARGET_FILE:${LIBRARY_NAME}>
-  )
-ENDIF()
+ADD_SUBDIRECTORY("dsn_test")
 
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
@@ -391,10 +265,6 @@ ELSE()
     MESSAGE(STATUS "Configuring to generate PKG package")
     ADD_SUBDIRECTORY(osxinstall)
   ENDIF()
-  INSTALL(TARGETS
-          ${LIBRARY_NAME}
-          LIBRARY DESTINATION ${INSTALL_LIBDIR}
-          COMPONENT ODBCLibs)
 
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/README
@@ -409,44 +279,10 @@ ELSE()
 ENDIF()
 
 # Tests. Checking if we have them. May be not the case if we are building from source package
-IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
+IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
   IF(WITH_UNIT_TESTS)
     ADD_SUBDIRECTORY(test)
-    IF(NOT WIN32)
-      # Configuring ini files for testing with UnixODBC
-      SET_VALUE(TEST_DRIVER "maodbc_test")
-      SET_VALUE(TEST_DSN "maodbc_test")
-      SET_VALUE(TEST_PORT "3306")
-      SET_VALUE(TEST_SERVER "localhost")
-      SET_VALUE(TEST_SOCKET "")
-      SET_VALUE(TEST_SCHEMA "test")
-      SET_VALUE(TEST_UID "root")
-      SET_VALUE(TEST_PASSWORD "")
-
-      MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
-
-      ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
-                                      -DTEST_DRIVER=${TEST_DRIVER}
-                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                      -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
-                                      -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                         )
-
-      ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
-                                      -DTEST_DSN=${TEST_DSN}
-                                      -DTEST_PORT=${TEST_PORT}
-                                      -DTEST_SERVER=${TEST_SERVER}
-                                      -DTEST_SOCKET=${TEST_SOCKET}
-                                      -DTEST_SCHEMA=${TEST_SCHEMA}
-                                      -DTEST_UID=${TEST_UID}
-                                      -DTEST_PASSWORD=${TEST_PASSWORD}
-                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                      -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
-                                      -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                         )
-    ENDIF()
+    #!!! Creation of ini files for testing is configured in the driver's cmake, as that is custom command for that target
   ENDIF()
 ENDIF()
 

@@ -839,7 +839,7 @@ BOOL DSNDialog(HWND     hwndParent,
 {
   MSG     msg;
   BOOL    ret;
-  char    *DsnName=  NULL;
+  const char    *DsnName=  NULL;
   my_bool DsnExists= FALSE;
   char    Delimiter= ';';
 

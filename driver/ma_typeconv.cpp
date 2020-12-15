@@ -24,7 +24,7 @@
 /* Borrowed from C/C and adapted */
 SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Interval, MADB_Error *Error, BOOL *isTime)
 {
-  char *localCopy= MADB_ALLOC(Length + 1), *Start= localCopy, *Frac, *End= Start + Length;
+  char *localCopy= static_cast<char*>(MADB_ALLOC(Length + 1)), *Start= localCopy, *Frac, *End= Start + Length;
   my_bool isDate= 0;
 
   if (Start == NULL)
@@ -337,7 +337,7 @@ void* MADB_GetBufferForSqlValue(MADB_Stmt *Stmt, MADB_DescRecord *CRec, size_t S
   if (Stmt->RebindParams || CRec->InternalBuffer == NULL)
   {
     MADB_FREE(CRec->InternalBuffer);
-    CRec->InternalBuffer= MADB_CALLOC(Size);
+    CRec->InternalBuffer= static_cast<char*>(MADB_CALLOC(Size));
     if (CRec->InternalBuffer == NULL)
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
@@ -394,7 +394,7 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
       }
 
       *LengthPtr= 1;
-      **(char**)Buffer= MADB_ConvertCharToBit(Stmt, DataPtr);
+      **(char**)Buffer= MADB_ConvertCharToBit(Stmt, static_cast<char*>(DataPtr));
       MaBind->buffer_type= MYSQL_TYPE_TINY;
       break;
   case SQL_DATETIME:
@@ -404,7 +404,7 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
     BOOL isTime;
 
     /* Enforcing constraints on date/time values */
-    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(DataPtr, Length, &Tm, FALSE, &Stmt->Error, &isTime));
+    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(static_cast<char*>(DataPtr), Length, &Tm, FALSE, &Stmt->Error, &isTime));
     MADB_CopyMadbTimeToOdbcTs(&Tm, &Ts);
     RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime));
     /* To stay on the safe side - still sending as string in the default branch */
@@ -505,7 +505,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
   }
   else
   {
-    tm= *Buffer;
+    tm= static_cast<MYSQL_TIME*>(*Buffer);
   }
   
 
@@ -578,7 +578,7 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
   }
   else
   {
-    tm= *Buffer;
+    tm= static_cast<MYSQL_TIME*>(*Buffer);
   }
 
   if(SqlRec->ConciseType == SQL_TYPE_TIMESTAMP ||
@@ -639,7 +639,7 @@ SQLRETURN MADB_IntervalHtoMS2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* D
   }
   else
   {
-    tm= *Buffer;
+    tm= static_cast<MYSQL_TIME*>(*Buffer);
   }
 
   tm->hour=   is->intval.day_second.hour;
@@ -736,7 +736,7 @@ SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPt
   default:
     /* memset(MaBind, 0, sizeof(MYSQL_BIND));
     MaBind->buffer_length= 0; */
-    MaBind->buffer_type=   0;
+    MaBind->buffer_type=   MYSQL_TYPE_DECIMAL;/*0*/
     MaBind->is_unsigned=   0;
 
     *LengthPtr= (unsigned long)Length;

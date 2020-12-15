@@ -114,9 +114,6 @@ SQLUSMALLINT MADB_supported_api[]=
 };
 
 
-struct st_ma_connection_methods MADB_Dbc_Methods; /* declared at the end of file */
-
-
 my_bool CheckConnection(MADB_Dbc *Dbc)
 {
   if (!Dbc->mariadb)
@@ -423,46 +420,6 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   }
   return Dbc->Error.ReturnValue;
-}
-/* }}} */
-
-
-/* {{{ MADB_DbcInit() */
-MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
-{
-  MADB_Dbc *Connection= NULL;
-
-  MADB_CLEAR_ERROR(&Env->Error);
-
-  if (!(Connection = (MADB_Dbc *)MADB_CALLOC(sizeof(MADB_Dbc))))
-    goto cleanup;
-
-  Connection->AutoCommit= 4;
-  Connection->Environment= Env;
-  Connection->Methods= &MADB_Dbc_Methods;
-  //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
-  InitializeCriticalSection(&Connection->cs);
-  InitializeCriticalSection(&Connection->ListsCs);
-  /* Not sure that critical section is really needed here - this init routine is called when
-     no one has the handle yet */
-  EnterCriticalSection(&Connection->Environment->cs);
-
-  /* Save connection in Environment list */
-  Connection->ListItem.data= (void *)Connection;
-  Connection->Environment->Dbcs= MADB_ListAdd(Connection->Environment->Dbcs, &Connection->ListItem);
-
-  LeaveCriticalSection(&Connection->Environment->cs);
-
-  MADB_PutErrorPrefix(NULL, &Connection->Error);
-
-  return Connection;      
-cleanup:
-  if (Connection)
-    free(Connection);
-  else
-    MADB_SetError(&Env->Error, MADB_ERR_HY001, NULL, 0);
-
-  return NULL;
 }
 /* }}} */
 
@@ -1970,7 +1927,7 @@ error:
 /* }}} */
 
 struct st_ma_connection_methods MADB_Dbc_Methods =
-{ 
+{
   MADB_DbcSetAttr,
   MADB_DbcGetAttr,
   MADB_DbcConnectDB,
@@ -1979,3 +1936,42 @@ struct st_ma_connection_methods MADB_Dbc_Methods =
   MADB_DbcGetInfo,
   MADB_DriverConnect
 };
+
+/* {{{ MADB_DbcInit() */
+MADB_Dbc* MADB_DbcInit(MADB_Env* Env)
+{
+  MADB_Dbc* Connection = NULL;
+
+  MADB_CLEAR_ERROR(&Env->Error);
+
+  if (!(Connection = (MADB_Dbc*)MADB_CALLOC(sizeof(MADB_Dbc))))
+    goto cleanup;
+
+  Connection->AutoCommit = 4;
+  Connection->Environment = Env;
+  Connection->Methods = &MADB_Dbc_Methods;
+  //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
+  InitializeCriticalSection(&Connection->cs);
+  InitializeCriticalSection(&Connection->ListsCs);
+  /* Not sure that critical section is really needed here - this init routine is called when
+     no one has the handle yet */
+  EnterCriticalSection(&Connection->Environment->cs);
+
+  /* Save connection in Environment list */
+  Connection->ListItem.data = (void*)Connection;
+  Connection->Environment->Dbcs = MADB_ListAdd(Connection->Environment->Dbcs, &Connection->ListItem);
+
+  LeaveCriticalSection(&Connection->Environment->cs);
+
+  MADB_PutErrorPrefix(NULL, &Connection->Error);
+
+  return Connection;
+cleanup:
+  if (Connection)
+    free(Connection);
+  else
+    MADB_SetError(&Env->Error, MADB_ERR_HY001, NULL, 0);
+
+  return NULL;
+}
+/* }}} */
