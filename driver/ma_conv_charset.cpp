@@ -29,12 +29,16 @@
 #else
 #include <string.h>
 #endif
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 #if defined(SOLARIS) || defined(__sun)
 #define IF_SOLARIS(A,B) A
 #else
 #define IF_SOLARIS(A,B) B
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #define HAVE_ICONV
@@ -129,3 +133,6 @@ error:
 }
 /* }}} */
 
+#ifdef __cplusplus
+} //extern "C"
+#endif

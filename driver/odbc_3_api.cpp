@@ -22,6 +22,7 @@
 
 extern Client_Charset utf8;
 
+extern "C" {
 /* {{{ SQLAllocHandle */
 SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,
     SQLHANDLE InputHandle,
@@ -2844,5 +2845,6 @@ SQLRETURN SQL_API SQLParamOptions(
   }
 
   return result;
+}
 }
 /* }}} */

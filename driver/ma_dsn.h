@@ -54,6 +54,10 @@
 #define MADN_OPT_FLAG_BIGINT_BIND_STR           536870912
 #define MADN_OPT_FLAG_NO_INFORMATION_SCHEMA    1073741824 /*30*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum enum_dsn_item_type {
   DSN_TYPE_STRING,
   DSN_TYPE_INT,
@@ -167,6 +171,10 @@ BOOL        MADB_ReadConnString (MADB_Dsn *Dsn, const char *String, size_t Lengt
 SQLULEN     MADB_DsnToString    (MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength);
 void        MADB_DsnUpdateOptionsFields (MADB_Dsn *Dsn);
 BOOL        MADB_DSN_PossibleConnect    (MADB_Dsn *Dsn);
+
+#ifdef __cplusplus
+} /* End of "extern C" */
+#endif
 
 /*** Helper macros ***/
 #define DSN_OPTION(a,b)\

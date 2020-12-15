@@ -25,10 +25,16 @@
 
 #include "mariadb_ctype.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 size_t MADB_ConvertString(const char *from __attribute__((unused)),
                           size_t *from_len __attribute__((unused)),
                           MARIADB_CHARSET_INFO *from_cs __attribute__((unused)),
                           char *to __attribute__((unused)),
                           size_t *to_len __attribute__((unused)),
                           MARIADB_CHARSET_INFO *to_cs __attribute__((unused)), int *errorcode);
+#ifdef __cplusplus
+} // extern "C"
+#endif
 #endif

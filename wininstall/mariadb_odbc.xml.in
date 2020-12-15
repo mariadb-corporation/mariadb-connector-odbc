@@ -66,7 +66,7 @@
       </Component>  
       <Component Id="Driver" Guid="@GUID_DRIVER@" SharedDllRefCount="yes" Directory="INSTALLFOLDER" Win64="@IS_WIN64@">
         <File Id="mariadb_odbc_dll" Name="maodbc.dll" KeyPath="yes" DiskId="1" Source="$(var.binaries_dir)/maodbc.dll">
-          <ODBCDriver Id="madb_odbc_driver" Name="MariaDB ODBC @MARIADB_ODBC_VERSION_MAJOR@.@MARIADB_ODBC_VERSION_MINOR@ Driver" SetupFile="mariadb_odbc_setup" />
+          <ODBCDriver Id="madb_odbc_driver" Name="MariaDB ODBC @PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@ Driver" SetupFile="mariadb_odbc_setup" />
         </File>
         <File Id="mariadb_odbc_lib" Name="maodbc.lib" DiskId="1" Source="$(var.binaries_dir)/maodbc.lib" />
       </Component>

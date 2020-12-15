@@ -299,7 +299,7 @@ char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size)
 {
   HMODULE hModule = GetModuleHandle(MADB_DRIVER_NAME);
   wchar_t wOurLocation[_MAX_PATH];
-  const char *PluginsSubDirName= "\\"MADB_DEFAULT_PLUGINS_SUBDIR;
+  const char *PluginsSubDirName= "\\" MADB_DEFAULT_PLUGINS_SUBDIR;
   HRESULT hr;
 
   memset(Buffer, 0, Size);

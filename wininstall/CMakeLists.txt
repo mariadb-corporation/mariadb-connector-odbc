@@ -15,7 +15,7 @@ IF(NOT WIX_DIR)
 ENDIF()
 SET(PRODUCT_NAME "MariaDB ODBC Driver")
 SET(PRODUCT_MANUFACTURER "MariaDB")
-SET(PRODUCT_VERSION "${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH}")
+SET(PRODUCT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
 SET(TLS_LIB_BEGIN "!-- ")
 SET(TLS_LIB_END " --")
@@ -55,8 +55,13 @@ ELSE()
   SET(GUID_INSTALLER_TOOLS "786BD2C3-20B0-4b8f-8D9B-374C736E3A1B")
 ENDIF()
 
-ADD_EXECUTABLE(change_dsns_driver change_dsns_driver.c ${CMAKE_SOURCE_DIR}/ma_dsn.c ${CMAKE_SOURCE_DIR}/ma_platform_win32.c ${CMAKE_SOURCE_DIR}/ma_common.c)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/driver)
+ADD_EXECUTABLE(change_dsns_driver change_dsns_driver.c
+                                  ${CMAKE_SOURCE_DIR}/driver/ma_dsn.c
+                                  ${CMAKE_SOURCE_DIR}/driver/ma_common.c)
 TARGET_LINK_LIBRARIES(change_dsns_driver ${ODBC_LIBS} ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi Pathcch)
+SET_TARGET_PROPERTIES(change_dsns_driver PROPERTIES
+                      LANGUAGE C)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
                ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)

@@ -18,16 +18,24 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
-extern Client_Charset utf8;
-extern MARIADB_CHARSET_INFO* DmUnicodeCs;
-extern MARIADB_CHARSET_INFO  dummyUtf32le;
+Client_Charset utf8 = { CP_UTF8, NULL };
+MARIADB_CHARSET_INFO* DmUnicodeCs = NULL;;
 Client_Charset SourceAnsiCs= {0, 0}; /* Basically it should be initialized with 0 anyway */
-char* DefaultPluginLocation= NULL;
+const char* DefaultPluginLocation= NULL;
 #ifndef _MAX_PATH
 # define _MAX_PATH 260
 #endif
 static char PluginLocationBuf[_MAX_PATH];
 
+static unsigned int ValidChar(const char* start, const char* end)
+{
+  return 4;
+}
+static unsigned int CharOctetLen(unsigned int utf32)
+{
+  return 4;
+}
+MARIADB_CHARSET_INFO dummyUtf32le = { 0, 1, "utf32le", "utf32_general_ci", "", 0, "UTF-32LE", 4, 4, CharOctetLen, ValidChar };
 MARIADB_CHARSET_INFO * mysql_find_charset_name(const char *name);
 
 #ifdef _WIN32
@@ -64,7 +72,7 @@ const char* GetDefaultLogDir();
 int         GetSourceAnsiCs(Client_Charset *cc);
 
 /* {{{ MADB_EnvInit */
-static DetectAppType(MADB_Env* Env)
+static void DetectAppType(MADB_Env* Env)
 {
   Env->AppType= ATypeGeneral;
 #ifdef _WIN32

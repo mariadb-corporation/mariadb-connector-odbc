@@ -22,7 +22,7 @@
 #ifdef MAODBC_DEBUG
 extern char LogFile[];
 
-void ma_debug_print(my_bool ident, char *format, ...)
+void ma_debug_print(my_bool ident, const char *format, ...)
 {
   FILE *fp= fopen(LogFile, "a");
   if (fp)
