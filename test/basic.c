@@ -70,8 +70,11 @@ ODBC_TEST(test_CONO3)
 ODBC_TEST(simple_test)
 {
   SQLRETURN rc= SQL_SUCCESS;
-
+#if defined(__s390x__)
+  SQLSMALLINT value=3;
+#else	
   SQLINTEGER value=3;
+#endif	
   SQLWCHAR Buffer[20];
 
   char buffer[128];
