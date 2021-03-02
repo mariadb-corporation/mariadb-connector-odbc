@@ -586,7 +586,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     MADB_Dsn *Dsn)
 {
   char StmtStr[128];
+#if defined(__s390x__)
+   my_bool ReportDataTruncation= 1;
+#else   
   unsigned ReportDataTruncation= 1;
+#endif    
   unsigned int i;
   unsigned long client_flags= 0L;
   my_bool my_reconnect= 1;
