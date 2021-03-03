@@ -336,7 +336,7 @@ ELSE()
                                      INSTALL_RPATH_USE_LINK_PATH 0
                                      BUILD_WITH_INSTALL_RPATH 1
                                      INSTALL_RPATH "${MAODBC_INSTALL_RPATH}")
-  ELSE()
+  ELSEIF(NOT CMAKE_SYSTEM_NAME MATCHES AIX)
     SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/maodbc.def")
   ENDIF()
 ENDIF()
