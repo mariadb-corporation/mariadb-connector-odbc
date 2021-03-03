@@ -255,7 +255,7 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
-IF(APPLE)
+IF(APPLE OR CMAKE_SYSTEM_NAME MATCHES AIX)
   # Looking for iconv files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindIconv.cmake)
   IF(ICONV_FOUND)
