@@ -284,7 +284,11 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
         IntValue= 0;
         for (i= 0; i < sizeof(TlsVersionBits); ++i)
         {
+#ifdef _AIX
+          if (strstr(Value, TlsVersionName[i]) != NULL)
+#else
           if (strcasestr(Value, TlsVersionName[i]) != NULL)
+#endif
           {
             IntValue|= TlsVersionBits[i];
           }
