@@ -23,6 +23,7 @@
 
 /* Argument should be pointer to SQL_TIMESTAMP_STRUCT or MYSQL_TIME */
 #define VALID_TIME(PTR2TM_OR_TS) (PTR2TM_OR_TS->hour < 24 && PTR2TM_OR_TS->minute < 60 && PTR2TM_OR_TS->second < 60)
+/* 39 - max 16byte number lenght + 1 for sign + 1 for dot + 1 for + scale up to 38 \0 */
 #define MADB_CHARSIZE_FOR_NUMERIC 80
 BOOL      MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To);
 size_t    MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode);

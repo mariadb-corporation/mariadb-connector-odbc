@@ -644,6 +644,55 @@ ODBC_TEST(t_odbc149)
 
   return OK;
 }
+
+/* These testcase doesn't reproduce the described issue, but it shows that the sane use works */
+ODBC_TEST(t_odbc235)
+{
+  SQLINTEGER a[MAODBC_ROWS]= { 1, 2, 3 };
+  SQLWCHAR val[7], insert_val[][7]= { {'s','e','c','o','n','d','\0'}, {'f','i','r','s','t','\0'}, {'t','h','i','r','d','\0'} };
+  SQLWCHAR* insert_query= WW("INSERT INTO t_odbc235(id, comment) VALUES(?, ?)");
+  SQLLEN val_indicator[]= { 6*sizeof(SQLWCHAR), 5 * sizeof(SQLWCHAR), 5 * sizeof(SQLWCHAR) }, id_ind[] = { 4, 4, 4 };
+  unsigned int i;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc235");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc235` (\
+    `id` double NOT NULL,\
+    `comment` longtext DEFAULT NULL,\
+    PRIMARY KEY(`id`)) ENGINE = InnoDB DEFAULT CHARSET = utf8");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  IS(ODBC_ConnectW(Env, &wConnection, &wStmt));
+
+  CHECK_STMT_RC(wStmt, SQLPrepareW(wStmt, insert_query, SQL_NTS));
+  CHECK_STMT_RC(wStmt, SQLSetStmtAttr(wStmt, SQL_ATTR_PARAMSET_SIZE,
+    (SQLPOINTER)MAODBC_ROWS, 0));
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, /*NULL*/id_ind));
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 2, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, 16777215, 0, insert_val,sizeof(insert_val[0]), val_indicator));
+  /* Needed for crazy iODBC on OS X */
+  is_num(iOdbcSetParamBufferSize(wStmt, 2, sizeof(insert_val[0])), OK);
+  CHECK_STMT_RC(wStmt, SQLExecute(wStmt));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, comment FROM t_odbc235");
+
+  for (i = 0; i < MAODBC_ROWS; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(my_fetch_int(Stmt, 1), a[i]);
+    IS_WSTR(my_fetch_wstr(Stmt, val, 2, sizeof(val)), insert_val[i], SqlwcsLen(insert_val[i]) + 1);
+  }
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc235");
+
+  return OK;
+}
 #undef MAODBC_ROWS
 
 
@@ -658,6 +707,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc90, "odbc90_insert_with_ts_col"},
   {t_bulk_delete, "t_bulk_delete"},
   {t_odbc149, "odbc149_ts_col_insert" },
+  {t_odbc235, "odbc235_bulk_with_longtext"},
   {NULL, NULL}
 };
 

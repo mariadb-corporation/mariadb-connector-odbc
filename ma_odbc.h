@@ -420,12 +420,13 @@ int DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName);
 
 int DSNPrompt_Free  (MADB_Prompt *prompt);
 
-int             InitClientCharset  (Client_Charset *cc, const char * name);
-void            CopyClientCharset(Client_Charset * Src, Client_Charset * Dst);
-void            CloseClientCharset(Client_Charset *cc);
+int   InitClientCharset (Client_Charset *cc, const char *name);
+void  CopyClientCharset (Client_Charset *Src, Client_Charset *Dst);
+void  CloseClientCharset(Client_Charset *cc);
 
 /* Default precision of SQL_NUMERIC */
 #define MADB_DEFAULT_PRECISION 38
+#define MADB_MAX_SCALE         MADB_DEFAULT_PRECISION
 #define BINARY_CHARSETNR       63
 /* Inexistent param id */
 #define MADB_NOPARAM           -1

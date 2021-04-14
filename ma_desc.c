@@ -844,8 +844,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   /* Application may set IPD's field SQL_DESC_UNNAMED to SQL_UNNAMED only */
   if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)(SQLULEN)ValuePtr == SQL_NAMED)
   {
-    MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
-    ret= Desc->Error.ReturnValue;
+    ret= MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
   }
 
   if (!SQL_SUCCEEDED(ret))
@@ -921,7 +920,15 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
       DescRecord->Precision= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_SCALE:
-      DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
+      if ((SQLSMALLINT)(SQLLEN)ValuePtr > MADB_MAX_SCALE)
+      {
+        DescRecord->Scale= MADB_MAX_SCALE;
+        ret= MADB_SetError(&Desc->Error, MADB_ERR_01S02, NULL, 0); 
+      }
+      else
+      {
+        DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
+      }
       break;
     case SQL_DESC_TYPE:
       DescRecord->Type= (SQLSMALLINT)(SQLLEN)ValuePtr;

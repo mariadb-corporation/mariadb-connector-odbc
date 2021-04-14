@@ -1021,12 +1021,20 @@ void MADB_SetStatusArray(MADB_Stmt *Stmt, SQLUSMALLINT Status)
     }
   }
 }
+
+/* For first row we just take its result as initial.
+   For the rest, if all rows SQL_SUCCESS or SQL_ERROR - aggregated result is SQL_SUCCESS or SQL_ERROR, respectively
+   Otherwise - SQL_SUCCESS_WITH_INFO */
+#define CALC_ALL_ROWS_RC(_accumulated_rc, _cur_row_rc, _row_num)\
+if      (_row_num == 0)                  _accumulated_rc= _cur_row_rc;\
+else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
+
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
   unsigned int          i;
   MYSQL_RES   *DefaultResult= NULL;
-  SQLRETURN    ret=           SQL_SUCCESS;
+  SQLRETURN    ret= SQL_SUCCESS, IntegralRc= SQL_SUCCESS;
   unsigned int ErrorCount=    0;
   unsigned int StatementNr;
   unsigned int ParamOffset=   0; /* for multi statements */
@@ -1187,13 +1195,13 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
             /* check if parameter was bound */
             if (!ApdRecord->inUse)
             {
-              ret= MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
+              IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
               goto end;
             }
 
             if (MADB_ConversionSupported(ApdRecord, IpdRecord) == FALSE)
             {
-              ret= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
+              IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
               goto end;
             }
 
@@ -1202,8 +1210,18 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
             ret= MADB_C2SQL(Stmt, ApdRecord, IpdRecord, j - Start, &Stmt->params[i-ParamOffset]);
             if (!SQL_SUCCEEDED(ret))
             {
+              if (ret == SQL_NEED_DATA)
+              {
+                IntegralRc= ret;
+                ErrorCount= 0;
+              }
+              else
+              {
+                ++ErrorCount;
+              }
               goto end;
             }
+            CALC_ALL_ROWS_RC(IntegralRc, ret, j - Start);
           }
         }                 /* End of for() on parameters */
 
@@ -1218,6 +1236,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         if (!SQL_SUCCEEDED(ret))
         {
           ++ErrorCount;
+        }
+        else
+        {
+          /* We had result from type conversions, thus here we put row as 1(!=0, i.e. not first) */
+          CALC_ALL_ROWS_RC(IntegralRc, ret, 1);
         }
         /* We need to unset InternalLength, i.e. reset dae length counters for next stmt.
            However that length is not used anywhere, and is not clear what is it needed for */
@@ -1295,12 +1318,12 @@ end:
   if (ErrorCount)
   {
     if (ErrorCount < Stmt->Apd->Header.ArraySize)
-      ret= SQL_SUCCESS_WITH_INFO;
+      IntegralRc= SQL_SUCCESS_WITH_INFO;
     else
-      ret= SQL_ERROR;
+      IntegralRc= SQL_ERROR;
   }
 
-  return ret;
+  return IntegralRc;
 }
 /* }}} */
 
@@ -1825,7 +1848,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         break;
         case SQL_C_NUMERIC:
         {
-          int rc= 0;
+          int LocalRc= 0;
           MADB_CLEAR_ERROR(&Stmt->Error);
           if (DataPtr != NULL && Stmt->result[i].buffer_length < Stmt->stmt->fields[i].max_length)
           {
@@ -1834,9 +1857,10 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             return Stmt->Error.ReturnValue;
           }
 
-          if ((rc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Stmt->Ard, ArdRec, NULL, RowNumber)))
+          if ((LocalRc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Stmt->Ard, ArdRec, NULL, RowNumber)))
           {
-            MADB_SetError(&Stmt->Error, rc, NULL, 0);
+            FieldRc= MADB_SetError(&Stmt->Error, LocalRc, NULL, 0);
+            CALC_ALL_FLDS_RC(rc, FieldRc);
           }
           /* TODO: why is it here individually for Numeric type?! */
           if (Stmt->Ard->Header.ArrayStatusPtr)
@@ -1963,13 +1987,6 @@ void ResetDescIntBuffers(MADB_Desc *Desc)
     }
   }
 }
-
-/* For first row we just take its result as initial.
-   For the rest, if all rows SQL_SUCCESS or SQL_ERROR - aggregated result is SQL_SUCCESS or SQL_ERROR, respectively
-   Otherwise - SQL_SUCCESS_WITH_INFO */
-#define CALC_ALL_ROWS_RC(_accumulated_rc, _cur_row_rc, _row_num)\
-if      (_row_num == 0)                  _accumulated_rc= _cur_row_rc;\
-else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
 
 /* {{{ MADB_StmtFetch */
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)

@@ -984,96 +984,129 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
   int ret= 0;
 
   if (!buffer || !number)
+  {
     return ret;
+  }
 
   p= trim(buffer);
   MADB_NumericInit(number, ArdRecord);
 
-  if (!(number->sign= (*p=='-') ? 0 : 1))
+  /* Determining the sign of the number. From now on we dean with unsigned number */
+  if (!(number->sign = (*p == '-') ? 0 : 1))
+  {
     p++;
+  }
+  /* Empty string - nothing to do*/
   if (!*p)
-    return FALSE;
+  {
+    return ret;
+  }
 
   if (number->precision == 0)
   {
     number->precision= MADB_DEFAULT_PRECISION;
   }
 
-  while (*p=='0')
+  /* Skipping leading zeroes */
+  while (*p == '0')
   {
-    p++;
+    ++p;
   }
   if (*p)
   {
     int i;
-    int bit, hval, tv, dig, sta, olen;
-    int tmp_digit= 0;
+    unsigned int bit, hval, tv, dig, sta, olen;
     int leading_zeros= 0;
     char *dot= strchr(p, '.');
     char digits[100];
-    short digits_count= 0;
+    unsigned short digits_count= 0; /* integer part digits count*/
 
-    /* Overflow check */
-    if (number->precision > 0 && (dot - p) > number->precision)
+    if (dot == NULL)
+    {
+      char* end= p;
+      while (*end && isdigit(0x000000ff & *end))
+        ++end;
+
+      digits_count= (unsigned short)(end - p);
+    }
+    else
+    {
+      digits_count= (unsigned short)(dot - p);
+    }
+    /* Overflow checks */
+    if (digits_count > MADB_DEFAULT_PRECISION + 1 ) /* 16 bytes of FF make up 39 digits number */
+    {
       return MADB_ERR_22003;
-    
+    }
+    if (number->precision > 0 &&  digits_count > number->precision)
+    {
+      /* if scale is negative, and we have just enough zeroes at the end - we are fine, there is no overflow */
+      if (number->scale < 0 && (number->precision - number->scale) >= digits_count)
+      {
+        /* Checking that all digits past presision are '0'. Otherwise - overflow */
+        for (i = digits_count - number->precision; i > 0; --i)
+        {
+          if (*(p + digits_count - i) != '0')
+          {
+            return MADB_ERR_22003;
+          }
+        }
+      }
+      else
+      {
+        return MADB_ERR_22003;
+      }
+    }
+
+    memcpy(digits, p, digits_count);
+
     if (dot && number->scale > 0)
     {
-      short digits_total= 0, 
-            digits_significant= 0;
-      digits_count= (short)(dot - p);
-      memcpy(digits, p, digits_count);
+      short digits_total= 0,       /* fractional part total digits */
+            digits_significant= 0; /* fractional part significant digits(not counting 0 at the end) */
+
       p= dot + 1;
       while (*p)
       {
         /* ignore non numbers */
         if (!isdigit(0x000000ff & *p))
           break;
-        digits_total++;
+        ++digits_total;
         /* ignore trailing zeros */
         if (*p != '0')
         {
           digits_significant= digits_total;
         }
-        p++;
+        ++p;
       }
 
-      if (digits_count + number->scale > number->precision)
+      /* Kinda tricky. let's say precision is 5.2. 1234.5 is fine, 1234.56 is overflow, 123.456 fractional overflow with rounding and warning */
+      if (digits_count + digits_significant > number->precision && digits_significant <= number->scale)
       {
-        int i;
+        return MADB_ERR_22003;
         /* if digits are zero there is no overflow */
-        for (i=1; i <= digits_significant; i++)
+        /*for (p= dot + 1; p <= dot + digits_significant; ++p)
         {
-          p= dot + i;
           if (*p != '0')
-            return MADB_ERR_22003;
-        }
+            
+        }*/
       }
       
-      memcpy(digits + digits_count, dot + 1, digits_significant);
-      if (number->scale > digits_significant)
+      if (digits_significant > number->scale)
       {
-        for (i= digits_count + digits_significant; i < number->precision && i < digits_count +number->scale; ++i)
+        ret= MADB_ERR_01S07;
+        memcpy(digits + digits_count, dot + 1, number->scale);
+      }
+      else
+      {
+        memcpy(digits + digits_count, dot + 1, digits_significant);
+      
+        for (i= digits_count + digits_significant; i < digits_count + number->scale; ++i)
         {
           digits[i]= '0';
         }
-        digits_significant= number->scale;
       }
-      digits_count+= digits_significant;
-    }
-    else 
-    {
-      char *start= p;
-      while (*p && isdigit(0x000000ff & *p))
-        p++;
-      /* check overflow */
-      if (p - start > number->precision)
-      {
-        return MADB_ERR_22003;
-      }
-      digits_count= (short)(p - start);
-      memcpy(digits, start, digits_count);
-      number->scale= ArdRecord->Scale ? ArdRecord->Scale : 0;
+      digits_count+= number->scale;
     }
 
     /* Rounding */
@@ -1082,20 +1115,25 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       int64_t OldVal, Val;
       int64_t RoundNumber= (int64_t)pow(10.0, -number->scale);
 
-      digits[number->precision]= 0;
+      //if (digits_count <= number->precision)
+      {
+        digits[digits_count/*number->precision*/]= 0;
+      }
       Val= _atoi64(digits);
 
       OldVal= Val;
       Val= (Val + RoundNumber / 2) / RoundNumber * RoundNumber;
       if (OldVal != Val)
+      {
         return MADB_ERR_22003;
-      _snprintf(digits, sizeof(digits), "%lld", Val);
+      }
+      _snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
       digits_count= (short)strlen(digits);
       if (digits_count > number->precision)
         return MADB_ERR_22003;
     }
 
-    digits_count= MIN(digits_count, MADB_DEFAULT_PRECISION);
+    digits_count= MIN(digits_count, MADB_DEFAULT_PRECISION + 1);
     for (hval = 0, bit = 1L, sta = 0, olen = 0; sta < digits_count;)
     {
       for (dig = 0, i = sta; i < digits_count; i++)
@@ -1111,20 +1149,28 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       bit <<= 1;
       if (bit >= (1L << 8))
       {
+        if (olen >= SQL_MAX_NUMERIC_LEN)
+        {
+          //number->scale = sta - number->precision;
+          ret= MADB_ERR_22003;
+          break;
+        }
         number->val[olen++] = hval;
         hval = 0;
         bit = 1L;
-        if (olen >= SQL_MAX_NUMERIC_LEN - 1)
-        {
-          //number->scale = sta - number->precision;
-          //ret= MADB_ERR_22003;
-          break;
-        }
+
       } 
     }
-    if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
+    if (hval != 0)
     {
-      number->val[olen++] = hval;
+      if (olen < SQL_MAX_NUMERIC_LEN)
+      {
+        number->val[olen++] = hval;
+      }
+      else
+      {
+        ret= MADB_ERR_22003;
+      }
     }
   } 
   return ret;
