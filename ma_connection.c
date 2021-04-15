@@ -590,6 +590,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   unsigned int i;
   unsigned long client_flags= 0L;
   my_bool my_reconnect= 1;
+  int protocol = MYSQL_PROTOCOL_TCP;
   
   if (!Connection || !Dsn)
     return SQL_ERROR;
@@ -671,9 +672,6 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
 
-  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
-
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
     client_flags|= CLIENT_NO_SCHEMA;
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_IGNORE_SPACE))
@@ -695,9 +693,18 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   if (Dsn->Socket)
   {
-    int protocol= MYSQL_PROTOCOL_SOCKET;
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+    protocol= MYSQL_PROTOCOL_SOCKET;
   }
+  else if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void*)Dsn->ServerName);
+    protocol = MYSQL_PROTOCOL_PIPE;
+  }
+  else if (Dsn->Port > 0 || Dsn->IsTcpIp)
+  {
+    protocol = MYSQL_PROTOCOL_TCP;
+  }
+  mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
 
   {
     /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
