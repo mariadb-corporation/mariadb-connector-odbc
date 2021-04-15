@@ -2768,7 +2768,7 @@ ODBC_TEST(t_bug32420)
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, strlen(conn), conn_out,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn), conn_out,
                                  sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));

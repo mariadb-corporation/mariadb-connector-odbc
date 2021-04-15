@@ -643,7 +643,6 @@ ODBC_TEST(odbc_284)
 /* Testing INTERACTIVE connection string option, which is supposed to make server to use interactive_timeout as wait_timeout */
 ODBC_TEST(odbc_288)
 {
-  char interactive[512];
   int WaitTimeout= get_server_variable(GLOBAL, "wait_timeout");
   int InteractiveTimeout= get_server_variable(GLOBAL, "interactive_timeout");
   SQLHDBC     hdbc;
@@ -714,6 +713,11 @@ int main(int argc, char **argv)
   int ret, tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
 
   get_options(argc, argv);
+
+  if (getenv("TEST_SKIP_UNSTABLE_TEST") != NULL)
+  {
+    my_tests[2].test_type= UNSTABLE;
+  }
   plan(tests);
   Dsn= MADB_DSN_Init();
   Dsn->FreeMe= FALSE; /* Let tests only reset dsn struct, but do not free it */

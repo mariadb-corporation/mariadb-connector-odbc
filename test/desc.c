@@ -595,7 +595,7 @@ ODBC_TEST(t_desc_curcatalog)
   sprintf((char *)conn_in, "DRIVER=%s;SERVER=%s;UID=%s;PWD=%s;%s;%s", my_drivername, my_servername,
                               my_uid, my_pwd, ma_strport, add_connstr);
   
-  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn_in, strlen(conn_in), NULL,
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn_in, (SQLSMALLINT)strlen(conn_in), NULL,
                                  0, NULL,
                                  SQL_DRIVER_NOPROMPT));
 

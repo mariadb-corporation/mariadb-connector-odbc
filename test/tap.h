@@ -177,6 +177,8 @@ char *test_status[]= {"not ok", "ok", "skip"};
 #define TEST_PROBLEM  2
 /* Test for the known problem waiting for a fix. */
 #define TO_FIX        3
+/* Tests is known to sometimes fail in some environments */
+#define UNSTABLE      4
 
 const char comments[][2][64]= { {"\t#TODO: not ok - test is known to fail, unknown reason",
                                  "\t#Yay, seems like this problem has been magically fixed"},
@@ -184,12 +186,13 @@ const char comments[][2][64]= { {"\t#TODO: not ok - test is known to fail, unkno
                                 {"\t#TODO: Test is marked as requiring fix",
                                  "\t#TODO: Test is marked as requiring fix"},
                                 {"\t#TODO: Test is for the known problem that is waiting for a fix",
-                                 "\t#The problem seems to be fixed. Mark test as normal"}
+                                 "\t# The problem seems to be fixed. Mark test as normal"},
+                                {"\t# The test is known to sometimes fail with some DM versions", ""}
                               };
 #define MAX_ROW_DATA_LEN 1000
 #define MAX_NAME_LEN     255
 
-/* We don't test corresponding EnvAttr, but assume that connections are made using heler functions, and they use OdbcVer */
+/* We don't test corresponding EnvAttr, but assume that connections are made using helper functions, and they use OdbcVer */
 #define IS_ODBC3() (OdbcVer == SQL_OV_ODBC3)
 /* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
 #define iOdbc() (sizeof(SQLWCHAR)==4)
