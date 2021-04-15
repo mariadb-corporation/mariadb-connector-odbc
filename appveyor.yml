@@ -38,7 +38,7 @@ before_build:
     - rm -rf win64
     - mkdir win64
     - cd win64
-    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL -DWITH_OPENSSL=ON 
+    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL
 
 after_build:
     # download and install MariaDB Server
