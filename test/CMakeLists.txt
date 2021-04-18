@@ -56,4 +56,4 @@ ADD_EXECUTABLE(odbc_connstring connstring.c ${CMAKE_SOURCE_DIR}/ma_dsn.c ${COMMO
 TARGET_LINK_LIBRARIES(odbc_connstring ${ODBC_LIBS} ${ODBC_INSTLIBS} mariadbclient ${PLATFORM_DEPENDENCIES})
 ADD_TEST(odbc_connstring ${EXECUTABLE_OUTPUT_PATH}/odbc_connstring)
 SET_TESTS_PROPERTIES(odbc_connstring PROPERTIES TIMEOUT 120)
-SET_TESTS_PROPERTIES(odbc_basic PROPERTIES TIMEOUT 300)
+SET_TESTS_PROPERTIES(odbc_basic odbc_catalog2 odbc_cursor PROPERTIES TIMEOUT 420)

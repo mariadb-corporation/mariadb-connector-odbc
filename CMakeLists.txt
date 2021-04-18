@@ -150,6 +150,17 @@ ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
 ### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those 
 INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
 
+# Currently limiting this feature to Windows onle, where it's most probably going to be only used
+IF(WIN32 AND ALL_PLUGINS_STATIC)
+  SET(CLIENT_PLUGIN_AUTH_GSSAPI_CLIENT "STATIC")
+  SET(CLIENT_PLUGIN_DIALOG "STATIC")
+  SET(CLIENT_PLUGIN_CLIENT_ED25519 "STATIC")
+  SET(CLIENT_PLUGIN_CACHING_SHA2_PASSWORD "STATIC")
+  SET(CLIENT_PLUGIN_SHA256_PASSWORD "STATIC")
+  SET(CLIENT_PLUGIN_MYSQL_CLEAR_PASSWORD "STATIC")
+  SET(CLIENT_PLUGIN_MYSQL_OLD_PASSWORD "STATIC")
+ENDIF()
+
 ### Including C/C subproject
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   IF(GIT_BUILD_SRCPKG)
@@ -338,15 +349,25 @@ TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTL
 
 # Currently on Windows only
 IF(WIN32)
-  ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
-                                  -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
-                                  -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
-                                  -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
-                                  -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
-                                  -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
-                                  -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                     )
+  IF(ALL_PLUGINS_STATIC)
+    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
+                                    -DPLUGINS_LIB_DIR=""
+                                    -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
+                                    -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
+                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
+                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
+                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
+  ELSE()
+    ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
+                                    -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
+                                    -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
+                                    -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
+                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
+                                    -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
+                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
+  ENDIF()
   ####### MAODBCS #######
   ADD_LIBRARY(maodbcs SHARED ${DSN_DIALOG_FILES} ${CMAKE_SOURCE_DIR}/dsn/mariadb_odbc_setup.def)
   SET_TARGET_PROPERTIES(maodbcs PROPERTIES LANGUAGE C)

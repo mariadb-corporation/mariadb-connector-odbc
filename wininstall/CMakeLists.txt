@@ -19,6 +19,14 @@ SET(PRODUCT_VERSION "${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}
 
 SET(TLS_LIB_BEGIN "!-- ")
 SET(TLS_LIB_END " --")
+
+IF(ALL_PLUGINS_STATIC)
+  SET(PLUGINS_BEGIN "!-- ")
+  SET(PLUGINS_END " --")
+ELSE()
+  SET(PLUGINS_BEGIN "")
+  SET(PLUGINS_END "")
+ENDIF()
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(PRODUCT_NAME "${PRODUCT_NAME} 64-bit")
   SET(PLATFORM "win64")
@@ -98,6 +106,10 @@ ADD_CUSTOM_TARGET(
 ADD_DEPENDENCIES(${MSI_PACKAGE} ODBC_WIX)
 ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs change_dsns_driver)
 IF(NOT USE_SYSTEM_INSTALLED_LIB)
-  ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password)
+  IF(ALL_PLUGINS_STATIC)
+    ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs)
+  ELSE()
+    ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password)
+  ENDIF()
 ENDIF()
 
