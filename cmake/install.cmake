@@ -1,4 +1,4 @@
-#
+
 #  Copyright (C) 2013-2016 MariaDB Corporation AB
 #
 #  Redistribution and use is allowed according to the terms of the New
@@ -23,71 +23,76 @@
 # INSTALL_PLUGINDIR location of plugins
 # INSTALL_DOCDIR    location of docs
 # INSTALL_LICENSEDIR location of license
+#
+# check if the specified installation layout is valid
+SET(VALID_INSTALL_LAYOUTS "DEFAULT" "RPM" "DEB")
+LIST(FIND VALID_INSTALL_LAYOUTS "${INSTALL_LAYOUT}" layout_no)
+#
+IF(DEB)
+  SET(INSTALL_LAYOUT "DEB")
+ENDIF()
+
+IF(RPM)
+  SET(INSTALL_LAYOUT "RPM")
+ENDIF()
 
 IF(NOT INSTALL_LAYOUT)
   SET(INSTALL_LAYOUT "DEFAULT")
 ENDIF()
 
+IF(layout_no EQUAL -1)
+  MESSAGE(FATAL_ERROR "Invalid installation layout ${INSTALL_LAYOUT}. Please specify one of the following layouts: ${VALID_INSTALL_LAYOUTS}")
+ENDIF()
+
 SET(INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE
   STRING "Installation layout. Currently supported options are DEFAULT (tar.gz and zip), RPM and DEB")
 
+IF(NOT INSTALL_LAYOUT STREQUAL "DEFAULT")
+  SET(CMAKE_INSTALL_PREFIX "/usr")
+ENDIF()
+
 # On Windows we only provide zip and .msi. Latter one uses a different packager.
 IF(UNIX)
-  IF(INSTALL_LAYOUT MATCHES "RPM")
-    SET(libmariadb_prefix "/usr")
-  ELSEIF(INSTALL_LAYOUT MATCHES "DEFAULT|DEB")
-    SET(libmariadb_prefix ${CMAKE_INSTALL_PREFIX})
-  ENDIF()
+  SET(libmariadb_prefix ${CMAKE_INSTALL_PREFIX})
 ENDIF()
 
 IF(CMAKE_DEFAULT_PREFIX_INITIALIZED_BY_DEFAULT)
   SET(CMAKE_DEFAULT_PREFIX ${libmariadb_prefix} CACHE PATH "Installation prefix" FORCE)
 ENDIF()
 
-# check if the specified installation layout is valid
-SET(VALID_INSTALL_LAYOUTS "DEFAULT" "RPM" "DEB")
-LIST(FIND VALID_INSTALL_LAYOUTS "${INSTALL_LAYOUT}" layout_no)
-IF(layout_no EQUAL -1)
-  MESSAGE(FATAL_ERROR "Invalid installation layout ${INSTALL_LAYOUT}. Please specify one of the following layouts: ${VALID_INSTALL_LAYOUTS}")
-ENDIF()
-
-
-
 #
 # Todo: We don't generate man pages yet, will fix it
 #       later (webhelp to man transformation)
 #
-
 #
-# DEFAULT layout
+# DEFAULT static layout
 #
-
 SET(INSTALL_BINDIR_DEFAULT "bin")
-SET(INSTALL_LIBDIR_DEFAULT "${INSTALL_LIB_SUFFIX}/mariadb")
-SET(INSTALL_PCDIR_DEFAULT "${INSTALL_LIB_SUFFIX}/pkgconfig")
+SET(INSTALL_LIBDIR_DEFAULT "lib/mariadb")
+SET(INSTALL_PCDIR_DEFAULT "lib/pkgconfig")
 SET(INSTALL_INCLUDEDIR_DEFAULT "include/mariadb")
 SET(INSTALL_DOCDIR_DEFAULT "docs")
 SET(INSTALL_LICENSEDIR_DEFAULT ${INSTALL_DOCDIR_DEFAULT})
 IF(NOT IS_SUBPROJECT)
   SET(INSTALL_PLUGINDIR_DEFAULT "lib/mariadb/plugin")
-ELSE()
 ENDIF()
 SET(LIBMARIADB_STATIC_DEFAULT "mariadbclient")
+
+INCLUDE(GNUInstallDirs)
+# Check for 64bit
+IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  SET(INSTALL_LIBDIR "lib64")
+ENDIF()
 #
 # RPM layout
 #
 SET(INSTALL_BINDIR_RPM "bin")
-IF((CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "s390x") AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-  SET(INSTALL_LIBDIR_RPM "lib64/mariadb")
-  SET(INSTALL_PCDIR_RPM "lib64/pkgconfig")
-  SET(INSTALL_PLUGINDIR_RPM "lib64/mariadb/plugin")
-ELSE()
-  SET(INSTALL_LIBDIR_RPM "lib/mariadb")
-  SET(INSTALL_PCDIR_RPM "lib/pkgconfig")
-  SET(INSTALL_PLUGINDIR_RPM "lib/mariadb/plugin")
-ENDIF()
-SET(INSTALL_INCLUDEDIR_RPM "include")
-SET(INSTALL_DOCDIR_RPM "docs")
+SET(INSTALL_LIBDIR_RPM "${INSTALL_LIBDIR}/mariadb")
+SET(INSTALL_PCDIR_RPM "${INSTALL_LIBDIR_RPM}/pkgconfig")
+SET(INSTALL_PLUGINDIR_RPM "${INSTALL_LIBDIR_RPM}/mariadb/plugin")
+SET(INSTALL_INCLUDEDIR_RPM "include/mariadb")
+SET(INSTALL_DOCDIR_RPM "${CMAKE_INSTALL_DOCDIR}")
+SET(INSTALL_LICENSEDIR_RPM "${INSTALL_DOCDIR_RPM}")
 SET(LIBMARIADB_STATIC_RPM "mariadbclient")
 
 #
@@ -95,16 +100,16 @@ SET(LIBMARIADB_STATIC_RPM "mariadbclient")
 #
 SET(INSTALL_BINDIR_DEB "bin")
 SET(INSTALL_LIBDIR_DEB "lib/${CMAKE_LIBRARY_ARCHITECTURE}")
-SET(INSTALL_PCDIR_DEB "lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig")
-SET(INSTALL_PLUGINDIR_DEB "${INSTALL_LIBDIR_DEB}/libmariadb${CPACK_PACKAGE_VERSION_MAJOR}/plugin")
+SET(INSTALL_PCDIR_DEB "lib/pkgconfig")
+SET(INSTALL_PLUGINDIR_DEB "lib/libmariadb${CPACK_PACKAGE_VERSION_MAJOR}/plugin")
 SET(INSTALL_INCLUDEDIR_DEB "include/mariadb")
+SET(INSTALL_DOCDIR_DEB "${CMAKE_INSTALL_DOCDIR}")
+SET(INSTALL_LICENSEDIR_DEB "${INSTALL_DOCDIR_DEB}")
 SET(LIBMARIADB_STATIC_DEB "mariadb")
 
 IF(INSTALL_LAYOUT MATCHES "DEB")
   SET(INSTALL_PLUGINDIR_CLIENT ${INSTALL_PLUGINDIR_DEB})
 ENDIF()
-
-
 #
 # Overwrite defaults
 #
