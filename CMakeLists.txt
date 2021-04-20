@@ -1,19 +1,19 @@
 # ************************************************************************************
 #   Copyright (C) 2013,2019 MariaDB Corporation AB
-#   
+#
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
 #   License as published by the Free Software Foundation; either
 #   version 2.1 of the License, or (at your option) any later version.
-#   
+#
 #   This library is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 #   Library General Public License for more details.
-#   
+#
 #   You should have received a copy of the GNU Library General Public
 #   License along with this library; if not see <http://www.gnu.org/licenses>
-#   or write to the Free Software Foundation, Inc., 
+#   or write to the Free Software Foundation, Inc.,
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 PROJECT(mariadb_connector_odbc C)
@@ -34,7 +34,7 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/maodbcu.rc.in
                ${CMAKE_SOURCE_DIR}/maodbcu.rc)
 
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
-                          ma_api_internal.c   
+                          ma_api_internal.c
                           ma_error.c
                           ma_connection.c
                           ma_helper.c
@@ -69,7 +69,7 @@ MACRO(ADD_OPTION _name _text _default)
   ENDIF()
 ENDMACRO()
 
-# This has to be before C/C's cmake run, or it will build with /MD                  
+# This has to be before C/C's cmake run, or it will build with /MD
 IF(WIN32)
   IF (MSVC)
     SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO" "MINSIZEREL")
@@ -82,8 +82,8 @@ IF(WIN32)
             SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1 /RTCc")
             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
           ENDIF()
-          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}") 
-          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE 
+          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
+          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE
                STRING "overwritten by mariadb-odbc" FORCE)
         ENDIF()
       ENDFOREACH()
@@ -150,7 +150,7 @@ ENDIF()
 
 ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
 
-### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those 
+### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those
 INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
 
 # Currently limiting this feature to Windows onle, where it's most probably going to be only used
@@ -236,9 +236,9 @@ IF(WIN32)
 
 			SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
   IF (MSVC)
-    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
+    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}")
     IF (NOT(MSVC_VERSION LESS 1900))
-      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions") 
+      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions")
       SET(LEGACY_STDIO legacy_stdio_definitions)
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${LEGACY_STDIO})
     ENDIF()
@@ -260,7 +260,7 @@ ENDIF()
 IF(NOT WIN32)
   # Looking for DM(UnixODBC) files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
-  
+
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
     LINK_DIRECTORIES(${ODBC_LIB_DIR})
@@ -280,14 +280,8 @@ IF(APPLE)
   ENDIF()
 ENDIF()
 
-SET(CPACK_PACKAGE_VERSION ${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH})
-
-SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
-#SET(CPACK_COMPONENTS_ALL ODBCLibs Documentation)
-SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
-
 # TODO: Make it optional
-# Disable dbug information for release builds 
+# Disable dbug information for release builds
 #SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
 #SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
 #SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
@@ -316,6 +310,10 @@ SET(LIBRARY_NAME "maodbc")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
                ${CMAKE_SOURCE_DIR}/mariadb-odbc-driver-uni.def)
 
+IF(RPM OR DEB)
+  SET(MARIADB_LINK_DYNAMIC ON)
+ENDIF()
+
 IF(MARIADB_LINK_DYNAMIC)# OR USE_SYSTEM_INSTALLED_LIB)
   IF(USE_SYSTEM_INSTALLED_LIB)
     SET(MARIADB_CLIENT_TARGET_NAME mariadb)
@@ -333,7 +331,7 @@ IF(WIN32)
 ELSE()
   MESSAGE(STATUS "Version script: ${CMAKE_SOURCE_DIR}/maodbc.def")
   ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} maodbcu.rc)
-  
+
   IF(APPLE)
     SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "@loader_path" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib" "/usr/local/opt/openssl@1.1/lib" "/usr/local/opt/libressl/lib")
     SET_TARGET_PROPERTIES(${LIBRARY_NAME}
@@ -384,7 +382,6 @@ ELSEIF(APPLE)
   )
 ENDIF()
 
-SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
   ADD_SUBDIRECTORY(wininstall)
   ADD_EXECUTABLE(install_driver osxinstall/install_driver.c)
@@ -454,87 +451,8 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
 ENDIF()
 
 # Packaging
-SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation Ab")
-SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. ODBC driver library for connecting to MariaDB and MySQL servers")
-IF(NOT SYSTEM_NAME)
-  STRING(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
-ENDIF()
-SET(QUALITY_SUFFIX "")
-IF (MARIADB_ODBC_VERSION_QUALITY AND NOT "${MARIADB_ODBC_VERSION_QUALITY}" STREQUAL "ga" AND NOT "${MARIADB_ODBC_VERSION_QUALITY}" STREQUAL "GA")
-  SET(QUALITY_SUFFIX "-${MARIADB_ODBC_VERSION_QUALITY}")
-ENDIF()
-IF(PACKAGE_PLATFORM_SUFFIX)
-  SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${PACKAGE_PLATFORM_SUFFIX}")
-ELSE()
- SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-${system_name}-${CMAKE_SYSTEM_PROCESSOR}")
-ENDIF()
+INCLUDE(cmake/packaging.cmake)
 MESSAGE(STATUS "Package Name: ${CPACK_PACKAGE_FILE_NAME}")
-SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
-SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-src")
-SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
-SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation AB")
-SET(CPACK_SOURCE_IGNORE_FILES
-/test/
-/.git/
-.gitignore
-.gitmodules
-.gitattributes
-CMakeCache.txt
-cmake_dist.cmake
-CPackSourceConfig.cmake
-CPackConfig.cmake
-/.build/
-cmake_install.cmake
-CTestTestfile.cmake
-/CMakeFiles/
-/version_resources/
-.*vcxproj
-.*gz$
-.*zip$
-.*so$
-.*so.2
-.*so.3
-.*dll$
-.*a$
-.*pdb$
-.*sln$
-.*sdf$
-Makefile$
-/autom4te.cache/
-/.travis/
-.travis.yml
-/libmariadb/
-/_CPack_Packages/
-)
-
-# Build source packages
-IF(GIT_BUILD_SRCPKG OR ODBC_GIT_BUILD_SRCPKG)
-  IF(WIN32)
-    EXECUTE_PROCESS(COMMAND git archive --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip --worktree-attributes -v HEAD)
-  ELSE()
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip -v HEAD)
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar -v HEAD)
-    EXECUTE_PROCESS(COMMAND gzip -9 -f ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
-  ENDIF()
-ENDIF()
-
-IF(WIN32)
-  SET(DEFAULT_GENERATOR "ZIP")
-ELSE()
-  SET(DEFAULT_GENERATOR "TGZ")
-ENDIF()
-
-IF(NOT CPACK_GENERATOR)
-  SET(CPACK_GENERATOR "${DEFAULT_GENERATOR}")
-ENDIF()
-IF(NOT CPACK_SOURCE_GENERATOR)
-  SET(CPACK_SOURCE_GENERATOR "${DEFAULT_GENERATOR}")
-ENDIF()
-
 MESSAGE(STATUS "License File: ${CPACK_RESOURCE_FILE_LICENSE}")
 MESSAGE(STATUS "ReadMe File: ${CPACK_PACKAGE_DESCRIPTION_FILE}")
 MESSAGE(STATUS "Source Package Filename: ${CPACK_SOURCE_PACKAGE_FILE_NAME}.${CPACK_SOURCE_GENERATOR}")
-
-INCLUDE(CPack)
-
