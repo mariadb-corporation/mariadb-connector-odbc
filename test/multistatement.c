@@ -411,6 +411,12 @@ ODBC_TEST(t_odbc159)
   SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
   SQLRETURN rc;
 
+  if (ServerNotOlderThan(Connection, 10, 6, 0))
+  {
+    /* INFORMATION_SCHEMA.STATISTICS has 17 columns in 10.6 */
+    expCols[2]= 17;
+  }
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
                         CREATE TEMPORARY TABLE _temp_odbc159 AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
                         SELECT * FROM _temp_odbc159 LIMIT 5;");

@@ -1039,7 +1039,13 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
   /* TODO until sqlnum errors are supported */
 
   if (!strcmp("01S07", exptrunc))
-    exprc = SQL_SUCCESS_WITH_INFO;
+  {
+    /* iOdbc seemingly doesn't think, that SQLExecute or SQLExecDirect may return SQL_SUCCESS_WITH_INFO, and returns SQL_SUCCESS instead */
+    if (!iOdbc())
+    {
+      exprc = SQL_SUCCESS_WITH_INFO;
+    }
+  }
   else if (!strcmp("22003", exptrunc))
     exprc = SQL_ERROR;
 

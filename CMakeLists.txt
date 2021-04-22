@@ -422,6 +422,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
       SET_VALUE(TEST_SCHEMA "test")
       SET_VALUE(TEST_UID "root")
       SET_VALUE(TEST_PASSWORD "")
+      SET_VALUE(TEST_USETLS "0")
 
       MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
 
@@ -442,6 +443,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
                                       -DTEST_SCHEMA=${TEST_SCHEMA}
                                       -DTEST_UID=${TEST_UID}
                                       -DTEST_PASSWORD=${TEST_PASSWORD}
+                                      -DTEST_USETLS=${TEST_USETLS}
                                       -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
                                       -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
                                       -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
