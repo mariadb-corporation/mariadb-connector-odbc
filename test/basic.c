@@ -35,7 +35,7 @@ ODBC_TEST(test_CONO1)
   OK_SIMPLE_STMT(Stmt, "SET SQL_MODE='ANSI_QUOTES'");
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS cono1");
   OK_SIMPLE_STMT(Stmt, create_table);
-  
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
@@ -471,6 +471,7 @@ ODBC_TEST(charset_utf8)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug19345");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug19345 (a VARCHAR(10), b VARBINARY(10)) CHARACTER SET Utf8");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug19345 VALUES ('abc','def')");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -750,8 +751,7 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out)/sizeof(SQLWCHAR), &conn_out_len,
                                         SQL_DRIVER_NOPROMPT));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  is_num(conn_out_len, strlen((const char*)conna));
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -1104,6 +1104,7 @@ ODBC_TEST(t_count)
 */
 ODBC_TEST(t_bug31959)
 {
+  SKIP_MYSQL;
   SQLCHAR level[50] = "uninitialized";
   SQLINTEGER i;
   SQLLEN levelid[] = {SQL_TXN_SERIALIZABLE, SQL_TXN_REPEATABLE_READ,
@@ -1508,6 +1509,7 @@ ODBC_TEST(t_odbc91)
 
 ODBC_TEST(t_odbc137)
 {
+  SKIP_MYSQL;
   SQLHDBC    Hdbc;
   SQLHSTMT   Hstmt;
   char       buffer[256], AllAnsiChars[258], AllAnsiHex[512];
@@ -1607,7 +1609,7 @@ ODBC_TEST(t_odbc139)
   DWORD WaitRc;
 
   /* Not sure when this was fixed, but works with 10.4, it seems */
-  if (ServerNotOlderThan(Connection, 10, 2, 0) && !ServerNotOlderThan(Connection, 10, 4, 0))
+  if (!minServer(Connection, 10, 2, 0) || minServer(Connection, 10, 4, 0))
   {
     skip("Waiting for the fix in Connector/C for servers > 10.2.0");
   }
@@ -1666,13 +1668,17 @@ ODBC_TEST(t_odbc162)
 
 ODBC_TEST(t_replace)
 {
-  if (!ServerNotOlderThan(Connection, 10, 2, 0))
+
+  SKIP_MAXSCALE;
+  SKIP_MYSQL;
+  if (!minServer(Connection, 10, 2, 0))
   {
     skip("REPLACE SQL command is not supported by your server version");
   }
   
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc_replace`");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc_replace` (`uuid` VARCHAR(64), PRIMARY KEY (`uuid`)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
   OK_SIMPLE_STMT(Stmt, "REPLACE INTO `t_odbc_replace` (`uuid`) VALUES(\"5b7fe80c-7de1-4744-ab33-3f65f26726f6\"),\
 (\"3ce73838-72f2-4aed-9f45-b7cf15f1279b\"),\
 (\"babf4138-cdde-4c3f-8b28-cc7c8ef7033f\"),\

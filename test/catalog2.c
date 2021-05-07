@@ -42,6 +42,7 @@
 */
 ODBC_TEST(t_bug37621)
 {
+  SKIP_MYSQL;
   SQLCHAR szColName[128];
   SQLSMALLINT iName, iType, iScale, iNullable;
   SQLULEN uiDef;
@@ -58,7 +59,7 @@ ODBC_TEST(t_bug37621)
 
   IS_STR(szColName, "REMARKS", 8);
   is_num(iName, 7);
-  if (iType != SQL_VARCHAR && iType != SQL_WVARCHAR)
+  if (iType != SQL_VARCHAR && iType != SQL_WVARCHAR && iType != SQL_LONGVARCHAR)
     return FAIL;
   /* This can fail for the same reason as t_bug32864 */
   is_num(uiDef, 2048);
@@ -181,7 +182,7 @@ ODBC_TEST(t_bug51422)
 ODBC_TEST(t_bug36441)
 {
 #define BUF_LEN 24
-
+  SKIP_MYSQL;
   const SQLCHAR key_column_name[][14]= {"pk_for_table1", "c1_for_table1"};
 
   SQLCHAR     catalog[BUF_LEN], schema[BUF_LEN], table[BUF_LEN], column[BUF_LEN];
@@ -190,13 +191,14 @@ ODBC_TEST(t_bug36441)
   SQLSMALLINT key_seq, i;
   SQLLEN      keyname_len, key_seq_len, rowCount;
 
-OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug36441_0123456789");
+  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug36441_0123456789");
   OK_SIMPLE_STMT(Stmt, "create table t_bug36441_0123456789("
 	              "pk_for_table1 integer not null auto_increment,"
 	              "c1_for_table1 varchar(128) not null unique,"
 	              "c2_for_table1 binary(32) null,"
-                "unique_key int unsigned not null unique,"
+                  "unique_key int unsigned not null unique,"
 	              "primary key(pk_for_table1, c1_for_table1))");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_bug36441_0123456789", SQL_NTS));
 
@@ -267,6 +269,7 @@ ODBC_TEST(t_bug53235)
 */
 ODBC_TEST(t_bug50195)
 {
+  SKIP_SKYSQL;
   SQLHDBC     hdbc1;
   SQLHSTMT    hstmt1;
   char        expected_privs[][24]={ "ALTER", "CREATE", "CREATE VIEW", "DELETE", "DROP", "INDEX",
@@ -278,12 +281,12 @@ ODBC_TEST(t_bug50195)
   SQLCHAR     priv[24];
   SQLLEN      len;
 
-  if (ServerNotOlderThan(Connection, 10, 3, 4))
+  if (minServer(Connection, 10, 3, 4))
   {
     expected= expected_103[0];
     privs_count= sizeof(expected_103)/sizeof(expected_103[0]);
 
-    if (ServerNotOlderThan(Connection, 10, 3, 15))
+    if (minServer(Connection, 10, 3, 15))
     {
       strcpy(expected_103[4], "DELETE HISTORY");
     }
@@ -384,6 +387,7 @@ ODBC_TEST(t_bug50195)
 
 ODBC_TEST(t_sqlprocedurecolumns)
 {
+  SKIP_MYSQL;
   SQLHDBC   Hdbc1;
   SQLHSTMT  Hstmt1;
   SQLRETURN rc= 0;
@@ -948,6 +952,7 @@ ODBC_TEST(t_bug31067)
    statement pre-execution has failed */
 ODBC_TEST(bug12824839)
 {
+  SKIP_MYSQL; // not same meta
   SQLLEN      row_count;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS b12824839");

@@ -41,6 +41,7 @@ ODBC_TEST(test_CONO1)
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("SET SQL_MODE='ANSI_QUOTES'"), SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("DROP TABLE IF EXISTS cono1"), SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, create_table, SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, CW("cono1"), SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
@@ -922,6 +923,7 @@ ODBC_TEST(sqlforeignkeys)
 
 ODBC_TEST(sqlprimarykeys)
 {
+  SKIP_MYSQL;
   HDBC hdbc1;
   HSTMT hstmt1;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
@@ -1150,6 +1152,7 @@ Bug#28168 odbc, non 7-bit password, connection failed
 */
 ODBC_TEST(t_bug28168)
 {
+  SKIP_MYSQL; // deprecated syntax grant with password
   SQLHANDLE hdbc1, hdbc2;
   SQLHANDLE hstmt1;
 

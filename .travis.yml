@@ -1,74 +1,107 @@
-sudo: true
+os: linux
+dist: bionic
 language: c
 services: docker
 addons:
   hosts:
     - mariadb.example.com
 
-before_install:
-  - chmod 777 .travis/build/
-  - export PROJ_PATH=`pwd`
-  - export ENTRYPOINT=$PROJ_PATH/.travis/sql
-  - mkdir tmp
-  - .travis/gen-ssl.sh mariadb.example.com tmp
-  - export SSLCERT=$PROJ_PATH/tmp
+cache:
+  apt: true
+  ccache: true
+  directories:
+    - $HOME/docker
 
-matrix:
+install:
+  - git clone https://github.com/mariadb-corporation/connector-test-machine.git
+  - if [[ -d $HOME/docker ]]; then ls $HOME/docker/*.tar.gz | xargs -I {file} sh -c "zcat {file} | docker load"; fi
+  - |-
+    case $TRAVIS_OS_NAME in
+      windows)
+        connector-test-machine/launch.bat -t "$srv" -v "$v" -d testo
+        ;;
+      linux)
+        source connector-test-machine/launch.sh -t "$srv" -v "$v" -d testo -n 0 -l "$local" -p "$packet"  -n "$native"
+        ;;
+      osx)
+        source connector-test-machine/launch.sh -t "$srv" -v "$v" -d testo -n 0
+        ;;
+    esac
+
+env: LOCAL=0
+
+
+jobs:
   allow_failures:
-    - os: linux
-      env: DB=mariadb:10.5 PACKET=8M MAXSCALE_VERSION=2.5.3
-    - os: linux
-      env: DB=build
-    - os: linux
-      env: DB=mysql:5.5
-    - os: linux
-      env: DB=mysql:5.6
-    - os: linux
-      env: DB=mysql:5.7
-    - os: osx
-      env: DB=mariadb:10.5
-    - os: linux
-      env: DB=mariadb:10.1
-    - env: SKYSQL=true
-    - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
+    - env: srv=build v=10.6
+    - env: srv=mariadb v=10.5
+      os: windows
+      language: shell
   include:
-    - os: linux
-      env: DB=build:10.6
-    - os: linux
-      env: DB=mariadb:10.2
-    - os: linux
-      env: DB=mariadb:10.3
-    - os: linux
-      env: DB=mariadb:10.4
-    - os: linux
-      compiler: gcc
-      env: DB=mariadb:10.5
-    - os: linux
-      compiler: clang
-      env: DB=mariadb:10.5
-    - env: SKYSQL=true
-    - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
+    - env: srv=mariadb v=10.5
+      os: windows
+      language: shell
+    - env: srv=mariadb v=10.2 local=1
+    - env: srv=mariadb v=10.3 local=1
+    - env: srv=mariadb v=10.4 local=1
+    - env: srv=mariadb v=10.6 local=1
+    - compiler: gcc
+      env: srv=mariadb v=10.5
+    - compiler: clang
+      env: srv=mariadb v=10.5
+    - env: srv=maxscale
+    - env: srv=build v=10.6
+    - env: srv=mysql v=5.7 native=1
+    - env: srv=mysql v=8.0 native=1
+    - env: srv=skysql
+    - env: srv=skysql-ha
     - os: osx
+      osx_image: xcode12.2
       compiler: gcc
-      env: DB=mariadb:10.5
-      addons:
-        mariadb: '10.4'
-      before_script:
+      env: srv=mariadb v=10.5
+      before_install:
         - brew update
-        - brew install openssl
+        - brew info openssl
+        - brew unlink unixodbc
         - brew install libiodbc
-        - brew install mariadb
-    - os: linux
-      env: DB=mariadb:10.5 PACKET=8M MAXSCALE_VERSION=2.5.3
-    - os: linux
-      env: DB=mysql:5.5
-    - os: linux
-      env: DB=mysql:5.6
-    - os: linux
-      env: DB=mysql:5.7
 
 script:
-  - if [[ "$DB" == build* ]] ; then .travis/build/build.sh; fi
-  - if [[ "$DB" == build* ]] ; then docker build -t build:10.6 --label build .travis/build/; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] ; then .travis/script.sh; fi
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then .travis/osx.sh; fi
+  - export TEST_DRIVER=maodbc_test
+  - export TEST_SOCKET=
+  - export TEST_DSN=maodbc_test
+  - export TEST_UID=$TEST_DB_USER
+  - export TEST_SERVER=$TEST_DB_HOST
+  - export TEST_PASSWORD=$TEST_DB_PASSWORD
+  - export TEST_PORT=$TEST_DB_PORT
+  - export TEST_SCHEMA=testo
+  - echo "diego $TEST_UID"
+  - export TEST_USETLS=$TEST_REQUIRE_TLS
+  - if [ "$TEST_REQUIRE_TLS" = "1" ]; then export TEST_ADD_PARAM="FORCETLS=1"; fi
+  - export TEST_SSL_PORT=$TEST_MAXSCALE_TLS_PORT
+  - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then DEBIAN_FRONTEND=noninteractive sudo apt-get update ; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc-dev odbcinst1debian2 libodbc1 ; fi
+  - export PWD=`pwd`
+  - export ODBCINI="$PWD/test/odbc.ini"
+  - export ODBCSYSINI="$PWD/test"
+  - |-
+    if [ "$TRAVIS_OS_NAME" = "osx" ] ; then
+      ls -lrt /usr/local/opt/openssl@1.1/
+      export TEST_DRIVER="$PWD/libmaodbc.dylib"
+      export ODBCINSTINI="$PWD/test/odbcinst.ini"
+      cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL -DWITH_IODBC=ON -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1 -DOPENSSL_LIBRARIES=/usr/local/opt/openssl@1.1/lib
+    elif [ "$TRAVIS_OS_NAME" = "windows" ] ; then
+      git submodule init
+      git submodule update
+      cmake . -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL
+      cd libmariadb
+      cmake --build . --config RelWithDebInfo --parallel 2
+      cd ..
+    else
+      cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL
+    fi
+  - cmake --build . --config RelWithDebInfo --parallel 1
+  - cd test
+  - ctest -VV
+
+after_failure:
+  - if [ "$srv" = "maxscale" ] ; then docker-compose -f ${COMPOSE_FILE} exec maxscale tail -n 500 /var/log/maxscale/maxscale.log ; fi

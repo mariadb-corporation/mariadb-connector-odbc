@@ -567,6 +567,7 @@ ODBC_TEST(t_bulk_delete)
 #define MAODBC_ROWS 3
 ODBC_TEST(t_odbc149)
 {
+  SKIP_MYSQL; // cannot set 0 date
   SQL_TIMESTAMP_STRUCT  Val[MAODBC_ROWS];
   SQLINTEGER id[]= {2, 1, 3}, idBuf, row= 0;
   /* Garbage in Len */

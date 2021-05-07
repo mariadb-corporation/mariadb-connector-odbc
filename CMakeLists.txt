@@ -132,6 +132,7 @@ ELSE()
 ENDIF()
 
 IF(APPLE)
+  ADD_DEFINITIONS(-DHAVE_UNISTD_H)
   SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
   SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
   SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
@@ -442,7 +443,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
                                       -DTEST_SOCKET=${TEST_SOCKET}
                                       -DTEST_SCHEMA=${TEST_SCHEMA}
                                       -DTEST_UID=${TEST_UID}
-                                      -DTEST_PASSWORD=${TEST_PASSWORD}
+                                      -DTEST_PASSWORD="${TEST_PASSWORD}"
                                       -DTEST_USETLS=${TEST_USETLS}
                                       -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
                                       -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini

@@ -644,6 +644,7 @@ ODBC_TEST(t_time1)
 */
 ODBC_TEST(t_bug12520)
 {
+  SKIP_MYSQL;
   SQL_TIMESTAMP_STRUCT my_time_ts;
   SQLLEN len, my_time_cb;
   SQLCHAR datetime[50];
@@ -680,6 +681,7 @@ ODBC_TEST(t_bug12520)
 */
 ODBC_TEST(t_bug15773)
 {
+  SKIP_MYSQL;
   SQL_DATE_STRUCT a,b,c,d;
   SQLLEN len1;
 
@@ -723,6 +725,7 @@ ODBC_TEST(t_bug15773)
 */
 ODBC_TEST(t_bug9927)
 {
+  SKIP_MYSQL;
   SQLCHAR col[10];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug9927");
@@ -754,6 +757,7 @@ ODBC_TEST(t_bug9927)
 */
 ODBC_TEST(t_bug30081)
 {
+  SKIP_MYSQL;
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug30081");
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_bug30081 (a TIMESTAMP DEFAULT 0,"
@@ -844,6 +848,7 @@ ODBC_TEST(t_datecolumns)
 */
 ODBC_TEST(t_bug14414)
 {
+  SKIP_MYSQL;
   SQLCHAR col[10];
   SQLSMALLINT nullable;
 

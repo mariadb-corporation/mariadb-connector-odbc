@@ -602,6 +602,7 @@ ODBC_TEST(bit)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bit");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bit (a BIT(1), b BIT(17))");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0,
                             (SQLCHAR *)"t_bit", SQL_NTS, NULL, 0));
@@ -1041,10 +1042,10 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
   if (!strcmp("01S07", exptrunc))
   {
     /* iOdbc seemingly doesn't think, that SQLExecute or SQLExecDirect may return SQL_SUCCESS_WITH_INFO, and returns SQL_SUCCESS instead */
-    if (!iOdbc())
-    {
+//    if (!iOdbc())
+//    {
       exprc = SQL_SUCCESS_WITH_INFO;
-    }
+//    }
   }
   else if (!strcmp("22003", exptrunc))
     exprc = SQL_ERROR;

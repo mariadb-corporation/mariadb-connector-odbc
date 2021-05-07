@@ -805,6 +805,7 @@ ODBC_TEST(paramarray_select)
 */
 ODBC_TEST(t_bug49029)
 {
+  SKIP_MYSQL; // Variable 'sql_mode' can't be set to the value of 'NO_AUTO_CREATE_USER'
   const SQLCHAR bData[6]= "\x01\x80\x00\x80\x01";
   SQLCHAR buff[6];
   SQLULEN len= 5;
@@ -832,7 +833,7 @@ ODBC_TEST(t_bug49029)
 ODBC_TEST(t_bug56804)
 {
 #define PARAMSET_SIZE		10
-
+  SKIP_MYSQL;
   SQLINTEGER	len 	= 1;
   int i;
   BOOL SolidOperation= TRUE;
@@ -865,8 +866,10 @@ ODBC_TEST(t_bug56804)
   CHECK_STMT_RC(Stmt, SQLBindParameter( Stmt, 2, SQL_PARAM_INPUT, SQL_C_SLONG,
     SQL_DECIMAL, 4, 0, c2, 4, d2));
 
-  
-  if (ServerNotOlderThan(Connection, 10, 2, 7))
+  char DbmsName[16];
+  SQLGetInfo(Connection, SQL_DBMS_NAME, DbmsName, sizeof(DbmsName), NULL); \
+
+  if (minServer(Connection, 10, 2, 7) && (strcmp(DbmsName, "MariaDB") == 0))
   {
     /* Starting from 10.2.7 connector will use bulk operations, which is solid, and either success or fail all together */
     EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
@@ -933,7 +936,8 @@ ODBC_TEST(t_bug56804)
 ODBC_TEST(t_bug59772)
 {
 #define ROWS_TO_INSERT 3
-
+    SKIP_MAXSCALE;
+    SKIP_MYSQL;
     SQLRETURN rc;
     SQLCHAR   buf_kill[50];
 
@@ -962,6 +966,7 @@ ODBC_TEST(t_bug59772)
     CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t_bug59772", SQL_NTS));
     CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "CREATE TABLE t_bug59772 (id int primary key auto_increment,"\
       "intField int)", SQL_NTS));
+    OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
     CHECK_STMT_RC(hstmt2, SQLSetStmtAttr(hstmt2, SQL_ATTR_PARAM_BIND_TYPE, SQL_PARAM_BIND_BY_COLUMN, 0));
     CHECK_STMT_RC(hstmt2, SQLSetStmtAttr(hstmt2, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)ROWS_TO_INSERT, 0));

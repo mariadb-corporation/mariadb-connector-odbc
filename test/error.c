@@ -573,8 +573,8 @@ ODBC_TEST(t_bug14285620)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug14285620 (id INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO bug14285620 (id) VALUES (1)");
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM bug14285620");
-
-  FAIL_IF(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS, "Success expected");
+  EXPECT_STMT(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable), iOdbc() ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS);
+  //FAIL_IF(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS, "Success expected");
   FAIL_IF(SQLDescribeCol(Stmt, 1, szData, 0, &cblen, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS_WITH_INFO, "swi expected");
 
   FAIL_IF(SQLColAttribute(Stmt,1, SQL_DESC_TYPE, NULL, 0, NULL, NULL) != SQL_SUCCESS, "Success expected");
@@ -638,7 +638,7 @@ ODBC_TEST(t_odbc94)
   SQLINTEGER  error;
   SQLSMALLINT len;
 
-  if (ServerNotOlderThan(Connection, 5, 7, 0) == FALSE)
+  if (minServer(Connection, 5, 7, 0) == FALSE)
   {
     skip("The test doesn't make sense in pre-10.0 servers, as the target query won't cause in 5.5(or pre-MySQL-5.7 the error it tests");
   }

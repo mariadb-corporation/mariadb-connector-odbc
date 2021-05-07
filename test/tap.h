@@ -119,6 +119,32 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 #include <mysql.h>
 
 
+
+#define IS_SKYSQL(a) ((a) && strstr((a), "db.skysql.net"))
+#define SKIP_SKYSQL \
+if (IS_SKYSQL((const char*)my_servername)) \
+{ \
+  skip("Not supported by SkySQL"); \
+}
+
+#define SKIP_MAXSCALE \
+if (strcmp(getenv("srv"), "maxscale") == 0 || strcmp(getenv("srv"), "skysql-ha") == 0) \
+{ \
+  skip("test disabled with maxscale"); \
+}
+
+#define SKIP_MYSQL \
+{\
+  char DbmsName[16]; \
+  SQLGetInfo(Connection, SQL_DBMS_NAME, DbmsName, sizeof(DbmsName), NULL); \
+  printf("DbmsName test '%s' \n", DbmsName); \
+  if (strcmp(DbmsName, "MariaDB") != 0) \
+  {\
+    skip("Skip test for non MariaDB server"); \
+  }\
+}
+
+
 BOOL   UseDsnOnly= FALSE;
 static SQLCHAR *my_dsn=        (SQLCHAR *)"test";
 static SQLCHAR *my_uid=        (SQLCHAR *)"root";
@@ -1263,7 +1289,7 @@ int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
 }
 
 
-BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
+BOOL minServer(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
 {
   unsigned int ServerMajor= 0, ServerMinor= 0, ServerPatch= 0;
   SQLCHAR ServerVersion[32];

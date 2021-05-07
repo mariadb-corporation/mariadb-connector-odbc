@@ -140,6 +140,7 @@ ODBC_TEST(t_tran)
 */
 ODBC_TEST(t_isolation)
 {
+  SKIP_MYSQL; //INFORMATION_SCHEMA.SESSION_VARIABLES not available
   SQLLEN isolation;
   SQLCHAR tx_isolation[200];
 

@@ -1195,6 +1195,8 @@ ODBC_TEST(t_odbc57)
 
 ODBC_TEST(t_odbc141)
 {
+
+  SKIP_MYSQL;
   SQLCHAR SQLState[6];
   SQLINTEGER NativeError;
   SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
@@ -1229,9 +1231,9 @@ ODBC_TEST(t_odbc269)
   unsigned int i;
 
   /* Not sure when "BEGIN NOT ATOMIC" was introduced, but it's not supported in 5.5, and 10.0 is already not supported */
-  if (ServerNotOlderThan(Connection, 10, 1, 0) == FALSE)
+  if (!minServer(Connection, 10, 1, 0))
   {
-    skip("The test requires min 10.5.0 version")
+    skip("The test requires min 10.1.0 version")
   }
 
   OK_SIMPLE_STMT(Stmt, "BEGIN NOT ATOMIC SET @SOME_ODBC267= 'someinfo';  SELECT 1, @SOME_ODBC267; SELECT 127, 'value',2020; END");
@@ -1266,7 +1268,7 @@ ODBC_TEST(t_mdev16708)
   const SQLCHAR query[5/*USE */+ MAX_NAME_LEN];
 
   /*  */
-  if (ServerNotOlderThan(Connection, 10, 6, 0) == FALSE)
+  if (!minServer(Connection, 10, 6, 0))
   {
     skip("The test requires min 10.6.0 version")
   }

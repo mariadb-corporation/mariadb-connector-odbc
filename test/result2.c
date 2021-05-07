@@ -1056,7 +1056,7 @@ ODBC_TEST(t_odbc77)
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (ServerNotOlderThan(Connection, 10, 2, 5))
+  if (minServer(Connection, 10, 2, 5))
   {
     OK_SIMPLE_STMT(Stmt, "ANALYZE SELECT 1");
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1441,7 +1441,7 @@ ODBC_TEST(t_odbc274)
 {
   SQLCHAR buffer[32];
 
-  if (ServerNotOlderThan(Connection, 10, 5, 0) == FALSE)
+  if (!minServer(Connection, 10, 5, 0))
   {
     skip("The test requires min 10.5.0 version")
   }
