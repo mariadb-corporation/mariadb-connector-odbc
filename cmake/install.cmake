@@ -24,6 +24,14 @@
 # INSTALL_DOCDIR    location of docs
 # INSTALL_LICENSEDIR location of license
 
+IF(DEB)
+  SET(INSTALL_LAYOUT "DEB")
+ENDIF()
+
+IF(RPM)
+  SET(INSTALL_LAYOUT "RPM")
+ENDIF()
+
 IF(NOT INSTALL_LAYOUT)
   SET(INSTALL_LAYOUT "DEFAULT")
 ENDIF()
@@ -33,9 +41,9 @@ SET(INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE
 
 # On Windows we only provide zip and .msi. Latter one uses a different packager.
 IF(UNIX)
-  IF(INSTALL_LAYOUT MATCHES "RPM")
+  IF(INSTALL_LAYOUT MATCHES "RPM|DEB")
     SET(libmariadb_prefix "/usr")
-  ELSEIF(INSTALL_LAYOUT MATCHES "DEFAULT|DEB")
+  ELSEIF(INSTALL_LAYOUT STREQUAL "DEFAULT")
     SET(libmariadb_prefix ${CMAKE_INSTALL_PREFIX})
   ENDIF()
 ENDIF()
@@ -51,7 +59,13 @@ IF(layout_no EQUAL -1)
   MESSAGE(FATAL_ERROR "Invalid installation layout ${INSTALL_LAYOUT}. Please specify one of the following layouts: ${VALID_INSTALL_LAYOUTS}")
 ENDIF()
 
-
+# This has been done before C/C cmake scripts are included
+IF(NOT DEFINED INSTALL_LIB_SUFFIX)
+  SET(INSTALL_LIB_SUFFIX "lib" CACHE STRING "Directory, under which to install libraries, e.g. lib or lib64")
+    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")
+      SET(INSTALL_LIB_SUFFIX "lib64")
+    ENDIF()
+ENDIF()
 
 #
 # Todo: We don't generate man pages yet, will fix it
@@ -70,9 +84,9 @@ SET(INSTALL_DOCDIR_DEFAULT "docs")
 SET(INSTALL_LICENSEDIR_DEFAULT ${INSTALL_DOCDIR_DEFAULT})
 IF(NOT IS_SUBPROJECT)
   SET(INSTALL_PLUGINDIR_DEFAULT "lib/mariadb/plugin")
-ELSE()
 ENDIF()
 SET(LIBMARIADB_STATIC_DEFAULT "mariadbclient")
+
 #
 # RPM layout
 #
@@ -86,24 +100,30 @@ ELSE()
   SET(INSTALL_PCDIR_RPM "lib/pkgconfig")
   SET(INSTALL_PLUGINDIR_RPM "lib/mariadb/plugin")
 ENDIF()
-SET(INSTALL_INCLUDEDIR_RPM "include")
-SET(INSTALL_DOCDIR_RPM "docs")
+SET(INSTALL_INCLUDEDIR_RPM "include/mariadb")
+SET(INSTALL_DOCDIR_RPM "share/doc/mariadb-connector-odbc")
+SET(INSTALL_LICENSEDIR_RPM ${INSTALL_DOCDIR_RPM})
 SET(LIBMARIADB_STATIC_RPM "mariadbclient")
 
 #
 # DEB layout
-#
+# Only ia-32 and amd64 here. the list is too long to hardcode it
+IF(NOT CMAKE_LIBRARY_ARCHITECTURE)
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    SET(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+  ELSE()
+    SET(CMAKE_LIBRARY_ARCHITECTURE "i386-linux-gnu")
+  ENDIF()
+ENDIF()
+
 SET(INSTALL_BINDIR_DEB "bin")
 SET(INSTALL_LIBDIR_DEB "lib/${CMAKE_LIBRARY_ARCHITECTURE}")
 SET(INSTALL_PCDIR_DEB "lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig")
 SET(INSTALL_PLUGINDIR_DEB "${INSTALL_LIBDIR_DEB}/libmariadb${CPACK_PACKAGE_VERSION_MAJOR}/plugin")
 SET(INSTALL_INCLUDEDIR_DEB "include/mariadb")
+SET(INSTALL_DOCDIR_DEB "share/doc/mariadb-connector-odbc")
+SET(INSTALL_LICENSEDIR_DEB "${INSTALL_DOCDIR_DEB}")
 SET(LIBMARIADB_STATIC_DEB "mariadb")
-
-IF(INSTALL_LAYOUT MATCHES "DEB")
-  SET(INSTALL_PLUGINDIR_CLIENT ${INSTALL_PLUGINDIR_DEB})
-ENDIF()
-
 
 #
 # Overwrite defaults
@@ -157,3 +177,8 @@ FOREACH(dir "BIN" "LIB" "PC" "INCLUDE" "DOC" "LICENSE" "PLUGIN")
   MESSAGE(STATUS "MariaDB Connector ODBC: INSTALL_${dir}DIR=${INSTALL_${dir}DIR}")
 ENDFOREACH()
 
+SET(INSTALL_PLUGINDIR_CLIENT ${INSTALL_PLUGINDIR})
+MESSAGE(STATUS "MariaDB Connector ODBC: INSTALL_PLUGINDIR_CLIENT=${INSTALL_PLUGINDIR_CLIENT}")
+
+MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIBDIR}")
+MESSAGE(STATUS "Authentication Plugins installation dir: ${INSTALL_PLUGINDIR}")
