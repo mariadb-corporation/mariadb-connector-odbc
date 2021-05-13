@@ -1,19 +1,19 @@
 # ************************************************************************************
 #   Copyright (C) 2013,2019 MariaDB Corporation AB
-#   
+#
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
 #   License as published by the Free Software Foundation; either
 #   version 2.1 of the License, or (at your option) any later version.
-#   
+#
 #   This library is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 #   Library General Public License for more details.
-#   
+#
 #   You should have received a copy of the GNU Library General Public
 #   License along with this library; if not see <http://www.gnu.org/licenses>
-#   or write to the Free Software Foundation, Inc., 
+#   or write to the Free Software Foundation, Inc.,
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 PROJECT(mariadb_connector_odbc C)
@@ -34,7 +34,7 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/maodbcu.rc.in
                ${CMAKE_SOURCE_DIR}/maodbcu.rc)
 
 SET (MARIADB_ODBC_SOURCES odbc_3_api.c
-                          ma_api_internal.c   
+                          ma_api_internal.c
                           ma_error.c
                           ma_connection.c
                           ma_helper.c
@@ -70,7 +70,7 @@ MACRO(ADD_OPTION _name _text _default)
   ENDIF()
 ENDMACRO()
 
-# This has to be before C/C's cmake run, or it will build with /MD                  
+# This has to be before C/C's cmake run, or it will build with /MD
 IF(WIN32)
   IF (MSVC)
     SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO" "MINSIZEREL")
@@ -83,8 +83,8 @@ IF(WIN32)
             SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1 /RTCc")
             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
           ENDIF()
-          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}") 
-          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE 
+          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
+          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE
                STRING "overwritten by mariadb-odbc" FORCE)
         ENDIF()
       ENDFOREACH()
@@ -92,18 +92,10 @@ IF(WIN32)
   ENDIF()
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)# -DWIN32_LEAN_AND_MEAN)
   SET(INSTALL_PLUGINDIR "${MARIADB_DEFAULT_PLUGINS_SUBDIR}")
-ELSE()
-  # This has been done before C/C cmake scripts are included
-  IF(NOT DEFINED INSTALL_LIB_SUFFIX)
-    SET(INSTALL_LIB_SUFFIX "lib" CACHE STRING "Directory, under which to install libraries, e.g. lib or lib64")
-    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")
-      SET(INSTALL_LIB_SUFFIX "lib64")
-    ENDIF()
-  ENDIF()
-  MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIB_SUFFIX}")
-  SET(INSTALL_PLUGINDIR "${INSTALL_LIB_SUFFIX}/mariadb/plugin")
-  MESSAGE(STATUS "Authentication Plugins installation dir: ${INSTALL_PLUGINDIR}")
 ENDIF()
+
+### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
 
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
   IF(WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
@@ -143,9 +135,6 @@ ELSE()
 ENDIF()
 
 ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
-
-### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those 
-INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
 
 # Currently limiting this feature to Windows onle, where it's most probably going to be only used
 IF(WIN32 AND ALL_PLUGINS_STATIC)
@@ -231,9 +220,9 @@ IF(WIN32)
 
 			SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
   IF (MSVC)
-    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
+    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}")
     IF (NOT(MSVC_VERSION LESS 1900))
-      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions") 
+      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions")
       SET(LEGACY_STDIO legacy_stdio_definitions)
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${LEGACY_STDIO})
     ENDIF()
@@ -255,7 +244,7 @@ ENDIF()
 IF(NOT WIN32)
   # Looking for DM(UnixODBC) files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
-  
+
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
     LINK_DIRECTORIES(${ODBC_LIB_DIR})
@@ -282,7 +271,7 @@ SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
 SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
 
 # TODO: Make it optional
-# Disable dbug information for release builds 
+# Disable dbug information for release builds
 #SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DDBUG_OFF")
 #SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DDBUG_OFF")
 #SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDBUG_OFF")
@@ -328,7 +317,7 @@ IF(WIN32)
 ELSE()
   MESSAGE(STATUS "Version script: ${CMAKE_SOURCE_DIR}/maodbc.def")
   ADD_LIBRARY(${LIBRARY_NAME} SHARED ${MARIADB_ODBC_SOURCES} maodbcu.rc)
-  
+
   IF(APPLE)
     SET(MAODBC_INSTALL_RPATH "${ODBC_LIB_DIR}" "@loader_path" "/usr/local/opt/libiodbc" "/usr/local/iODBC/lib" "/usr/local/opt/openssl@1.1/lib" "/usr/local/opt/libressl/lib")
     SET_TARGET_PROPERTIES(${LIBRARY_NAME}
