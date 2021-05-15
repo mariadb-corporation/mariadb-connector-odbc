@@ -44,6 +44,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.c
                           ma_info.c
                           ma_environment.c
                           ma_parse.c
+                          ma_catalog.c
                           ma_statement.c
                           ma_desc.c
                           ma_string.c
@@ -114,10 +115,6 @@ IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
       ADD_DEFINITIONS(-DHAVE_OPENSSL)
       INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
       SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
-
-      #IF(OPENSSL_CRYPTO_LIBRARIES)
-      #  SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
-      #ENDIF()
 
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
     ELSE()
@@ -219,6 +216,7 @@ IF(WIN32)
                           ma_info.h
                           ma_environment.h
                           ma_parse.h
+                          ma_catalog.h
                           ma_statement.h
                           ma_desc.h
                           ma_string.h
@@ -442,7 +440,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
                                       -DTEST_SOCKET=${TEST_SOCKET}
                                       -DTEST_SCHEMA=${TEST_SCHEMA}
                                       -DTEST_UID=${TEST_UID}
-                                      -DTEST_PASSWORD=${TEST_PASSWORD}
+                                      -DTEST_PASSWORD="${TEST_PASSWORD}"
                                       -DTEST_USETLS=${TEST_USETLS}
                                       -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
                                       -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini

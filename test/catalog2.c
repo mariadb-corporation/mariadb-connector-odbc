@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2019 MariaDB Corporation AB
+                2017, 2021 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1508,6 +1508,122 @@ ODBC_TEST(odbc231)
 }
 
 
+/*
+  ODBC-313 - more like a side effect, or rather the reason why optimization is possible.
+  SQLPrimaryKeys(and SQLStatistics) parameters cannot be treated as search patterns. Thus _ should
+  mean onlye _, and not any character
+*/
+ODBC_TEST(odbc313)
+{
+  SQLCHAR Catalog[MAX_NAME_LEN + 1], Table[MAX_NAME_LEN + 1], Column[MAX_NAME_LEN + 1], AddSchema[MAX_NAME_LEN + 1], temp[256];
+  SQLCHAR Create[16/*CREATE DATABASE */ + MAX_NAME_LEN + 1], Drop[24/*DROP DATABASE IF EXISTS */ + MAX_NAME_LEN + 1];
+  SQLLEN  CatalogLen, RowCount, TableLen, ColumnLen;
+  SQLRETURN rc;
+  SQLHANDLE Hdbc, Hstmt;
+
+  strcpy(AddSchema, my_schema);
+  AddSchema[0]= '_';
+
+  sprintf(Drop, "DROP DATABASE IF EXISTS %s", AddSchema);
+  rc= SQLExecDirect(Stmt, Drop, SQL_NTS);
+
+  if (SQL_SUCCEEDED(rc))
+  {
+    sprintf(Create, "CREATE DATABASE %s", AddSchema);
+    rc= SQLExecDirect(Stmt, Create, SQL_NTS);
+  }
+
+  if (!SQL_SUCCEEDED(rc))
+  {
+    skip("Test user does not have sufficient privileges. It should be able to drop/create database");
+  }
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, AddSchema, NULL, NULL, NULL);
+  FAIL_IF(Hstmt == NULL, "Could not connect with created schema as default, or other error occurred");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Hstmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313x1");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc313_1(pk1 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc313x1(pk2 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+  OK_SIMPLE_STMT(Hstmt, "CREATE TABLE odbc313_1(pk3 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, AddSchema, SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc313_1", SQL_NTS));
+
+  /* Test of SQLRowCount with SQLPrimaryKeys */
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, Catalog, sizeof(Catalog), &CatalogLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, Table, sizeof(Table), &TableLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(CatalogLen, strlen(AddSchema));
+  IS_STR(Catalog, AddSchema, strlen(AddSchema));
+  IS_STR(Table, "odbc313_1", sizeof("odbc313_1"));
+  IS_STR(Column, "pk3", sizeof("pk3"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "No more rows expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, AddSchema, SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR*)"odbc313_1", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, Catalog, sizeof(Catalog), &CatalogLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, Table, sizeof(Table), &TableLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 9, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(CatalogLen, strlen(AddSchema));
+  IS_STR(Catalog, AddSchema, strlen(AddSchema));
+  IS_STR(Table, "odbc313_1", sizeof("odbc313_1"));
+  IS_STR(Column, "pk3", sizeof("pk3"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "No more rows expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, AddSchema, SQL_NTS, NULL, 0,
+    (SQLCHAR*)"odbc313_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  Catalog[0]= '\0';
+  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, temp, sizeof(temp), &ColumnLen));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(temp, "pk3", sizeof("pk3"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "No more rows expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Hstmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313x1");
+  OK_SIMPLE_STMT(Stmt, Drop);
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1533,6 +1649,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc185, "odbc185_sqlcolumns_wtypes",     NORMAL},
   {odbc152, "odbc152_sqlcolumns_sql_data_type",   NORMAL},
   {odbc231, "odbc231_sqlcolumns_longtext",   NORMAL},
+  {odbc313, "odbc313_no_patterns_for_sqlpkeys",   NORMAL},
   {NULL, NULL}
 };
 

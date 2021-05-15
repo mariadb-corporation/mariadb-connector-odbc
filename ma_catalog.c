@@ -1,0 +1,701 @@
+/************************************************************************************
+   Copyright (C) 2021 MariaDB Corporation AB
+   
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+   
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
+   
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not see <http://www.gnu.org/licenses>
+   or write to the Free Software Foundation, Inc., 
+   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
+*************************************************************************************/
+#include <ma_odbc.h>
+
+
+/* {{{ MADB_StmtColumnPrivileges */
+SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
+                                    char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
+                                    SQLSMALLINT NameLength3, char *ColumnName, SQLSMALLINT NameLength4)
+{
+  char StmtStr[1024];
+  char *p;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  /* TableName cannot be NULL, but nothing said it can't be empty string */
+  if (!TableName)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  p= StmtStr;
+  p+= _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL as TABLE_SCHEM, TABLE_NAME,"
+                                 "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
+                                 "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
+  if (CatalogName)
+  {
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA='%s' ", CatalogName);
+  }
+  else
+  {
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA=DATABASE() ");
+  }
+  p += _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+
+  if (ColumnName)
+  {
+    p += _snprintf(p, 1024 - strlen(StmtStr), "AND COLUMN_NAME LIKE '%s' ", ColumnName);
+  }
+
+  p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
+  
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
+}
+/* }}} */
+
+/* {{{ MADB_StmtTablePrivileges */
+SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
+                                    char *SchemaName, SQLSMALLINT NameLength2,
+                                    char *TableName, SQLSMALLINT NameLength3)
+{
+  char StmtStr[1024],
+       *p;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  p= StmtStr;
+  p += _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+                                  "NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE, IS_GRANTABLE "
+                                  "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
+  if (CatalogName)
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
+  else
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE(), DATABASE(), '%%') ");
+  if (TableName)
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+  
+  p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
+  
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
+}
+/* }}} */
+
+/* {{{ MADB_StmtTables */
+SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT CatalogNameLength,
+                          char *SchemaName, SQLSMALLINT SchemaNameLength, char *TableName,
+                          SQLSMALLINT TableNameLength, char *TableType, SQLSMALLINT TableTypeLength)
+{
+  MADB_DynString StmtStr;
+  char Quote[2];
+  SQLRETURN ret;
+
+  /*
+  METADATA_ID       CatalogName     SchemaName       TableName           TableType
+  ---------------------------------------------------------------------------------
+  ODBC_V3:
+  SQL_FALSE         Pattern         Pattern          Pattern             ValueList
+  SQL_TRUE          Identifier      Identifier       Identifier          ValueList
+  ODBC_V2:
+                    Identifier      Identifier       Identifier          ValueList
+  --------------------------------------------------------------------------------
+  */
+
+  MDBUG_C_ENTER(Stmt->Connection, "MADB_StmtTables");
+
+  ADJUST_LENGTH(CatalogName, CatalogNameLength);
+  ADJUST_LENGTH(SchemaName, SchemaNameLength);
+  ADJUST_LENGTH(TableName, TableNameLength);
+  ADJUST_LENGTH(TableType, TableTypeLength);
+
+  if (CatalogNameLength > 64 || TableNameLength > 64)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  /* SQL_ALL_CATALOGS 
+     If CatalogName is SQL_ALL_CATALOGS and SchemaName and TableName are empty strings, 
+     the result set contains a list of valid catalogs for the data source. 
+     (All columns except the TABLE_CAT column contain NULLs
+  */
+  if (CatalogName && CatalogNameLength && TableName != NULL && !TableNameLength &&
+    SchemaName != NULL && SchemaNameLength == 0 && !strcmp(CatalogName, SQL_ALL_CATALOGS))
+  {
+    MADB_InitDynamicString(&StmtStr, "SELECT SCHEMA_NAME AS TABLE_CAT, CONVERT(NULL,CHAR(64)) AS TABLE_SCHEM, "
+                                  "CONVERT(NULL,CHAR(64)) AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
+                                  "FROM INFORMATION_SCHEMA.SCHEMATA "
+                                  "GROUP BY SCHEMA_NAME ORDER BY SCHEMA_NAME",
+                                  8192, 512);
+  }
+  /* SQL_ALL_TABLE_TYPES
+     If TableType is SQL_ALL_TABLE_TYPES and CatalogName, SchemaName, and TableName are empty strings, 
+     the result set contains a list of valid table types for the data source. 
+     (All columns except the TABLE_TYPE column contain NULLs.)
+  */
+  else if (CatalogName != NULL && !CatalogNameLength && TableName != NULL && !TableNameLength &&
+    SchemaName != NULL && SchemaNameLength == 0 && TableType && TableTypeLength &&
+            !strcmp(TableType, SQL_ALL_TABLE_TYPES))
+  {
+    MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+                                  "NULL AS TABLE_NAME, 'TABLE' AS TABLE_TYPE, NULL AS REMARKS "
+                                  "FROM DUAL "
+                                  "UNION "
+                                  "SELECT NULL, NULL, NULL, 'VIEW', NULL FROM DUAL "
+                                  "UNION "
+                                  "SELECT NULL, NULL, NULL, 'SYSTEM VIEW', NULL FROM DUAL",
+                                  8192, 512); 
+  }
+  /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%"
+     if that is not the special case of call for schemas list. Otherwise we return empty resultset*/
+  else if (SchemaName &&
+    ((!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0) ||
+      strcmp(SchemaName, SQL_ALL_SCHEMAS)))
+  {
+    MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+      "NULL AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
+      "FROM DUAL WHERE 1=0", 8192, 512);
+  }
+  else
+  {
+    MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+                                  "if(TABLE_TYPE='BASE TABLE','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
+                                  "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
+                                  8192, 512);
+    if (Stmt->Options.MetadataId== SQL_TRUE)
+    {
+      strcpy(Quote, "`");
+    }
+    else
+    {
+      strcpy(Quote, "'");
+    }
+
+    if (CatalogName != NULL)
+    {
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA ");
+      MADB_DynstrAppend(&StmtStr, "LIKE ");
+      MADB_DynstrAppend(&StmtStr, Quote);
+      MADB_DynstrAppend(&StmtStr, CatalogName);
+      MADB_DynstrAppend(&StmtStr, Quote);
+    }
+    else if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
+    {
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_SCHEMA=DATABASE()");
+    }
+
+    if (TableName && TableNameLength)
+    {
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_NAME LIKE ");
+      MADB_DynstrAppend(&StmtStr, Quote);
+      MADB_DynstrAppend(&StmtStr, TableName);
+      MADB_DynstrAppend(&StmtStr, Quote);
+    }
+    if (TableType && TableTypeLength && strcmp(TableType, SQL_ALL_TABLE_TYPES) != 0)
+    {
+      unsigned int i;
+      char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};
+      MADB_DynstrAppend(&StmtStr, " AND TABLE_TYPE IN (''");
+      for (i= 0; i < 3; i++)
+      {
+        if (strstr(TableType, myTypes[i]))
+        {
+          if (strstr(myTypes[i], "TABLE"))
+            MADB_DynstrAppend(&StmtStr, ", 'BASE TABLE'");
+          else
+          {
+            MADB_DynstrAppend(&StmtStr, ", '");
+            MADB_DynstrAppend(&StmtStr, myTypes[i]);
+            MADB_DynstrAppend(&StmtStr, "'");
+          }
+        }
+      }
+      MADB_DynstrAppend(&StmtStr, ") ");
+    }
+    MADB_DynstrAppend(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE");
+  }
+  MDBUG_C_PRINT(Stmt->Connection, "SQL Statement: %s", StmtStr.str);
+
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
+
+  MADB_DynstrFree(&StmtStr);
+
+  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
+}
+/* }}} */
+
+static MADB_ShortTypeInfo SqlStatsColType[13]=
+                               /*1*/    {{SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+                               /*5*/     {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+                               /*9*/     {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_CHAR, 0, SQL_NULLABLE, 2}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
+                               /*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
+
+/* {{{ MADB_StmtStatistics */
+SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
+                              char *SchemaName, SQLSMALLINT NameLength2,
+                              char *TableName, SQLSMALLINT NameLength3,
+                              SQLUSMALLINT Unique, SQLUSMALLINT Reserved)
+{
+  char StmtStr[1024];
+  char *p= StmtStr;
+  
+  SQLRETURN ret;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  /* TableName is mandatory */
+  if (!TableName || !NameLength3)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
+    return Stmt->Error.ReturnValue;
+  }
+ 
+  _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+                             "NON_UNIQUE, NULL AS INDEX_QUALIFIER, INDEX_NAME, "
+                             "%d AS TYPE, "
+                             "SEQ_IN_INDEX AS ORDINAL_POSITION, COLUMN_NAME, COLLATION AS ASC_OR_DESC, "
+                             "CARDINALITY, NULL AS PAGES, NULL AS FILTER_CONDITION "
+                             "FROM INFORMATION_SCHEMA.STATISTICS ",
+                             SQL_INDEX_OTHER);
+  p+= strlen(StmtStr);
+  /* Same comments as for SQLPrimaryKeys including TODOs */
+  if (CatalogName)
+    p+= _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA='%s' ", CatalogName);
+  else
+    p+= _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA=DATABASE() ");
+  
+  if (TableName)
+    p+= _snprintf(p, 1023- strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+
+  if (Unique == SQL_INDEX_UNIQUE)
+    p+= _snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
+
+  _snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
+
+
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
+
+  if (SQL_SUCCEEDED(ret))
+  {
+    MADB_FixColumnDataTypes(Stmt, SqlStatsColType);
+  }
+  return ret;
+}
+/* }}} */
+
+
+static MADB_ShortTypeInfo SqlColumnsColType[18]=
+/*1*/    {{SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+/*5*/     {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NO_NULLS, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NULLABLE, 0},
+/*9*/     {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0},
+/*13*/    {SQL_VARCHAR, 0, SQL_NULLABLE, 0}, {SQL_SMALLINT, 0, SQL_NO_NULLS, 0}, {SQL_SMALLINT, 0, SQL_NULLABLE, 0},
+/*16*/    {SQL_INTEGER, 0, SQL_NULLABLE, 0}, {SQL_INTEGER, 0, SQL_NO_NULLS, 0}, {SQL_VARCHAR, 0, SQL_NULLABLE, 0}};
+
+/* {{{ MADB_StmtColumns */
+SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
+                           char *CatalogName, SQLSMALLINT NameLength1,
+                           char *SchemaName,  SQLSMALLINT NameLength2,
+                           char *TableName,   SQLSMALLINT NameLength3,
+                           char *ColumnName,  SQLSMALLINT NameLength4)
+{
+  MADB_DynString StmtStr;
+  SQLRETURN ret;
+  size_t Length= strlen(MADB_CATALOG_COLUMNSp3);
+  char *ColumnsPart= MADB_CALLOC(Length);
+  unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 && Stmt->Connection->Charset.cs_info->char_maxlen < 10 ? Stmt->Connection->Charset.cs_info->char_maxlen : 1;
+
+  MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
+
+  if (ColumnsPart == NULL)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+
+  _snprintf(ColumnsPart, Length, MADB_CATALOG_COLUMNSp3, OctetsPerChar);
+
+  MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
+ 
+  MADB_CLEAR_ERROR(&Stmt->Error);
+  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp1))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, MADB_SQL_DATATYPE(Stmt)))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, ColumnsPart))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, MADB_DEFAULT_COLUMN(Stmt->Connection)))
+    goto dynerror;
+
+  if (MADB_DynstrAppend(&StmtStr, MADB_CATALOG_COLUMNSp4))
+    goto dynerror;
+
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+
+  if(MADB_DynstrAppend(&StmtStr, "TABLE_SCHEMA = "))
+    goto dynerror;
+
+  if (CatalogName)
+  {
+    if (MADB_DynstrAppend(&StmtStr, "'") ||
+        MADB_DynstrAppendMem(&StmtStr, CatalogName, NameLength1) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
+      goto dynerror;
+  }
+  else
+    if (MADB_DynstrAppend(&StmtStr, "DATABASE()"))
+      goto dynerror;
+
+  if (TableName && NameLength3)
+    if (MADB_DynstrAppend(&StmtStr, "AND TABLE_NAME LIKE '") ||
+        MADB_DynstrAppendMem(&StmtStr, TableName, NameLength3) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
+    goto dynerror;
+
+  if (ColumnName && NameLength4)
+    if (MADB_DynstrAppend(&StmtStr, "AND COLUMN_NAME LIKE '") ||
+        MADB_DynstrAppendMem(&StmtStr, ColumnName, NameLength4) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
+    goto dynerror;
+
+  if (MADB_DynstrAppend(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION"))
+    goto dynerror;
+
+  MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
+
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
+
+  if (SQL_SUCCEEDED(ret))
+  {
+    MADB_FixColumnDataTypes(Stmt, SqlColumnsColType);
+  }
+
+  MADB_FREE(ColumnsPart);
+  MADB_DynstrFree(&StmtStr);
+  MDBUG_C_DUMP(Stmt->Connection, ret, d);
+
+  return ret;
+
+dynerror:
+  MADB_FREE(ColumnsPart);
+  MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  return Stmt->Error.ReturnValue;
+}
+/* }}} */
+
+/* {{{ MADB_StmtProcedureColumns */
+SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
+                                char *SchemaName, SQLSMALLINT NameLength2, char *ProcName,
+                                SQLSMALLINT NameLength3, char *ColumnName, SQLSMALLINT NameLength4)
+{
+  char *StmtStr,
+       *p;
+  size_t Length= strlen(MADB_PROCEDURE_COLUMNS(Stmt)) + 1024;
+  SQLRETURN ret;
+  unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 ? Stmt->Connection->Charset.cs_info->char_maxlen: 1;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  if (!(StmtStr= MADB_CALLOC(Length)))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+
+  p= StmtStr;
+
+  p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt), OctetsPerChar);
+  
+  if (CatalogName)
+    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA='%s' ", CatalogName);
+  else
+    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE DATABASE() ");
+  if (ProcName && ProcName[0])
+    p+= _snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
+  if (ColumnName)
+  {
+    if (ColumnName[0])
+    {
+      p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
+    }
+    else
+    {
+      p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME IS NULL ");
+    }
+  }
+    
+  p+= _snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
+
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
+
+  MADB_FREE(StmtStr);
+
+  return ret;
+}
+/* }}} */
+
+/* {{{ MADB_StmtPrimaryKeys */
+SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
+                                char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
+                                SQLSMALLINT NameLength3)
+{
+  char StmtStr[2048],
+       *p;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  /* TableName is mandatory */
+  if (!TableName || !NameLength3)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  p= StmtStr;
+  p+= _snprintf(p, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+                           "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
+                           "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+                           "COLUMN_KEY = 'pri' AND ");
+  /* Empty catalog name means table without catalog(schema). MariaDB/MySQL do not have such. Thus should be empty resultset.
+     TABLE_SCHEMA='' will do the job. TODO: that can be done without sending query to the server.
+     Catalog(schema) cannot be a search pattern. Thus = and not LIKE here */
+  if (CatalogName)
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA='%s' ", CatalogName);
+  }
+  else
+  {
+    /* If Catalog is NULL we return for current DB. If no schema(aka catalog here) is selected, then that means
+       table without schema. Since we don't have such tables, that means empty resultset.
+       TODO: We should be aboe to construct resultset - empty in this case, avoiding sending query to the server */
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA=DATABASE() ");
+  }
+  p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+  p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
+
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
+}
+/* }}} */
+
+/* {{{ MADB_StmtSpecialColumns */
+SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
+                                  char *CatalogName, SQLSMALLINT NameLength1, 
+                                  char *SchemaName, SQLSMALLINT NameLength2,
+                                  char *TableName, SQLSMALLINT NameLength3,
+                                  SQLUSMALLINT Scope, SQLUSMALLINT Nullable)
+{
+  char StmtStr[2048],
+       *p= StmtStr;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  /* TableName is mandatory */
+  if (!TableName || !NameLength3)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  p+= _snprintf(p, 2048, "SELECT NULL AS SCOPE, COLUMN_NAME, %s,"
+                           "DATA_TYPE TYPE_NAME,"
+                           "CASE" 
+                           "  WHEN DATA_TYPE in ('bit', 'tinyint', 'smallint', 'year', 'mediumint', 'int',"
+                              "'bigint', 'decimal', 'float', 'double') THEN NUMERIC_PRECISION "
+                           "  WHEN DATA_TYPE='date' THEN 10"
+                           "  WHEN DATA_TYPE='time' THEN 8"
+                           "  WHEN DATA_TYPE in ('timestamp', 'datetime') THEN 19 "
+                           "END AS COLUMN_SIZE,"
+                           "CHARACTER_OCTET_LENGTH AS BUFFER_LENGTH,"
+                           "NUMERIC_SCALE DECIMAL_DIGITS, " 
+                           XSTR(SQL_PC_UNKNOWN) " PSEUDO_COLUMN "
+                           "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
+
+  if (CatalogName)
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA='%s' ", CatalogName);
+  }
+  else
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA=DATABASE() ");
+    }
+  if (TableName && TableName[0])
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+  }
+
+  if (Nullable == SQL_NO_NULLS)
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND IS_NULLABLE <> 'YES' ");
+  }
+
+  if (IdentifierType == SQL_BEST_ROWID)
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND COLUMN_KEY IN ('PRI', 'UNI') ");
+  }
+  else if (IdentifierType == SQL_ROWVER)
+  {
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
+  }
+  p+= _snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
+
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
+}
+/* }}} */
+
+/* {{{ MADB_StmtProcedures */
+SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
+                              char *SchemaName, SQLSMALLINT NameLength2, char *ProcName,
+                              SQLSMALLINT NameLength3)
+{
+   char StmtStr[2048],
+       *p;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  p= StmtStr;
+
+  p+= _snprintf(p, 2048, "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
+                           "SPECIFIC_NAME PROCEDURE_NAME, NULL NUM_INPUT_PARAMS, "
+                           "NULL NUM_OUTPUT_PARAMS, NULL NUM_RESULT_SETS, "
+                           "ROUTINE_COMMENT REMARKS, "
+                           "CASE ROUTINE_TYPE "
+                           "  WHEN 'FUNCTION' THEN " XSTR(SQL_PT_FUNCTION)
+                           "  WHEN 'PROCEDURE' THEN " XSTR(SQL_PT_PROCEDURE)
+                           "  ELSE " XSTR(SQL_PT_UNKNOWN) " "
+                           "END PROCEDURE_TYPE "
+                           "FROM INFORMATION_SCHEMA.ROUTINES ");
+  if (CatalogName && CatalogName[0])
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE '%s' ", CatalogName);
+  else
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE DATABASE() ");
+  if (ProcName && ProcName[0])
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
+  
+  p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
+
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
+}
+/* }}} */
+
+/* {{{ SQLForeignKeys */
+SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT NameLength1,
+                               char *PKSchemaName, SQLSMALLINT NameLength2, char *PKTableName,
+                               SQLSMALLINT NameLength3, char *FKCatalogName, SQLSMALLINT NameLength4,
+                               char *FKSchemaName, SQLSMALLINT NameLength5,  char *FKTableName,
+                               SQLSMALLINT NameLength6)
+{
+  SQLRETURN ret= SQL_ERROR;
+  MADB_DynString StmtStr;
+  char EscapeBuf[256];
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  ADJUST_LENGTH(PKCatalogName, NameLength1);
+  ADJUST_LENGTH(PKSchemaName, NameLength2);
+  ADJUST_LENGTH(PKTableName, NameLength3);
+  ADJUST_LENGTH(FKCatalogName, NameLength4);
+  ADJUST_LENGTH(FKSchemaName, NameLength5);
+  ADJUST_LENGTH(FKTableName, NameLength6);
+
+
+
+  /* PKTableName and FKTableName are mandatory */
+  if ((!PKTableName || !NameLength3) && (!FKTableName || !NameLength6))
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "PKTableName or FKTableName are required", 0);
+    return Stmt->Error.ReturnValue;
+  }
+
+  /* modified from JDBC driver */
+  MADB_InitDynamicString(&StmtStr,
+                      "SELECT A.REFERENCED_TABLE_SCHEMA PKTABLE_CAT, NULL PKTABLE_SCHEM, "
+                      "A.REFERENCED_TABLE_NAME PKTABLE_NAME, " 
+                      "A.REFERENCED_COLUMN_NAME PKCOLUMN_NAME, "
+                      "A.TABLE_SCHEMA FKTABLE_CAT, NULL FKTABLE_SCHEM, "
+                      "A.TABLE_NAME FKTABLE_NAME, A.COLUMN_NAME FKCOLUMN_NAME, "
+                      "A.POSITION_IN_UNIQUE_CONSTRAINT KEY_SEQ, "
+                      "CASE update_rule "
+                      "  WHEN 'RESTRICT' THEN " XSTR(SQL_RESTRICT)
+                    "  WHEN 'NO ACTION' THEN " XSTR(SQL_NO_ACTION)
+                      "  WHEN 'CASCADE' THEN " XSTR(SQL_CASCADE)
+                      "  WHEN 'SET NULL' THEN " XSTR(SQL_SET_NULL)
+                      "  WHEN 'SET DEFAULT' THEN " XSTR(SQL_SET_DEFAULT) " "
+                      "END UPDATE_RULE, "
+                      "CASE DELETE_RULE" 
+                      "  WHEN 'RESTRICT' THEN " XSTR(SQL_RESTRICT)
+                      "  WHEN 'NO ACTION' THEN " XSTR(SQL_NO_ACTION)
+                      "  WHEN 'CASCADE' THEN " XSTR(SQL_CASCADE)
+                      "  WHEN 'SET NULL' THEN " XSTR(SQL_SET_NULL)
+                      "  WHEN 'SET DEFAULT' THEN " XSTR(SQL_SET_DEFAULT) " "
+                      " END DELETE_RULE,"
+                      "A.CONSTRAINT_NAME FK_NAME, "
+                      "'PRIMARY' PK_NAME,"
+                      XSTR(SQL_NOT_DEFERRABLE) " AS DEFERRABILITY "
+                      " FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE A"
+                      " JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE B"
+                      " ON (B.TABLE_SCHEMA = A.REFERENCED_TABLE_SCHEMA"
+                      " AND B.TABLE_NAME = A.REFERENCED_TABLE_NAME"
+                      " AND B.COLUMN_NAME = A.REFERENCED_COLUMN_NAME)"
+                      " JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS RC"
+                      " ON (RC.CONSTRAINT_NAME = A.CONSTRAINT_NAME"
+                      " AND RC.TABLE_NAME = A.TABLE_NAME"
+                      " AND RC.CONSTRAINT_SCHEMA = A.TABLE_SCHEMA)"
+                      " WHERE B.CONSTRAINT_NAME= 'PRIMARY'",
+                      8192, 128);
+
+  if (PKTableName && PKTableName[0])
+  {
+    MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_SCHEMA "); 
+
+    if (PKCatalogName && PKCatalogName[0])
+    {
+      MADB_DynstrAppend(&StmtStr, "LIKE '");
+      mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKCatalogName, MIN(NameLength1, 255));
+      MADB_DynstrAppend(&StmtStr, EscapeBuf);
+      MADB_DynstrAppend(&StmtStr, "' ");
+    }
+    else 
+      MADB_DynstrAppend(&StmtStr, "= DATABASE()");
+    MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_NAME = '");
+
+    mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKTableName, MIN(255, NameLength3));
+    MADB_DynstrAppend(&StmtStr, EscapeBuf);
+    MADB_DynstrAppend(&StmtStr, "' ");
+  }
+
+  if (FKTableName && FKTableName[0])
+  {
+    MADB_DynstrAppend(&StmtStr, " AND A.TABLE_SCHEMA = "); 
+
+    if (FKCatalogName && FKCatalogName[0])
+    {
+      MADB_DynstrAppend(&StmtStr, "'");
+      mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKCatalogName, MIN(NameLength4, 255));
+      MADB_DynstrAppend(&StmtStr, EscapeBuf);
+      MADB_DynstrAppend(&StmtStr, "' ");
+    }
+    else
+      MADB_DynstrAppend(&StmtStr, "DATABASE() ");
+    MADB_DynstrAppend(&StmtStr, " AND A.TABLE_NAME = '");
+
+    mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKTableName, MIN(255, NameLength6));
+    MADB_DynstrAppend(&StmtStr, EscapeBuf);
+    MADB_DynstrAppend(&StmtStr, "' ");
+  }
+  MADB_DynstrAppend(&StmtStr, "ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ, PKTABLE_NAME");
+  
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
+
+  MADB_DynstrFree(&StmtStr);
+
+  return ret;
+}
+/* }}} */
+
