@@ -501,7 +501,7 @@ ODBC_TEST(t_columns)
 
     CHECK_STMT_RC(Stmt, SQLColumns(Stmt,
                               DatabaseName, (SQLSMALLINT)cbDatabaseName,
-                              (SQLCHAR *)"", SQL_NTS,
+                              NULL, SQL_NTS,
                               (SQLCHAR *)"t_columns", SQL_NTS,
                               ColumnName, SQL_NTS));
 

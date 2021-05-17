@@ -771,6 +771,38 @@ ODBC_TEST(t_odbc226)
 }
 
 
+ODBC_TEST(t_odbc316)
+{
+  EXPECT_STMT(Stmt, SQLColumnPrivileges(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+  NULL, SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLProcedureColumns(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLProcedures(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS,
+  (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS,
+  SQL_INDEX_ALL, SQL_QUICK), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLTablePrivileges(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLTables(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_odbc3_error, "t_odbc3_error"},
@@ -794,6 +826,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc123, "t_odbc123"},
   {t_odbc43, "t_odbc43_datetime_overflow"},
   {t_odbc226, "t_odbc226"},
+  {t_odbc316, "t_odbc316_error_on_non_empty_schema"},
   {NULL, NULL}
 };
 

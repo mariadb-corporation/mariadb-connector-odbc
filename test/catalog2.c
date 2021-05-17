@@ -1624,6 +1624,145 @@ ODBC_TEST(odbc313)
 }
 
 
+/*
+  ODBC-316 - various typical (minor) issues
+  - empty string parameter
+*/
+ODBC_TEST(odbc316)
+{
+  SQLCHAR grant[256];
+  BOOL runColumnPrivileges= TRUE, runTablePrivileges= TRUE;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc316_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc316_1");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc316");
+  OK_SIMPLE_STMT(Stmt,
+    "CREATE PROCEDURE odbc316(IN inParam INT UNSIGNED)"
+    "BEGIN"
+    " SELECT inParam AS ret;"
+    "END");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc316_1(pk1 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc316_2(pk INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, fk INTEGER NOT NULL,"
+                       "FOREIGN KEY (fk) REFERENCES odbc316_1(pk1))");
+
+  _snprintf(grant, sizeof(grant), "GRANT INSERT (pk1), SELECT (pk1), UPDATE (pk1) ON odbc316_1 TO %s", my_uid);
+
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
+  {
+    /* We could not set col privileges, thus SQLColumnPrivileges will return empty set anyway. There is no sense to test */
+    runColumnPrivileges= FALSE;
+  }
+  _snprintf(grant, sizeof(grant), "GRANT INSERT, SELECT, UPDATE, DROP ON odbc316_1 TO %s", my_uid);
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
+  {
+    /* We could not set table privileges, thus SQLTablePrivileges will return empty set anyway. There is no sense to test */
+    runTablePrivileges = FALSE;
+  }
+  /* Empty string Catalog name -> empty RS */
+  if (runColumnPrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLColumnPrivileges(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+                        NULL, SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, "", SQL_NTS,
+    NULL, SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, "", SQL_NTS, NULL, 0,
+    (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, "", SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR*)"odbc316_1", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  if (runTablePrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  /* SQLTables has different special meaning of "" arguments, but only if one of others is "%" */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Empty string Schema name -> empty RS */
+  if (runColumnPrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLColumnPrivileges(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+                        NULL, SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
+                        "", SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, "", 0,
+    (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, "", SQL_NTS,
+    (SQLCHAR*)"odbc316_1", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, "", SQL_NTS, NULL, 0,
+    (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  if (runTablePrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc316");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc316_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc316_1");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1647,9 +1786,10 @@ MA_ODBC_TESTS my_tests[]=
   {odbc131, "odbc131_columns_data_len",      NORMAL},
   {odbc119, "odbc119_sqlstats_orderby",      NORMAL},
   {odbc185, "odbc185_sqlcolumns_wtypes",     NORMAL},
-  {odbc152, "odbc152_sqlcolumns_sql_data_type",   NORMAL},
-  {odbc231, "odbc231_sqlcolumns_longtext",   NORMAL},
-  {odbc313, "odbc313_no_patterns_for_sqlpkeys",   NORMAL},
+  {odbc152, "odbc152_sqlcolumns_sql_data_type", NORMAL},
+  {odbc231, "odbc231_sqlcolumns_longtext",      NORMAL},
+  {odbc313, "odbc313_no_patterns_for_sqlpkeys", NORMAL},
+  {odbc316, "odbc316_empty_string_parameters",  NORMAL},
   {NULL, NULL}
 };
 

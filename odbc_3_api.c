@@ -1367,8 +1367,8 @@ SQLRETURN SQL_API SQLForeignKeysW(SQLHSTMT StatementHandle,
        *CpFkCatalog= NULL,
        *CpFkSchema= NULL,
        *CpFkTable= NULL;
-  SQLULEN CpLength1, CpLength2, CpLength3,
-             CpLength4, CpLength5, CpLength6;
+  SQLULEN CpLength1= 0, CpLength2= 0, CpLength3= 0,
+             CpLength4= 0, CpLength5= 0 , CpLength6= 0;
   SQLRETURN ret;
   if(!Stmt)
     return SQL_INVALID_HANDLE;
@@ -1376,12 +1376,30 @@ SQLRETURN SQL_API SQLForeignKeysW(SQLHSTMT StatementHandle,
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLForeignKeysW");
 
-  CpPkCatalog= MADB_ConvertFromWChar(PKCatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpPkSchema= MADB_ConvertFromWChar(PKSchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpPkTable= MADB_ConvertFromWChar(PKTableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpFkCatalog= MADB_ConvertFromWChar(FKCatalogName, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpFkSchema= MADB_ConvertFromWChar(FKSchemaName, NameLength5, &CpLength5, Stmt->Connection->ConnOrSrcCharset, NULL);
-  CpFkTable= MADB_ConvertFromWChar(FKTableName, NameLength6, &CpLength6, Stmt->Connection->ConnOrSrcCharset, NULL);
+  if (PKCatalogName != NULL)
+  {
+    CpPkCatalog = MADB_ConvertFromWChar(PKCatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (PKSchemaName != NULL)
+  {
+    CpPkSchema = MADB_ConvertFromWChar(PKSchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (PKTableName != NULL)
+  {
+    CpPkTable = MADB_ConvertFromWChar(PKTableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (FKCatalogName != NULL)
+  {
+    CpFkCatalog = MADB_ConvertFromWChar(FKCatalogName, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (FKSchemaName != NULL)
+  {
+    CpFkSchema = MADB_ConvertFromWChar(FKSchemaName, NameLength5, &CpLength5, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (FKTableName != NULL)
+  {
+    CpFkTable = MADB_ConvertFromWChar(FKTableName, NameLength6, &CpLength6, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
 
   ret= Stmt->Methods->ForeignKeys(Stmt, CpPkCatalog, (SQLSMALLINT)CpLength1, CpPkSchema, (SQLSMALLINT)CpLength2,
                                   CpPkTable, (SQLSMALLINT)CpLength3, CpFkCatalog, (SQLSMALLINT)CpLength4, 
@@ -2778,7 +2796,7 @@ SQLRETURN SQL_API SQLTablePrivilegesW(SQLHSTMT StatementHandle,
     CpTable=   MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
   }
 
-  ret= Stmt->Methods->TablePrivileges(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, NULL, 0, CpTable, (SQLSMALLINT)CpLength3);
+  ret= Stmt->Methods->TablePrivileges(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, SchemaName, NameLength2, CpTable, (SQLSMALLINT)CpLength3);
 
   MADB_FREE(CpCatalog);
   MADB_FREE(CpTable);

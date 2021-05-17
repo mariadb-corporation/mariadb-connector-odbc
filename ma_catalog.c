@@ -1,23 +1,105 @@
 /************************************************************************************
    Copyright (C) 2021 MariaDB Corporation AB
-   
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
    version 2.1 of the License, or (at your option) any later version.
-   
+
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Library General Public License for more details.
-   
+
    You should have received a copy of the GNU Library General Public
    License along with this library; if not see <http://www.gnu.org/licenses>
-   or write to the Free Software Foundation, Inc., 
+   or write to the Free Software Foundation, Inc.,
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
 
+/*
+ * Group of helper functions to add condition to the query based on SQL_ATTR_METADATA_ID attribute value
+ * Pv - pattern value
+ * Oa - ordinary argument
+ * Id - identifier
+ */
+/* {{{ AddPvCondition */
+static int AddPvCondition(char* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
+{
+  /* We should probably compare to SQL_NTS, and throw error if just < 0, but I think this way it will work just fine */
+  if (len < 0)
+  {
+    return _snprintf(buffer, bufferLen, " LIKE '%s' ", value);
+  }
+  else
+  {
+    return _snprintf(buffer, bufferLen, " LIKE '%.*s' ", len, value);
+  }
+}
+/* }}} */
+
+/* {{{ AddOaCondition */
+static int AddOaCondition(char* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
+{
+  if (len < 0)
+  {
+    return _snprintf(buffer, bufferLen, " = BINARY '%s' ", value);
+  }
+  else
+  {
+    return _snprintf(buffer, bufferLen, " = BINARY '%.*s' ", len, value);
+  }
+}
+/* }}} */
+
+/* {{{ AddIdCondition */
+static int AddIdCondition(char* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
+{
+  if (len < 0)
+  {
+    return _snprintf(buffer, bufferLen, "=%s ", value);
+  }
+  else
+  {
+    return _snprintf(buffer, bufferLen, "=%.*s ", len, value);
+  }
+}
+/* }}} */
+
+/* {{{ AddPvOrIdCondition */
+static int AddPvOrIdCondition(MADB_Stmt* Stmt, char *buffer, size_t bufferLen, char *value, SQLSMALLINT len)
+{
+  SQLUINTEGER MetadataId;
+  Stmt->Methods->GetAttr(Stmt, SQL_ATTR_METADATA_ID, &MetadataId, 0, (SQLINTEGER*)NULL);
+
+  if (MetadataId == SQL_TRUE)
+  {
+    return AddIdCondition(buffer, bufferLen, value, len);
+  }
+  else
+  {
+    return AddPvCondition(buffer, bufferLen, value, len);
+  }
+}
+/* }}} */
+
+/* {{{ AddOaOrIdCondition */
+static int AddOaOrIdCondition(MADB_Stmt* Stmt, char* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
+{
+  SQLUINTEGER MetadataId;
+  Stmt->Methods->GetAttr(Stmt, SQL_ATTR_METADATA_ID, &MetadataId, 0, (SQLINTEGER*)NULL);
+
+  if (MetadataId == SQL_TRUE)
+  {
+    return AddIdCondition(buffer, bufferLen, value, len);
+  }
+  else
+  {
+    return AddOaCondition(buffer, bufferLen, value, len);
+  }
+}
+/* }}} */
 
 /* {{{ MADB_StmtColumnPrivileges */
 SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
@@ -30,33 +112,47 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   /* TableName cannot be NULL, but nothing said it can't be empty string */
-  if (!TableName)
+  if (TableName == NULL)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
   }
 
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
   p= StmtStr;
   p+= _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL as TABLE_SCHEM, TABLE_NAME,"
                                  "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
                                  "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
-  if (CatalogName)
+
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string */
+  if (SchemaName != NULL)
   {
-    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA='%s' ", CatalogName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "0");
   }
   else
   {
-    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA=DATABASE() ");
-  }
-  p += _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA");
+    if (CatalogName)
+    {
+      p+= AddOaOrIdCondition(Stmt, p, 1024 - strlen(StmtStr), CatalogName, NameLength1);
+    }
+    else
+    {
+      p+= _snprintf(p, 1024 - strlen(StmtStr), "=DATABASE() ");
+    }
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME");
+    p+= AddOaOrIdCondition(Stmt, p, 1024 - strlen(StmtStr), TableName, NameLength3);
 
-  if (ColumnName)
-  {
-    p += _snprintf(p, 1024 - strlen(StmtStr), "AND COLUMN_NAME LIKE '%s' ", ColumnName);
-  }
+    if (ColumnName)
+    {
+      p+= _snprintf(p, 1024 - strlen(StmtStr), "AND COLUMN_NAME");
+      p+= AddPvOrIdCondition(Stmt, p, 1024 - strlen(StmtStr), ColumnName, NameLength4);
+    }
 
-  p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
-  
+    p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
+  }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
 }
 /* }}} */
@@ -70,20 +166,32 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
        *p;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
 
   p= StmtStr;
   p += _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                                   "NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE, IS_GRANTABLE "
                                   "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
-  if (CatalogName)
-    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
+
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
+  {
+    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "0");
+  }
   else
-    p+= _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE(), DATABASE(), '%%') ");
-  if (TableName)
-    p+= _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
-  
-  p+= _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
-  
+  {
+    if (CatalogName)
+      p += _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE '%s' ", CatalogName);
+    else
+      p += _snprintf(p, 1024 - strlen(StmtStr), "TABLE_SCHEMA LIKE IF(DATABASE(), DATABASE(), '%%') ");
+    if (TableName)
+      p += _snprintf(p, 1024 - strlen(StmtStr), "AND TABLE_NAME LIKE '%s' ", TableName);
+
+    p += _snprintf(p, 1024 - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
+  }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
 }
 /* }}} */
@@ -115,10 +223,14 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   ADJUST_LENGTH(TableName, TableNameLength);
   ADJUST_LENGTH(TableType, TableTypeLength);
 
+  /* TODO: I guess here we have rather octet lengths, than character. and thus they can be > 64(<64*4). Need to verify */
   if (CatalogNameLength > 64 || TableNameLength > 64)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
+  }
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
   /* SQL_ALL_CATALOGS 
@@ -245,40 +357,48 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
 {
   char StmtStr[1024];
   char *p= StmtStr;
-  
   SQLRETURN ret;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-
   /* TableName is mandatory */
-  if (!TableName || !NameLength3)
+  if (TableName == NULL)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
     return Stmt->Error.ReturnValue;
   }
- 
-  _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
+
+  p+= _snprintf(StmtStr, 1024, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                              "NON_UNIQUE, NULL AS INDEX_QUALIFIER, INDEX_NAME, "
                              "%d AS TYPE, "
                              "SEQ_IN_INDEX AS ORDINAL_POSITION, COLUMN_NAME, COLLATION AS ASC_OR_DESC, "
                              "CARDINALITY, NULL AS PAGES, NULL AS FILTER_CONDITION "
                              "FROM INFORMATION_SCHEMA.STATISTICS ",
                              SQL_INDEX_OTHER);
-  p+= strlen(StmtStr);
-  /* Same comments as for SQLPrimaryKeys including TODOs */
-  if (CatalogName)
-    p+= _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA='%s' ", CatalogName);
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
+  {
+    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "WHERE 0");
+  }
   else
-    p+= _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA=DATABASE() ");
-  
-  if (TableName)
-    p+= _snprintf(p, 1023- strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+  {
+    /* Same comments as for SQLPrimaryKeys including TODOs */
+    if (CatalogName)
+      p += _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA='%s' ", CatalogName);
+    else
+      p += _snprintf(p, 1023 - strlen(StmtStr), "WHERE TABLE_SCHEMA=DATABASE() ");
 
-  if (Unique == SQL_INDEX_UNIQUE)
-    p+= _snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
+    if (TableName)
+      p += _snprintf(p, 1023 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
 
-  _snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
+    if (Unique == SQL_INDEX_UNIQUE)
+      p += _snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
 
+    _snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
+  }
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 
@@ -313,6 +433,10 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 
   MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
 
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
   if (ColumnsPart == NULL)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
@@ -340,37 +464,45 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   ADJUST_LENGTH(TableName, NameLength3);
   ADJUST_LENGTH(ColumnName, NameLength4);
 
-  if(MADB_DynstrAppend(&StmtStr, "TABLE_SCHEMA = "))
-    goto dynerror;
-
-  if (CatalogName)
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
   {
-    if (MADB_DynstrAppend(&StmtStr, "'") ||
-        MADB_DynstrAppendMem(&StmtStr, CatalogName, NameLength1) ||
-        MADB_DynstrAppend(&StmtStr, "' "))
+    if(MADB_DynstrAppend(&StmtStr, "0"))
       goto dynerror;
   }
   else
-    if (MADB_DynstrAppend(&StmtStr, "DATABASE()"))
+  {
+    if (MADB_DynstrAppend(&StmtStr, "TABLE_SCHEMA = "))
       goto dynerror;
 
-  if (TableName && NameLength3)
-    if (MADB_DynstrAppend(&StmtStr, "AND TABLE_NAME LIKE '") ||
+    if (CatalogName)
+    {
+      if (MADB_DynstrAppend(&StmtStr, "'") ||
+        MADB_DynstrAppendMem(&StmtStr, CatalogName, NameLength1) ||
+        MADB_DynstrAppend(&StmtStr, "' "))
+        goto dynerror;
+    }
+    else
+      if (MADB_DynstrAppend(&StmtStr, "DATABASE()"))
+        goto dynerror;
+
+    if (TableName && NameLength3)
+      if (MADB_DynstrAppend(&StmtStr, "AND TABLE_NAME LIKE '") ||
         MADB_DynstrAppendMem(&StmtStr, TableName, NameLength3) ||
         MADB_DynstrAppend(&StmtStr, "' "))
-    goto dynerror;
+        goto dynerror;
 
-  if (ColumnName && NameLength4)
-    if (MADB_DynstrAppend(&StmtStr, "AND COLUMN_NAME LIKE '") ||
+    if (ColumnName && NameLength4)
+      if (MADB_DynstrAppend(&StmtStr, "AND COLUMN_NAME LIKE '") ||
         MADB_DynstrAppendMem(&StmtStr, ColumnName, NameLength4) ||
         MADB_DynstrAppend(&StmtStr, "' "))
-    goto dynerror;
+        goto dynerror;
 
-  if (MADB_DynstrAppend(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION"))
-    goto dynerror;
+    if (MADB_DynstrAppend(&StmtStr, " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION"))
+      goto dynerror;
 
-  MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
-
+    MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
+  }
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
 
   if (SQL_SUCCEEDED(ret))
@@ -386,8 +518,8 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 
 dynerror:
   MADB_FREE(ColumnsPart);
-  MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-  return Stmt->Error.ReturnValue;
+  MADB_DynstrFree(&StmtStr);
+  return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
 }
 /* }}} */
 
@@ -404,6 +536,10 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
   if (!(StmtStr= MADB_CALLOC(Length)))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
@@ -412,27 +548,33 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   p= StmtStr;
 
   p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt), OctetsPerChar);
-  
-  if (CatalogName)
-    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA='%s' ", CatalogName);
-  else
-    p+= _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA LIKE DATABASE() ");
-  if (ProcName && ProcName[0])
-    p+= _snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
-  if (ColumnName)
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
   {
-    if (ColumnName[0])
-    {
-      p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
-    }
-    else
-    {
-      p+= _snprintf(p, Length- strlen(StmtStr), "AND PARAMETER_NAME IS NULL ");
-    }
+    p += _snprintf(p, Length - strlen(StmtStr), "WHERE 0");
   }
-    
-  p+= _snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
+  else
+  {
+    if (CatalogName)
+      p += _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA= BINARY '%s' ", CatalogName);
+    else
+      p += _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA=DATABASE() ");
+    if (ProcName && ProcName[0])
+      p += _snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
+    if (ColumnName)
+    {
+      if (ColumnName[0])
+      {
+        p += _snprintf(p, Length - strlen(StmtStr), "AND PARAMETER_NAME LIKE '%s' ", ColumnName);
+      }
+      else
+      {
+        p += _snprintf(p, Length - strlen(StmtStr), "AND PARAMETER_NAME IS NULL ");
+      }
+    }
 
+    p += _snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
+  }
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 
   MADB_FREE(StmtStr);
@@ -452,10 +594,14 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   /* TableName is mandatory */
-  if (!TableName || !NameLength3)
+  if (TableName == NULL)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
     return Stmt->Error.ReturnValue;
+  }
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
   p= StmtStr;
@@ -463,23 +609,30 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
                            "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
                            "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
                            "COLUMN_KEY = 'pri' AND ");
-  /* Empty catalog name means table without catalog(schema). MariaDB/MySQL do not have such. Thus should be empty resultset.
-     TABLE_SCHEMA='' will do the job. TODO: that can be done without sending query to the server.
-     Catalog(schema) cannot be a search pattern. Thus = and not LIKE here */
-  if (CatalogName)
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
   {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA='%s' ", CatalogName);
+    _snprintf(p, 2048 - strlen(StmtStr), "0");
   }
   else
   {
-    /* If Catalog is NULL we return for current DB. If no schema(aka catalog here) is selected, then that means
-       table without schema. Since we don't have such tables, that means empty resultset.
-       TODO: We should be aboe to construct resultset - empty in this case, avoiding sending query to the server */
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA=DATABASE() ");
+    /* Empty catalog name means table without catalog(schema). MariaDB/MySQL do not have such. Thus should be empty resultset.
+       TABLE_SCHEMA='' will do the job. TODO: that can be done without sending query to the server.
+       Catalog(schema) cannot be a search pattern. Thus = and not LIKE here */
+    if (CatalogName)
+    {
+      p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA='%s' ", CatalogName);
+    }
+    else
+    {
+      /* If Catalog is NULL we return for current DB. If no schema(aka catalog here) is selected, then that means
+         table without schema. Since we don't have such tables, that means empty resultset.
+         TODO: We should be aboe to construct resultset - empty in this case, avoiding sending query to the server */
+      p+= _snprintf(p, 2048 - strlen(StmtStr), "TABLE_SCHEMA=DATABASE() ");
+    }
+    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+    p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
   }
-  p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
-  p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
-
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
 /* }}} */
@@ -497,10 +650,14 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   /* TableName is mandatory */
-  if (!TableName || !NameLength3)
+  if (TableName == NULL)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
     return Stmt->Error.ReturnValue;
+  }
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
   p+= _snprintf(p, 2048, "SELECT NULL AS SCOPE, COLUMN_NAME, %s,"
@@ -517,34 +674,41 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
                            XSTR(SQL_PC_UNKNOWN) " PSEUDO_COLUMN "
                            "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
 
-  if (CatalogName)
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
   {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA='%s' ", CatalogName);
+    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND 0");
   }
   else
   {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA=DATABASE() ");
+    if (CatalogName)
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA='%s' ", CatalogName);
     }
-  if (TableName && TableName[0])
-  {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
-  }
+    else
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_SCHEMA=DATABASE() ");
+    }
+    if (TableName && TableName[0])
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND TABLE_NAME='%s' ", TableName);
+    }
 
-  if (Nullable == SQL_NO_NULLS)
-  {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND IS_NULLABLE <> 'YES' ");
-  }
+    if (Nullable == SQL_NO_NULLS)
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND IS_NULLABLE <> 'YES' ");
+    }
 
-  if (IdentifierType == SQL_BEST_ROWID)
-  {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND COLUMN_KEY IN ('PRI', 'UNI') ");
+    if (IdentifierType == SQL_BEST_ROWID)
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND COLUMN_KEY IN ('PRI', 'UNI') ");
+    }
+    else if (IdentifierType == SQL_ROWVER)
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
+    }
+    p += _snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
   }
-  else if (IdentifierType == SQL_ROWVER)
-  {
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
-  }
-  p+= _snprintf(p, 2048 - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
-
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
 /* }}} */
@@ -558,7 +722,10 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
        *p;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-
+  if (SchemaName != NULL && *SchemaName != '\0')
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
   p= StmtStr;
 
   p+= _snprintf(p, 2048, "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
@@ -571,15 +738,30 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
                            "  ELSE " XSTR(SQL_PT_UNKNOWN) " "
                            "END PROCEDURE_TYPE "
                            "FROM INFORMATION_SCHEMA.ROUTINES ");
-  if (CatalogName && CatalogName[0])
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE '%s' ", CatalogName);
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
+  if (SchemaName != NULL)
+  {
+    p += _snprintf(p, sizeof(StmtStr)- strlen(StmtStr), "WHERE 0");
+  }
   else
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE DATABASE() ");
-  if (ProcName && ProcName[0])
-    p+= _snprintf(p, 2048 - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
-  
-  p+= _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
+  {
+    /* Catalog is ordinary argument, but schema is pattern value. Since we treat is catalog as a schema, using more permissive PV here
+       On other hand we do not do this everywhere. Need to be consistent */
+    if (CatalogName != NULL)
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA LIKE '%s' ", CatalogName);
+    }
+    else
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "WHERE ROUTINE_SCHEMA=DATABASE() ");
+    }
+    if (ProcName != NULL)
+    {
+      p += _snprintf(p, 2048 - strlen(StmtStr), "AND SPECIFIC_NAME LIKE '%s' ", ProcName);
+    }
 
+    p += _snprintf(p, 2048 - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
+  }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
 /* }}} */
@@ -597,21 +779,23 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
+  /* PKTableName and FKTableName are mandatory. The requirement is only about NULL names */
+  if (PKTableName == NULL && FKTableName == NULL)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "PKTableName or FKTableName are required", 0);
+    return Stmt->Error.ReturnValue;
+  }
+  if ((PKSchemaName != NULL && *PKSchemaName != '\0') || (FKSchemaName != NULL && *FKSchemaName != '\0'))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
+  }
+
   ADJUST_LENGTH(PKCatalogName, NameLength1);
   ADJUST_LENGTH(PKSchemaName, NameLength2);
   ADJUST_LENGTH(PKTableName, NameLength3);
   ADJUST_LENGTH(FKCatalogName, NameLength4);
   ADJUST_LENGTH(FKSchemaName, NameLength5);
   ADJUST_LENGTH(FKTableName, NameLength6);
-
-
-
-  /* PKTableName and FKTableName are mandatory */
-  if ((!PKTableName || !NameLength3) && (!FKTableName || !NameLength6))
-  {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "PKTableName or FKTableName are required", 0);
-    return Stmt->Error.ReturnValue;
-  }
 
   /* modified from JDBC driver */
   MADB_InitDynamicString(&StmtStr,
@@ -650,47 +834,56 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
                       " WHERE B.CONSTRAINT_NAME= 'PRIMARY'",
                       8192, 128);
 
-  if (PKTableName && PKTableName[0])
+  /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise error would have been already thrown */
+  if (PKSchemaName != NULL || FKSchemaName != NULL)
   {
-    MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_SCHEMA "); 
-
-    if (PKCatalogName && PKCatalogName[0])
+    MADB_DynstrAppend(&StmtStr, " AND 0");
+  }
+  else
+  {
+    if (PKTableName != NULL)
     {
-      MADB_DynstrAppend(&StmtStr, "LIKE '");
-      mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKCatalogName, MIN(NameLength1, 255));
+      MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_SCHEMA ");
+
+      if (PKCatalogName)
+      {
+        MADB_DynstrAppend(&StmtStr, "= '");
+        mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKCatalogName, MIN(NameLength1, 255));
+        MADB_DynstrAppend(&StmtStr, EscapeBuf);
+        MADB_DynstrAppend(&StmtStr, "' ");
+      }
+      else
+      {
+        MADB_DynstrAppend(&StmtStr, "= DATABASE()");
+      }
+      MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_NAME = '");
+
+      mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKTableName, MIN(255, NameLength3));
       MADB_DynstrAppend(&StmtStr, EscapeBuf);
       MADB_DynstrAppend(&StmtStr, "' ");
     }
-    else 
-      MADB_DynstrAppend(&StmtStr, "= DATABASE()");
-    MADB_DynstrAppend(&StmtStr, " AND A.REFERENCED_TABLE_NAME = '");
 
-    mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, PKTableName, MIN(255, NameLength3));
-    MADB_DynstrAppend(&StmtStr, EscapeBuf);
-    MADB_DynstrAppend(&StmtStr, "' ");
-  }
-
-  if (FKTableName && FKTableName[0])
-  {
-    MADB_DynstrAppend(&StmtStr, " AND A.TABLE_SCHEMA = "); 
-
-    if (FKCatalogName && FKCatalogName[0])
+    if (FKTableName != NULL)
     {
-      MADB_DynstrAppend(&StmtStr, "'");
-      mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKCatalogName, MIN(NameLength4, 255));
+      MADB_DynstrAppend(&StmtStr, " AND A.TABLE_SCHEMA = ");
+
+      if (FKCatalogName != NULL)
+      {
+        MADB_DynstrAppend(&StmtStr, "'");
+        mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKCatalogName, MIN(NameLength4, 255));
+        MADB_DynstrAppend(&StmtStr, EscapeBuf);
+        MADB_DynstrAppend(&StmtStr, "' ");
+      }
+      else
+        MADB_DynstrAppend(&StmtStr, "DATABASE() ");
+      MADB_DynstrAppend(&StmtStr, " AND A.TABLE_NAME = '");
+
+      mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKTableName, MIN(255, NameLength6));
       MADB_DynstrAppend(&StmtStr, EscapeBuf);
       MADB_DynstrAppend(&StmtStr, "' ");
     }
-    else
-      MADB_DynstrAppend(&StmtStr, "DATABASE() ");
-    MADB_DynstrAppend(&StmtStr, " AND A.TABLE_NAME = '");
-
-    mysql_real_escape_string(Stmt->Connection->mariadb, EscapeBuf, FKTableName, MIN(255, NameLength6));
-    MADB_DynstrAppend(&StmtStr, EscapeBuf);
-    MADB_DynstrAppend(&StmtStr, "' ");
+    MADB_DynstrAppend(&StmtStr, "ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ, PKTABLE_NAME");
   }
-  MADB_DynstrAppend(&StmtStr, "ORDER BY FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, KEY_SEQ, PKTABLE_NAME");
-  
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
 
   MADB_DynstrFree(&StmtStr);
