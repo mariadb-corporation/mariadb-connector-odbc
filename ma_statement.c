@@ -98,6 +98,7 @@ SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER Te
       MADB_CLEAR_ERROR(&Stmt->Error);
 
       Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
+      Stmt->Connection->Methods->TrackSession(Stmt->Connection);
     }
     else
     {
@@ -182,7 +183,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         mysql_stmt_free_result(Stmt->stmt);
         LOCK_MARIADB(Stmt->Connection);
         MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
-        mysql_stmt_reset(Stmt->stmt);
+        if (mysql_stmt_more_results(Stmt->stmt))
+        {
+          while (mysql_stmt_next_result(Stmt->stmt) == 0);
+        }
         UNLOCK_MARIADB(Stmt->Connection);
       }
       if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
@@ -194,7 +198,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
           if (Stmt->MultiStmts[i] != NULL)
           {
             MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i], i);
-            mysql_stmt_reset(Stmt->MultiStmts[i]);
+            if (mysql_stmt_more_results(Stmt->MultiStmts[i]))
+            {
+              while (mysql_stmt_next_result(Stmt->MultiStmts[i]) == 0);
+            }
           }
         }
         UNLOCK_MARIADB(Stmt->Connection);
@@ -991,6 +998,7 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     unsigned int ServerStatus;
 
     Stmt->State= MADB_SS_EXECUTED;
+    Stmt->Connection->Methods->TrackSession(Stmt->Connection);
 
     mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
     if (ServerStatus & SERVER_PS_OUT_PARAMS)

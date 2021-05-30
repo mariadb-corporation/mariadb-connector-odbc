@@ -23,8 +23,12 @@
 #define MADB_CAPABLE_EXEC_DIRECT  1
 #define MADB_CAPABLE_PARAM_ARRAYS 2
 #define MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES 4
+#define MADB_MYSQL_TRANSACTION_ISOLATION 8
+#define MADB_SESSION_TRACKING 16
 
-void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion);
+void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char* ServerName);
 BOOL MADB_ServerSupports (MADB_Dbc *Dbc, char Capability);
+const char* MADB_GetTxIsolationQuery(MADB_Dbc* Dbc);
+const char* MADB_GetTxIsolationVarName(MADB_Dbc* Dbc);
 
 #endif

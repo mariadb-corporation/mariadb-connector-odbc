@@ -237,7 +237,7 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
     }
 
     /* If scale >= precision, we still can have no truncation */
-    if (Length > Numeric->precision + 1/*dot*/ && Scale < Numeric->precision)
+    if (Length > (unsigned int)(Numeric->precision + 1)/*dot*/ && Scale < Numeric->precision)
     {
       *ErrorCode= MADB_ERR_01S07;
       Length = Numeric->precision + 1/*dot*/;

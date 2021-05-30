@@ -664,7 +664,7 @@ ODBC_TEST(t_odbc94)
 
 ODBC_TEST(t_odbc115)
 {
-  SQLINTEGER Big;
+  SQLINTEGER Big= 0;
   SQLCHAR Str[8];
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

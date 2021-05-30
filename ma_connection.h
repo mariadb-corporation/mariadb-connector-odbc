@@ -31,7 +31,8 @@ struct st_ma_connection_methods;
 
 struct st_madb_isolation {
   long SqlIsolation;
-  char *StrIsolation;
+  const char *StrIsolation;
+  const char* TrackStr; /* String coming with session tracking */
 };
 
 struct st_ma_connection_methods
@@ -41,23 +42,25 @@ struct st_ma_connection_methods
   SQLRETURN (*ConnectDB)(MADB_Dbc *Connection, MADB_Dsn *Dsn);
   SQLRETURN (*EndTran)(MADB_Dbc *Dbc, SQLSMALLINT CompletionType);
   SQLRETURN (*GetFunctions)(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr);
-  SQLRETURN(*GetInfo)(MADB_Dbc *Dnc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
+  SQLRETURN (*GetInfo)(MADB_Dbc *Dnc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                       SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, my_bool isWChar);
   SQLRETURN (*DriverConnect)(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InConnectionString,
                              SQLULEN StringLength1, SQLCHAR *OutConnectionString,
                              SQLULEN BufferLength, SQLSMALLINT *StringLength2Ptr,
                              SQLUSMALLINT DriverCompletion);
+  SQLRETURN (*GetCurrentDB)(MADB_Dbc* Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT* StringLengthPtr, my_bool isWChar);
+  SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
+  SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLULEN *txIsolation);
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);
 
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
 MADB_Dbc * MADB_DbcInit(MADB_Env *Env);
-SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
-                                SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);
 /* Has platform versions */
 char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size);
+
 
 #define MADB_SUPPORTED_CONVERSIONS  SQL_CVT_BIGINT | SQL_CVT_BIT | SQL_CVT_CHAR | SQL_CVT_DATE |\
                                     SQL_CVT_DECIMAL | SQL_CVT_DOUBLE | SQL_CVT_FLOAT |\

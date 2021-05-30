@@ -23,6 +23,8 @@
  * Pv - pattern value
  * Oa - ordinary argument
  * Id - identifier
+ *
+ * if bufferLen is -1, them buffer is assumed to be the dynamic string. Plain char buffer otherwise
  */
 /* {{{ AddPvCondition */
 static int AddPvCondition(char* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
@@ -228,7 +230,9 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
   }
-  if (SchemaName != NULL && *SchemaName != '\0')
+  /* Schemas are not supported. Thus error except special cases of SQLTables use*/
+  if (SchemaName != NULL && *SchemaName != '\0'
+    && (strcmp(SchemaName, SQL_ALL_SCHEMAS) || CatalogName == NULL || CatalogNameLength != 0 && TableName == NULL || TableNameLength != 0))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -265,11 +269,10 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
                                   "SELECT NULL, NULL, NULL, 'SYSTEM VIEW', NULL FROM DUAL",
                                   8192, 512); 
   }
-  /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%"
-     if that is not the special case of call for schemas list. Otherwise we return empty resultset*/
+  /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%",
+     if that is not the special case of call for schemas list or tables w/out schema(empty string ins schema name) - empty resultsets then. */
   else if (SchemaName &&
-    ((!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0) ||
-      strcmp(SchemaName, SQL_ALL_SCHEMAS)))
+     (!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0 || *SchemaName == '\0'))
   {
     MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
       "NULL AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "

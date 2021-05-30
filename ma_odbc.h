@@ -366,44 +366,46 @@ typedef struct st_client_charset
 
 struct st_ma_odbc_connection
 {
-  MYSQL *mariadb;                /* handle to a mariadb connection */
+  MADB_Error Error;
   CRITICAL_SECTION cs;           /* mutex for mariadb handle, i.e. for server communications */
   CRITICAL_SECTION ListsCs;      /*       for operations with lists */
+  MADB_List ListItem;
+  Client_Charset Charset;
+  MYSQL *mariadb;                /* handle to a mariadb connection */
   MADB_Env *Environment;         /* global environment */
   MADB_Dsn *Dsn;
   struct st_ma_connection_methods *Methods;
-  MADB_Error Error;
 
-  Client_Charset Charset;
   Client_Charset *ConnOrSrcCharset; /* "Source" here stands for which charset Windows DM was using as source, when converted to unicode.
                                   We have to use same charset to recode from unicode to get same string as application sent it.
                                   For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system codepage */
-  char *DataBase;
-  MADB_List ListItem;
+  char *CurrentSchema; /* Used to store current schema if the seesion tracking is possible */
   MADB_List *Stmts;
   MADB_List *Descrs;
   /* Attributes */
-  SQLINTEGER AccessMode;
-  my_bool IsAnsi;
-  SQLINTEGER IsolationLevel;     /* tx_isolation */
+  char *CatalogName;
+  HWND QuietMode;
+  char *TraceFile;
+
   SQLULEN AsyncEnable;
+  SQLPOINTER EnlistInDtc;
+  SQLULEN OdbcCursors;
+  unsigned long Options;
   SQLUINTEGER AutoIpd;
   SQLUINTEGER AutoCommit;
   SQLUINTEGER ConnectionDead;
   SQLUINTEGER ConnectionTimeout;
-  unsigned long Options;
-  char *CatalogName;
-  SQLPOINTER EnlistInDtc;
+  SQLUINTEGER PacketSize;
+  SQLINTEGER AccessMode;
+  SQLINTEGER IsolationLevel;     /* tx_isolation */
+  SQLUINTEGER Trace;
   SQLUINTEGER LoginTimeout;
   SQLUINTEGER MetadataId;
-  SQLULEN OdbcCursors;
-  SQLUINTEGER PacketSize;
-  HWND QuietMode;
-  SQLUINTEGER Trace;
-  char *TraceFile;
   SQLINTEGER TxnIsolation;
   SQLINTEGER CursorCount;
   char ServerCapabilities;
+  my_bool IsAnsi;
+  my_bool IsMySQL;
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);

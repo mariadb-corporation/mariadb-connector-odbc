@@ -129,7 +129,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
      Thus we free-ing bind structs on move to new result only */
   MADB_FREE(Stmt->result);
 
-  if (Stmt->MultiStmts)
+  if (Stmt->MultiStmts && !mysql_stmt_more_results(Stmt->stmt))
   {
     if (Stmt->MultiStmtNr == STMT_COUNT(Stmt->Query) - 1)
     {
@@ -172,6 +172,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
       {
         Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
       }
+      Stmt->Connection->Methods->TrackSession(Stmt->Connection);
       UNLOCK_MARIADB(Stmt->Connection);
     }
     return ret;
@@ -192,7 +193,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     UNLOCK_MARIADB(Stmt->Connection);
     return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
-  
+  Stmt->Connection->Methods->TrackSession(Stmt->Connection);
   MADB_StmtResetResultStructures(Stmt);
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)

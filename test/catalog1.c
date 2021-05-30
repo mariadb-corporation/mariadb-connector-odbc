@@ -812,13 +812,14 @@ ODBC_TEST(t_sqltables)
   is_num(Rows, rowCount);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"TEST", SQL_NTS,
+  /* Schemas are not supported, thus error should be thrown */
+  EXPECT_STMT(Stmt1, SQLTables(Stmt1, (SQLCHAR *)"TEST", SQL_NTS,
                  (SQLCHAR *)"TEST", SQL_NTS, NULL, 0,
-                 (SQLCHAR *)"TABLE", SQL_NTS));
+                 (SQLCHAR *)"TABLE", SQL_NTS), SQL_ERROR);
+  //is_num(my_print_non_format_result(Stmt1), 0);
+  CHECK_SQLSTATE(Stmt1, "HYC00");
 
-  is_num(my_print_non_format_result(Stmt1), 0);
-
-  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, (SQLCHAR *)"%", SQL_NTS, NULL, 0, NULL, 0));
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, "", 0, (SQLCHAR *)"%", SQL_NTS, "", 0, NULL, 0));
 
   diag("all schemas %d", myrowcount(Stmt1));
 

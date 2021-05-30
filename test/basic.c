@@ -1415,7 +1415,8 @@ ODBC_TEST(t_odbc69)
   return OK;
 }
 
-/* If connection handle re-used, it would try to select database used in previous connection */
+/* If connection handle re-used, it would try to select database used in previous connection.
+   Additionnaly tests if "manual" changes of schema by application are detected(with session tracking) */
 ODBC_TEST(t_odbc91)
 {
   HDBC      hdbc;
@@ -1426,15 +1427,33 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS t_odbc91");
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
 
-  /* Connecting to newly created tatabase */
+  /* Connecting to newly created tatabase. Need multistatement allowed for some tests */
   sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=%lu;SERVER=%s;%s",
-    my_dsn, my_uid, my_pwd, "t_odbc91", my_options, my_servername, ma_strport);
+    my_dsn, my_uid, my_pwd, "t_odbc91", my_options | 67108864, my_servername, ma_strport);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc));
 
   CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, "t_odbc91", sizeof("t_odbc91"));
+  /* Checking if selescting schema with USE is reflected by SQLGetConnectAttr.
+     Re-using conn_out buffer here, as it is > NAME_LEN + "USE " and harmless to reuse */
+  sprintf(conn_out, "USE %s", my_schema);
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
+  OK_SIMPLE_STMT(hstmt, conn_out);
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, my_schema, strlen(my_schema));
+
+  /* No checking the same if changing schema is part ot a batch */
+  sprintf(conn_out, "USE t_odbc91;USE %s", my_schema);
+  OK_SIMPLE_STMT(hstmt, conn_out);
+  /* Session tracked after result is read */
+  CHECK_STMT_RC(hstmt, SQLMoreResults(hstmt));
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, my_schema, strlen(my_schema));
 
   CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
 

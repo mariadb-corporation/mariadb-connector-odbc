@@ -29,18 +29,17 @@
 extern Client_Charset utf8;
 char LogFile[256];
 
-char *strndup(const char *s, size_t n)
+char* strndup(const char *s, size_t n)
 {
   char *res= NULL;
 
   if (s != NULL)
   {
-    size_t len= MIN(strlen(s), n);
-    res= (char*)malloc(len + 1);
+    res= (char*)malloc(n + 1);
     if (res != NULL)
     {
-      memcpy(res, s, len);
-      res[len]= '\0';
+      memcpy(res, s, n);
+      res[n]= '\0';
     }
   }
 

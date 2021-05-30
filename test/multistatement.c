@@ -655,6 +655,74 @@ ODBC_TEST(t_odbc219)
   return OK;
 }
 
+/* As part of ODBC-313 - if multistmt is allowed, all queries run at connect time are assembled in single batch.
+   This test verifies, that all is fine in this case */
+ODBC_TEST(test_autocommit)
+{
+  SQLHDBC Dbc;
+  SQLHSTMT Stmt;
+  SQLUINTEGER ac;
+  unsigned long noMsOptions= my_options & (~67108864);
+  SQLCHAR tracked[256];
+  SQLRETURN rc;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Dbc));
+  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+  /* First testing with multistatements off */
+  Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, &noMsOptions, NULL, "INITSTMT={SELECT 1}");
+  FAIL_IF(Stmt == NULL, "Connection error");
+
+  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  is_num(ac, SQL_AUTOCOMMIT_ON);
+  OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
+
+  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF));
+
+  Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
+  FAIL_IF(Stmt == NULL, "Connection error");
+
+  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  is_num(ac, SQL_AUTOCOMMIT_OFF);
+  OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 0);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  if (SQL_SUCCEEDED(SQLExecDirect(Stmt, "SELECT @@session_track_system_variables", SQL_NTS)))
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, tracked, sizeof(tracked), NULL));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+    OK_SIMPLE_STMT(Stmt, "SET autocommit=1;");
+    CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+    is_num(ac, SQL_AUTOCOMMIT_ON);
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
+
+  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+
+  Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
+  FAIL_IF(Stmt == NULL, "Connection error");
+
+  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  is_num(ac, SQL_AUTOCOMMIT_ON);
+  OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
+  CHECK_DBC_RC(Dbc, SQLFreeConnect(Dbc));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -672,6 +740,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc177, "t_odbc177"},
   {t_odbc169, "t_odbc169"},
   {t_odbc219, "t_odbc219"},
+  {test_autocommit, "test_autocommit"},
   {NULL, NULL}
 };
 
