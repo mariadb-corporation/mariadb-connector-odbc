@@ -132,7 +132,7 @@ SQLUSMALLINT MADB_supported_api[]=
 
 struct st_ma_connection_methods MADB_Dbc_Methods; /* declared at the end of file */
 SQLRETURN MADB_DbcDummyTrackSession(MADB_Dbc* Dbc);
-SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLULEN *txIsolation);
+SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER*txIsolation);
 
 
 my_bool CheckConnection(MADB_Dbc *Dbc)
@@ -374,9 +374,10 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= 0;
     break;
   case SQL_ATTR_METADATA_ID:
+    /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
-    *(SQLINTEGER *)ValuePtr= SQL_CUR_USE_ODBC;
+    *(SQLULEN*)ValuePtr= SQL_CUR_USE_ODBC;
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
@@ -386,11 +387,13 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     {
       unsigned long packet_size= 0;
       mysql_get_option(Dbc->mariadb, MYSQL_OPT_NET_BUFFER_LENGTH, &packet_size);
-      *(SQLINTEGER *)ValuePtr= (SQLINTEGER)packet_size;
+      *(SQLUINTEGER *)ValuePtr= (SQLUINTEGER)packet_size;
     }
     break;
   case SQL_ATTR_QUIET_MODE:
-    Dbc->QuietMode= (HWND)ValuePtr;
+#ifdef _WIN32
+  (HWND)ValuePtr= Dbc->QuietMode;
+#endif // _WIN32
     break;
   case SQL_ATTR_TRACE:
     break;
@@ -408,11 +411,11 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       Dbc->TxnIsolation= SQL_TRANSACTION_REPEATABLE_READ;
       if (Dbc->mariadb)
       {
-        Dbc->Methods->GetTxIsolation(Dbc, (SQLULEN *)ValuePtr);
+        Dbc->Methods->GetTxIsolation(Dbc, (SQLINTEGER*)ValuePtr);
       }
     }
     else 
-      *(SQLULEN *)ValuePtr= Dbc->TxnIsolation;
+      *(SQLINTEGER*)ValuePtr= Dbc->TxnIsolation;
     break;
 
   default:
@@ -606,19 +609,23 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
 
 /* {{{ MADB_AddInitCommand
 */
-static MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned long MultiStmtAllowed, const char *StmtToAdd)
+static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned long MultiStmtAllowed, const char *StmtToAdd)
 {
   if (MultiStmtAllowed == 0)
   {
     mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, StmtToAdd);
+    return 0;
   }
   else
   {
     if (InitCmd->length != 0)
     {
-      MADB_DynstrAppendMem(InitCmd, ";", 1);
+      if (MADB_DynstrAppendMem(InitCmd, ";", 1))
+      {
+        return 1;
+      }
     }
-    MADB_DynstrAppend(InitCmd, StmtToAdd);
+    return MADB_DynstrAppend(InitCmd, StmtToAdd);
   }
 }
 /* }}} */
@@ -2110,7 +2117,7 @@ SQLRETURN MADB_DbcDummyTrackSession(MADB_Dbc* Dbc)
 /* {{{ MADB_DbcGetTrackedTxIsolatin
    
 */
-SQLRETURN MADB_DbcGetTrackedTxIsolatin(MADB_Dbc* Dbc, SQLULEN *txIsolation)
+SQLRETURN MADB_DbcGetTrackedTxIsolatin(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
 {
   MADB_CLEAR_ERROR(&Dbc->Error);
 
@@ -2123,7 +2130,7 @@ SQLRETURN MADB_DbcGetTrackedTxIsolatin(MADB_Dbc* Dbc, SQLULEN *txIsolation)
 /* {{{ MADB_DbcGetServerTxIsolation
    
 */
-SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLULEN* txIsolation)
+SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
 {
   MYSQL_RES* result;
   MYSQL_ROW row;

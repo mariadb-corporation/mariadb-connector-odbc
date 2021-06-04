@@ -2298,6 +2298,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLULEN *)ValuePtr= Stmt->Options.MaxRows;
     break;
   case SQL_ATTR_METADATA_ID:
+    /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLULEN *)ValuePtr= Stmt->Options.MetadataId;
     break;
   case SQL_ATTR_NOSCAN:

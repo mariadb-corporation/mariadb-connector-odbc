@@ -140,7 +140,8 @@ ODBC_TEST(t_tran)
 */
 ODBC_TEST(t_isolation)
 {
-  SQLLEN isolation;
+  /* SQL_ATTR_TXN_ISOLATION is in fact 32bit bitmap, according to specs */
+  SQLINTEGER isolation= 0;
   SQLCHAR tx_isolation[200];
 
   /* Check that the default is REPEATABLE READ. */

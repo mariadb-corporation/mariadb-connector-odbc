@@ -64,6 +64,9 @@ my_bool MADB_DynstrAppendMem(MADB_DynString *str, const char *append,
 void MADB_DynstrFree(MADB_DynString *str);
 char *MADB_DynstrMake(register char *dst, register const char *src, size_t length);
 
+/* Helper-macro to slightly optimize appending of constant strings */
+#define MADB_DYNAPPENDCONST(DYNSTR, LITERALCONST) MADB_DynstrAppendMem(DYNSTR, LITERALCONST, sizeof(LITERALCONST) - 1)
+
 /************* MADB_DynArray - Arrays that can grow dynamicly. **************/
 typedef struct ma_odbc_st_dynarr {
   char *buffer;

@@ -338,9 +338,9 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
   
   MADB_InitDynamicString(&DynStr, "SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='", 512, 512);
   if (MADB_DynstrAppend(&DynStr, fields[0].db) ||
-      MADB_DynstrAppend(&DynStr, "' AND TABLE_NAME='") ||
+      MADB_DYNAPPENDCONST(&DynStr, "' AND TABLE_NAME='") ||
       MADB_DynstrAppend(&DynStr, fields[0].org_table) ||
-      MADB_DynstrAppend(&DynStr, "' AND COLUMN_NAME IN ("))
+      MADB_DYNAPPENDCONST(&DynStr, "' AND COLUMN_NAME IN ("))
     goto error;
 
   for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
@@ -358,7 +358,7 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
       goto error;
     }
   }
-  if (MADB_DynstrAppend(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
+  if (MADB_DYNAPPENDCONST(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
     goto error;
 
   LOCK_MARIADB(Stmt->Connection);

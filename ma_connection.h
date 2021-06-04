@@ -50,7 +50,7 @@ struct st_ma_connection_methods
                              SQLUSMALLINT DriverCompletion);
   SQLRETURN (*GetCurrentDB)(MADB_Dbc* Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT* StringLengthPtr, my_bool isWChar);
   SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
-  SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLULEN *txIsolation);
+  SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLINTEGER* txIsolation);
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);
