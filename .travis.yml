@@ -16,6 +16,8 @@ before_install:
 matrix:
   allow_failures:
     - os: linux
+      env: DB=build:10.6
+    - os: linux
       env: DB=mariadb:10.5 PACKET=8M MAXSCALE_VERSION=2.5.3
     - os: linux
       env: DB=build
