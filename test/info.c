@@ -750,6 +750,23 @@ ODBC_TEST(odbc143)
   return OK;
 }
 
+/**
+  Test of connect attributes that used to be treated as wrong data type.
+  SQL_ATTR_TXN_ISOLATION aslo had issue, but it is already cared of by other test
+*/
+ODBC_TEST(odbc317)
+{
+  const SQLULEN init= sizeof(SQLULEN)==8 ? 0xcacacacacacacaca : 0; //on 32 bit it's the same size with SQLUINTEGER, thus nothing to test
+  SQLULEN lenAttr= init;
+  /*SQLINTEGER intAttr= 0xacacacac;*/
+
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_ODBC_CURSORS, &lenAttr,
+    SQL_IS_UINTEGER, NULL));
+  is_num(lenAttr, SQL_CUR_USE_DRIVER);
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -772,6 +789,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc123odbc277, "odbc123_catalog_start_odbc277", NORMAL },
   { odbc109, "odbc109_shema_owner_term", NORMAL },
   { odbc143, "odbc143_odbc160_ANSI_QUOTES", NORMAL },
+  { odbc317, "odbc317_conattributes", NORMAL },
   { NULL, NULL }
 };
 
