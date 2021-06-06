@@ -77,6 +77,7 @@ MADB_DsnKey DsnKeys[]=
   {"TLSKEYPWD",      offsetof(MADB_Dsn, TlsKeyPwd),         DSN_TYPE_STRING, 0, 0},
   {"INTERACTIVE",    offsetof(MADB_Dsn, InteractiveClient), DSN_TYPE_BOOL,   0, 0},
   {"FORWARDONLY",    offsetof(MADB_Dsn, ForceForwardOnly),  DSN_TYPE_OPTION, MADB_OPT_FLAG_FORWARD_CURSOR, 0},
+  {"SCHEMANOERROR",  offsetof(MADB_Dsn, NeglectSchemaParam),DSN_TYPE_BOOL,   0, 0},
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},

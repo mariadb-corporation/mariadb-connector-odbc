@@ -135,6 +135,8 @@ static int AddOaOrIdCondition(MADB_Stmt* Stmt, void* buffer, size_t bufferLen, c
 }
 /* }}} */
 
+#define SCHEMA_PARAMETER_ERRORS_ALLOWED(STMT) ((STMT)->Connection->Dsn->NeglectSchemaParam == 0)
+
 /* {{{ MADB_StmtColumnPrivileges */
 SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
                                     char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
@@ -150,8 +152,8 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
   }
-
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -161,7 +163,7 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
                                  "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string */
-  if (SchemaName != NULL)
+  if (SchemaName != NULL && *SchemaName == '\0')
   {
     p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "0");
   }
@@ -200,7 +202,8 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
        *p;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && NameLength2 > 1 && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -211,7 +214,7 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
                                   "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
-  if (SchemaName != NULL)
+  if (SchemaName != NULL && *SchemaName == '\0')
   {
     p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "0");
   }
@@ -270,8 +273,10 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
   }
   /* Schemas are not supported. Thus error except special cases of SQLTables use*/
-  if (SchemaName != NULL && *SchemaName != '\0'
-    && (strcmp(SchemaName, SQL_ALL_SCHEMAS) || CatalogName == NULL || CatalogNameLength != 0 && TableName == NULL || TableNameLength != 0))
+
+  if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && SchemaNameLength > 1
+    && (strcmp(SchemaName, SQL_ALL_SCHEMAS) || CatalogName == NULL || CatalogNameLength != 0 && TableName == NULL || TableNameLength != 0)
+    && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -396,7 +401,8 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
     return Stmt->Error.ReturnValue;
   }
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -470,8 +476,8 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 && Stmt->Connection->Charset.cs_info->char_maxlen < 10 ? Stmt->Connection->Charset.cs_info->char_maxlen : 1;
 
   MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
-
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && NameLength2 > 1 && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -498,12 +504,11 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
     goto dynerror;
 
   ADJUST_LENGTH(CatalogName, NameLength1);
-  ADJUST_LENGTH(SchemaName, NameLength2);
   ADJUST_LENGTH(TableName, NameLength3);
   ADJUST_LENGTH(ColumnName, NameLength4);
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
-  if (SchemaName != NULL)
+  if (SchemaName != NULL && *SchemaName == '\0')
   {
     if(MADB_DynstrAppend(&StmtStr, "0"))
       goto dynerror;
@@ -580,7 +585,8 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && NameLength2 > 1 && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -593,7 +599,7 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 
   p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt), OctetsPerChar);
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
-  if (SchemaName != NULL)
+  if (SchemaName != NULL && *SchemaName == '\0')
   {
     p += _snprintf(p, Length - strlen(StmtStr), "WHERE 0");
   }
@@ -648,7 +654,8 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
     return Stmt->Error.ReturnValue;
   }
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -706,7 +713,8 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "Tablename is required", 0);
     return Stmt->Error.ReturnValue;
   }
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -775,7 +783,8 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
        *p;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-  if (SchemaName != NULL && *SchemaName != '\0')
+  ADJUST_LENGTH(SchemaName, NameLength2);
+  if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && NameLength2 > 1 && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
@@ -792,7 +801,7 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
                            "END PROCEDURE_TYPE "
                            "FROM INFORMATION_SCHEMA.ROUTINES ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
-  if (SchemaName != NULL)
+  if (SchemaName != NULL && *SchemaName == '\0')
   {
     p += _snprintf(p, sizeof(StmtStr)- strlen(StmtStr), "WHERE 0");
   }
@@ -839,16 +848,18 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "PKTableName or FKTableName are required", 0);
     return Stmt->Error.ReturnValue;
   }
-  if ((PKSchemaName != NULL && *PKSchemaName != '\0') || (FKSchemaName != NULL && *FKSchemaName != '\0'))
+  ADJUST_LENGTH(PKSchemaName, NameLength2);
+  ADJUST_LENGTH(FKSchemaName, NameLength5);
+  if (((PKSchemaName != NULL && *PKSchemaName != '\0') || (FKSchemaName != NULL && *FKSchemaName != '\0')) &&
+    SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
   ADJUST_LENGTH(PKCatalogName, NameLength1);
-  ADJUST_LENGTH(PKSchemaName, NameLength2);
   ADJUST_LENGTH(PKTableName, NameLength3);
   ADJUST_LENGTH(FKCatalogName, NameLength4);
-  ADJUST_LENGTH(FKSchemaName, NameLength5);
+
   ADJUST_LENGTH(FKTableName, NameLength6);
 
   /* modified from JDBC driver */

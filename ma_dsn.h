@@ -95,28 +95,20 @@ extern const char TlsVersionBits[3];
 
 typedef struct st_madb_dsn
 {
+  /* TODO: Does it really matter to keep this array in the DSN structure? */
+  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
   /*** General ***/
   char    *DSNName;
   char    *Driver;
   char    *Description;
   /*** Connection parameters ***/
   char    *ServerName;
-  my_bool IsNamedPipe;
-  my_bool IsTcpIp;
   char    *UserName;
   char    *Password;
   char    *Catalog;
-  unsigned int Port;
-  /* Options */
-  unsigned int Options;
   char *CharacterSet;
   char *InitCommand;
   char *TraceFile;
-  unsigned int ConnectionTimeout;
-  my_bool Reconnect;
-  my_bool MultiStatements;
-  /* TRUE means "no prompt" */
-  my_bool ConnectPrompt;
   char *Socket;
   char *ConnCPluginsDir;
   /* SSL Settings */
@@ -130,23 +122,35 @@ typedef struct st_madb_dsn
   char *TlsPeerFp;
   char *TlsPeerFpList;
   char *TlsKeyPwd;
+  char* ServerKey;
+  char* SaveFile;
+  /* --- Internal --- */
+  MADB_DsnKey* Keys;
+  /* Callbacke required for prompt to keep all memory de/allocation operations
+     on same side of libraries */
+  char* (*allocator)(size_t);
+  void (*free)(void*);
+  int isPrompt;
+  /* Internal - end */
+  unsigned int Port;
+  /* Options */
+  unsigned int Options;
+  unsigned int ConnectionTimeout;
+  my_bool Reconnect;
+  my_bool MultiStatements;
+  /* TRUE means "no prompt" */
+  my_bool ConnectPrompt;
+  my_bool IsNamedPipe;
+  my_bool IsTcpIp;
   my_bool SslVerify;
   char TlsVersion;
   my_bool ForceTls;
-  char *ServerKey;
-  char *SaveFile;
   my_bool ReadMycnf;
   my_bool InteractiveClient;
   my_bool ForceForwardOnly;
-  /* --- Internal --- */
-  int isPrompt;
-  MADB_DsnKey *Keys;
-  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
+  my_bool NeglectSchemaParam;
+  /* Internal */
   my_bool FreeMe;
-  /* Callbacke required for prompt to keep all memory de/allocation operations
-     on same side of libraries */
-  char * (*allocator)(size_t);
-  void (*free)(void*);
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */

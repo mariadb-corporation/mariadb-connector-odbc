@@ -85,6 +85,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[16], 2, cbCharset,            0, 0},
   {&DsnKeys[34], 2, txtServerKey,       260, 0},
   {&DsnKeys[18], 3, txtPluginDir,       260, 0},
+  {&DsnKeys[38], 3, ckSchParamNoError,    0, 0},
   {&DsnKeys[19], 4, txtSslKey,          260, 0},
   {&DsnKeys[20], 4, txtSslCert,         260, 0},
   {&DsnKeys[21], 4, txtSslCertAuth,     260, 0},

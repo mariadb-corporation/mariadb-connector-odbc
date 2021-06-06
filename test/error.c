@@ -799,7 +799,26 @@ ODBC_TEST(t_odbc316)
   CHECK_SQLSTATE(Stmt, "HYC00");
   EXPECT_STMT(Stmt, SQLTables(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0), SQL_ERROR);
   CHECK_SQLSTATE(Stmt, "HYC00");
-
+  {
+    SQLHANDLE hdbc, hstmt;
+    AllocEnvConn(&Env, &hdbc);
+    hstmt = DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, "SCHEMANOERROR=1");
+    CHECK_STMT_RC(hstmt, SQLColumnPrivileges(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLColumns(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLForeignKeys(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+      NULL, SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLForeignKeys(hstmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
+      (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLPrimaryKeys(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLProcedureColumns(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLProcedures(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLSpecialColumns(hstmt, SQL_BEST_ROWID, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS,
+      (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+    CHECK_STMT_RC(hstmt, SQLStatistics(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS,
+      SQL_INDEX_ALL, SQL_QUICK));
+    CHECK_STMT_RC(hstmt, SQLTablePrivileges(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLTables(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0));
+  }
   return OK;
 }
 
