@@ -6,6 +6,7 @@ addons:
     - mariadb.example.com
 
 before_install:
+  - chmod +x .travis/s390x.sh
   - chmod 777 .travis/build/
   - export PROJ_PATH=`pwd`
   - export ENTRYPOINT=$PROJ_PATH/.travis/sql
@@ -68,9 +69,12 @@ matrix:
       env: DB=mysql:5.6
     - os: linux
       env: DB=mysql:5.7
+    - os: linux
+      arch: s390x
 
 script:
   - if [[ "$DB" == build* ]] ; then .travis/build/build.sh; fi
   - if [[ "$DB" == build* ]] ; then docker build -t build:10.6 --label build .travis/build/; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] ; then .travis/script.sh; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$TRAVIS_ARCH" != "s390x" ] ; then .travis/script.sh; fi
+  - if [ "$TRAVIS_ARCH" = "s390x" ]; then .travis/s390x.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then .travis/osx.sh; fi
