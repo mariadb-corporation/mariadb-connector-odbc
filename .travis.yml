@@ -76,5 +76,5 @@ script:
   - if [[ "$DB" == build* ]] ; then .travis/build/build.sh; fi
   - if [[ "$DB" == build* ]] ; then docker build -t build:10.6 --label build .travis/build/; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$TRAVIS_ARCH" != "s390x" ] ; then .travis/script.sh; fi
-  - if [ "$TRAVIS_ARCH" = "s390x" ]; then .travis/s390x.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then .travis/osx.sh; fi
+  - if [ "$TRAVIS_ARCH" = "s390x" ]; then .travis/s390x.sh; fi
