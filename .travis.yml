@@ -71,8 +71,7 @@ matrix:
       env: DB=mysql:5.7
     - os: linux
       arch: s390x
-      dist: focal
-
+      
 script:
   - if [[ "$DB" == build* ]] ; then .travis/build/build.sh; fi
   - if [[ "$DB" == build* ]] ; then docker build -t build:10.6 --label build .travis/build/; fi
