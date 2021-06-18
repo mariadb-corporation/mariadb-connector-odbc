@@ -3,8 +3,9 @@
 set -x
 set -e
 
+DEBIAN_FRONTEND=noninteractive sudo apt-get remove -y --purge mysql*
 DEBIAN_FRONTEND=noninteractive sudo apt-get update
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -y mariadb-server-10.3 unixodbc-dev git cmake gcc libssl-dev tar curl libcurl4-openssl-dev libkrb5-dev 
+DEBIAN_FRONTEND=noninteractive sudo apt-get install -y mariadb-server unixodbc-dev git cmake gcc libssl-dev tar curl libcurl4-openssl-dev libkrb5-dev 
 
 sudo service mysql start
 sudo ln -s /var/run/mysqld/mysqld.sock /tmp/mysql.sock
