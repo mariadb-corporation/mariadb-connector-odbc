@@ -971,6 +971,7 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   /**************************** mysql_stmt_bind_param **********************************/
   if (ExecDirect)
   {
+    /* Use datatype same as MYSQL_STMT->prebind_param */ 
     unsigned int pCount = (unsigned int)Stmt->ParamCount;
     mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_PREBIND_PARAMS, &pCount);
   }
