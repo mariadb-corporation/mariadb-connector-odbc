@@ -325,7 +325,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   else
   {
     MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
-                                  "if(TABLE_TYPE='BASE TABLE','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
+                                  "if(TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='SYSTEM VERSIONED','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
                                   "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
                                   8192, 512);
 
@@ -355,7 +355,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
         if (strstr(TableType, myTypes[i]))
         {
           if (strstr(myTypes[i], "TABLE"))
-            MADB_DYNAPPENDCONST(&StmtStr, ", 'BASE TABLE'");
+            MADB_DYNAPPENDCONST(&StmtStr, ", 'BASE TABLE', 'SYSTEM VERSIONED'");
           else
           {
             MADB_DYNAPPENDCONST(&StmtStr, ", '");

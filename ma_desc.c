@@ -506,8 +506,6 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
   MADB_FixDisplaySize(Record, &cs);
   MADB_FixDataSize(Record, &cs);
     
-  /*Record->TypeName= strdup(MADB_GetTypeName(Fields[i]));*/
-
   switch(Record->ConciseType) {
   case SQL_BINARY:
   case SQL_VARBINARY:

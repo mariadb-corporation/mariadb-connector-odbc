@@ -1763,6 +1763,30 @@ ODBC_TEST(odbc316)
 }
 
 
+ODBC_TEST(odbc324)
+{
+  SQLCHAR tableType[32];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc324");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc324 (id int not null) WITH SYSTEM VERSIONING");
+
+  /* It doesn't matter if we call SQLColumns or SQLColumnsW */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, my_schema, SQL_NTS, NULL, 0,
+    "t_odbc324", SQL_NTS, "TABLE,VIEW", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR("TABLE", my_fetch_str(Stmt, tableType, 4), sizeof("TABLE"));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc324");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1790,6 +1814,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc231, "odbc231_sqlcolumns_longtext",      NORMAL},
   {odbc313, "odbc313_no_patterns_for_sqlpkeys", NORMAL},
   {odbc316, "odbc316_empty_string_parameters",  NORMAL},
+  {odbc324, "odbc324_sqltables_versioned_table",NORMAL},
   {NULL, NULL}
 };
 
