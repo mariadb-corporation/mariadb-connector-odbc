@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2020 MariaDB Corporation AB
+                2013, 2021 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -767,6 +767,52 @@ ODBC_TEST(odbc317)
   return OK;
 }
 
+
+/* ODBC-326 Connecting Excel with MariaDB through Microsoft Query - String data right truncated
+   The problem occured in the SQLGetInfo call when one of fetches returned SQL_SUCCESS_WITH_INFO
+   because of incorrectly detected truncation
+ */
+ODBC_TEST(odbc326)
+{
+  SQLLEN len[7]= {0,0,0,0,0,0,0};
+  SQLSMALLINT col2, col9, col15, col7;
+  /* This are expected ODBCv3 type results */
+  const SQLSMALLINT ref2[]= {SQL_BIT, SQL_BIT, SQL_TINYINT, SQL_TINYINT, SQL_BIGINT, SQL_BIGINT, SQL_LONGVARBINARY,
+    SQL_LONGVARBINARY, SQL_LONGVARBINARY, SQL_LONGVARBINARY, SQL_LONGVARBINARY, SQL_VARBINARY, SQL_BINARY, SQL_LONGVARCHAR ,
+    SQL_LONGVARCHAR, SQL_LONGVARCHAR, SQL_LONGVARCHAR, SQL_LONGVARCHAR, SQL_CHAR, SQL_NUMERIC, SQL_DECIMAL,
+    SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_SMALLINT, SQL_SMALLINT,
+    SQL_FLOAT, SQL_DOUBLE, SQL_DOUBLE, SQL_DOUBLE, SQL_VARCHAR, SQL_VARCHAR, SQL_VARCHAR, SQL_TYPE_DATE, SQL_TYPE_TIME,
+    SQL_TYPE_TIMESTAMP, SQL_TYPE_TIMESTAMP, SQL_WCHAR, SQL_WVARCHAR, SQL_WLONGVARCHAR};
+  SQLINTEGER col3;
+  SQLCHAR col4[128], col5[128];
+  SQLRETURN rc;
+  unsigned int i= 0;
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_ALL_TYPES));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_DEFAULT, (SQLPOINTER)&col2, 2, &len[0]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, (SQLPOINTER)col4, 128, &len[1]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_CHAR, (SQLPOINTER)col5, 128, &len[2]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 9, SQL_C_DEFAULT, (SQLPOINTER)&col9, 2, &len[3]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_DEFAULT, (SQLPOINTER)&col3, 4, &len[4]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 15, SQL_C_DEFAULT, (SQLPOINTER)&col15, 2, &len[5]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 7, SQL_C_DEFAULT, (SQLPOINTER)&col7, 2, &len[6]));
+
+  while ((rc = SQLFetch(Stmt)) == SQL_SUCCESS)
+  {
+    IS(i < sizeof(ref2)/sizeof(SQLSMALLINT));
+    is_num(col2, ref2[i]);
+    ++i;
+  }
+  
+  EXPECT_STMT(Stmt, rc, SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -790,6 +836,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc109, "odbc109_shema_owner_term", NORMAL },
   { odbc143, "odbc143_odbc160_ANSI_QUOTES", NORMAL },
   { odbc317, "odbc317_conattributes", NORMAL },
+  { odbc326, "odbc326", NORMAL },
   { NULL, NULL }
 };
 

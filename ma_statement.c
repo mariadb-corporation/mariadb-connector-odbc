@@ -1539,6 +1539,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
 
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); ++i)
   {
+    SQLSMALLINT ConciseType;
     ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (ArdRec == NULL || !ArdRec->inUse)
     {      
@@ -1565,7 +1566,12 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
     /* We can't use application's buffer directly, as it has/can have different size, than C/C needs */
     Stmt->result[i].length= &Stmt->result[i].length_value;
 
-    switch(ArdRec->ConciseType) {
+    ConciseType= ArdRec->ConciseType;
+    if (ConciseType == SQL_C_DEFAULT)
+    {
+      ConciseType= IrdRec->ConciseType;
+    }
+    switch(ConciseType) {
     case SQL_C_WCHAR:
       /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
           For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
@@ -1669,7 +1675,7 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       }
       Stmt->result[i].buffer_length= (unsigned long)ArdRec->OctetLength;
       Stmt->result[i].buffer=        DataPtr;
-      Stmt->result[i].buffer_type=   MADB_GetMaDBTypeAndLength(ArdRec->ConciseType,
+      Stmt->result[i].buffer_type=   MADB_GetMaDBTypeAndLength(ConciseType,
                                                             &Stmt->result[i].is_unsigned,
                                                             &Stmt->result[i].buffer_length);
       break;
@@ -2130,19 +2136,19 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       /* We will not report truncation if a dummy buffer was bound */
       int     col;
 
-      for (col= 0; col < MADB_STMT_COLUMN_COUNT(Stmt); ++col)
+      for (col = 0; col < MADB_STMT_COLUMN_COUNT(Stmt); ++col)
       {
         if (Stmt->stmt->bind[col].error && *Stmt->stmt->bind[col].error > 0 &&
-            !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
+          !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
         {
-          MADB_DescRecord *ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
-                          *IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
+          MADB_DescRecord* ArdRec = MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
+            * IrdRec = MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
           /* If (numeric) field value and buffer are of the same size - ignoring truncation.
           In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
           some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
           signed, or vice versa, why we should prevent that. */
           if (ArdRec->OctetLength == IrdRec->OctetLength
-           && MADB_IsIntType(IrdRec->ConciseType) && MADB_IsIntType(ArdRec->ConciseType))
+            && MADB_IsIntType(IrdRec->ConciseType) && (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType)))
           {
             continue;
           }
