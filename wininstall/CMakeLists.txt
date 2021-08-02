@@ -9,10 +9,30 @@ IF(WITH_REVNO)
   STRING(REPLACE "\n" "" revno ${revno})
 ENDIF()
 
+SET(WIXNOTFOUND_ERROR ON)
 IF(NOT WIX_DIR)
-  SET(WIX_DIR "$ENV{WIX}/bin/")
+  SET(WIX_DIR "$ENV{WIX}/bin")
   MESSAGE(STATUS "WiX directory: ${WIX_DIR}")
+  # Return error only if WIX_DIR was specified by user, but wix binaries are not found there
+  SET(WIXNOTFOUND_ERROR OFF)
 ENDIF()
+
+ADD_EXECUTABLE(change_dsns_driver change_dsns_driver.c ${CMAKE_SOURCE_DIR}/ma_dsn.c ${CMAKE_SOURCE_DIR}/ma_platform_win32.c ${CMAKE_SOURCE_DIR}/ma_common.c)
+TARGET_LINK_LIBRARIES(change_dsns_driver ${ODBC_LIBS} ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi Pathcch)
+
+FIND_PROGRAM(WIXBIN "${WIX_DIR}/candle.exe")
+
+IF(NOT WIXBIN)
+  IF(WIXNOTFOUND_ERROR)
+    MESSAGE(FATAL_ERROR "WiX binaries have not been found in given location. Don't define WIX_DIR, if you don't need msi package generation")
+  ELSE()
+    MESSAGE(STATUS "WiX binaries are not found, skipping generating of msi building projects")
+    RETURN()
+  ENDIF()
+ELSE()
+  MESSAGE(STATUS "WiX binaries are found in given location ${WIXBIN}")
+ENDIF()
+
 SET(PRODUCT_NAME "MariaDB ODBC Driver")
 SET(PRODUCT_MANUFACTURER "MariaDB")
 SET(PRODUCT_VERSION "${MARIADB_ODBC_VERSION_MAJOR}.${MARIADB_ODBC_VERSION_MINOR}.${MARIADB_ODBC_VERSION_PATCH}")
@@ -63,9 +83,6 @@ ELSE()
   SET(GUID_INSTALLER_TOOLS "786BD2C3-20B0-4b8f-8D9B-374C736E3A1B")
 ENDIF()
 
-ADD_EXECUTABLE(change_dsns_driver change_dsns_driver.c ${CMAKE_SOURCE_DIR}/ma_dsn.c ${CMAKE_SOURCE_DIR}/ma_platform_win32.c ${CMAKE_SOURCE_DIR}/ma_common.c)
-TARGET_LINK_LIBRARIES(change_dsns_driver ${ODBC_LIBS} ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi Pathcch)
-
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
                ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)
 IF(${revno})
@@ -94,14 +111,14 @@ MESSAGE(STATUS "MSI package name ${MSI_PACKAGE}")
 
 ADD_CUSTOM_TARGET(
         ${MSI_PACKAGE}
-        COMMAND ${WIX_DIR}light.exe -ext WixUIExtension -ext WixUtilExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
+        COMMAND "${WIX_DIR}/light.exe" -ext WixUIExtension -ext WixUtilExtension mariadb_odbc.wixobj -o ${MSI_PACKAGE})
 
 SET_TARGET_PROPERTIES(${MSI_PACKAGE} PROPERTIES EXCLUDE_FROM_ALL OFF)
 
 ADD_CUSTOM_TARGET(
         ODBC_WIX
-        DEPENDS mariadb_odbc.xm binaries_dir.xm
-        COMMAND ${WIX_DIR}candle.exe -ext WixUIExtension -ext WixUtilExtension mariadb_odbc.xml -o mariadb_odbc.wixobj)
+        DEPENDS mariadb_odbc.xml binaries_dir.xml
+        COMMAND "${WIX_DIR}/candle.exe" -ext WixUIExtension -ext WixUtilExtension mariadb_odbc.xml -o mariadb_odbc.wixobj)
 
 ADD_DEPENDENCIES(${MSI_PACKAGE} ODBC_WIX)
 ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs change_dsns_driver)
