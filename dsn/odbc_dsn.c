@@ -135,6 +135,17 @@ MADB_OptionsMap OptionsMap[]= {
 void GetDialogFields(void);
 HBRUSH hbrBg= NULL;
 
+
+void DsnApplyDefaults(MADB_Dsn* Dsn)
+{
+  /* Setting default port number if Tcp/Ip selected, and the port is 0 */
+  if (Dsn->IsTcpIp && Dsn->Port == 0)
+  {
+    Dsn->Port = 3306;
+  }
+}
+
+
 my_bool SetDialogFields()
 {
   int  i= 0;
@@ -225,8 +236,10 @@ my_bool GetButtonState(int Dialog, int Button)
   return (my_bool)IsDlgButtonChecked(hwndTab[Dialog], Button);
 }
 
+
 my_bool SaveDSN(HWND hDlg, MADB_Dsn *Dsn)
 {
+  DsnApplyDefaults(Dsn);
   if (Dsn->SaveFile != NULL || MADB_SaveDSN(Dsn))
     return TRUE;
   MessageBox(hDlg, Dsn->ErrorMsg, "Error", MB_OK);
@@ -475,6 +488,10 @@ static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn, SQLCHAR *ConnStrBuffer)
   {
     ConnStr= ConnStrBuffer;
   }
+
+  DsnApplyDefaults(Dsn);
+  /* If defaults has changed actual values - let them be reflected in the dialog */
+  SetDialogFields();
   MADB_DsnToString(Dsn, ConnStr, CONNSTR_BUFFER_SIZE);
 
   SQLAllocHandle(SQL_HANDLE_DBC, Environment, (SQLHANDLE *)&Connection);

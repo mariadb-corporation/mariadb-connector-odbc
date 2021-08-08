@@ -798,6 +798,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   else if (Dsn->Port > 0 || Dsn->IsTcpIp)
   {
     protocol = MYSQL_PROTOCOL_TCP;
+    if (Dsn->Port == 0)
+    {
+      Dsn->Port= 3306;
+    }
   }
   mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
 

@@ -134,7 +134,7 @@ BEGIN
     LTEXT           "Statement(s):",IDC_STATIC,20,17,46,8,0,WS_EX_TRANSPARENT
     RTEXT           "Connection timeout in sec:",IDC_STATIC,17,62,86,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtConnectionTimeOut,111,60,40,14,ES_AUTOHSCROLL
-    CONTROL         "The client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,154,62,80,10
+    CONTROL         "The client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,154,62,84,10
     CONTROL         "Enable automatic &reconnect",ckReconnect,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,79,107,10,WS_EX_TRANSPARENT
     CONTROL         "Don't prompt when connecting",ckConnectPrompt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,95,113,10,WS_EX_TRANSPARENT
     CONTROL         "Use compression",ckCompressed,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,79,107,10,WS_EX_TRANSPARENT
