@@ -1767,6 +1767,11 @@ ODBC_TEST(odbc324)
 {
   SQLCHAR tableType[32];
 
+  if (ServerNotOlderThan(Connection, 10,3,4) == FALSE)
+  {
+    skip("The test does not make sense with servers older than 10.3.4 version");
+  }
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc324");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc324 (id int not null) WITH SYSTEM VERSIONING");
 
