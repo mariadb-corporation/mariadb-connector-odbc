@@ -162,7 +162,15 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULE
 }
 /* }}} */
 
-/* Required Length without or with TN(if IsNull is TRUE, or AnsiLength == -1 or SQL_NTS) is put to LenghtIndicator*/
+/* {{{ MADB_ConvertAnsi2Unicode
+       @AnsiLength[in]    - number of bytes to copy, negative if AnsiString is Null terminated and the terminating blank has to be copied
+       @UnicodeLength[in] - size of output buffer in chars, that effectively mean in SQLWCHAR units
+       @LengthIndicator[out] - number of available characters not counting terminating null(unless it was included in AnsiLength, and IsNull
+                            is FALSE)
+       @IsNull[in]        - whether to copy terminating blank. The value has to be 1 or 0(TRUE/FALSE)
+                            If AnsiString is negative, its value is neglected(null is copied)
+       @returns 1 in case of error, 0 otherwise */
+/* Required Length without or with TN(if IsNull is TRUE, or AnsiLength == -1 or SQL_NTS) is put to LenghtIndicator */
 int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN AnsiLength,
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error)
@@ -197,7 +205,22 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
     return 0;
 
   if (RequiredLength > UnicodeLength)
-    Tmp= (SQLWCHAR *)malloc(RequiredLength * sizeof(SQLWCHAR));
+  {
+    Tmp= (SQLWCHAR*)malloc(RequiredLength * sizeof(SQLWCHAR));
+    if (Tmp == NULL)
+    {
+      if (Error)
+      {
+        MADB_SetError(Error, MADB_ERR_HY001, NULL, 0);
+      }
+      return 1;
+    }
+  }
+  else
+  {
+    /* Otherwise the size of buffer is, as passed to the this function, UnicodeLength */
+    RequiredLength= UnicodeLength;
+  }
   
   RequiredLength= MultiByteToWideChar(cc->CodePage, 0, AnsiString, IsNull ? -1 : (int)AnsiLength, Tmp, (int)RequiredLength);
   if (RequiredLength < 1)

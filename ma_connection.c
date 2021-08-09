@@ -357,7 +357,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
     {
       MADB_CLEAR_ERROR(&Dbc->Error);
-      StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : 0, ValuePtr, BufferLength, 
+      StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : 0, ValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                           Dbc->CatalogName, strlen(Dbc->CatalogName), &Dbc->Error);
       ret= SQL_SUCCESS;
     }

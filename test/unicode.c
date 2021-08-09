@@ -1595,6 +1595,28 @@ ODBC_TEST(t_odbc253)
   return OK;
 }
 
+/* ODBC-321 atm it appears that crash occurs because bind length given in bytes, treated as char lenght during result conversion.
+   The test tries provides shorter buffer, than needed. But bytes length is > then required length in chars */
+ODBC_TEST(t_odbc321)
+{
+  SQLWCHAR a[2];
+  SQLWCHAR a_ref[] = { 'a', 0 };
+  SQLLEN   lenPtr;
+
+  OK_SIMPLE_STMTW(Stmt, CW("SELECT 'abc'"));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, a, sizeof(a), &lenPtr));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS_WITH_INFO);
+
+  IS_WSTR(a, a_ref, sizeof(a_ref) / sizeof(SQLWCHAR));
+  is_num(lenPtr, 3/*'abc'*/*sizeof(SQLWCHAR));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1627,6 +1649,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc72,          "odbc72_surrogate_pairs",  NORMAL},
   {t_odbc203,         "t_odbc203",          NORMAL},
   {t_odbc253,         "t_odbc253_empty_str_crash", NORMAL},
+  {t_odbc321,         "t_odbc321_short_buffer", NORMAL},
   {NULL, NULL}
 };
 
