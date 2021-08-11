@@ -487,12 +487,16 @@ ODBC_TEST(t_bug27862_2)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
                                  NULL, &len));
   is_num(len, 52);
+
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0,
                                  NULL, &len));
-  is_num(len, 13);
+  /* DATE_FORMAT width is 38 + max 11 of int + 3 added by concat_ws */
+  is_num(len, 52);
+
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
-  is_num(len, 14);
+  /* Octet length should not include terminating NULL */
+  is_num(len, 13);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

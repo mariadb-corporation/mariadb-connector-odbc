@@ -17,7 +17,7 @@ before_install:
 matrix:
   allow_failures:
     - os: linux
-      env: DB=build:10.6
+      env: DB=mariadb:10.6
     - os: linux
       env: DB=mariadb:10.5 PACKET=8M MAXSCALE_VERSION=2.5.3
     - os: linux
@@ -34,9 +34,11 @@ matrix:
       env: DB=mariadb:10.1
     - env: SKYSQL=true
     - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
+    - os: linux
+      arch: s390x
   include:
     - os: linux
-      env: DB=build:10.6
+      env: DB=mariadb:10.6
     - os: linux
       env: DB=mariadb:10.2
     - os: linux
@@ -55,7 +57,7 @@ matrix:
       compiler: gcc
       env: DB=mariadb:10.5
       addons:
-        mariadb: '10.4'
+        mariadb: '10.5'
       before_script:
         - brew update
         - brew install openssl

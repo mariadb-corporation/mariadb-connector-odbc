@@ -1892,7 +1892,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             *Stmt->stmt->bind[i].length, &Stmt->Error);
 
           /* If returned len is 0 while source len is not - taking it as error occurred */
-          if ((CharLen == 0 || CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->stmt->bind[i].length != 0 && *(char*)Stmt->result[i].buffer != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
+          if ((CharLen == 0 || (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->stmt->bind[i].length != 0 && *(char*)Stmt->result[i].buffer != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
           {
             CALC_ALL_FLDS_RC(rc, Stmt->Error.ReturnValue);
           }
