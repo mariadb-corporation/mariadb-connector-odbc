@@ -1263,7 +1263,7 @@ ODBC_TEST(t_odbc269)
 
 ODBC_TEST(t_mdev16708)
 {
-  const SQLCHAR query[5/*USE */+ MAX_NAME_LEN];
+  SQLCHAR query[5/*USE */+ MAX_NAME_LEN];
 
   /*  */
   if (ServerNotOlderThan(Connection, 10, 6, 0) == FALSE)

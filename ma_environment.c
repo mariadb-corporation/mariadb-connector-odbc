@@ -64,7 +64,7 @@ const char* GetDefaultLogDir();
 int         GetSourceAnsiCs(Client_Charset *cc);
 
 /* {{{ MADB_EnvInit */
-static DetectAppType(MADB_Env* Env)
+static void DetectAppType(MADB_Env* Env)
 {
   Env->AppType= ATypeGeneral;
 #ifdef _WIN32
