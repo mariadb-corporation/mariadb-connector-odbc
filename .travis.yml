@@ -36,6 +36,7 @@ matrix:
     - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
     - os: linux
       arch: s390x
+      dist: focal
   include:
     - os: linux
       env: DB=mariadb:10.6
@@ -73,6 +74,7 @@ matrix:
       env: DB=mysql:5.7
     - os: linux
       arch: s390x
+      dist: focal
       
 script:
   - if [[ "$DB" == build* ]] ; then .travis/build/build.sh; fi
