@@ -64,12 +64,12 @@ ELSE()
     SET(LIB_PATHS /usr/local /usr /usr/local/Cellar/libiodbc/3.52.12)
 
     IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-      SET(LIB_PATHS "${LIB_PATHS}" "/usr/lib/x86_64-linux-gnu")
+      SET(LIB_PATHS "${LIB_PATHS}" "/usr/lib/x86_64-linux-gnu" "/usr/lib/aarch64-linux-gnu")
 
       IF(EXISTS "/usr/lib64/")
-        SET(LIB_SUFFIX "lib64" "x86_64-linux-gnu")
+        SET(LIB_SUFFIX "lib64" "x86_64-linux-gnu" "aarch64-linux-gnu")
       ELSE()
-        SET(LIB_SUFFIX "lib" "x86_64-linux-gnu")
+        SET(LIB_SUFFIX "lib" "x86_64-linux-gnu" "aarch64-linux-gnu")
       ENDIF()
    
     ELSE()
