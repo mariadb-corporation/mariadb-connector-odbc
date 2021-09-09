@@ -636,6 +636,11 @@ ODBC_TEST(odbc_284)
   IS_STR(Dsn->Description, descr, strlen(descr) + 1);
   IS_STR(Dsn->ServerName, host, strlen(host) + 1);
 
+  RESET_DSN(Dsn);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "driver={MariaDB ODBC 3.0 Driver};server={127.0.0.1};port=16001;database={test};pwd={}}};uid={root}}};OPTION=131;");
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
   return OK;
 }
 

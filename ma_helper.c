@@ -508,7 +508,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
 /* {{{ MADB_GetOctetLength */
 size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
 {
-  size_t Length= MIN(MADB_INT_MAX32, Field->length);
+  size_t Length= MIN(MADB_INT_MAX32, Field->/*max_*/length);
 
   switch (Field->type) {
   case MYSQL_TYPE_NULL:

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2021 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,6 +19,7 @@
 #include <ma_odbc.h>
 
 extern const char* DefaultPluginLocation;
+static const char* utf8mb3 = "utf8mb3";
 
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
@@ -684,6 +685,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
     if (!MADB_IS_EMPTY(Dsn->CharacterSet))
     {
+      if (strcmp(Dsn->CharacterSet, "utf8") == 0)
+      {
+        cs_name= utf8mb3;
+      }
      cs_name= Dsn->CharacterSet;
     }
     else if (Connection->IsAnsi)
