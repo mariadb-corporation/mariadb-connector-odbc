@@ -73,8 +73,8 @@ ELSE()
       ENDIF()
    
     ELSE()
-      SET(LIB_PATHS "${LIB_PATHS}" "/usr/local/lib/i386-linux-gnu" "/usr/lib/i386-linux-gnu" "/usr/local/lib/i686-linux-gnu" "/usr/lib/i686-linux-gnu")
-      SET(LIB_SUFFIX "lib" "i386-linux-gnu" "i686-linux-gnu")
+      SET(LIB_PATHS "${LIB_PATHS}" "/usr/local/lib/i386-linux-gnu" "/usr/lib/i386-linux-gnu" "/usr/local/lib/i686-linux-gnu" "/usr/lib/i686-linux-gnu" "/usr/lib/arm-linux-gnueabihf")
+      SET(LIB_SUFFIX "lib" "i386-linux-gnu" "i686-linux-gnu" "arm-linux-gnueabihf")
     ENDIF()
 
     FIND_PATH(ODBC_INCLUDE_DIR sql.h
