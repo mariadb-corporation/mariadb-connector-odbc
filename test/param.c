@@ -1450,7 +1450,16 @@ ODBC_TEST(insert_fetched_null)
 
   CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 1, SQL_C_LONG, &id, 0, &len[0]));
   CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 2, SQL_C_DOUBLE, &double_val, 0, &len[1]));
-  CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 3, SQL_C_WCHAR, &val, 0, &len[2]));
+  /* Somehow with iOdbc 3.52.15 len in strlen ptr is 0, if sufficient buffer size is not passed. At least with 3.52.12 that is not observed.
+   * Changelog does not give any clue. */
+  if (iOdbc() && DmMinVersion(3, 52, 13))
+  {
+    CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 3, SQL_C_WCHAR, &val, sizeof(val), &len[2]));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 3, SQL_C_WCHAR, &val, 0, &len[2]));
+  }
   CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 4, SQL_C_WCHAR, &val, sizeof(val), &len[3]));
   CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 5, SQL_C_LONG, &mask, 0, &len[4]));
   CHECK_STMT_RC(Stmt1, SQLBindCol(Stmt1, 6, SQL_C_WCHAR, &empty, sizeof(empty), &len[5]));

@@ -702,7 +702,13 @@ ODBC_TEST(t_driverconnect_outstring)
   SQLWCHAR    *connw, connw_out[1024];
   SQLSMALLINT conn_out_len;
   SQLCHAR     conna[512], conna_out[1024];
+  size_t      lenCorrector= 1; 
 
+  if (iOdbc() && !DmMinVersion(3, 52,14))
+  {
+    /* Old iODBC returns octets count. Thus must multiply(actually divide) by 4 this case(sizeof(SQLWCHAR)==4) */
+    lenCorrector= sizeof(SQLWCHAR);
+  }
   /* Testing how driver's doing if no out string given. ODBC-17
      ';' at the end is important - otherwise DM adds it while converting connstring for W function */
   sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8;", my_dsn, my_uid, my_pwd);
@@ -749,8 +755,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out)/sizeof(SQLWCHAR), &conn_out_len,
                                         SQL_DRIVER_NOPROMPT));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  /* Old iODBC returns octets count here */
+  is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -758,8 +764,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  /* Old iODBC returns octets count here */
+  is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -767,8 +773,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE_REQUIRED));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  /* Old iODBC returns octets count here */
+  is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -1479,6 +1485,8 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
   CHECK_DBC_RC(hdbc, SQLSetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"t_odbc91", SQL_NTS));
 
+  diag("Connection string: Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
+    my_drivername, my_uid, "*****" , my_options, my_servername, add_connstr, ma_strport);
   sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
     my_drivername, my_uid, my_pwd, my_options, my_servername, add_connstr, ma_strport);
 

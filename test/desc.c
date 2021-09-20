@@ -339,10 +339,10 @@ ODBC_TEST(t_explicit_error)
     This crashes unixODBC 2.2.11, as it improperly frees the descriptor,
     and again tries to when freeing the statement handle.
   */
-  /* With iODBC on Linux it's SQL_INVALID_HANDLE for some reason */
+  /* With iODBC on Linux it's SQL_INVALID_HANDLE for some reason, and looks like newer iOdbc versions does that too, that does not make much sense to me. Observed on linux with 3.52.12, then on macos wiht 3.52.15, while 3.52.13 did not show that */
   if (iOdbcOnOsX() == FALSE || Travis == FALSE)
   {
-    is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc() /*&& iOdbcOnOsX() == FALSE*/) ? SQL_INVALID_HANDLE : SQL_ERROR);
+    is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc()&&DmMinVersion(3, 52, 14) ) ? SQL_INVALID_HANDLE : SQL_ERROR);
     /* CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");*/
     FAIL_IF(check_sqlstate(Stmt, "HY024") != OK &&
       check_sqlstate(Stmt, "HY017") != OK, "Expected HY024 or HY017");
@@ -387,6 +387,7 @@ ODBC_TEST(t_mult_stmt_free)
   SQLINTEGER exp_param;
   SQLINTEGER exp_result;
 
+  diag("t_mult_stmt_free: begin");
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expapd));
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_DESC, Connection, &expard));
 
@@ -680,6 +681,7 @@ ODBC_TEST(t_odbc155)
                                 sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIME_STRUCT), sizeof(SQL_TIME_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT)};
   SQLSMALLINT DecimalDigits;
   int i, Expected[]= {4, 0, 6, 0, 3, 0, 6};
+  SQLCHAR colName[4];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc155");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc155(ts timestamp(4), ts1 timestamp, dt datetime(6), dt1 datetime, t time(3), t1 time)");
@@ -688,7 +690,7 @@ ODBC_TEST(t_odbc155)
   for (i= 0; i < sizeof(Expected)/sizeof(int); ++i)
   {
     diag("Field#%d", i + 1);
-    CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i + 1, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+    CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i + 1, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
     is_num(DecimalDigits, Expected[i]);
     is_num(Size, ExpectedDisplaySize[i]);
     Size= 0;
@@ -713,9 +715,10 @@ ODBC_TEST(t_odbc155)
 /*  */
 ODBC_TEST(t_odbc166)
 {
-  SQLLEN Size;
+  SQLLEN Size= 0;
   SQLCHAR Value[23];
-  SQLSMALLINT DecimalDigits;
+  SQLSMALLINT DecimalDigits= 0 ;
+  SQLCHAR colName[4];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc166");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc166(val decimal(20,4) NOT NULL)");
@@ -727,7 +730,7 @@ ODBC_TEST(t_odbc166)
   is_num(Size, 22);
 
   /* Testing everything else */
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 4);
   is_num(Size, 20);
   Size= 0;
@@ -811,9 +814,10 @@ ODBC_TEST(t_odbc216)
 /*  */
 ODBC_TEST(t_odbc211)
 {
-  SQLLEN Size;
-  SQLSMALLINT DecimalDigits;
+  SQLLEN Size= 0;
+  SQLSMALLINT DecimalDigits= 0;
   SQLCHAR v1[8], v2[8], v3[8], v4[8], v5[8], v6[8];
+  SQLCHAR colName[4];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc211");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc211(d1 decimal(1,0) NOT NULL, d2 decimal(2,0) NOT NULL, d3 decimal(1,1) NOT NULL,"
@@ -836,22 +840,22 @@ ODBC_TEST(t_odbc211)
   is_num(Size, 3);
 
   /* Testing everything else */
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 0);
   is_num(Size, 1);
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 2, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 2, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 0);
   is_num(Size, 2);
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 3, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 3, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 1);
   is_num(Size, 1);
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 4, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 4, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 0);
   is_num(Size, 1);
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 5, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 5, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 0);
   is_num(Size, 2);
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 6, NULL, 0, NULL, NULL, &Size, &DecimalDigits, NULL));
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 6, colName, sizeof(colName), NULL, NULL, &Size, &DecimalDigits, NULL));
   is_num(DecimalDigits, 1);
   is_num(Size, 1);
   Size= 0;

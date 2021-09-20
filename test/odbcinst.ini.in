@@ -7,3 +7,8 @@ TraceFile = /tmp/maodbc_trace.log
 Driver      = @DRIVER_LIB_LOCATION@
 DESCRIPTION = MariaDB ODBC Connector
 Threading   = 0
+
+[@DRIVER_LIB_LOCATION@]
+Driver      = @DRIVER_LIB_LOCATION@
+DESCRIPTION = MariaDB ODBC Connector
+Threading   = 0

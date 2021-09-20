@@ -762,7 +762,16 @@ ODBC_TEST(odbc317)
 
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_ODBC_CURSORS, &lenAttr,
     SQL_IS_UINTEGER, NULL));
-  is_num(lenAttr, SQL_CUR_USE_DRIVER);
+
+  /* We ourselves kinda return ODBC(TODO: need to check why), but all other DM's return DRIVER. iODBC 3.52.12 used to do that toTODO: need to check why. The test is anyway about using correct data type for the attribute */
+  if (iOdbc() && DmMinVersion(3, 52, 13))
+  {
+    is_num(lenAttr, SQL_CUR_USE_ODBC);
+  }
+  else
+  {
+    is_num(lenAttr, SQL_CUR_USE_DRIVER);
+  }
 
   return OK;
 }

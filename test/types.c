@@ -1044,14 +1044,15 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
 
   if (!strcmp("01S07", exptrunc))
   {
-    /* iOdbc seemingly doesn't think, that SQLExecute or SQLExecDirect may return SQL_SUCCESS_WITH_INFO, and returns SQL_SUCCESS instead */
-    if (!iOdbc())
+    /* iOdbc seemingly doesn't think, that SQLExecute or SQLExecDirect may return SQL_SUCCESS_WITH_INFO, and returns SQL_SUCCESS instead.
+       Observed with 3.52.12, but not with 3.52.15, but I can't see anything resembling that in the 3.52.15 changelog */
+    if (!iOdbc() || DmMinVersion(3, 52,14))
     {
-      exprc = SQL_SUCCESS_WITH_INFO;
+      exprc= SQL_SUCCESS_WITH_INFO;
     }
   }
   else if (!strcmp("22003", exptrunc))
-    exprc = SQL_ERROR;
+    exprc= SQL_ERROR;
 
   sqlnum->sign = sign;
   memcpy(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN);

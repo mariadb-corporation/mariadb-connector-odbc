@@ -574,8 +574,17 @@ ODBC_TEST(t_bug14285620)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO bug14285620 (id) VALUES (1)");
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM bug14285620");
 
-  FAIL_IF(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS, "Success expected");
-  FAIL_IF(SQLDescribeCol(Stmt, 1, szData, 0, &cblen, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS_WITH_INFO, "swi expected");
+  /* Somehow strange things are observed with iOdbc - with 3.52.12 else branch is fine, with 3.52.15 it returns ERROR if name buffer len is 0 - the call is not even passed to the driver */
+  if (iOdbc() && DmMinVersion(3, 52, 14))
+  {
+    is_num(SQLDescribeCol(Stmt, 1, szData, sizeof(szData), &cblen, &data_type, &col_size, &dec_digits, &nullable),SQL_SUCCESS);
+    is_num(SQLDescribeCol(Stmt, 1, szData, 1, &cblen, &data_type, &col_size, &dec_digits, &nullable), SQL_SUCCESS_WITH_INFO);
+  }
+  else
+  {
+    is_num(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable),SQL_SUCCESS);
+    is_num(SQLDescribeCol(Stmt, 1, szData, 1, &cblen, &data_type, &col_size, &dec_digits, &nullable), SQL_SUCCESS_WITH_INFO);
+  }
 
   FAIL_IF(SQLColAttribute(Stmt,1, SQL_DESC_TYPE, NULL, 0, NULL, NULL) != SQL_SUCCESS, "Success expected");
   FAIL_IF(SQLColAttribute(Stmt,1, SQL_DESC_TYPE, &data_type, 0, NULL, NULL)!= SQL_SUCCESS, "Success expected");

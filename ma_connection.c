@@ -338,7 +338,8 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= SQL_FALSE;
     break;
   case SQL_ATTR_AUTOCOMMIT:
-    *(SQLUINTEGER *)ValuePtr= Dbc->AutoCommit;
+    /* Not sure why Dbc->AutoCommit is initialized with 4. Probably the idea has been lost in time. But keeping it so far, and workarounding here. Looks like all DMs but iOdbc corrects the value to SQL_AUTOCOMMIT_ON, when returning */
+    *(SQLUINTEGER *)ValuePtr= (Dbc->AutoCommit != 0 ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
     break;
   case SQL_ATTR_CONNECTION_DEAD:
     /* ping may fail if status isn't ready, so we need to check errors */

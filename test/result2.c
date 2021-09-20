@@ -1127,6 +1127,7 @@ ODBC_TEST(t_odbc78)
 ODBC_TEST(t_odbc73)
 {
   SQLSMALLINT data_type;
+  SQLCHAR colname[8];
 
   OK_SIMPLE_STMT(Stmt, "DROP table if exists t_odbc73");
 
@@ -1134,7 +1135,8 @@ ODBC_TEST(t_odbc73)
 
   OK_SIMPLE_STMT(Stmt, "SELECT binvc FROM t_odbc73");
 
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, NULL, NULL, NULL));
+  /*With iODBC at least 3.52.15, DM returns error if column name buffer (and) size is not provided */
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, colname, sizeof(colname), NULL, &data_type, NULL, NULL, NULL));
 
   FAIL_IF(data_type == SQL_VARBINARY || data_type == SQL_BINARY || data_type == SQL_LONGVARBINARY,
           "The field shouldn't be described as binary");

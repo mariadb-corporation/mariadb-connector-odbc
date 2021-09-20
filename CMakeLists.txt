@@ -329,7 +329,14 @@ ELSE()
                           PROPERTIES LINK_FLAGS "-Wl"
                                      INSTALL_RPATH_USE_LINK_PATH 0
                                      BUILD_WITH_INSTALL_RPATH 1
+                                     XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+                                     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
                                      INSTALL_RPATH "${MAODBC_INSTALL_RPATH}")
+    IF(WITH_SIGNCODE)
+      SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Installer: ${DEVELOPER_ID}")
+    ELSE()
+      SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+    ENDIF()
   ELSEIF(NOT CMAKE_SYSTEM_NAME MATCHES AIX)
     SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/maodbc.def")
   ENDIF()
@@ -427,7 +434,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
                          )
 
       ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
+        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=$<TARGET_FILE:maodbc>
                                       -DTEST_DSN=${TEST_DSN}
                                       -DTEST_PORT=${TEST_PORT}
                                       -DTEST_SERVER=${TEST_SERVER}

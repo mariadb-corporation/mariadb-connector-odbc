@@ -141,10 +141,10 @@ static unsigned long my_options= 67108866;
 
 static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
 static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
-
+static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port=        3306;
-char          ma_strport[12]= "PORT=3306";
-
+char                 ma_strport[12]= "PORT=3306";
+char                 my_host[256];
 static int Travis= 0, TravisOnOsx= 0;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
@@ -758,13 +758,7 @@ int get_native_errcode(SQLHSTMT Stmt)
 
 int using_dm(HDBC hdbc)
 {
-  SQLCHAR val[20];
-  SQLSMALLINT len;
-
-  if (SQLGetInfo(hdbc, SQL_DM_VER, val, sizeof(val), &len) == SQL_ERROR)
-    return 0;
-
-  return 1;
+  return (DmMajor != 0 || DmMinor !=  0 || DmPatch != 0);
 }
 
 
@@ -1023,6 +1017,20 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     return 1;
   }
 
+  {
+    SQLCHAR val[20];
+    SQLSMALLINT len;
+    if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
+    {
+      sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
+    }
+
+    OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+
   fprintf(stdout, "1..%d\n", tests_planned);
   while (tests->title)
   {
@@ -1273,6 +1281,18 @@ BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, un
   sscanf((const char*)ServerVersion, "%u.%u.%u", &ServerMajor, &ServerMinor, &ServerPatch);
 
   if (ServerMajor < major || (ServerMajor == major && (ServerMinor < minor || (ServerMinor == minor && ServerPatch < patch))))
+  {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+BOOL DmMinVersion(unsigned int major, unsigned int minor, unsigned int patch)
+{
+  /* Should normally check if Dm is present at all, but if it is not, than all version parts are zero, and FALSE will be returned. Thus we are fine. */
+  if (DmMajor < major || (DmMajor == major && (DmMinor < minor || (DmMinor == minor && DmPatch < patch))))
   {
     return FALSE;
   }

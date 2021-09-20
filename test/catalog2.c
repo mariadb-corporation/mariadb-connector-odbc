@@ -275,7 +275,7 @@ ODBC_TEST(t_bug50195)
                          "DROP", "INDEX", "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE" },
               *expected= expected_privs[0];
   int         i, privs_count= sizeof(expected_privs)/sizeof(expected_privs[0]);
-  SQLCHAR     priv[24];
+  SQLCHAR     priv[24], dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[36 + sizeof(my_host)], revokeSelect[44 + sizeof(my_host)];
   SQLLEN      len;
 
   if (ServerNotOlderThan(Connection, 10, 3, 4))
@@ -302,13 +302,16 @@ ODBC_TEST(t_bug50195)
   }
   else
   {
-    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@127.0.0.1", SQL_NTS);
-    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@localhost", SQL_NTS);
+    /* Basically this can be used for Travis as well, and the if's above and below can be removed*/
+    _snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
+    _snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+    _snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
+    _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
+    SQLExecDirect(Stmt, dropUser, SQL_NTS);
 
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@127.0.0.1 IDENTIFIED BY 's3CureP@wd'");
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@localhost IDENTIFIED BY 's3CureP@wd'");
+    OK_SIMPLE_STMT(Stmt, createUser);
 
-    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "GRANT ALL ON bug50195 TO bug50195@'127.0.0.1'", SQL_NTS)))
+    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grantAll, SQL_NTS)))
     {
       odbc_print_error(SQL_HANDLE_STMT, Stmt);
       if (get_native_errcode(Stmt) == 1142)
@@ -318,10 +321,7 @@ ODBC_TEST(t_bug50195)
       return FAIL;
     }
 
-    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'localhost'");
-
-    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@127.0.0.1");
-    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@localhost");
+    OK_SIMPLE_STMT(Stmt, revokeSelect);
   }
 
   OK_SIMPLE_STMT(Stmt, "FLUSH PRIVILEGES");
@@ -340,8 +340,7 @@ ODBC_TEST(t_bug50195)
     }
     else
     {
-      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
-      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+      OK_SIMPLE_STMT(Stmt, dropUser);
     }
     OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
 
@@ -372,8 +371,7 @@ ODBC_TEST(t_bug50195)
   }
   else
   {
-    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
-    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+    OK_SIMPLE_STMT(Stmt, dropUser);
   }
   
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
