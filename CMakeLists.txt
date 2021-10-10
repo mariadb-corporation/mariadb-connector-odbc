@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2019 MariaDB Corporation AB
+#   Copyright (C) 2013,2021 MariaDB Corporation AB
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -333,7 +333,7 @@ ELSE()
                                      XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
                                      INSTALL_RPATH "${MAODBC_INSTALL_RPATH}")
     IF(WITH_SIGNCODE)
-      SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Installer: ${DEVELOPER_ID}")
+      SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Application: ${DEVELOPER_ID}")
     ELSE()
       SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
     ENDIF()
@@ -389,6 +389,12 @@ ELSE()
   IF(APPLE)
     MESSAGE(STATUS "Configuring to generate PKG package")
     ADD_SUBDIRECTORY(osxinstall)
+  ELSE()
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libmaodbc.pc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc @ONLY)
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc
+            DESTINATION "${INSTALL_PCDIR}"
+            COMPONENT Development)
   ENDIF()
   INSTALL(TARGETS
           ${LIBRARY_NAME}

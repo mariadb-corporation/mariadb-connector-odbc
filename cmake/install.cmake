@@ -42,9 +42,9 @@ SET(INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE
 # On Windows we only provide zip and .msi. Latter one uses a different packager.
 IF(UNIX)
   IF(INSTALL_LAYOUT MATCHES "RPM|DEB")
-    SET(libmariadb_prefix "/usr")
+    SET(libmaodbc_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT STREQUAL "DEFAULT")
-    SET(libmariadb_prefix ${CMAKE_INSTALL_PREFIX})
+    SET(libmaodbc_prefix ${CMAKE_INSTALL_PREFIX})
   ENDIF()
 ENDIF()
 
