@@ -136,6 +136,8 @@ typedef struct st_madb_dsn
   /* Options */
   unsigned int Options;
   unsigned int ConnectionTimeout;
+  unsigned int ReadTimeout;
+  unsigned int WriteTimeout;
   my_bool Reconnect;
   my_bool MultiStatements;
   /* TRUE means "no prompt" */

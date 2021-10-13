@@ -395,6 +395,8 @@ struct st_ma_odbc_connection
   SQLUINTEGER AutoCommit;
   SQLUINTEGER ConnectionDead;
   SQLUINTEGER ConnectionTimeout;
+  SQLUINTEGER ReadTimeout;
+  SQLUINTEGER WriteTimeout;
   SQLUINTEGER PacketSize;
   SQLINTEGER AccessMode;
   SQLINTEGER IsolationLevel;     /* tx_isolation */

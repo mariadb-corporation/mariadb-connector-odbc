@@ -771,6 +771,12 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (Dsn->ConnectionTimeout)
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
 
+  if (Dsn->ReadTimeout)
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const char *)&Dsn->ReadTimeout);
+
+  if (Dsn->WriteTimeout)
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const char *)&Dsn->WriteTimeout);
+
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
 
