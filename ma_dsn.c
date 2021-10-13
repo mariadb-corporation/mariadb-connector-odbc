@@ -28,8 +28,8 @@
 #define DSNKEY_UID_INDEX       8
 #define DSNKEY_PWD_INDEX       9
 #define DSNKEY_DATABASE_INDEX 10
-#define DSNKEY_FP_INDEX       25
-#define DSNKEY_FPLIST_INDEX   26
+#define DSNKEY_FP_INDEX       27
+#define DSNKEY_FPLIST_INDEX   28
 
 
 MADB_DsnKey DsnKeys[]=
@@ -52,6 +52,8 @@ MADB_DsnKey DsnKeys[]=
   {"PORT",           offsetof(MADB_Dsn, Port),              DSN_TYPE_INT,    0, 0},
   {"INITSTMT",       offsetof(MADB_Dsn, InitCommand),       DSN_TYPE_STRING, 0, 0},
   {"CONN_TIMEOUT",   offsetof(MADB_Dsn, ConnectionTimeout), DSN_TYPE_INT,    0, 0},
+  {"READ_TIMEOUT",   offsetof(MADB_Dsn, ReadTimeout),       DSN_TYPE_INT,    0, 0},
+  {"WRITE_TIMEOUT",  offsetof(MADB_Dsn, WriteTimeout),      DSN_TYPE_INT,    0, 0},
   {"AUTO_RECONNECT", offsetof(MADB_Dsn, Reconnect),         DSN_TYPE_OPTION, MADB_OPT_FLAG_AUTO_RECONNECT,0},
   {"NO_PROMPT",      offsetof(MADB_Dsn, ConnectPrompt),     DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_PROMPT,0},
   {"CHARSET",        offsetof(MADB_Dsn, CharacterSet),      DSN_TYPE_COMBO,  0, 0},
