@@ -806,7 +806,7 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
   SQLCHAR buf[512];
   SQLHANDLE ard;
-  unsigned long numval;
+  unsigned long long numval;
 
   sprintf((char *)buf, "SELECT %s", numstr);
   /* OK_SIMPLE_STMT(Stmt, buf); */
@@ -822,7 +822,6 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
                                (SQLPOINTER)(SQLLEN) scale, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
                                sqlnum, SQL_IS_POINTER));
-
   if (overflow != SQL_SUCCESS)
   {
     EXPECT_STMT(Stmt, SQLFetch(Stmt), overflow);
@@ -850,10 +849,13 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   {
     /* only use this for <=32bit values */
     int i;
+    unsigned long long singleByte;
     numval= 0;
     for (i= 0; i < 8; ++i)
-      numval += sqlnum->val[7 - i] << (8 * (7 - i));
-    
+    {
+      singleByte= sqlnum->val[7 - i]; 
+      numval+= singleByte << (8 * (7 - i));
+    }
     if (numval != expnum)
       diag("compare %d %d", numval, expnum);
     is_num(numval, expnum);

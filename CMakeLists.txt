@@ -150,7 +150,7 @@ ENDIF()
 ### Including C/C subproject
 IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   IF(GIT_BUILD_SRCPKG)
-    # We don't want conn/c (wrong) src pkg to be built.
+    # We don't want with conn/c (wrong) src pkg to be built.
     SET(GIT_BUILD_SRCPKG FALSE)
     SET(ODBC_GIT_BUILD_SRCPKG TRUE)
   ENDIF()
@@ -159,6 +159,18 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
 
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/libmariadb/include)
+  SET(PLUGINS_LIST dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password client_ed25519)
+  IF(APPLE)
+    SET_TARGET_PROPERTIES(${PLUGINS_LIST}
+                          PROPERTIES XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+                                     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
+                         )
+    IF(WITH_SIGNCODE)
+      SET_TARGET_PROPERTIES(${PLUGINS_LIST} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Application: ${DEVELOPER_ID}")
+    ELSE()
+      SET_TARGET_PROPERTIES(${PLUGINS_LIST} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+    ENDIF()
+  ENDIF()
 ELSE()
   SET(USE_SYSTEM_INSTALLED_LIB TRUE)
   # Adding mariadb subdirs of standard include locations

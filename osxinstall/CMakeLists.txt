@@ -71,6 +71,19 @@ TARGET_LINK_LIBRARIES(install_driver ${ODBC_INSTLIBS})#${PLATFORM_DEPENDENCIES})
 # On Windows should look like
 #TARGET_LINK_LIBRARIES(install_driver ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi)
 
+IF(APPLE)
+  SET_TARGET_PROPERTIES(install_driver
+                        PROPERTIES XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+                                   XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
+                       )
+  IF(WITH_SIGNCODE)
+    SET_TARGET_PROPERTIES(install_driver
+                          PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Application: ${DEVELOPER_ID}"
+                          XCODE_ATTRIBUTE_CODE_SIGN_INJECT_BASE_ENTITLEMENTS "NO")
+  ELSE()
+    SET_TARGET_PROPERTIES(install_driver PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+  ENDIF()
+ENDIF()
 
 IF(USE_SYSTEM_INSTALLED_LIB)
   ADD_CUSTOM_TARGET(copypkgfiles
