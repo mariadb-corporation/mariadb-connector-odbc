@@ -366,6 +366,42 @@ ODBC_TEST(getdata_need_nullind)
   return OK;
 }
 
+ODBC_TEST(connection_timeout)
+{
+  SQLHDBC  Connection1;
+  SQLHSTMT Stmt1;
+  SQLCHAR conn[512];
+  SQLCHAR message[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+  SQLINTEGER error;
+  SQLSMALLINT len;
+  time_t start, elapsed;
+
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;READ_TIMEOUT=5;WRITE_TIMEOUT=5", 
+                        my_dsn, my_uid, my_pwd);
+
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
+
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, sizeof(conn), NULL,
+                                 0, NULL,
+                                 SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(Connection1, SQLAllocStmt(Connection1, &Stmt1));
+
+  start= time(NULL);
+  ERR_SIMPLE_STMT(Stmt1, "SET @a:=SLEEP(6)");
+  elapsed= time(NULL) - start;
+  diag("elapsed: %lu", (unsigned long)elapsed);
+
+  CHECK_STMT_RC(Stmt, SQLGetDiagRec(SQL_HANDLE_STMT, Stmt1, 1, sqlstate, &error,
+                               message, sizeof(message), &len));
+  is_num(error, 2013);  /* 2013 = CR_SERVER_LOST */
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1,SQL_DROP));
+  CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
+  CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));
+
+  return OK;
+}
 
 /*
    Handle-specific tests for env and dbc diagnostics
@@ -843,6 +879,7 @@ MA_ODBC_TESTS my_tests[]=
   {bind_notenoughparam1, "bind_notenoughparam1"},
   {bind_notenoughparam2, "bind_notenoughparam2" },
   {getdata_need_nullind, "getdata_need_nullind"},
+  {connection_timeout, "connection_timeout"},
   {t_handle_err, "t_handle_err"},
   {sqlerror, "sqlerror"},
   {t_bug27158, "t_bug27158"},
