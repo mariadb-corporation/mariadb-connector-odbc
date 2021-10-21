@@ -633,25 +633,25 @@ ODBC_TEST(t_text_fetch)
   rc = SQLFetch(Stmt);
   while (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
   {
-      printf("# row '%ld' (lengths:", row_count);
+      printf("# row '%lld' (lengths:", (long long)row_count);
       rc = SQLGetData(Stmt,1,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf("%ld", length);
+      printf("%lld", (long long)length);
       FAIL_IF(length != 255, "assert");
 
       rc = SQLGetData(Stmt,2,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf(",%ld", length);
+      printf(",%lld", (long long)length);
       FAIL_IF(length != TEST_ODBC_TEXT_LEN*3, "assert");
 
       rc = SQLGetData(Stmt,3,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf(",%ld", length);
+      printf(",%lld", (long long)length);
       FAIL_IF(length != (SQLINTEGER)(TEST_ODBC_TEXT_LEN*4), "assert");
 
       rc = SQLGetData(Stmt,4,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf(",%ld)\n", length);
+      printf(",%zd)\n", length);
       FAIL_IF(length != TEST_ODBC_TEXT_LEN*6-1, "assert");
       row_count++;
 

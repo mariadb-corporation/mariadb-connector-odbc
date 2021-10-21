@@ -664,7 +664,6 @@ ODBC_TEST(test_autocommit)
   SQLUINTEGER ac;
   unsigned long noMsOptions= my_options & (~67108864);
   SQLCHAR tracked[256];
-  SQLRETURN rc;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Dbc));
   CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));

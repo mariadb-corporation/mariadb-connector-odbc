@@ -737,7 +737,7 @@ ODBC_TEST(t_prepare)
     rc = SQLFetch(Stmt);
     mystmt(Stmt,rc);
 
-    fprintf(stdout," outdata: %d, %s(%ld)\n", nodata,szodata,nlen);
+    fprintf(stdout," outdata: %d, %s(%lld)\n", nodata, szodata, (unsigned long long)nlen);
     IS(nodata == 200);
 
     rc = SQLFetch(Stmt);

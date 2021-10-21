@@ -2460,7 +2460,7 @@ ODBC_TEST(bug6741)
   for(i = 0; i < BUG6741_VALS; ++i)
   {
     printf("xval[%d] = %d\n", i, results[i].xval);
-    printf("ylen[%d] = %ld\n", i, results[i].ylen);
+    printf("ylen[%d] = %lld\n", i, (unsigned long long)results[i].ylen);
     is_num(results[i].xval, i);
     if(i % 2)
     {
@@ -3045,7 +3045,7 @@ typedef struct {
 } t_dae_row;
 ODBC_TEST(t_dae_setpos_insert)
 {
-  SQLPOINTER holder= (SQLPOINTER) 0xcfcdcecc;
+  SQLPOINTER holder= (SQLPOINTER) 0xcfcdceccLL;
   SQLPOINTER paramptr;
   SQLLEN     offset= 0;
   t_dae_row  data[2];
@@ -3105,7 +3105,7 @@ ODBC_TEST(t_dae_setpos_update)
   SQLCHAR *yval= (SQLCHAR *) "1234567890";
   SQLCHAR yout[11];
   SQLLEN ylen= SQL_LEN_DATA_AT_EXEC(9);
-  SQLPOINTER holder= (SQLPOINTER) 0xcfcdcecc;
+  SQLPOINTER holder= (SQLPOINTER) 0xcfcdceccLL;
   SQLPOINTER paramptr;
   /* setup */
   

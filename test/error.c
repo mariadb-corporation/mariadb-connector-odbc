@@ -366,7 +366,7 @@ ODBC_TEST(getdata_need_nullind)
   return OK;
 }
 
-ODBC_TEST(connection_timeout)
+ODBC_TEST(connection_readwrite_timeout)
 {
   SQLHDBC  Connection1;
   SQLHSTMT Stmt1;
@@ -879,7 +879,7 @@ MA_ODBC_TESTS my_tests[]=
   {bind_notenoughparam1, "bind_notenoughparam1"},
   {bind_notenoughparam2, "bind_notenoughparam2" },
   {getdata_need_nullind, "getdata_need_nullind"},
-  {connection_timeout, "connection_timeout"},
+  {connection_readwrite_timeout, "connection_readwrite_timeout"},
   {t_handle_err, "t_handle_err"},
   {sqlerror, "sqlerror"},
   {t_bug27158, "t_bug27158"},
