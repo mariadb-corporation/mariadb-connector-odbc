@@ -130,15 +130,21 @@ STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     LTEXT           "Do you want to send initial statement(s) after establishing connection to MariaDB?",IDC_STATIC,7,0,264,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtInitCmd,74,15,197,39,ES_MULTILINE | ES_AUTOHSCROLL | WS_VSCROLL
-    LTEXT           "Statement(s):",IDC_STATIC,20,17,46,8,0,WS_EX_TRANSPARENT
-    RTEXT           "Connection timeout in sec:",IDC_STATIC,17,62,86,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtConnectionTimeOut,111,60,40,14,ES_AUTOHSCROLL
-    CONTROL         "The client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,154,62,84,10
-    CONTROL         "Enable automatic &reconnect",ckReconnect,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,79,107,10,WS_EX_TRANSPARENT
-    CONTROL         "Don't prompt when connecting",ckConnectPrompt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,95,113,10,WS_EX_TRANSPARENT
-    CONTROL         "Use compression",ckCompressed,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,79,107,10,WS_EX_TRANSPARENT
-    CONTROL         "Read odbc section from my.cnf",ckUseMycnf,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,95,198,10,WS_EX_TRANSPARENT
+    EDITTEXT        txtInitCmd,74,11,197,39,ES_MULTILINE | ES_AUTOHSCROLL | WS_VSCROLL
+    LTEXT           "Statement(s):",IDC_STATIC,20,11,46,8,0,WS_EX_TRANSPARENT
+    RTEXT           "Timeouts in sec",IDC_STATIC,6,55,60,10,0,WS_EX_TRANSPARENT
+    RTEXT           "Connection:",IDC_STATIC,17,69,39,10,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtConnectionTimeOut,57,68,30,12,ES_AUTOHSCROLL
+    RTEXT           "Read:",IDC_STATIC,89,69,20,10,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtReadTimeOut,110,68,30,12,ES_AUTOHSCROLL
+    RTEXT           "Write:",IDC_STATIC,142,69,22,10,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtWriteTimeOut,165,68,30,12,ES_AUTOHSCROLL
+    CONTROL         "Client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,69,84,10,WS_EX_TRANSPARENT
+
+    CONTROL         "Enable automatic reconnect",ckReconnect,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,83,107,10,WS_EX_TRANSPARENT
+    CONTROL         "Don't prompt when connecting",ckConnectPrompt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,97,113,10,WS_EX_TRANSPARENT
+    CONTROL         "Use compression",ckCompressed,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,83,107,10,WS_EX_TRANSPARENT
+    CONTROL         "Read odbc section from my.cnf",ckUseMycnf,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,97,198,10,WS_EX_TRANSPARENT
 
     COMBOBOX        cbCharset,113,110,160,80,CBS_DROPDOWN | CBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Connection Character Set:",IDC_STATIC,7,113,96,8,0,WS_EX_TRANSPARENT

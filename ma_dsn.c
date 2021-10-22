@@ -28,10 +28,14 @@
 #define DSNKEY_UID_INDEX       8
 #define DSNKEY_PWD_INDEX       9
 #define DSNKEY_DATABASE_INDEX 10
-#define DSNKEY_FP_INDEX       27
-#define DSNKEY_FPLIST_INDEX   28
+#define DSNKEY_FP_INDEX       25
+#define DSNKEY_FPLIST_INDEX   26
 
 
+/* If adding new connstring option, one should add them to the end of the array section before aliases, because some arrays defining program logic
+   use indexes of an element in this array. In particular, in the setup lib there is array mapping dsn field(i.e. this array element) to parent window
+   and resource id of the contorl in the dialog. Thus if you still think it should go somewhere in the middle, mind also change that array and at least
+   DsnKeysSwitch below in this file, and index defines in this file, accordingly */
 MADB_DsnKey DsnKeys[]=
 {
   {"DSN",            offsetof(MADB_Dsn, DSNName),           DSN_TYPE_STRING, 0, 0}, /* 0 */
@@ -52,8 +56,6 @@ MADB_DsnKey DsnKeys[]=
   {"PORT",           offsetof(MADB_Dsn, Port),              DSN_TYPE_INT,    0, 0},
   {"INITSTMT",       offsetof(MADB_Dsn, InitCommand),       DSN_TYPE_STRING, 0, 0},
   {"CONN_TIMEOUT",   offsetof(MADB_Dsn, ConnectionTimeout), DSN_TYPE_INT,    0, 0},
-  {"READ_TIMEOUT",   offsetof(MADB_Dsn, ReadTimeout),       DSN_TYPE_INT,    0, 0},
-  {"WRITE_TIMEOUT",  offsetof(MADB_Dsn, WriteTimeout),      DSN_TYPE_INT,    0, 0},
   {"AUTO_RECONNECT", offsetof(MADB_Dsn, Reconnect),         DSN_TYPE_OPTION, MADB_OPT_FLAG_AUTO_RECONNECT,0},
   {"NO_PROMPT",      offsetof(MADB_Dsn, ConnectPrompt),     DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_PROMPT,0},
   {"CHARSET",        offsetof(MADB_Dsn, CharacterSet),      DSN_TYPE_COMBO,  0, 0},
@@ -80,6 +82,9 @@ MADB_DsnKey DsnKeys[]=
   {"INTERACTIVE",    offsetof(MADB_Dsn, InteractiveClient), DSN_TYPE_BOOL,   0, 0},
   {"FORWARDONLY",    offsetof(MADB_Dsn, ForceForwardOnly),  DSN_TYPE_OPTION, MADB_OPT_FLAG_FORWARD_CURSOR, 0},
   {"SCHEMANOERROR",  offsetof(MADB_Dsn, NeglectSchemaParam),DSN_TYPE_BOOL,   0, 0},
+  {"READ_TIMEOUT",   offsetof(MADB_Dsn, ReadTimeout),       DSN_TYPE_INT,    0, 0},
+  {"WRITE_TIMEOUT",  offsetof(MADB_Dsn, WriteTimeout),      DSN_TYPE_INT,    0, 0},
+
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
   {"USER",           DSNKEY_UID_INDEX,                      DSN_TYPE_STRING, 0, 1},
@@ -92,8 +97,7 @@ MADB_DsnKey DsnKeys[]=
   {NULL, 0, DSN_TYPE_BOOL,0,0}
 };
 
-/* TODO: Shouln't 2nd be DSNKEY_OPTIONS_INDEX? But I seemed to remember it was removed for a reason... */
-#define IS_OPTIONS_BITMAP(key_index) (key_index == DSNKEY_OPTIONS_INDEX || key_index == DSNKEY_OPTIONS_INDEX)
+#define IS_OPTIONS_BITMAP(key_index) (key_index == DSNKEY_OPTIONS_INDEX)
 
 typedef struct
 {

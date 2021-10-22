@@ -50,6 +50,8 @@
 #define ckConnectPrompt                 1041
 #define IDC_EDIT1                       1042
 #define txtConnectionTimeOut            1043
+#define txtReadTimeOut                  1230
+#define txtWriteTimeOut                 1231
 #define txtDriver                       1200
 #define ckEnableDC                      1045
 #define ckReconnect2                    1046
