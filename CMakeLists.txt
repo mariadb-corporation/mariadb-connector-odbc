@@ -378,6 +378,8 @@ IF(WIN32)
                                     
     ENDIF()
     ADD_SUBDIRECTORY(wininstall)
+  ELSE()
+    MESSAGE(STATUS "MSI package won't be generated - WITH_MSI=${WITH_MSI}")
   ENDIF()
   ADD_EXECUTABLE(install_driver osxinstall/install_driver.c)
   TARGET_LINK_LIBRARIES(install_driver ${PLATFORM_DEPENDENCIES} ${ODBC_INSTLIBS})
