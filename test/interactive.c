@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2016 MariaDB Corporation AB
+                2016, 2021 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -27,6 +27,57 @@
 
 HWND hWnd;
 
+/* {{{ ltrim 
+  copied from ma_common.c
+*/
+char* ltrim(char* Str)
+{
+  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
+  while (Str && iswspace(Str[0]))
+    ++Str;
+  return Str;
+}
+/* }}} */
+/* Connstr has to be null-terminated - copied from config dialog(odbc_dsn) */
+char* HidePwd(char* ConnStr)
+{
+  char* Ptr = ConnStr;
+
+  while (*Ptr)
+  {
+    BOOL IsPwd = FALSE;
+    char* KeyValBorder = strchr(Ptr, '=');
+    char StopChr = ';';
+
+    Ptr = ltrim(Ptr);
+
+    if (_strnicmp(Ptr, "PWD", 3) == 0 || _strnicmp(Ptr, "PASSWORD", 8) == 0)
+    {
+      IsPwd = TRUE;
+    }
+    if (KeyValBorder != NULL)
+    {
+      Ptr = ltrim(KeyValBorder + 1);
+    }
+    if (*Ptr == '{')
+    {
+      StopChr = '}';
+    }
+    while (*Ptr && *Ptr != StopChr)
+    {
+      if (IsPwd)
+      {
+        *Ptr = '*';
+      }
+      ++Ptr;
+    }
+    ++Ptr;
+  }
+
+  return ConnStr;
+}
+
+
 /* Test of NO_PROMPT option. Normally it is not interactive. Dialog appearance means test failure */
 ODBC_TEST(ti_bug30840)
 {
@@ -40,6 +91,7 @@ ODBC_TEST(ti_bug30840)
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   /* NO_PROMPT is supposed to supress dialog invocation, and connect should fail */
+  diag("You are supposed *not* to see config dialog in this test.");
   EXPECT_DBC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, (SQLSMALLINT)strlen(conn),
                                  conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_COMPLETE_REQUIRED), SQL_ERROR);
@@ -59,7 +111,7 @@ ODBC_TEST(ti_dialogs)
   SQLCHAR     conna[512], conna_out[1024];
 
   /* Testing how driver's doing if no out string given. ODBC-17 */
-  sprintf((char*)conna, "DRIVER=%s;TCPIP=1;SERVER=%s%s", my_drivername, my_servername, ma_strport);
+  sprintf((char*)conna, "DRIVER=%s;TCPIP=1;SERVER=%s;%s", my_drivername, my_servername, ma_strport);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conna, SQL_NTS, NULL,
@@ -72,7 +124,7 @@ ODBC_TEST(ti_dialogs)
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conna, SQL_NTS, conna_out,
                                  sizeof(conna_out), &conn_out_len, SQL_DRIVER_PROMPT));
 
-  diag("In %d OutString %s(%d)", strlen(conna), hide_pwd(conna_out), conn_out_len);
+  diag("In %d OutString %s(%d)", strlen(conna), HidePwd(conna_out), conn_out_len);
   /* We can't say much about the out string length, but it supposed to be bigger, than of the in string */
   FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
 
@@ -81,7 +133,7 @@ ODBC_TEST(ti_dialogs)
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, hWnd, conna, SQL_NTS, conna_out,
                                  sizeof(conna_out), &conn_out_len, SQL_DRIVER_COMPLETE));
 
-  diag("In %d OutString %s(%d)", strlen(conna), hide_pwd(conna_out), conn_out_len);
+  diag("In %d OutString %s(%d)", strlen(conna), HidePwd(conna_out), conn_out_len);
   FAIL_IF((size_t)conn_out_len <= strlen(conna), "OutString length is too short");
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));

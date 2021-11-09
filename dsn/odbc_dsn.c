@@ -153,6 +153,11 @@ my_bool SetDialogFields()
   int  i= 0;
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
 
+  /* Basically - if dialog does not exist yet */
+  if (Dsn == NULL)
+  {
+    return TRUE;
+  }
   while (DsnMap[i].Key)
   {
     switch (DsnMap[i].Key->Type) {
@@ -492,7 +497,8 @@ static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn, SQLCHAR *ConnStrBuffer)
   }
 
   DsnApplyDefaults(Dsn);
-  /* If defaults has changed actual values - let them be reflected in the dialog */
+  /* If defaults has changed actual values - let them be reflected in the dialog(if it exists - SetDialogFields
+     cares about that) */
   SetDialogFields();
   MADB_DsnToString(Dsn, ConnStr, CONNSTR_BUFFER_SIZE);
 
@@ -852,10 +858,10 @@ void CenterWindow(HWND hwndWindow)
 
 
 BOOL DSNDialog(HWND     hwndParent,
-                  WORD     fRequest,
-                  LPCSTR   lpszDriver,
-                  LPCSTR   lpszAttributes,
-                  MADB_Dsn *Dsn)
+               WORD     fRequest,
+               LPCSTR   lpszDriver,
+               LPCSTR   lpszAttributes,
+               MADB_Dsn *Dsn)
 {
   MSG     msg;
   BOOL    ret;
@@ -927,13 +933,18 @@ BOOL DSNDialog(HWND     hwndParent,
         Dsn->Driver= _strdup(lpszDriver);
       }
 
-      if (SQL_SUCCEEDED(TestDSN(Dsn, NULL, NULL)))
+      /* If we don't have parent window - we are not supposed to show the dialog, but only
+         perform operation, if sufficient data has been provided */
+      if (hwndParent == NULL)
       {
-        return MADB_SaveDSN(Dsn);
-      }
-      else if (hwndParent == NULL)
-      {
-        return FALSE;
+        if (SQL_SUCCEEDED(TestDSN(Dsn, NULL, NULL)))
+        {
+          return MADB_SaveDSN(Dsn);
+        }
+        else
+        {
+          return FALSE;
+        }
       }
 
       break;
@@ -963,7 +974,7 @@ BOOL DSNDialog(HWND     hwndParent,
         {
           return MADB_SaveDSN(Dsn);
         }
-        else if (hwndParent == NULL)
+        else
         {
           return FALSE;
         }
