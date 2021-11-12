@@ -511,7 +511,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
 
   /* Default types. Not quite clear if time_type has any effect */
   tm->time_type=       MYSQL_TIMESTAMP_DATETIME;
-  MaBind->buffer_type= MYSQL_TYPE_TIMESTAMP;
+  MaBind->buffer_type= MYSQL_TYPE_DATETIME;//MYSQL_TYPE_TIMESTAMP;
 
   switch (SqlRec->ConciseType) {
   case SQL_TYPE_DATE:
@@ -537,7 +537,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
       return MADB_SetError(&Stmt->Error, MADB_ERR_22007, "Invalid time", 0);
     }
     MaBind->buffer_type= MYSQL_TYPE_TIME;
-    tm->time_type=       MYSQL_TIMESTAMP_TIME;
+    tm->time_type= MYSQL_TIMESTAMP_TIME;
     tm->hour=   ts->hour;
     tm->minute= ts->minute;
     tm->second= ts->second;
