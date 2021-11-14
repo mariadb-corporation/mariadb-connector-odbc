@@ -103,6 +103,7 @@ INCLUDE("${CMAKE_SOURCE_DIR}/cmake/options_defaults.cmake")
 
 ### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those
 INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/cpack_rpm.cmake")
 
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
   # If C/C is linked dynamically, we don't need link C/ODBC against encryption library
