@@ -712,12 +712,12 @@ ODBC_TEST(t_driverconnect_outstring)
   }
   /* Testing how driver's doing if no out string given. ODBC-17
      ';' at the end is important - otherwise DM adds it while converting connstring for W function */
-  sprintf((char*)conna, "DSN=%s;UID=%s;PWD={%s};CHARSET=utf8;", my_dsn, my_uid, my_pwd);
+  sprintf((char*)conna, "DSN=%s;UID=%s;PWD={%s};SERVER=%s;DATABASE=%s;PORT=%u;CHARSET=utf8;", my_dsn, my_uid, my_pwd, my_servername, my_schema, my_port);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
                                  0, &conn_out_len, SQL_DRIVER_NOPROMPT));
-  diag("OutString Length: %d", conn_out_len);
+
   is_num(conn_out_len, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
