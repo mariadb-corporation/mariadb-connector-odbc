@@ -1176,30 +1176,13 @@ ODBC_TEST(t_bug28168)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28168");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28168 (x int)");
 
+  char conn[512];
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};SERVER=%s;DATABASE=;PORT=%u",
+         my_dsn, my_uid, my_pwd, my_servername, my_schema, my_port);
   *work_conn_in= L'\0';
-  wcscat(work_conn_in, L"DSN=");
-  mbstowcs(dummy, (char *)my_dsn, sizeof(dummy)/sizeof(wchar_t));
-  wcscat(work_conn_in, dummy);
-  wcscat(work_conn_in, L";UID=");
-  mbstowcs(dummy, (char *)my_uid, sizeof(dummy)/sizeof(wchar_t));
-  wcscat(work_conn_in, dummy);
-  wcscat(work_conn_in, L";PWD={");
-  mbstowcs(dummy, (char *)my_pwd, sizeof(dummy)/sizeof(wchar_t));
-  wcscat(work_conn_in, dummy);
-  wcscat(work_conn_in, L"};SERVER=");
-  mbstowcs(dummy, (char *)my_servername, sizeof(my_servername)/sizeof(wchar_t));
-  wcscat(work_conn_in, dummy);
-  wcscat(work_conn_in, L";DATABASE=");
-  mbstowcs(dummy, (char *)my_schema, sizeof(my_schema)/sizeof(wchar_t));
-  wcscat(work_conn_in, dummy);
 
-  if (my_port)
-  {
-    char pbuff[20];
-    sprintf(pbuff, ";PORT=%d", my_port);
-    mbstowcs(dummy, (char *)pbuff, sizeof(pbuff)/sizeof(wchar_t));
-    wcscat(work_conn_in, dummy);
-  }
+  mbstowcs(dummy, (char *)conn, sizeof(conn)/sizeof(wchar_t));
+  wcscat(work_conn_in, dummy);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
