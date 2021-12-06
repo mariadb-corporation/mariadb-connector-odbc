@@ -1197,9 +1197,9 @@ ODBC_TEST(t_bug28168)
   {
     char pbuff[20];
     sprintf(pbuff, ";PORT=%d", my_port);
-    strcat((char *)work_conn_in, pbuff);
+    mbstowcs(dummy, (char *)pbuff, sizeof(pbuff)/sizeof(wchar_t));
+    wcscat(work_conn_in, dummy);
   }
-  wcscat(work_conn_in, dummy);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
