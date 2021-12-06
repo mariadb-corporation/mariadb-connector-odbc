@@ -606,6 +606,7 @@ ODBC_TEST(bit)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bit");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bit (a BIT(1), b BIT(17))");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0,
                             (SQLCHAR *)"t_bit", SQL_NTS, NULL, 0));

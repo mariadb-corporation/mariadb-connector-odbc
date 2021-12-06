@@ -41,6 +41,7 @@ ODBC_TEST(test_CONO1)
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("SET SQL_MODE='ANSI_QUOTES'"), SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, CW("DROP TABLE IF EXISTS cono1"), SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecDirectW(Stmt, create_table, SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   ret= SQLColumnsW(Stmt, NULL, 0, NULL, 0, CW("cono1"), SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
@@ -276,6 +277,7 @@ ODBC_TEST(sqldriverconnect)
   SQLSMALLINT conn_out_len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
+  diag("diego test pwd: %s", my_pwd);
 
   *conn_in = L'\0';
   wcscat(conn_in, L"DRIVER=");
@@ -284,16 +286,16 @@ ODBC_TEST(sqldriverconnect)
   wcscat(conn_in, L";UID=");
   mbstowcs(dummy, (char*)my_uid, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";PWD=");
+  wcscat(conn_in, L";PWD={");
   mbstowcs(dummy, (char*)my_pwd, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";DATABASE=");
+  wcscat(conn_in, L"};DATABASE=");
   mbstowcs(dummy, (char*)my_schema, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";SERVER=");
   mbstowcs(dummy, (char*)my_servername, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";");
+  wcscat(conn_in, L";PORT=");
   mbstowcs(dummy, (char*)ma_strport, sizeof(dummy) / sizeof(wchar_t));
   wcscat(conn_in, dummy);
   if (strlen(add_connstr) > 0)
@@ -922,6 +924,7 @@ ODBC_TEST(sqlforeignkeys)
 
 ODBC_TEST(sqlprimarykeys)
 {
+  SKIP_MYSQL;
   HDBC hdbc1;
   HSTMT hstmt1;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
@@ -1150,6 +1153,7 @@ Bug#28168 odbc, non 7-bit password, connection failed
 */
 ODBC_TEST(t_bug28168)
 {
+  SKIP_MYSQL; // deprecated syntax grant with password
   SQLHANDLE hdbc1, hdbc2;
   SQLHANDLE hstmt1;
 
@@ -1179,8 +1183,22 @@ ODBC_TEST(t_bug28168)
   wcscat(work_conn_in, L";UID=");
   mbstowcs(dummy, (char *)my_uid, sizeof(dummy)/sizeof(wchar_t));
   wcscat(work_conn_in, dummy);
-  wcscat(work_conn_in, L";PWD=");
+  wcscat(work_conn_in, L";PWD={");
   mbstowcs(dummy, (char *)my_pwd, sizeof(dummy)/sizeof(wchar_t));
+  wcscat(work_conn_in, dummy);
+  wcscat(work_conn_in, L"};SERVER=");
+  mbstowcs(dummy, (char *)my_servername, sizeof(my_servername)/sizeof(wchar_t));
+  wcscat(work_conn_in, dummy);
+  wcscat(work_conn_in, L";DATABASE=");
+  mbstowcs(dummy, (char *)my_schema, sizeof(my_schema)/sizeof(wchar_t));
+  wcscat(work_conn_in, dummy);
+
+  if (my_port)
+  {
+    char pbuff[20];
+    sprintf(pbuff, ";PORT=%d", my_port);
+    strcat((char *)work_conn_in, pbuff);
+  }
   wcscat(work_conn_in, dummy);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -1223,7 +1241,7 @@ ODBC_TEST(t_bug28168)
   wcscat(conn_in, L";SERVER=");
   mbstowcs(dummy, (char *)my_servername, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";");
+  wcscat(conn_in, L";PORT=");
   mbstowcs(dummy, (char *)ma_strport, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
   if (strlen(add_connstr) > 0)
@@ -1300,16 +1318,16 @@ ODBC_TEST(t_bug14363601)
   wcscat(conn_in, L";UID=");
   mbstowcs(dummy, (char *)my_uid, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";PWD=");
+  wcscat(conn_in, L";PWD={");
   mbstowcs(dummy, (char *)my_pwd, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";DATABASE=");
+  wcscat(conn_in, L"};DATABASE=");
   mbstowcs(dummy, (char *)my_schema, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
   wcscat(conn_in, L";SERVER=");
   mbstowcs(dummy, (char *)my_servername, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
-  wcscat(conn_in, L";");
+  wcscat(conn_in, L";PORT=");
   mbstowcs(dummy, (char *)ma_strport, sizeof(dummy)/sizeof(wchar_t));
   wcscat(conn_in, dummy);
   if (strlen(add_connstr) > 0)

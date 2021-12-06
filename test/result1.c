@@ -854,6 +854,7 @@ ODBC_TEST(t_cache_bug)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_cache");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_cache (id INT)");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_cache VALUES (1),(2),(3),(4),(5)");
 
   sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=1048579",
@@ -1146,7 +1147,7 @@ int desccol(SQLHSTMT Stmt, char *cname, SQLSMALLINT clen,
 ODBC_TEST(t_desccolext)
 {
   SQLRETURN rc;
-
+  SKIP_MYSQL;
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccolext");
 
   OK_SIMPLE_STMT(Stmt, "create table t_desccolext\
@@ -1317,6 +1318,7 @@ ODBC_TEST(t_desccol1)
 
 ODBC_TEST(t_colattributes)
 {
+  SKIP_MYSQL;
   SQLLEN count, isauto;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_colattr");
@@ -1783,13 +1785,13 @@ ODBC_TEST(t_binary_collation)
                                 &name_length, &data_type, &column_size,
                                 &decimal_digits, &nullable));
 
-  if (ServerNotOlderThan(Connection, 5, 2, 0) ||
+  if (minServer(Connection, 5, 2, 0) ||
       /* 5.0.46 or later in 5.0 series */
       (!strncmp("5.0", (char *)server_version, 3) &&
-        ServerNotOlderThan(Connection, 5, 0, 46)) ||
+        minServer(Connection, 5, 0, 46)) ||
       /* 5.1.22 or later in 5.1 series */
       (!strncmp("5.1", (char *)server_version, 3) &&
-        ServerNotOlderThan(Connection, 5, 1, 22)))
+        minServer(Connection, 5, 1, 22)))
   {
     is_num(data_type, iOdbc() ? SQL_WVARCHAR : SQL_VARCHAR);
   }

@@ -30,8 +30,8 @@ ODBC_TEST(my_columns_null)
   SQLLEN rowCount= 0;
   /* initialize data */
   OK_SIMPLE_STMT(Stmt, "drop table if exists my_column_null");
-
   OK_SIMPLE_STMT(Stmt, "create table my_column_null(id int not null, name varchar(30))");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -57,6 +57,7 @@ ODBC_TEST(my_drop_table)
 {
   OK_SIMPLE_STMT(Stmt, "drop table if exists my_drop_table");
   OK_SIMPLE_STMT(Stmt, "create table my_drop_table(id int not null)");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -375,8 +376,8 @@ ODBC_TEST(t_catalog)
     };
 
     OK_SIMPLE_STMT(Stmt, "drop table if exists t_catalog");
-
-    OK_SIMPLE_STMT(Stmt,"create table t_catalog(abc tinyint, bcdefghijklmno char(4), uifield int unsigned not null)");
+    OK_SIMPLE_STMT(Stmt, "create table t_catalog(abc tinyint, bcdefghijklmno char(4), uifield int unsigned not null)");
+    OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
     CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0,
                               (SQLCHAR *)"t_catalog", 9, NULL, 0));
@@ -419,7 +420,7 @@ ODBC_TEST(tmysql_specialcols)
 {
   OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_specialcols");
   OK_SIMPLE_STMT(Stmt,"create table tmysql_specialcols(col1 int primary key, col2 varchar(30), col3 int)");
-    
+  OK_SIMPLE_STMT(Stmt,"FLUSH TABLES");
 
   OK_SIMPLE_STMT(Stmt,"create index tmysql_ind1 on tmysql_specialcols(col1)");
     
@@ -430,7 +431,6 @@ ODBC_TEST(tmysql_specialcols)
   CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
-
   OK_SIMPLE_STMT(Stmt,"select * from tmysql_specialcols");
 
   myrowcount(Stmt);
@@ -585,6 +585,7 @@ t_describe_col t_tables_bug_data[10] =
 
 ODBC_TEST(t_tables_bug)
 {
+  SKIP_MYSQL;
   SQLSMALLINT i, ColumnCount, pcbColName, pfSqlType, pibScale, pfNullable;
   SQLULEN     pcbColDef;
   SQLCHAR     szColName[MAX_NAME_LEN];
@@ -901,6 +902,7 @@ ODBC_TEST(my_information_schema)
 */
 ODBC_TEST(t_bug4518)
 {
+  SKIP_MYSQL;
   SQLCHAR buff[255];
   SQLLEN len;
 
@@ -1096,6 +1098,7 @@ ODBC_TEST(bug15713)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug15713");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug15713 (a INT)");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   /* The connection strings must not include DATABASE. */
   sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s", my_dsn, my_uid, my_pwd);

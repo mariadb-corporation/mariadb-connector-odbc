@@ -146,6 +146,7 @@ ODBC_TEST(t_bug28657)
 
 ODBC_TEST(t_bug14639)
 {
+  SKIP_MAXSCALE;
   SQLINTEGER connection_id;
   SQLUINTEGER is_dead;
   char buf[100];
@@ -737,7 +738,7 @@ ODBC_TEST(odbc143)
   AllocEnvConn(&Env, &Hdbc1);
   Stmt1= DoConnect(Hdbc1, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
-
+  SKIP_MYSQL;
   OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI_QUOTES'");
   CHECK_DBC_RC(Hdbc1, SQLGetInfo(Hdbc1, SQL_IDENTIFIER_QUOTE_CHAR, Info, sizeof(Info), &Length));
   IS_STR(Info, "\"", 2);

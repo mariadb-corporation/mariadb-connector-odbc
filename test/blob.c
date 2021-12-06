@@ -701,6 +701,7 @@ ODBC_TEST(getdata_lenonly)
 */
 ODBC_TEST(t_bug9781)
 {
+  SKIP_MYSQL; // GeomFromText deprecated
   SQLSMALLINT name_length, data_type, decimal_digits, nullable;
   SQLCHAR column_name[SQL_MAX_COLUMN_NAME_LEN];
   SQLULEN column_size;

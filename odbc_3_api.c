@@ -886,7 +886,8 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
       goto end;
     }
   }
-
+  diag("diego cs: %s %d", (SQLCHAR *)InConnStrA, InStrAOctLen);
+  diag("diego cs2: %s %d", (SQLCHAR *)OutConnStrA, Length);
   ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, InStrAOctLen, (SQLCHAR *)OutConnStrA,
                                      Length, StringLength2Ptr, DriverCompletion); 
   MDBUG_C_DUMP(Dbc, ret, d);

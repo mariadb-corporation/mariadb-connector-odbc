@@ -406,12 +406,13 @@ ODBC_TEST(diff_column_binding)
 
 ODBC_TEST(t_odbc159)
 {
+  SKIP_MYSQL;
   unsigned int j= 0, ExpectedRows[]= {0, 0, 5};
   SQLLEN Rows, ExpRowCount[]= {0, 0, 0};
   SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
   SQLRETURN rc;
 
-  if (ServerNotOlderThan(Connection, 10, 6, 0))
+  if (minServer(Connection, 10, 6, 0))
   {
     /* INFORMATION_SCHEMA.STATISTICS has 17 columns in 10.6 */
     expCols[2]= 17;
@@ -523,7 +524,7 @@ ODBC_TEST(t_odbc177)
   /* Final result with affected rows */
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &count));
   /* Starting from 10.3 we have total number of affected (by SP) rows*/
-  if (ServerNotOlderThan(Connection, 10, 3, 0))
+  if (minServer(Connection, 10, 3, 0))
   {
     is_num(count, 4); /* 1 inserted, 1 deleted */
   }

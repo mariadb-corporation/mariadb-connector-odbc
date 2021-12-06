@@ -1,3 +1,4 @@
+sudo: true
 language: c
 dist: bionic
 services: docker
@@ -17,17 +18,15 @@ before_install:
   - if [[ -d $HOME/docker ]]; then ls $HOME/docker/*.tar.gz | xargs -I {file} sh -c "zcat {file} | docker load"; fi
 
 install:
-  - sudo apt-get update
-  - sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc-dev odbcinst1debian2 libodbc1
-  - |-
-    case $TRAVIS_OS_NAME in
-      windows)
-        connector-test-machine/launch.bat -t "$srv" -v "$v" -d testj
-        ;;
-      linux)
-        source connector-test-machine/launch.sh -t "$srv" -v "$v" -d testj -n 0 -l "$local" -p "$packet"
-        ;;
-    esac
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then  connector-test-machine/launch.bat -t "$srv" -v "$v" -d testo; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux"   ]; then  sudo apt-get update; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux"   ]; then  sudo apt-get install --allow-unauthenticated -y -m unixodbc-dev odbcinst1debian2 libodbc1; fi
+  - echo $srv
+  - echo $v
+  - echo $local
+  - echo $native
+  - if [ "$TRAVIS_OS_NAME" = "linux"   ]; then  source connector-test-machine/launch.sh -t "$srv" -v "$v" -d testo -n 0 -l "$local" -n "$native"; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx"     ]; then  source connector-test-machine/launch.sh -t "$srv" -v "$v" -d testo -n 0; fi
 
 jobs:
   allow_failures:
@@ -43,14 +42,14 @@ jobs:
         - brew install openssl
         - brew install libiodbc
         - brew install mariadb
-    - env: srv=mariadb v=10.6
-      arch: s390x
     - env: srv=mariadb v=10.2 local=1
     - env: srv=mariadb v=10.3 local=1
     - env: srv=mariadb v=10.4 local=1
     - env: srv=mariadb v=10.5 local=1
     - env: srv=mariadb v=10.7 local=1
     - env: srv=mariadb v=10.6
+    - env: srv=mariadb v=10.6
+      arch: s390x
     - if: type = push AND fork = false
       env: srv=maxscale
     - if: type = push AND fork = false
@@ -67,20 +66,44 @@ jobs:
       env: srv=skysql-ha
 
 script:
+  - export TEST_DRIVER=maodbc_test
+  - export TEST_SOCKET=
+  - export TEST_DSN=maodbc_test
   - export TEST_UID=$TEST_DB_USER
   - export TEST_SERVER=$TEST_DB_HOST
   - export TEST_PASSWORD=$TEST_DB_PASSWORD
   - export TEST_PORT=$TEST_DB_PORT
-  - export TEST_SCHEMA=$TEST_DB_DATABASE
+  - export TEST_SCHEMA=testo
+  - echo "diego $TEST_UID"
   - export TEST_USETLS=$TEST_REQUIRE_TLS
-  - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL
-  - cmake --build . --config RelWithDebInfo
+  - if [ "$TEST_REQUIRE_TLS" = "1" ]; then export TEST_ADD_PARAM="FORCETLS=1"; fi
+  - export TEST_SSL_PORT=$TEST_MAXSCALE_TLS_PORT
+  - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then DEBIAN_FRONTEND=noninteractive sudo apt-get update ; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ] ; then DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc-dev odbcinst1debian2 libodbc1 ; fi
+  - export PWD=`pwd`
+  - export ODBCINI="$PWD/test/odbc.ini"
+  - export ODBCSYSINI="$PWD/test"
+  - |-
+    if [ "$TRAVIS_OS_NAME" = "osx" ] ; then
+      ls -lrt /usr/local/opt/openssl@1.1/
+      export TEST_DRIVER="$PWD/libmaodbc.dylib"
+      export ODBCINSTINI="$PWD/test/odbcinst.ini"
+      cat ${ODBCINSTINI}
+      cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL -DWITH_IODBC=ON -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1 -DOPENSSL_LIBRARIES=/usr/local/opt/openssl@1.1/lib
+    elif [ "$TRAVIS_OS_NAME" = "windows" ] ; then
+      git submodule init
+      git submodule update
+      cmake . -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL
+      cd libmariadb
+      cmake --build . --config RelWithDebInfo --parallel 2
+      cd ..
+    else
+      cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL
+    fi
+  - cmake --build . --config RelWithDebInfo --parallel 1
+  - cat ${ODBCINI}
   - cd test
-  - export ODBCINI="$PWD/odbc.ini"
-  - export ODBCSYSINI=$PWD
-  - if [ -n "$BENCH" ] ; then mvn package -P bench -Dmaven.test.skip -Dmaven.javadoc.skip=true ; fi
-  - if [ -n "$BENCH" ] ; then java -Duser.country=US -Duser.language=en -DTEST_PORT=$TEST_DB_PORT -DTEST_HOST=$TEST_DB_HOST -DTEST_USERNAME=$TEST_DB_USER -DTEST_PASSWORD=$TEST_DB_PASSWORD -jar target/benchmarks.jar; fi
-  - if [ -z "$BENCH" ] ; then MAVEN_SKIP_RC=true MAVEN_OPTS="-Xmx2g" mvn clean test -DjobId=${TRAVIS_JOB_ID}; fi
+  - ctest -VV
 
 after_script:
   - bash <(curl -s https://codecov.io/bash)

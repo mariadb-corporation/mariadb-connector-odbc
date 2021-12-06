@@ -676,6 +676,8 @@ ODBC_TEST(t_set_explicit_copy)
    It does not directly belong to descriptors, but the value is taken from the descriptor field */
 ODBC_TEST(t_odbc155)
 {
+
+  SKIP_MYSQL; // invalid default for ts1 (ts1 timestamp)
   SQLLEN Size, ExpectedDisplaySize[]= {24, 19, 26, 19, 12, 8, 26},
         ExpectedOctetLength[]= {sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT),
                                 sizeof(SQL_TIMESTAMP_STRUCT), sizeof(SQL_TIME_STRUCT), sizeof(SQL_TIME_STRUCT), sizeof(SQL_TIMESTAMP_STRUCT)};

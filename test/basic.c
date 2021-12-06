@@ -35,7 +35,7 @@ ODBC_TEST(test_CONO1)
   OK_SIMPLE_STMT(Stmt, "SET SQL_MODE='ANSI_QUOTES'");
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS cono1");
   OK_SIMPLE_STMT(Stmt, create_table);
-  
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
   if (!SQL_SUCCEEDED(ret))
@@ -279,7 +279,7 @@ ODBC_TEST(test_reconnect)
   {
     rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
-    
+
     rc= SQLConnectW(hdbc1, latin_as_sqlwchar((char*)my_dsn, dsn), SQL_NTS, latin_as_sqlwchar((char*)my_uid, username), SQL_NTS,
                    latin_as_sqlwchar((char*)my_pwd, passwd), SQL_NTS);
     CHECK_DBC_RC(hdbc1, rc);
@@ -470,10 +470,11 @@ ODBC_TEST(charset_utf8)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug19345");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug19345 (a VARCHAR(10), b VARBINARY(10)) CHARACTER SET Utf8");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug19345 VALUES ('abc','def')");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};CHARSET=utf8",
          my_dsn, my_uid, my_pwd);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -568,7 +569,7 @@ ODBC_TEST(charset_gbk)
   SQLCHAR str[]= "\xef\xbb\xbf\x27\xbf\x10";
   SQLSMALLINT conn_out_len;
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;CHARSET=gbk",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};CHARSET=gbk",
           my_dsn, my_uid, my_pwd);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -648,7 +649,7 @@ ODBC_TEST(t_bug30840)
     return SKIP;
   }
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;NO_PROMPT=1",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};NO_PROMPT=1",
           my_dsn, my_uid, my_pwd);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -711,7 +712,7 @@ ODBC_TEST(t_driverconnect_outstring)
   }
   /* Testing how driver's doing if no out string given. ODBC-17
      ';' at the end is important - otherwise DM adds it while converting connstring for W function */
-  sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8;", my_dsn, my_uid, my_pwd);
+  sprintf((char*)conna, "DSN=%s;UID=%s;PWD={%s};CHARSET=utf8;", my_dsn, my_uid, my_pwd);
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conna, SQL_NTS, NULL,
@@ -765,6 +766,9 @@ ODBC_TEST(t_driverconnect_outstring)
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE));
   /* Old iODBC returns octets count here */
+  diag("Diego conna: [%s]", conna);
+  diag("Diego conna_out: [%s]", conna_out);
+  diag("Diego conn_out_len: %s", conn_out_len);
   is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
@@ -802,7 +806,7 @@ ODBC_TEST(setnames_conn)
   SQLCHAR conn[512], conn_out[512];
   SQLSMALLINT conn_out_len;
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;INITSTMT=set names utf8",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};INITSTMT=set names utf8",
           my_dsn, my_uid, my_pwd);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -1109,6 +1113,7 @@ ODBC_TEST(t_count)
 */
 ODBC_TEST(t_bug31959)
 {
+  SKIP_MYSQL;
   SQLCHAR level[50] = "uninitialized";
   SQLINTEGER i;
   SQLLEN levelid[] = {SQL_TXN_SERIALIZABLE, SQL_TXN_REPEATABLE_READ,
@@ -1233,7 +1238,7 @@ ODBC_TEST(t_bug48603)
   }
 
   /* INITSTMT={set @@wait_timeout=%d} */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8;INITSTMT=set @@interactive_timeout=%d;INTERACTIVE=1",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};CHARSET=utf8;INITSTMT=set @@interactive_timeout=%d;INTERACTIVE=1",
     my_dsn, my_uid, my_pwd, timeout+diff);
 
   if (my_port)
@@ -1283,7 +1288,7 @@ ODBC_TEST(t_bug45378)
   SQLCHAR conn[512], conn_out[512];
   SQLSMALLINT conn_out_len;
 
-  sprintf((char *)conn, "DSN=%s; UID = {%s} ;PWD= %s ",
+  sprintf((char *)conn, "DSN=%s; UID = {%s} ;PWD= {%s} ",
           my_dsn, my_uid, my_pwd);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -1403,7 +1408,7 @@ ODBC_TEST(t_odbc69)
   SQLSMALLINT conn_out_len;
 
   /* Testing also that key names are case insensitve. Supposing, that there is no mariadb/mysql on 3310 port with same login credentials */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=3310;DATABASE=%s;OPTION=%lu;SERVER=%s;PoRt=%u;charset=UTF8",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};PORT=3310;DATABASE=%s;OPTION=%lu;SERVER=%s;PoRt=%u;charset=UTF8",
     my_dsn, my_uid, my_pwd, my_schema, my_options, my_servername, my_port);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -1433,7 +1438,7 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
 
   /* Connecting to newly created tatabase. Need multistatement allowed for some tests */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=%lu;SERVER=%s;%s",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};DATABASE=%s;OPTION=%lu;SERVER=%s;%s",
     my_dsn, my_uid, my_pwd, "t_odbc91", my_options | 67108864, my_servername, ma_strport);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc));
@@ -1465,7 +1470,7 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE t_odbc91");
 
   /* Now we do not specify any database */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;DATABASE=%s;%s",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};OPTION=%lu;SERVER=%s;DATABASE=%s;%s",
     my_dsn, my_uid, my_pwd, my_options, my_servername, my_schema, ma_strport);
 
   CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
@@ -1485,9 +1490,9 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
   CHECK_DBC_RC(hdbc, SQLSetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"t_odbc91", SQL_NTS));
 
-  diag("Connection string: Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
+  diag("Connection string: Driver=%s;UID=%s;PWD={%s};OPTION=%lu;SERVER=%s;%s;%s",
     my_drivername, my_uid, "*****" , my_options, my_servername, add_connstr, ma_strport);
-  sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
+  sprintf((char *)conn, "Driver=%s;UID=%s;PWD={%s};OPTION=%lu;SERVER=%s;%s;%s",
     my_drivername, my_uid, my_pwd, my_options, my_servername, add_connstr, ma_strport);
 
   CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
@@ -1534,6 +1539,7 @@ ODBC_TEST(t_odbc91)
 
 ODBC_TEST(t_odbc137)
 {
+  SKIP_MYSQL;
   SQLHDBC    Hdbc;
   SQLHSTMT   Hstmt;
   char       buffer[256], AllAnsiChars[258], AllAnsiHex[512];
@@ -1633,7 +1639,7 @@ ODBC_TEST(t_odbc139)
   DWORD WaitRc;
 
   /* Not sure when this was fixed, but works with 10.4, it seems */
-  if (ServerNotOlderThan(Connection, 10, 2, 0) && !ServerNotOlderThan(Connection, 10, 4, 0))
+  if (!minServer(Connection, 10, 2, 0) || minServer(Connection, 10, 4, 0))
   {
     skip("Waiting for the fix in Connector/C for servers > 10.2.0");
   }
@@ -1692,13 +1698,17 @@ ODBC_TEST(t_odbc162)
 
 ODBC_TEST(t_replace)
 {
-  if (!ServerNotOlderThan(Connection, 10, 2, 0))
+
+  SKIP_MAXSCALE;
+  SKIP_MYSQL;
+  if (!minServer(Connection, 10, 2, 0))
   {
     skip("REPLACE SQL command is not supported by your server version");
   }
   
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc_replace`");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc_replace` (`uuid` VARCHAR(64), PRIMARY KEY (`uuid`)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "FLUSH TABLES");
   OK_SIMPLE_STMT(Stmt, "REPLACE INTO `t_odbc_replace` (`uuid`) VALUES(\"5b7fe80c-7de1-4744-ab33-3f65f26726f6\"),\
 (\"3ce73838-72f2-4aed-9f45-b7cf15f1279b\"),\
 (\"babf4138-cdde-4c3f-8b28-cc7c8ef7033f\"),\
