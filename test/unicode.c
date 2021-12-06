@@ -1177,7 +1177,7 @@ ODBC_TEST(t_bug28168)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28168 (x int)");
 
   char conn[512];
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};SERVER=%s;DATABASE=;PORT=%u",
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD={%s};SERVER=%s;DATABASE=%s;PORT=%u",
          my_dsn, my_uid, my_pwd, my_servername, my_schema, my_port);
   *work_conn_in= L'\0';
 
