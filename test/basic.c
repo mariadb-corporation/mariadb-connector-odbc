@@ -1696,7 +1696,7 @@ ODBC_TEST(t_replace)
   {
     skip("REPLACE SQL command is not supported by your server version");
   }
-  
+  /* I think this test is not complete */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc_replace`");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc_replace` (`uuid` VARCHAR(64), PRIMARY KEY (`uuid`)) ENGINE=InnoDB");
   OK_SIMPLE_STMT(Stmt, "REPLACE INTO `t_odbc_replace` (`uuid`) VALUES(\"5b7fe80c-7de1-4744-ab33-3f65f26726f6\"),\
@@ -1757,6 +1757,32 @@ ODBC_TEST(t_odbc181)
 }
 
 
+ODBC_TEST(t_local_data_infile)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  /* Connection with *disabled* LOAD DATA LOCAL INFILE */
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NOLOCALINFILE=1");
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "LOAD DATA LOCAL INFILE 'nonexistent.txt' INTO TABLE nonexistent(b)", SQL_NTS), SQL_ERROR);
+  check_sqlstate(Hstmt, "42000");
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+
+  /* Connection with *enabled* LOAD DATA LOCAL INFILE */
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NOLOCALINFILE=0");
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "LOAD DATA LOCAL INFILE 'nonexistent.txt' INTO TABLE nonexistent(b)", SQL_NTS), SQL_ERROR);
+  /* Non-existent error */
+  check_sqlstate(Hstmt, "42S02");
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1799,11 +1825,12 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc91,      "odbc91_hdbc_reuse",        NORMAL},
   {t_odbc137,     "odbc137_ansi",             NORMAL},
 #ifdef _WIN32
-  {t_odbc139,     "odbc139_compression",       NORMAL},
+  {t_odbc139,     "odbc139_compression",      NORMAL},
 #endif
   {t_odbc162,     "t_odbc162_CTE_query",      NORMAL },
   {t_replace,     "t_replace",      NORMAL },
   {t_odbc181,     "t_odbc181",      NORMAL },
+  {t_local_data_infile, "odbc347_local_data_infile", NORMAL },
   {NULL, NULL, 0}
 };
 

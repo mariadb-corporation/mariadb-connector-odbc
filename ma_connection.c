@@ -20,6 +20,7 @@
 
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";
+static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
 
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
@@ -927,6 +928,15 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
   }
 
+  if (Dsn->DisableLocalInfile != '\0')
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &unselectedIntOption);
+  }
+  else
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &selectedIntOption);
+  }
+
   /* set default catalog. If we have value set via SQL_ATTR_CURRENT_CATALOG - it takes priority. Otherwise - DSN */
   if (Connection->CatalogName && Connection->CatalogName[0])
   {
@@ -937,6 +947,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     //MADB_RESET(Connection->CatalogName, Dsn->Catalog);
     defaultSchema= Dsn->Catalog;
   }
+
   if (!mysql_real_connect(Connection->mariadb,
       Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password, defaultSchema, Dsn->Port, Dsn->Socket, client_flags))
   {

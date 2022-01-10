@@ -80,6 +80,7 @@
 #define ckMatchedRows                   1114
 #define txtPluginDir                    1115
 #define pbPlugindirBrowse               1116
+#define ckNoLocalInfile                 1310
 #define txtSslKey                       1117
 #define txtSslCert                      1118
 #define txtSslCertAuth                  1119

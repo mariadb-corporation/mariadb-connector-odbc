@@ -151,6 +151,7 @@ typedef struct st_madb_dsn
   my_bool InteractiveClient;
   my_bool ForceForwardOnly;
   my_bool NeglectSchemaParam;
+  my_bool DisableLocalInfile;
   /* Internal */
   my_bool FreeMe;
 } MADB_Dsn;
