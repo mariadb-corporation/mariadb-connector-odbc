@@ -22,11 +22,11 @@
 #include <ma_odbc.h>
 
 unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT},
-                                          {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES},
-                                          {100202, MADB_SESSION_TRACKING}};
-unsigned long MySQLVersionCapabilityMap[][2]= {{050720, MADB_MYSQL_TRANSACTION_ISOLATION},
-                                               {050704, MADB_SESSION_TRACKING} };
-
+                                          {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES}};
+/*                                          {100202, MADB_SESSION_TRACKING}*/
+unsigned long MySQLVersionCapabilityMap[][2]= {{50720, MADB_MYSQL_TRANSACTION_ISOLATION}};
+/*                                               {50704, MADB_SESSION_TRACKING}*/
+unsigned long CapabilitiesMap[][2]= {{CLIENT_SESSION_TRACKING, MADB_SESSION_TRACKING}};
 unsigned long ExtCapabilitiesMap[][2]= {{MARIADB_CLIENT_STMT_BULK_OPERATIONS >> 32, MADB_CAPABLE_PARAM_ARRAYS}};
 
 /* {{{  */
@@ -53,14 +53,21 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
     {
       if (ServerVersion >= MySQLVersionCapabilityMap[i][0])
       {
-        Dbc->ServerCapabilities |= MySQLVersionCapabilityMap[i][1];
+        Dbc->ServerCapabilities|= MySQLVersionCapabilityMap[i][1];
       }
     }
   }
 
-  mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_EXTENDED_SERVER_CAPABILITIES, (void*)&ServerExtCapabilities);
   mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_SERVER_CAPABILITIES, (void*)&ServerCapabilities);
+  for (i= 0; i < sizeof(CapabilitiesMap)/sizeof(CapabilitiesMap[0]); ++i)
+  {
+    if (ServerCapabilities & CapabilitiesMap[i][0])
+    {
+      Dbc->ServerCapabilities|= CapabilitiesMap[i][1];
+    }
+  }
 
+  mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_EXTENDED_SERVER_CAPABILITIES, (void*)&ServerExtCapabilities);
   for (i= 0; i < sizeof(ExtCapabilitiesMap)/sizeof(ExtCapabilitiesMap[0]); ++i)
   {
     if (!(Dbc->mariadb->server_capabilities & CLIENT_MYSQL)

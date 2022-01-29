@@ -974,7 +974,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       if (mysql_real_query(Connection->mariadb, buffer, (unsigned long)len) ||
         mysql_next_result(Connection->mariadb))
       {
-        goto err;
+        goto sessionTrackinErr;
       }
     }
     else
@@ -984,21 +984,21 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       if (mysql_real_query(Connection->mariadb, "SET session_track_schema= ON", 28) ||
         mysql_real_query(Connection->mariadb, buffer, (unsigned long)len))
       {
-        goto err;
+        goto sessionTrackinErr;
       }
     }
     if (defaultSchema != NULL)
     {
       Connection->CurrentSchema= _strdup(defaultSchema);
     }
+    goto end;
   }
-  else
-  {
-    /* Default methods are for use of session tracking */
-    Connection->Methods->GetCurrentDB= &MADB_DbcGetCurrentDB;
-    Connection->Methods->TrackSession= &MADB_DbcDummyTrackSession;
-    Connection->Methods->GetTxIsolation= &MADB_DbcGetServerTxIsolation;
-  }
+
+sessionTrackinErr:
+  /* Default methods are for use of session tracking */
+  Connection->Methods->GetCurrentDB= &MADB_DbcGetCurrentDB;
+  Connection->Methods->TrackSession= &MADB_DbcDummyTrackSession;
+  Connection->Methods->GetTxIsolation= &MADB_DbcGetServerTxIsolation;
 
   goto end;
 
