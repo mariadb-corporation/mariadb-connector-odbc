@@ -62,9 +62,9 @@ ENDIF()
 # This has been done before C/C cmake scripts are included
 IF(NOT DEFINED INSTALL_LIB_SUFFIX)
   SET(INSTALL_LIB_SUFFIX "lib" CACHE STRING "Directory, under which to install libraries, e.g. lib or lib64")
-    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")
-      SET(INSTALL_LIB_SUFFIX "lib64")
-    ENDIF()
+  IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/" AND "${INSTALL_LAYOUT}" EQUAL "RPM")
+    SET(INSTALL_LIB_SUFFIX "lib64")
+  ENDIF()
 ENDIF()
 
 #

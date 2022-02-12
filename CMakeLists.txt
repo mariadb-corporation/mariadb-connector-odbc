@@ -104,6 +104,7 @@ INCLUDE("${CMAKE_SOURCE_DIR}/cmake/options_defaults.cmake")
 ### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those
 INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
 
+
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
   # If C/C is linked dynamically, we don't need link C/ODBC against encryption library
   IF (NOT MARIADB_LINK_DYNAMIC)
@@ -130,6 +131,7 @@ ELSE()
   MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
+ADD_CUSTOM_TARGET(DEPENDENCIES_FOR_PACKAGE)
 ### Including C/C subproject
 IF(NOT USE_SYSTEM_INSTALLED_LIB)
   IF(GIT_BUILD_SRCPKG)
@@ -153,6 +155,29 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
     ELSE()
       SET_TARGET_PROPERTIES(${PLUGINS_LIST} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
     ENDIF()
+  ELSE()
+    INSTALL(FILES
+            $<TARGET_FILE:libmariadb>
+            DESTINATION ${INSTALL_LIBDIR}
+            COMPONENT ConCLib)
+    MESSAGE(STATUS "Configuring to install libmariadb to ${INSTALL_LIBDIR}")
+    SET(OWN_PLUGINS_LIST mysql_clear_password dialog client_ed25519 sha256_password caching_sha2_password)
+    IF (PLUGINS_DYNAMIC)
+      # The list from CC is visible for us
+      SET(PLUGINS_LIST ${PLUGINS_DYNAMIC})
+    ELSE()
+      SET(PLUGINS_LIST ${OWN_PLUGINS_LIST})
+    ENDIF()
+    FOREACH(CC_PLUGIN ${PLUGINS_LIST})
+      IF(NOT PLUGINS_DYNAMIC OR "${PLUGIN_${CC_PLUGIN}_TYPE}" STREQUAL "MARIADB_CLIENT_PLUGIN_AUTH")
+        MESSAGE(STATUS "Configuring to install ${CC_PLUGIN} to ${INSTALL_PLUGINDIR}")
+        ADD_DEPENDENCIES(DEPENDENCIES_FOR_PACKAGE ${CC_PLUGIN})
+        INSTALL(FILES
+                $<TARGET_FILE:${CC_PLUGIN}>
+                DESTINATION ${INSTALL_PLUGINDIR}
+                COMPONENT ConCPlugins)
+      ENDIF()
+    ENDFOREACH()
   ENDIF()
 ELSE()
   # Adding mariadb subdirs of standard include locations
@@ -338,6 +363,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LANGUAGE C)
 MESSAGE(STATUS "All linked targets/external dependencies: ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES}")
 TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
+ADD_DEPENDENCIES(${LIBRARY_NAME} DEPENDENCIES_FOR_PACKAGE)
 
 # Currently on Windows only
 IF(WIN32)
