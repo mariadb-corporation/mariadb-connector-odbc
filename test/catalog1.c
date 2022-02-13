@@ -769,7 +769,7 @@ ODBC_TEST(t_sqltables)
   }
 
   IS(AllocEnvConn(&Env, &hdbc1));
-  Stmt1= DoConnect(hdbc1, FALSE, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, NULL);
+  Stmt1= DoConnect(hdbc1, FALSE, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, "NULLISCURRENT=0");
   FAIL_IF(Stmt1 == NULL, "");
 
   OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t1 (a int)");
@@ -831,6 +831,15 @@ ODBC_TEST(t_sqltables)
   is_num(my_print_non_format_result(Stmt1), 3);
   /* my_print_non_format_result closes cursor by default */
 
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
+
+  Stmt1 = DoConnect(hdbc1, FALSE, NULL, NULL, NULL, 0, "mariadbodbc_sqltables", 0, NULL, "NULLISCURRENT=1");
+  CHECK_STMT_RC(Stmt1, SQLTables(Stmt1, NULL, 0, NULL, 0, NULL, 0, NULL, 0));
+
+  is_num(myrowcount(Stmt1), 3);
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "DROP SCHEMA mariadbodbc_sqltables");
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));

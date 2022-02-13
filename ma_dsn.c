@@ -84,7 +84,8 @@ MADB_DsnKey DsnKeys[]=
   {"SCHEMANOERROR",  offsetof(MADB_Dsn, NeglectSchemaParam),DSN_TYPE_BOOL,   0, 0},
   {"READ_TIMEOUT",   offsetof(MADB_Dsn, ReadTimeout),       DSN_TYPE_INT,    0, 0},
   {"WRITE_TIMEOUT",  offsetof(MADB_Dsn, WriteTimeout),      DSN_TYPE_INT,    0, 0}, /* 40 */
-  {"NOLOCALINFILE",  offsetof(MADB_Dsn, DisableLocalInfile), DSN_TYPE_BOOL, 0, 0},
+  {"NOLOCALINFILE",  offsetof(MADB_Dsn, DisableLocalInfile),DSN_TYPE_BOOL,   0, 0},
+  {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent),DSN_TYPE_BOOL,   0, 0},
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
@@ -134,6 +135,7 @@ MADB_Dsn *MADB_DSN_Init()
   {
     Dsn->FreeMe= TRUE;
     Dsn->Keys= (MADB_DsnKey *)&DsnKeys;
+    /*Dsn->NullSchemaMeansCurrent = '\1';*/
   }
   return Dsn;
 }

@@ -152,6 +152,7 @@ typedef struct st_madb_dsn
   my_bool ForceForwardOnly;
   my_bool NeglectSchemaParam;
   my_bool DisableLocalInfile;
+  my_bool NullSchemaMeansCurrent;
   /* Internal */
   my_bool FreeMe;
 } MADB_Dsn;

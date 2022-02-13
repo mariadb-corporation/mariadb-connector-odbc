@@ -335,7 +335,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
       MADB_DYNAPPENDCONST(&StmtStr, " AND TABLE_SCHEMA");
       AddPvOrIdCondition(Stmt, (void*)&StmtStr, (size_t)-1, CatalogName, CatalogNameLength);
     }
-    else if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
+    else if (Stmt->Connection->Environment->AppType == ATypeMSAccess || Stmt->Connection->Dsn->NullSchemaMeansCurrent != '\0')
     {
       MADB_DYNAPPENDCONST(&StmtStr, " AND TABLE_SCHEMA=DATABASE()");
     }

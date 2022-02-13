@@ -172,6 +172,7 @@ BEGIN
     EDITTEXT        txtPluginDir,72,67,110,10,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",pbPlugindirBrowse,183,65,30,14
     CONTROL         "Disable LOAD DATA LOCAL INFILE statements",ckNoLocalInfile,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,81,170,10,WS_EX_TRANSPARENT
+    CONTROL         "SQLTables: NULL Catalog means 'current'(default - 'any DB')",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,95,210,10,WS_EX_TRANSPARENT
 //    CONTROL         "Disable catalog support",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,91,10,WS_EX_TRANSPARENT
 //    CONTROL         "Ignore space after function names",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,53,127,10,WS_EX_TRANSPARENT
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14

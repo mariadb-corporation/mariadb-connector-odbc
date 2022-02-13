@@ -80,7 +80,9 @@
 #define ckMatchedRows                   1114
 #define txtPluginDir                    1115
 #define pbPlugindirBrowse               1116
+#define ckSchParamNoError               1221
 #define ckNoLocalInfile                 1310
+#define ckNullSchemaMeansCurrent        1222
 #define txtSslKey                       1117
 #define txtSslCert                      1118
 #define txtSslCertAuth                  1119
@@ -106,7 +108,6 @@
 #define txtCrl                          1213
 #define pbCrlBrowse                     1214
 #define cbInteractive                   1220
-#define ckSchParamNoError               1221
 
 // Next default values for new objects
 // 

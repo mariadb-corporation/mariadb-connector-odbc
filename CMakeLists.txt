@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2021 MariaDB Corporation AB
+#   Copyright (C) 2013,2022 MariaDB Corporation AB
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -161,23 +161,25 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
             DESTINATION ${INSTALL_LIBDIR}
             COMPONENT ConCLib)
     MESSAGE(STATUS "Configuring to install libmariadb to ${INSTALL_LIBDIR}")
-    SET(OWN_PLUGINS_LIST mysql_clear_password dialog client_ed25519 sha256_password caching_sha2_password)
-    IF (PLUGINS_DYNAMIC)
-      # The list from CC is visible for us
-      SET(PLUGINS_LIST ${PLUGINS_DYNAMIC})
-    ELSE()
-      SET(PLUGINS_LIST ${OWN_PLUGINS_LIST})
-    ENDIF()
-    FOREACH(CC_PLUGIN ${PLUGINS_LIST})
-      IF(NOT PLUGINS_DYNAMIC OR "${PLUGIN_${CC_PLUGIN}_TYPE}" STREQUAL "MARIADB_CLIENT_PLUGIN_AUTH")
-        MESSAGE(STATUS "Configuring to install ${CC_PLUGIN} to ${INSTALL_PLUGINDIR}")
-        ADD_DEPENDENCIES(DEPENDENCIES_FOR_PACKAGE ${CC_PLUGIN})
-        INSTALL(FILES
-                $<TARGET_FILE:${CC_PLUGIN}>
-                DESTINATION ${INSTALL_PLUGINDIR}
-                COMPONENT ConCPlugins)
+    IF(NOT ALL_PLUGINS_STATIC)
+      SET(OWN_PLUGINS_LIST mysql_clear_password dialog client_ed25519 sha256_password caching_sha2_password)
+      IF (PLUGINS_DYNAMIC)
+        # The list from CC is visible for us
+        SET(PLUGINS_LIST ${PLUGINS_DYNAMIC})
+      ELSE()
+        SET(PLUGINS_LIST ${OWN_PLUGINS_LIST})
       ENDIF()
-    ENDFOREACH()
+      FOREACH(CC_PLUGIN ${PLUGINS_LIST})
+        IF(NOT PLUGINS_DYNAMIC OR "${PLUGIN_${CC_PLUGIN}_TYPE}" STREQUAL "MARIADB_CLIENT_PLUGIN_AUTH")
+          MESSAGE(STATUS "Configuring to install ${CC_PLUGIN} to ${INSTALL_PLUGINDIR}")
+          ADD_DEPENDENCIES(DEPENDENCIES_FOR_PACKAGE ${CC_PLUGIN})
+          INSTALL(FILES
+                  $<TARGET_FILE:${CC_PLUGIN}>
+                  DESTINATION ${INSTALL_PLUGINDIR}
+                  COMPONENT ConCPlugins)
+        ENDIF()
+      ENDFOREACH()
+    ENDIF()
   ENDIF()
 ELSE()
   # Adding mariadb subdirs of standard include locations
