@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20,10 +20,11 @@
 
 extern MARIADB_CHARSET_INFO*  DmUnicodeCs;
 
-char *MADB_GetTableName(MADB_Stmt *Stmt)
+char* MADB_GetTableName(MADB_Stmt *Stmt)
 {
   char *TableName= NULL;
- unsigned  int i= 0;
+  unsigned int  i= 0;
+
   if (Stmt->TableName && Stmt->TableName[0])
     return Stmt->TableName;
   if (!mysql_stmt_field_count(Stmt->stmt))
@@ -209,53 +210,102 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString)
 
 my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *TableName, my_bool ParameterMarkers)
 {
-  int UniqueCount=0, PrimaryCount= 0;
-  int i, Flag= 0;
+  int UniqueCount=0, PrimaryCount= 0, TotalPrimaryCount= 0, TotalUniqueCount= 0, TotalTableFieldCount= 0;
+  int i, Flag= 0, IndexArrIdx= 0;
   char *Column= NULL, *Escaped= NULL;
   SQLLEN StrLength;
   unsigned long EscapedLength;
 
-  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
+  if (Stmt->UniqueIndex != NULL)
   {
-    MYSQL_FIELD *field= mysql_fetch_field_direct(FetchMetadata(Stmt), i);
-    if (field->flags & PRI_KEY_FLAG)
-      PrimaryCount++;
-    if (field->flags & UNIQUE_KEY_FLAG)
-      UniqueCount++;
+    TotalUniqueCount= Stmt->UniqueIndex[0];
+    IndexArrIdx= 1;
   }
-  /* We need to use all columns, otherwise it will be difficult to map fields for Positioned Update */
-  if (PrimaryCount && PrimaryCount != MADB_KeyTypeCount(Stmt->Connection, TableName, PRI_KEY_FLAG))
-    PrimaryCount= 0;
-  if (UniqueCount && UniqueCount != MADB_KeyTypeCount(Stmt->Connection, TableName, UNIQUE_KEY_FLAG))
-    UniqueCount= 0;
-  
-  /* if no primary or unique key is in the cursor, the cursor must contain all
-     columns from table in TableName */
-  if (!PrimaryCount && !UniqueCount)
+  else
   {
-    char      StmtStr[256];
-    MADB_Stmt *CountStmt;
-    int       FieldCount= 0;
+    for (i = 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
+    {
+      MYSQL_FIELD* field = mysql_fetch_field_direct(FetchMetadata(Stmt), i);
+      if (field->flags & PRI_KEY_FLAG)
+        PrimaryCount++;
+      if (field->flags & UNIQUE_KEY_FLAG)
+        UniqueCount++;
+    }
 
-    MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE*)&CountStmt);
-    _snprintf(StmtStr, 256, "SELECT * FROM `%s` LIMIT 0", TableName);
-    CountStmt->Methods->ExecDirect(CountStmt, (char *)StmtStr, SQL_NTS);
-    FieldCount= mysql_stmt_field_count(((MADB_Stmt *)CountStmt)->stmt);
-    CountStmt->Methods->StmtFree(CountStmt, SQL_DROP);
+    TotalTableFieldCount = MADB_KeyTypeCount(Stmt->Connection, TableName, &TotalPrimaryCount, &TotalUniqueCount);
 
-    if (FieldCount != MADB_STMT_COLUMN_COUNT(Stmt))
+    if (TotalTableFieldCount < 0)
+    {
+      /* Error. Expecting that the called function has set the error */
+      return TRUE;
+    }
+    /* We need to use all columns, otherwise it will be difficult to map fields for Positioned Update */
+    if (PrimaryCount != TotalPrimaryCount)
+    {
+      PrimaryCount = 0;
+    }
+    if (UniqueCount != TotalUniqueCount)
+    {
+      UniqueCount = 0;
+    }
+
+    /* if no primary or unique key is in the cursor, the cursor must contain all
+       columns from table in TableName */
+       /* We use unique index if we do not have primary. TODO: If there are more than one unique index - we are in trouble */
+    if (PrimaryCount != 0)
+    {
+      Flag = PRI_KEY_FLAG;
+      /* Changing meaning of TotalUniqueCount from field count in unique index to field count in *best* unique index(that can be primary as well) */
+      TotalUniqueCount= PrimaryCount;
+    }
+    else if (UniqueCount != 0)
+    {
+      Flag = UNIQUE_KEY_FLAG;
+      /* TotalUniqueCount is equal UniqueCount */
+    }
+    else if (TotalTableFieldCount != MADB_STMT_COLUMN_COUNT(Stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
       return TRUE;
     }
+    else
+    {
+      TotalUniqueCount= 0;
+    }
+
+    if (TotalUniqueCount != 0)
+    {
+      /* First element gets number of columns in the index */
+      Stmt->UniqueIndex= MADB_ALLOC((TotalUniqueCount + 1) *sizeof(*Stmt->UniqueIndex));
+      if (Stmt->UniqueIndex == NULL)
+      {
+        goto memerror;
+      }
+      Stmt->UniqueIndex[0]= TotalUniqueCount;
+    }
   }
+
   if (MADB_DYNAPPENDCONST(DynString, " WHERE 1"))
+  {
     goto memerror;
-  for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
+  }
+
+  /* If we already know index columns - we walk through column index values stored in Stmt->UniqueIndex, all columns otherwise */
+  for (i= IndexArrIdx == 0 ? 0 : Stmt->UniqueIndex[1];
+    IndexArrIdx == 0 ? i < MADB_STMT_COLUMN_COUNT(Stmt) : IndexArrIdx <= Stmt->UniqueIndex[0];
+    i= IndexArrIdx == 0 ? i + 1 : Stmt->UniqueIndex[++IndexArrIdx])
   {
     MYSQL_FIELD *field= mysql_fetch_field_direct(Stmt->metadata, i);
-    if (field->flags & Flag || !Flag)
+
+    /* If we have already index columns, or column has right flag(primary or unique) set, or there is no good index */
+    if ( IndexArrIdx != 0 || field->flags & Flag || Flag == 0)
     {
+      /* Storing index information */
+      if (Flag != 0)
+      {
+        /* Complicated(aka silly) way not to introduce another variable to store arr index for writing to the arr */
+        Stmt->UniqueIndex[Stmt->UniqueIndex[0] - (--TotalUniqueCount)]= i;
+      }
       if (MADB_DYNAPPENDCONST(DynString, " AND ") ||
           MADB_DynStrAppendQuoted(DynString, field->org_name))
           goto memerror;
@@ -295,6 +345,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
       }
     }
   }
+
   if (MADB_DYNAPPENDCONST(DynString, " LIMIT 1"))
     goto memerror;
   MADB_FREE(Column);

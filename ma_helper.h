@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,7 +24,7 @@ MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt);
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);
-int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
+int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
 void MADB_CopyOdbcTsToMadbTime(SQL_TIMESTAMP_STRUCT *Src, MYSQL_TIME *Dst);

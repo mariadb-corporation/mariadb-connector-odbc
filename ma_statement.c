@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2021 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -232,6 +232,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->Cursor.Name);
     MADB_FREE(Stmt->CatalogName);
     MADB_FREE(Stmt->TableName);
+    MADB_FREE(Stmt->UniqueIndex);
     ResetMetadata(&Stmt->metadata, NULL);
 
     /* For explicit descriptors we only remove reference to the stmt*/
@@ -452,6 +453,8 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
     Stmt->PositionedCommand= 0;
     Stmt->State= MADB_SS_INITED;
     MADB_CLEAR_ERROR(&Stmt->Error);
+    MADB_FREE(Stmt->UniqueIndex);
+    MADB_FREE(Stmt->TableName);
   }
 }
 /* }}} */
@@ -460,7 +463,7 @@ void MADB_StmtReset(MADB_Stmt *Stmt)
       (i.e. we gonna do mariadb_stmt_exec_direct) */
 SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
 {
-  /* TODO: In case of positioned command it shouldn't be always*/
+  /* TODO: In case of positioned command it shouldn't be always */
   if ((Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)) != 0)
   {
     if (Stmt->params)
@@ -603,7 +606,9 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     }
 
     if (!(Stmt->PositionedCursor= MADB_FindCursor(Stmt, CursorName)))
+    {
       return Stmt->Error.ReturnValue;
+    }
 
     TableName= MADB_GetTableName(Stmt->PositionedCursor);
     MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
@@ -819,7 +824,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
 /* {{{ MADB_ExecutePositionedUpdate */
 SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
-  SQLSMALLINT   j;
+  SQLSMALLINT   j, IndexIdx= 1;
   SQLRETURN     ret;
   MADB_DynArray DynData;
   MADB_Stmt     *SaveCursor;
@@ -841,21 +846,35 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
   
   MADB_InitDynamicArray(&DynData, sizeof(char *), 8, 8);
 
-  for (j= 1; j < MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) + 1; ++j)
+  for (j= 1; j < MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor) + 1; ++j)
   {
-    SQLLEN Length;
-    MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
-    Length= Rec->OctetLength;
- /*   if (Rec->inUse)
-      MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
-    else */
+    if (Stmt->PositionedCursor->UniqueIndex == NULL ||
+      (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx] + 1))
     {
-      Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, NULL, 0, &Length, TRUE);
-      p= (char *)MADB_CALLOC(Length + 2);
-      MADB_InsertDynamic(&DynData, (char *)&p);
-      Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, NULL, TRUE);
-      Stmt->Methods->BindParam(Stmt, j + (Stmt->ParamCount - MADB_POS_COMM_IDX_FIELD_COUNT(Stmt)), SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
+      SQLLEN Length;
+      MADB_DescRecord* Rec = MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
+      SQLUSMALLINT ParamNumber= 0;
 
+      Length = Rec->OctetLength;
+      if (Stmt->PositionedCursor->UniqueIndex != NULL)
+      {
+        ParamNumber= /* Param ordnum in pos.cursor condition */IndexIdx + /* Num of params in main stmt */(Stmt->ParamCount - Stmt->PositionedCursor->UniqueIndex[0]);
+        ++IndexIdx;
+      }
+      else
+      {
+        ParamNumber = /* Param ordnum in pos.cursor condition */ j + /* Num of params in main stmt */(Stmt->ParamCount - MADB_POS_COMM_IDX_FIELD_COUNT(Stmt));
+      }
+      /* if (Rec->inUse)
+           MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
+         else */
+      {
+        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, NULL, 0, &Length, TRUE);
+        p = (char*)MADB_CALLOC(Length + 2);
+        MADB_InsertDynamic(&DynData, (char*)&p);
+        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, NULL, TRUE);
+        Stmt->Methods->BindParam(Stmt, ParamNumber, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
+      }
     }
   }
 
@@ -3401,6 +3420,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
 SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLength)
 {
   MADB_List *LStmt, *LStmtNext;
+
   if (!Buffer)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);

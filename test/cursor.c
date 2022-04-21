@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -225,7 +225,6 @@ ODBC_TEST(t_bug5853)
   while ((rc= SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0)) != SQL_NO_DATA_FOUND)
   {
     char data[2][3] = { "uvw", "xyz" };
-
 
     FAIL_IF(SQLExecute(hstmt_pos)!= SQL_NEED_DATA, "SQL_NEED_DATA expected");
     rc= SQL_NEED_DATA;
@@ -3394,40 +3393,18 @@ ODBC_TEST(odbc289)
   SQLLEN i, rowsToInsert= 3, rowsToFetch= 2;
   SQLINTEGER value[2]= {0, 0};
 
- /* OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc289");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc289 (`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT)");
-
-  for (i = 0; i < rowsToInsert; ++i)
-  {
-    OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc289 VALUES()");
-  }
-
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
-    (SQLPOINTER)rowsToFetch, 0));
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT id FROM t_odbc289", SQL_NTS));
-
-  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &value, 0, NULL));
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
-  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc289");*/
   SQLCHAR value2[60];
   SQLLEN length[2];
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS CUST");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE CUST (`LAST_NAME` VARCHAR(29) NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc289");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc289 (`LAST_NAME` VARCHAR(29) NOT NULL)");
   for (i = 0; i < rowsToInsert; ++i)
   {
-    OK_SIMPLE_STMT(Stmt, "INSERT INTO CUST VALUES('whatever')");
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc289 VALUES('whatever')");
   }
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT LAST_NAME FROM CUST", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT LAST_NAME FROM t_odbc289", SQL_NTS));
 
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)2, SQL_IS_INTEGER));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)rowsToFetch, SQL_IS_INTEGER));
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_CHAR, value2, 30, length));
 
@@ -3447,6 +3424,100 @@ ODBC_TEST(odbc289)
 
   printf("fetch: %s\n", value2);
   printf("fetch: %s\n", value2 + 30);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc289");
+
+  return OK;
+}
+
+
+/* Positioned operations with pri/unique index */
+ODBC_TEST(odbc356)
+{
+  SQLLEN      RowCount;
+  SQLHSTMT    posStmt, cursorOnUni;
+  SQLCHAR     data[32];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc356");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc356_1");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc356 (id INT PRIMARY KEY AUTO_INCREMENT NOT NULL, ukey INT NOT NULL, val VARCHAR(15), UNIQUE INDEX onUkey(ukey))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc356_1(upart1 INT NOT NULL, upart2 INT NOT NULL, val VARCHAR(15), UNIQUE INDEX onUkey(upart1, upart2))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc356 VALUES (1, 2,'Right PRI'),(2, 3, 'Wrong'), (3, 1, 'Right UNI')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc356_1 VALUES (1, 2, 'Wrong'),(1, 3,'Right')");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+    (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
+
+  CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR*)"macursor", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_odbc356 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
+
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &cursorOnUni));
+  CHECK_STMT_RC(cursorOnUni, SQLSetCursorName(cursorOnUni, (SQLCHAR*)"maunicursor", SQL_NTS));
+  OK_SIMPLE_STMT(cursorOnUni, "SELECT ukey, val FROM t_odbc356 ORDER BY 1");
+  CHECK_STMT_RC(cursorOnUni, SQLFetchScroll(cursorOnUni, SQL_FETCH_FIRST, 1L));
+
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &posStmt));
+  OK_SIMPLE_STMT(posStmt, "UPDATE t_odbc356 SET val= CONCAT(val, '!') "
+                          "WHERE CURRENT OF macursor");
+  CHECK_STMT_RC(Stmt, SQLRowCount(posStmt, &RowCount));
+  is_num(RowCount, 1);
+
+  OK_SIMPLE_STMT(posStmt, "UPDATE t_odbc356 SET val= CONCAT(val, '?') "
+                          "WHERE CURRENT OF maunicursor");
+  CHECK_STMT_RC(Stmt, SQLRowCount(posStmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(posStmt, SQLFreeStmt(posStmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  OK_SIMPLE_STMT(posStmt, "DELETE FROM t_odbc356 WHERE CURRENT OF macursor");
+  CHECK_STMT_RC(Stmt, SQLRowCount(posStmt, &RowCount));
+  is_num(RowCount, 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(posStmt, SQLFreeHandle(SQL_HANDLE_STMT, cursorOnUni));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, ukey, val FROM t_odbc356 ORDER BY 1");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 2);
+  IS_STR(my_fetch_str(Stmt, data, 3), "Right PRI!", sizeof("Right PRI!"));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  is_num(my_fetch_int(Stmt, 2), 1);
+  IS_STR(my_fetch_str(Stmt, data, 3), "Right UNI?", sizeof("Right UNI?"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "SQL_NO_DATA expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* This test is to verify, that if stmt handle is used for a new query, wrong old key datat is not used for the postioned operation */
+  OK_SIMPLE_STMT(Stmt, "SELECT upart1, upart2, val FROM t_odbc356_1 ORDER BY 1,2");
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1L));
+
+  OK_SIMPLE_STMT(posStmt, "DELETE FROM t_odbc356_1 WHERE CURRENT OF macursor");
+  CHECK_STMT_RC(Stmt, SQLRowCount(posStmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "SELECT upart1, upart2, val FROM t_odbc356_1 ORDER BY 1,2");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 2), 2);
+  IS_STR(my_fetch_str(Stmt, data, 3), "Wrong", sizeof("Wrong")); /* Means the right row has been deleted */
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "SQL_NO_DATA expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(posStmt, SQLFreeHandle(SQL_HANDLE_STMT, posStmt));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc356");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc356_1");
 
   return OK;
 }
@@ -3504,7 +3575,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug41946, "t_bug41946",        NORMAL},
   {odbc251, "odbc251-mblob_update", TO_FIX},
   {odbc276, "odbc276-bin_update", NORMAL},
-  {odbc289, "odbc289-fetch_after_close", NORMAL},
+  {odbc289, "odbc289-fech_after_close", NORMAL},
+  {odbc356, "odbc356-key_cursor", NORMAL},
   {NULL, NULL}
 };
 

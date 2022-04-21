@@ -49,18 +49,18 @@ typedef struct {
 } SINGLE_QUERY;
 
 typedef struct {
+  MADB_DynArray Tokens;
+  MADB_DynArray SubQuery; /* List of queries or batches of queries, that can be executed together at once */
   char        * Original;
   char        * allocated; /* Pointer to the allocated area. The refined query may go to the right */
   char        * RefinedText;
   size_t        RefinedLength;
-  MADB_DynArray Tokens;
-  MADB_DynArray SubQuery; /* List of queries or batches of queries, that can be executed together at once */
+  enum enum_madb_query_type QueryType;
   /* So far only falg whether we have any parameters */
   my_bool       HasParameters;
   /* This is more for multistatements for optimization - if none of queries returns result,
      we can send them via text protocol */
   my_bool       ReturnsResult;
-  enum enum_madb_query_type QueryType;
   my_bool       PoorManParsing;
 
   my_bool       BatchAllowed;

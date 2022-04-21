@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2018 MariaDB Corporation AB
+   Copyright (C) 2013, 2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -158,10 +158,12 @@ int  MADB_GetWCharType(int Type)
   }
 }
 
-int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
+/* Returns total number of columns, and columns count in the primary key and in the unique key
+   TODO: if there are >1 of unique keys, this will go wrong */
+int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount)
 {
-  int          Count= 0;
-  unsigned int i;
+  int          Count= -1;
+  int          i;
   char         StmtStr[1024];
   char         *p= StmtStr;
   char         Database[65]= {'\0'};
@@ -182,12 +184,17 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag)
     goto end;
   }
 
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  Count= mysql_stmt_field_count(Stmt->stmt);
+  for (i=0; i < Count; ++i)
   {
     Field= mysql_fetch_field_direct(Stmt->metadata, i);
-    if (Field->flags & KeyFlag)
+    if (Field->flags & PRI_KEY_FLAG)
     {
-      ++Count;
+      ++*PrimaryKeysCount;
+    }
+    if (Field->flags & UNIQUE_KEY_FLAG)
+    {
+      ++*UniqueKeysCount;
     }
   }
 end:

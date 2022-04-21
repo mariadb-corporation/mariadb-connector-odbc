@@ -804,33 +804,41 @@ ODBC_TEST(t_zerolength)
   IS_STR(bData, "mysql", 5);
 
   szData[0]= 'z';
-  rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,0,&pcbValue);
+  rc = SQLGetData(Stmt, 3, SQL_C_CHAR, szData, 0, &pcbValue);
   FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
   diag("data: %s, length: %d", szData, pcbValue);
   IS(pcbValue == 5 || pcbValue == 10);
   IS(szData[0] == 'z');
 
-#if TO_BE_FIXED_IN_DRIVER
+  /* "If the data was converted to a variable-length data type, such as character or binary,
+    SQLGetData checks whether the length of the data exceeds BufferLength. If the length
+    of character data (including the null-termination character) exceeds BufferLength,
+    SQLGetData truncates the data to BufferLength less the length of a null-termination
+    character. It then null-terminates the data. If the length of binary data exceeds the
+    length of the data buffer, SQLGetData truncates it to BufferLength bytes."
+    Thus, BufferLength=1 shoul make the driver to write reminating null in that one character */
   szData[0]=szData[1]='z';
   rc = SQLGetData(Stmt, 3, SQL_C_CHAR, szData, 1, &pcbValue);
   FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
   diag("data: %s, length: %d", szData, pcbValue);
-  IS(pcbValue == 10);
-  IS(szData[0] == 'm');
+  IS(pcbValue == 5);
+  IS(szData[0] == '\0');
   IS(szData[1] == 'z');
 
   rc = SQLGetData(Stmt, 3,SQL_C_CHAR, szData, 4, &pcbValue);
   FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "swi expected");
   diag("data: %s, length: %d", szData, pcbValue);
-  IS(pcbValue == 10);
-  IS(strncmp(szData,"mont",4) == 0);
+  /* For character or binary data, this is the length of the data after conversion and before truncation due to BufferLength. */
+  IS(pcbValue == 5);
+  IS(strncmp(szData,"mon",4) == 0);
 
   rc = SQLGetData(Stmt, 3, SQL_C_CHAR, szData, 5, &pcbValue);
   CHECK_STMT_RC(Stmt,rc);
   diag("data: %s, length: %d", szData, pcbValue);
-  IS(pcbValue == 10);
-  IS(strncmp(szData,"monty",5) == 0);
-#endif
+  /* We are fetching data in parts, here we get the length of the remaining part */
+  IS(pcbValue == 2);
+  IS(strncmp(szData,"ty", 3) == 0);
+//  #endif
 
   rc = SQLFetch(Stmt);
   IS(rc == SQL_NO_DATA_FOUND);

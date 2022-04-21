@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -64,19 +64,19 @@ typedef struct
   SQLINTEGER NativeError;
   /* Order number of last requested error record */
   unsigned int ErrorNum;
-  char SqlState[SQLSTATE_LENGTH + 1];  
-  SQLRETURN ReturnValue;
   char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
+  char SqlState[SQLSTATE_LENGTH + 1];
+  SQLRETURN ReturnValue;
 } MADB_Error;
 
 typedef struct
 {
-  SQLUINTEGER TargetType;
   SQLPOINTER TargetValuePtr;
   SQLLEN BufferLength;
   SQLLEN Utf8BufferLength;
   SQLLEN *StrLen_or_Ind;
   void *InternalBuffer; /* used for conversion */
+  SQLUINTEGER TargetType;
 } MADB_ColBind;
 
 typedef struct
@@ -236,9 +236,9 @@ typedef struct
 	SQLUINTEGER UseBookmarks;
 	void* BookmarkPtr;
   SQLLEN BookmarkLength;
-  SQLSMALLINT BookmarkType;
   SQLULEN	MetadataId;
   SQLULEN SimulateCursor;
+  SQLSMALLINT BookmarkType;
 } MADB_StmtOptions;
 
 /* TODO: To check is it 0 or 1 based? not quite clear from its usage */
@@ -289,42 +289,29 @@ typedef struct
 
 struct st_ma_odbc_stmt
 {
-  MADB_Dbc                  *Connection;
-  struct st_ma_stmt_methods *Methods;
   MADB_StmtOptions          Options;
   MADB_Error                Error;
   MADB_Cursor               Cursor;
+  MADB_QUERY                Query;
+  MADB_List                 ListItem;
+  long long                 AffectedRows;
+  MADB_Dbc                  *Connection;
+  struct st_ma_stmt_methods *Methods;
   MYSQL_STMT                *stmt;
   MYSQL_RES                 *metadata;
-  MADB_List                 ListItem;
-  MADB_QUERY                Query;
-  SQLSMALLINT               ParamCount;
-  enum MADB_DaeType         DataExecutionType;
   MYSQL_RES                 *DefaultsResult;
-  int                       ArrayOffset;
-  SQLSETPOSIROW             DaeRowNumber;
-  int                       Status;
   MADB_DescRecord           *PutDataRec;
   MADB_Stmt                 *DaeStmt;
   MADB_Stmt                 *PositionedCursor;
-  my_bool                   PositionedCommand;
-  enum MADB_StmtState       State;
   MYSQL_STMT                **MultiStmts;
-  unsigned int              MultiStmtNr;
-  unsigned int              MultiStmtMaxParam;
   SQLLEN                    LastRowFetched;
   MYSQL_BIND                *result;
   MYSQL_BIND                *params;
-  int                       PutParam;
-  my_bool                   RebindParams;
-  my_bool                   bind_done;
-  long long                 AffectedRows;
   unsigned long             *CharOffset;
   unsigned long             *Lengths;
   char                      *TableName;
   char                      *CatalogName;
   MADB_ShortTypeInfo        *ColsTypeFixArr;
-  MADB_BulkOperationInfo    Bulk;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;
@@ -335,6 +322,20 @@ struct st_ma_odbc_stmt
   MADB_Desc *IArd;
   MADB_Desc *IIrd;
   MADB_Desc *IIpd;
+  unsigned short            *UniqueIndex; /* Insdexes of columns that make best available unique identifier */
+  SQLSETPOSIROW             DaeRowNumber;
+  int                       ArrayOffset;
+  int                       Status;
+  unsigned int              MultiStmtNr;
+  unsigned int              MultiStmtMaxParam;
+  int                       PutParam;
+  enum MADB_StmtState       State;
+  enum MADB_DaeType         DataExecutionType;
+  SQLSMALLINT               ParamCount;
+  MADB_BulkOperationInfo    Bulk;
+  my_bool                   PositionedCommand;
+  my_bool                   RebindParams;
+  my_bool                   bind_done;
 };
 
 enum MADB_AppType{
@@ -342,6 +343,7 @@ enum MADB_AppType{
   ATypeMSAccess= 1
 };
 
+/*const size_t stmtsime = sizeof(struct st_ma_odbc_stmt);*/
 typedef struct st_ma_odbc_environment {
   MADB_Error Error;
   CRITICAL_SECTION cs;
