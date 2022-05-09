@@ -933,6 +933,38 @@ ODBC_TEST(t_blob_reading_in_chunks)
 }
 
 
+/** ODBC-359 When calling SQLBindCol with a lengthPtr but no targetBuffer to get column data length
+    the buffer got dereferenced without first checking if it is set.
+ */
+ODBC_TEST(odbc359)
+{
+  SQLCHAR* create_table= (SQLCHAR *)"CREATE TABLE `odbc359` (`id` bigint(20) NOT NULL, `msg` mediumtext);";
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc359");
+  OK_SIMPLE_STMT(Stmt, create_table);
+
+  // msg 'Hello there!' is 12 characters long
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO `odbc359` (`id`, `msg`) VALUES(1, 'Hello there!')");
+  SQLWCHAR id[255];
+  SQLLEN idLen, msgLen;
+
+  OK_SIMPLE_STMTW(Stmt, CW("SELECT id, msg from odbc359"));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, id, sizeof(id), &idLen));
+
+  // Binding lengthBuffer, but no targetBuffer, type must be SQL_C_WCHAR
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, NULL, 0, &msgLen));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS);
+
+  char errormsg[255];
+  snprintf(errormsg, 255, "Fetched wrong column data length: Should be %d, is %d", 12 * sizeof(SQLWCHAR), msgLen);
+
+  //Length of 'Hello there!'
+  FAIL_IF(msgLen != 12 * sizeof(SQLWCHAR), errormsg);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_blob, "t_blob"},
@@ -948,6 +980,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug_11746572, "t_bug_11746572"},
   {t_odbc_26, "t_odbc_26"},
   {t_blob_reading_in_chunks, "t_blob_reading_in_chunks"},
+  { odbc359, "odbc359"},
   {NULL, NULL}
 };
 
