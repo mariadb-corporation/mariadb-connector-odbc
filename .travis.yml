@@ -17,7 +17,7 @@ before_install:
 matrix:
   allow_failures:
     - os: linux
-      env: DB=mariadb:10.5 PACKET=8M MAXSCALE_VERSION=2.5.3
+      env: DB=mariadb:10.8 PACKET=8M MAXSCALE_VERSION=2.5.3
     - os: linux
       env: DB=build
     - os: linux
@@ -27,9 +27,7 @@ matrix:
     - os: linux
       env: DB=mysql:5.7
     - os: osx
-      env: DB=mariadb:10.5
-    - os: linux
-      env: DB=mariadb:10.1
+      env: DB=mariadb:10.8
     - env: SKYSQL=true
     - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
     - os: linux
@@ -37,33 +35,32 @@ matrix:
       dist: focal
   include:
     - os: linux
+      env: DB=mariadb:10.8
+    - os: linux
+      compiler: clang
+      env: DB=mariadb:10.7
+    - os: linux
       env: DB=mariadb:10.6
     - os: linux
-      env: DB=mariadb:10.2
-    - os: linux
-      env: DB=mariadb:10.3
+      env: DB=mariadb:10.5
     - os: linux
       env: DB=mariadb:10.4
     - os: linux
-      compiler: gcc
-      env: DB=mariadb:10.5
-    - os: linux
-      compiler: clang
-      env: DB=mariadb:10.5
+      env: DB=mariadb:10.3
     - env: SKYSQL=true
     - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
     - os: osx
       compiler: gcc
-      env: DB=mariadb:10.5
+      env: DB=mariadb:10.8
       addons:
-        mariadb: '10.5'
+        mariadb: '10.8'
       before_script:
         - brew update
         - brew install openssl
         - brew install libiodbc
         - brew install mariadb
     - os: linux
-      env: DB=mariadb:10.5 PACKET=8M MAXSCALE_VERSION=2.5.3
+      env: DB=mariadb:10.8 PACKET=8M MAXSCALE_VERSION=2.5.3
     - os: linux
       env: DB=mysql:5.5
     - os: linux

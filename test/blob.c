@@ -94,7 +94,6 @@ ODBC_TEST(t_blob)
     rc = SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     CHECK_STMT_RC(Stmt, rc);
 
-
     memset(blobbuf, ~0, 100);
     CHECK_STMT_RC(Stmt, SQLPrepare(Stmt,
                               (SQLCHAR *)"SELECT I, B FROM TBLOB WHERE I = 1",
@@ -955,11 +954,8 @@ ODBC_TEST(odbc359)
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS);
 
-  char errormsg[255];
-  snprintf(errormsg, 255, "Fetched wrong column data length: Should be %d, is %d", 12 * sizeof(SQLWCHAR), msgLen);
-
   //Length of 'Hello there!'
-  FAIL_IF(msgLen != 12 * sizeof(SQLWCHAR), errormsg);
+  is_num(12 * sizeof(SQLWCHAR), msgLen);
 
   return OK;
 }

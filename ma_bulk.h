@@ -25,13 +25,17 @@
 
 #define MADB_DOING_BULK_OPER(_stmt) ((_stmt)->Bulk.ArraySize > 1)
 
-/* Couple defined to make "switch"s look at least shorter, if not nicer */
-#define CHAR_BINARY_TYPES SQL_C_CHAR:\
-case SQL_C_BINARY:\
-case SQL_LONGVARBINARY:\
-case SQL_VARBINARY:\
+/* Couple of defines to make "switch"s look at least shorter, if not nicer */
+#define CHAR_TYPES SQL_CHAR:\
 case SQL_VARCHAR:\
 case SQL_LONGVARCHAR
+
+#define BINARY_TYPES  SQL_BINARY:\
+case SQL_LONGVARBINARY:\
+case SQL_VARBINARY
+
+#define CHAR_BINARY_TYPES CHAR_TYPES:\
+case BINARY_TYPES
 
 #define WCHAR_TYPES SQL_C_WCHAR:\
 case SQL_WVARCHAR:\

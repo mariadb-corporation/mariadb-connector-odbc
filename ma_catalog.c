@@ -407,12 +407,14 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
-  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
-                             "NON_UNIQUE, NULL AS INDEX_QUALIFIER, INDEX_NAME, "
-                             "%d AS TYPE, "
-                             "SEQ_IN_INDEX AS ORDINAL_POSITION, COLUMN_NAME, COLLATION AS ASC_OR_DESC, "
-                             "CARDINALITY, NULL AS PAGES, NULL AS FILTER_CONDITION "
-                             "FROM INFORMATION_SCHEMA.STATISTICS ",
+  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
+                             "IF(NON_UNIQUE=0 AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s2"
+                             " WHERE s2.INDEX_NAME=s1.INDEX_NAME AND s2.TABLE_SCHEMA=s1.TABLE_SCHEMA AND NULLABLE='YES') > 0,"
+                             "1,NON_UNIQUE) AS NON_UNIQUE,"
+                             "NULL AS INDEX_QUALIFIER,INDEX_NAME,%d AS TYPE,"
+                             "SEQ_IN_INDEX AS ORDINAL_POSITION,COLUMN_NAME,COLLATION AS ASC_OR_DESC, "
+                             "CARDINALITY,NULL AS PAGES,NULL AS FILTER_CONDITION "
+                             "FROM INFORMATION_SCHEMA.STATISTICS s1 ",
                              SQL_INDEX_OTHER);
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
@@ -441,6 +443,8 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     if (Unique == SQL_INDEX_UNIQUE)
       p += _snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
 
+    /* To make PRIMARY to appear before all othe unique indexes we could add , INDEX_NAME!='PRIMARY' after NON_UNIQUE. But
+      that would break specs, how the rs should be ordered */
     _snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
   }
 
@@ -731,7 +735,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
                            "CHARACTER_OCTET_LENGTH AS BUFFER_LENGTH,"
                            "NUMERIC_SCALE DECIMAL_DIGITS, " 
                            XSTR(SQL_PC_UNKNOWN) " PSEUDO_COLUMN "
-                           "FROM INFORMATION_SCHEMA.COLUMNS WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
+                           "FROM INFORMATION_SCHEMA.COLUMNS c WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
@@ -762,7 +766,13 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
 
     if (IdentifierType == SQL_BEST_ROWID)
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND COLUMN_KEY IN ('PRI', 'UNI') ");
+      /* If some of columns of a unique index can be NULL, this unique key cannot be SQL_BEST_ROWID since it can't
+       "allows any row in the specified table to be uniquely identified" */
+      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr),
+        "AND (COLUMN_KEY='PRI' OR COLUMN_KEY= 'UNI' AND IS_NULLABLE<>'YES' AND "
+           "(SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s1 LEFT JOIN INFORMATION_SCHEMA.STATISTICS s2 USING(INDEX_NAME)"
+           " WHERE s1.TABLE_SCHEMA=c.TABLE_SCHEMA AND s1.TABLE_NAME=c.TABLE_NAME AND s1.COLUMN_NAME=c.COLUMN_NAME "
+               "AND s2.NULLABLE='YES') > 0) ");
     }
     else if (IdentifierType == SQL_ROWVER)
     {

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2021 MariaDB Corporation AB
+                2017, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -79,10 +79,10 @@ and (some) IS_NULLABLE
 ODBC_TEST(t_bug34272)
 {
   SQLCHAR dummy[20];
-  SQLULEN col6, col18, length;
+  SQLULEN col6= 0, col18= 0, length= 0;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug34272");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug34272 (x int unsigned)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug34272");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug34272 (x INT UNSIGNED)");
 
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
     (SQLCHAR *)"t_bug34272", SQL_NTS, NULL, 0));
@@ -102,7 +102,7 @@ ODBC_TEST(t_bug34272)
   IS_STR(dummy, "YES", length+1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug34272");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug34272");
 
   return OK;
 }
@@ -1790,6 +1790,68 @@ ODBC_TEST(odbc324)
 }
 
 
+ODBC_TEST(odbc361)
+{
+  char buffer[16];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc361_1");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc361_1 (key1 INT, key2 INT NOT NULL, UNIQUE INDEX t361_1key12(key1,key2))");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc361_2");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc361_2 (key1 INT, key2 INT NOT NULL, key3 INT NOT NULL PRIMARY KEY,"
+                       "UNIQUE INDEX t361_2key12(key1,key2))");
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, NULL, 0,
+    (SQLCHAR*)"t_odbc361_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, NULL, 0,
+    (SQLCHAR*)"t_odbc361_2", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key3", my_fetch_str(Stmt, buffer, 2), sizeof("key3"));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, 0, NULL, 0,
+    "t_odbc361_1", SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key1", my_fetch_str(Stmt, buffer, 9), sizeof("key1"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key2", my_fetch_str(Stmt, buffer, 9), sizeof("key2"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, 0, NULL, 0,
+    "t_odbc361_2", SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
+
+  /* Unique go first */
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key3", my_fetch_str(Stmt, buffer, 9), sizeof("key3"));
+  is_num(0, my_fetch_int(Stmt, 4));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key1", my_fetch_str(Stmt, buffer, 9), sizeof("key1"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key2", my_fetch_str(Stmt, buffer, 9), sizeof("key2"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc361_1");
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1818,6 +1880,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc313, "odbc313_no_patterns_for_sqlpkeys", NORMAL},
   {odbc316, "odbc316_empty_string_parameters",  NORMAL},
   {odbc324, "odbc324_sqltables_versioned_table",NORMAL},
+  {odbc361, "odbc361_unique_with_nulls",        NORMAL},
   {NULL, NULL}
 };
 

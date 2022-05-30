@@ -38,4 +38,4 @@ cd test
 export ODBCINI="$PWD/odbc.ini"
 export ODBCSYSINI=$PWD
 
-ctest -V
+ctest --output-on-failure

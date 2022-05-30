@@ -241,6 +241,15 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   }
 
   Record->ConciseType= MapMariadDbToOdbcType(Field);
+
+  if (0)//Stmt->Connection->IsAnsi == '\0')
+  {
+    switch (Record->ConciseType) {
+    case SQL_CHAR:        Record->ConciseType= SQL_WCHAR; break;
+    case SQL_VARCHAR:     Record->ConciseType= SQL_WVARCHAR; break;
+    case SQL_LONGVARCHAR: Record->ConciseType= SQL_WLONGVARCHAR; break;
+    }
+  }
   /* 
       TYPE:
       For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.

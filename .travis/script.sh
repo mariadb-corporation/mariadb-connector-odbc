@@ -160,5 +160,5 @@ export ODBCINI="$PWD/odbc.ini"
 export ODBCSYSINI=$PWD
 
 
-ctest -VV
+ctest --output-on-failure
 

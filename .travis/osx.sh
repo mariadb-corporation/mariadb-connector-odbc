@@ -45,4 +45,4 @@ mysql -u root -e "SHOW DATABASES"
 
 echo "Running tests"
 cd test
-ctest -V
+ctest --output-on-failure

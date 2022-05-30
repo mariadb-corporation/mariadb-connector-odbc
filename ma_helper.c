@@ -615,6 +615,10 @@ int MADB_GetDefaultType(int SQLDataType)
     return SQL_C_BINARY;
   case SQL_VARCHAR:
     return SQL_C_CHAR;
+  /*case SQL_WVARCHAR:
+  case SQL_WCHAR:
+  case SQL_WLONGVARCHAR:
+    return SQL_C_WCHAR;*/
   default:
     return SQL_C_CHAR;
   }
