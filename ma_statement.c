@@ -1911,12 +1911,19 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             *Stmt->stmt->bind[i].length, &Stmt->Error);
 
           /* If returned len is 0 while source len is not - taking it as error occurred */
-          if ((CharLen == 0 || (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer != NULL && *(char*)Stmt->result[i].buffer != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
+          if ((CharLen == 0 ||
+            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer != NULL &&
+            *(char*)Stmt->result[i].buffer != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
           {
             CALC_ALL_FLDS_RC(rc, Stmt->Error.ReturnValue);
           }
+          /* If application didn't give data buffer and only want to know the length of data to fetch */
+          if (CharLen == 0 && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer == NULL)
+          {
+            CharLen= *Stmt->stmt->bind[i].length;
+          }
           /* Not quite right */
-          *LengthPtr= CharLen * sizeof(SQLWCHAR);
+          *LengthPtr = CharLen * sizeof(SQLWCHAR);
         }
         break;
 
