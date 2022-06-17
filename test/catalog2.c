@@ -79,7 +79,8 @@ and (some) IS_NULLABLE
 ODBC_TEST(t_bug34272)
 {
   SQLCHAR dummy[20];
-  SQLULEN col6= 0, col18= 0, length= 0;
+  SQLULEN col6= 0, col18= 0;
+  SQLLEN length= 0, buf_len= 0;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug34272");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug34272 (x INT UNSIGNED)");
@@ -91,13 +92,21 @@ ODBC_TEST(t_bug34272)
     &col6, NULL, NULL));
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 18, dummy, sizeof(dummy), NULL, NULL,
     &col18, NULL, NULL));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_DISPLAY_SIZE, NULL, NULL, NULL, &length));
+  FAIL_IF(length < 0, "Returned negative display length value for 32b SQLLEN");
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_LENGTH, NULL, NULL, NULL, &length));
+  FAIL_IF(length < 0, "Returned negative column length value for 32b SQLLEN");
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_OCTET_LENGTH, NULL, NULL, NULL, &length));
+  FAIL_IF(length < 0, "Returned negative octet length value for 32b SQLLEN");
+
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, dummy, col6+1, &length));
+  buf_len= col6 + 1;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, dummy, buf_len < 0 ? 0x7FFFFFFF : buf_len, &length));
   is_num(length,12);
   IS_STR(dummy, "INT UNSIGNED", length+1);
 
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 18, SQL_C_CHAR, dummy, col18+1, &length));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 18, SQL_C_CHAR, dummy, col18 + 1, &length));
   is_num(length,3);
   IS_STR(dummy, "YES", length+1);
 

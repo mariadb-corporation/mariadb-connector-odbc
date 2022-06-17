@@ -3864,11 +3864,11 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt *Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
           return Stmt->Error.ReturnValue;
         }
+        UNLOCK_MARIADB(Stmt->Connection);
         MADB_DynstrFree(&DynamicStmt);
         Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
         Start++;
       }
-      UNLOCK_MARIADB(Stmt->Connection);
 
       Stmt->Ard->Header.ArraySize= SaveArraySize;
       /* if we have a dynamic cursor we need to adjust the rowset size */

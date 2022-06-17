@@ -370,11 +370,12 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
 
   LOCK_MARIADB(Stmt->Connection);
   if (mysql_query(Stmt->Connection->mariadb, DynStr.str))
-    goto error;
+    goto errorunderlock;
   result= mysql_store_result(Stmt->Connection->mariadb);
-  
-error:
+
+errorunderlock:
     UNLOCK_MARIADB(Stmt->Connection);
+error:
     MADB_DynstrFree(&DynStr);
     return result;
 }
@@ -394,9 +395,11 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
   return NULL;
 }
 
-SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
+SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen)
 {
+  SQLLEN result= (SQLULEN)OctetLength;
+
   switch(SqlType)
   {
   case SQL_BIT:
@@ -426,19 +429,16 @@ SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
   case SQL_BINARY:
   case SQL_VARBINARY:
   case SQL_LONGVARBINARY:
-    return OctetLength;
+    return result;
   case SQL_GUID:
-    return 36;;
+    return 36;
   default:
     {
-      if (CharMaxLen < 2/*i.e.0||1*/)
+      if (CharMaxLen > 1)
       {
-        return OctetLength;
+        result= (SQLULEN)(OctetLength/CharMaxLen);
       }
-      else
-      {
-        return OctetLength/CharMaxLen;
-      }
+      return result;
     }
   }
 }
@@ -1138,8 +1138,8 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       {
         return MADB_ERR_22003;
       }
-      _snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
-      digits_count= (short)strlen(digits);
+      /* Assuming that buffer is always big enough */
+      digits_count= _snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
       if (digits_count > number->precision)
         return MADB_ERR_22003;
     }

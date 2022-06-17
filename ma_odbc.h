@@ -95,104 +95,104 @@ typedef struct
 typedef struct
 {
   /* Header */
-  SQLSMALLINT   AllocType;
-  SQLULEN       ArraySize;
   SQLUSMALLINT *ArrayStatusPtr;
   SQLULEN      *BindOffsetPtr;
-  SQLULEN       BindType;
-  SQLSMALLINT   Count;
   /* TODO: In IPD this is SQLUINTEGER* field */
   SQLULEN      *RowsProcessedPtr;
+  SQLULEN       ArraySize;
+  SQLULEN       BindType;
+  SQLSMALLINT   AllocType;
+  SQLSMALLINT   Count;
   /* Header end */
 } MADB_Header;
 
 typedef struct
 {
-	SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
-	SQLUSMALLINT	*RowOperationPtr;
-	SQLULEN		*RowOffsetPtr;
+	SQLUSMALLINT *RowOperationPtr;
+	SQLULEN		   *RowOffsetPtr;
   MADB_ColBind *ColumnBind;
-	MYSQL_BIND *Bind;
+	MYSQL_BIND   *Bind;
+  SQLLEN      dummy;
+  SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
 	SQLSMALLINT	Allocated;
 } MADB_Ard;
 
 typedef struct
 {
-	SQLLEN ParamsetSize;
-	SQLUINTEGER	ParamBindType;
-	SQLUSMALLINT *ParamOperationPtr;
-	SQLULEN *ParamOffsetPtr;
+	SQLUSMALLINT  *ParamOperationPtr;
+	SQLULEN       *ParamOffsetPtr;
 	MADB_ParmBind *ParamBind;
-	MYSQL_BIND *Bind;
+	MYSQL_BIND    *Bind;
+  SQLLEN      ParamsetSize;
+  SQLUINTEGER	ParamBindType;
 	SQLSMALLINT	Allocated;
-	SQLLEN Dummy; /* dummy item to fit APD to ARD */
 } MADB_Apd;
 
 typedef struct
 {
-  MADB_Stmt *stmt;
-	SQLULEN *RowsFetched;
-	SQLUSMALLINT *RowStatusArray;
+  MADB_Stmt* stmt;
+	SQLULEN* RowsFetched;
+	SQLUSMALLINT* RowStatusArray;
+  MYSQL_FIELD* Fields;
 	SQLUINTEGER FieldCount;
 	SQLSMALLINT	Allocated;
-	MYSQL_FIELD *Fields;
 } MADB_Ird;
 
 typedef struct
 {
-  MADB_Header Header;
+  //MADB_Header Header;
 #if (ODBCVER >= 0x0300)
 	SQLUINTEGER *ParamProcessedPtr;
 #else
 	SQLULEN *ParamProcessedPtr; /* SQLParamOptions */
 #endif /* ODBCVER */
 	SQLUSMALLINT *ParamStatusPtr;
+  MADB_ParmBind* Parameters;
 	SQLSMALLINT Allocated;
-	MADB_ParmBind *Parameters;
 } MADB_Ipd;
 
 typedef struct {
-  SQLINTEGER  AutoUniqueValue;
   char        *BaseCatalogName;
   char        *BaseColumnName;
   char        *BaseTableName;
-  SQLINTEGER  CaseSensitive;
   char        *CatalogName;
   char        *ColumnName;
-  SQLSMALLINT ConciseType;
   SQLPOINTER  DataPtr;
-  SQLSMALLINT DateTimeIntervalCode;
+  SQLLEN* OctetLengthPtr;
+  SQLLEN* IndicatorPtr;
+  char* Label;
+  char* SchemaName;
+  char* TableName;
+  char* LiteralPrefix;
+  char* LiteralSuffix;
+  char* LocalTypeName;
+  char* TypeName;
+  char* InternalBuffer;  /* used for internal conversion */
+  char* DefaultValue;
+  char* DaeData;
+  SQLLEN      DisplaySize;
+  SQLULEN     Length;
+  SQLLEN      OctetLength;
+  SQLULEN     DaeDataLength;    /* Doesn't seem to be used anywhere */
+  unsigned long InternalLength; /* This to be used in the MYSQL_BIND. Thus is the type */
+  SQLINTEGER  AutoUniqueValue;
   SQLINTEGER  DateTimeIntervalPrecision;
   SQLINTEGER  DescLength;
-  SQLLEN      DisplaySize;
-  SQLSMALLINT FixedPrecScale;
-  SQLLEN      *IndicatorPtr;
-  char        *Label;
-  SQLULEN     Length;
-  char        *LiteralPrefix;
-  char        *LiteralSuffix;
-  char        *LocalTypeName;
-  SQLSMALLINT Nullable;
+  SQLINTEGER  CaseSensitive;
   SQLINTEGER  NumPrecRadix;
-  SQLLEN      OctetLength;
-  SQLLEN      *OctetLengthPtr;
+  SQLSMALLINT ConciseType;
+  SQLSMALLINT DateTimeIntervalCode;
+  SQLSMALLINT FixedPrecScale;
+  SQLSMALLINT Nullable;
   SQLSMALLINT ParameterType;
   SQLSMALLINT Precision;
   SQLSMALLINT RowVer;
   SQLSMALLINT Scale;
-  char        *SchemaName;
   SQLSMALLINT Searchable;
-  char        *TableName;
   SQLSMALLINT Type;
-  char        *TypeName;
   SQLSMALLINT Unnamed;
   SQLSMALLINT Unsigned;
   SQLSMALLINT Updateable;
-  unsigned long InternalLength; /* This to be used in the MYSQL_BIND. Thus is the type */
-  char        *InternalBuffer;  /* used for internal conversion */
-  char        *DefaultValue;
-  char        *DaeData;
-  SQLULEN     DaeDataLength;    /* Doesn't seem to be used anywhere */
   my_bool     PutData;
   my_bool     inUse;
   my_bool     TruncError;
@@ -201,13 +201,9 @@ typedef struct {
 typedef struct
 {
   MADB_Header Header;
-  SQLINTEGER DescType;  /* SQL_ATTR_APP_ROW_DESC or SQL_ATTR_APP_PARAM_DESC */
-  my_bool AppType;      /* Allocated by Application ? */
   MADB_DynArray Records;
   MADB_DynArray Stmts;
   MADB_Error Error;
-  MADB_Dbc * Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
-                           descriptor has to know the connection it is allocated on */
   MADB_List ListItem;        /* To store in the dbc */
   union {
     MADB_Ard Ard;
@@ -215,6 +211,11 @@ typedef struct
     MADB_Ipd Ipd;
     MADB_Ird Ird;
   } Fields;
+
+  MADB_Dbc* Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
+                         descriptor has to know the connection it is allocated on */
+  SQLINTEGER DescType;  /* SQL_ATTR_APP_ROW_DESC or SQL_ATTR_APP_PARAM_DESC */
+  my_bool AppType;      /* Allocated by Application ? */
 } MADB_Desc;
 
 struct st_ma_desc_fldid

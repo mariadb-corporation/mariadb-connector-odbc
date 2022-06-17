@@ -36,7 +36,11 @@ int  MADB_GetWCharType(int Type);
 BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
-SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
+
+/* MADB_GetDataSize is used to calcualte value for the column size descriptor field.
+   It(this field) is SQLULEN since SQLDescribeCol returns it as SQLULEN. While in
+   other places(SQLColAttribute) it is SQLLEN :( */
+SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen);
 int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
