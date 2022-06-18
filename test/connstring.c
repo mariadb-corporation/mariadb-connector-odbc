@@ -695,6 +695,43 @@ ODBC_TEST(odbc_290)
   return OK;
 }
 
+
+ODBC_TEST(odbc_366)
+{
+  SQLHDBC  hdbc;
+  SQLHSTMT hstmt;
+
+  const char *DummyHost = "240.0.0.1:3307", *HostsSeparator = ",";
+  char FailoverHost[512];
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
+
+  _snprintf(FailoverHost, sizeof(FailoverHost), "%s%s%s:%u", DummyHost, HostsSeparator, my_servername, my_port);
+  hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, FailoverHost, "CONN_TIMEOUT=5");
+
+  IS(hstmt != NULL);
+  OK_SIMPLE_STMT(hstmt, "SELECT CONNECTION_ID()");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+
+  /* Now good host first */
+  _snprintf(FailoverHost, sizeof(FailoverHost), "%s:%u%s%s", my_servername, my_port, HostsSeparator, DummyHost);
+
+  hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, FailoverHost, "CONN_TIMEOUT=5");
+
+  IS(hstmt != NULL);
+  OK_SIMPLE_STMT(hstmt, "SELECT CONNECTION_ID()");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeConnect(hdbc));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {connstring_test,       "connstring_parsing_test", NORMAL},
@@ -709,6 +746,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc_284,              "odbc284_escapebrace",     NORMAL},
   {odbc_288,              "odbc288_interactive",     NORMAL},
   {odbc_290,              "odbc290_forwardonly",     NORMAL},
+  {odbc_366,              "odbc366_failover",        NORMAL},
   {NULL, NULL, 0}
 };
 
