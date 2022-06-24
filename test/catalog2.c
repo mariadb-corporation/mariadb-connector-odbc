@@ -92,12 +92,16 @@ ODBC_TEST(t_bug34272)
     &col6, NULL, NULL));
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 18, dummy, sizeof(dummy), NULL, NULL,
     &col18, NULL, NULL));
-  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_DISPLAY_SIZE, NULL, NULL, NULL, &length));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_DISPLAY_SIZE, NULL, 0, NULL, &length));
   FAIL_IF(length < 0, "Returned negative display length value for 32b SQLLEN");
-  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_LENGTH, NULL, NULL, NULL, &length));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_LENGTH, NULL, 0, NULL, &length));
   FAIL_IF(length < 0, "Returned negative column length value for 32b SQLLEN");
-  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_OCTET_LENGTH, NULL, NULL, NULL, &length));
-  FAIL_IF(length < 0, "Returned negative octet length value for 32b SQLLEN");
+  /* On ODBC2 tests run iODBC this field identifier is invalid */
+  if (!iOdbc() || OdbcVer != SQL_OV_ODBC2)
+  {
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &length));
+    FAIL_IF(length < 0, "Returned negative octet length value for 32b SQLLEN");
+  }
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
@@ -1813,6 +1817,7 @@ ODBC_TEST(odbc361)
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, NULL, 0,
     (SQLCHAR*)"t_odbc361_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, NULL, 0,
     (SQLCHAR*)"t_odbc361_2", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));

@@ -370,7 +370,7 @@ MyODBC 5 - calling SQLGetConnectAttr before getting all results of "CALL ..." st
 */
 ODBC_TEST(t_bug46910)
 {
-	SQLCHAR     catalog[30];
+	SQLCHAR     catalog[64];
 	SQLINTEGER  len;
   SQLLEN      i;
   SQLSMALLINT col_count;

@@ -308,6 +308,10 @@ ODBC_TEST(t_explicit_error)
   SQLHANDLE expapd;
   SQLHANDLE hstmt2;
 
+  if (iOdbcOnOsX() == TRUE)
+  {
+    skip("iObc has bug that makes this test to periodically crash");
+  }
   /* TODO using an exp from a different dbc */
 
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt2));
@@ -342,7 +346,7 @@ ODBC_TEST(t_explicit_error)
   /* With iODBC on Linux it's SQL_INVALID_HANDLE for some reason, and looks like newer iOdbc versions does that too, that does not make much sense to me. Observed on linux with 3.52.12, then on macos wiht 3.52.15, while 3.52.13 did not show that */
   if (iOdbcOnOsX() == FALSE || Travis == FALSE)
   {
-    is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc()&&DmMinVersion(3, 52, 14) ) ? SQL_INVALID_HANDLE : SQL_ERROR);
+    is_num(SQLFreeHandle(SQL_HANDLE_DESC, desc1), (iOdbc() && DmMinVersion(3, 52, 14) ) ? SQL_INVALID_HANDLE : SQL_ERROR);
     /* CHECK_SQLSTATE_EX(desc1, SQL_HANDLE_DESC, "HY017");*/
     FAIL_IF(check_sqlstate(Stmt, "HY024") != OK &&
       check_sqlstate(Stmt, "HY017") != OK, "Expected HY024 or HY017");
