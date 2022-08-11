@@ -745,13 +745,22 @@ ODBC_TEST(t_odbc115)
   return OK;
 }
 
-/* ODBC-123 Crash in LibreOffice Base. It sets SQL_ATTR_USE_BOOKMARKS, but does not use them. Connector did not care about such case*/
+/* ODBC-123 Crash in LibreOffice Base. It sets SQL_ATTR_USE_BOOKMARKS, but does not use them. Connector did not care
+   about such case */
 ODBC_TEST(t_odbc123)
 {
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_USE_BOOKMARKS, (SQLPOINTER)SQL_UB_VARIABLE, 0));
   OK_SIMPLE_STMT(Stmt, "SELECT 1");
-  /* We used to return error on this, and then crash */
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  /* We used to return error on this, and then crash. Not sure if SQL_FETCH_FIRST was importand for this test, but
+     doing NEXT for forward-only cursors */
+  if (ForwardOnly == TRUE)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;

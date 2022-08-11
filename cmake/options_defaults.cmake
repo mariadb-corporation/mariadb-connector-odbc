@@ -32,7 +32,6 @@ IF(USE_INTERACTIVE_TESTS)
 ENDIF()
 
 OPTION(WITH_SSL "Enables use of TLS/SSL library" ON)
-OPTION(WITH_UNIT_TESTS "Build test suite" ON)
 OPTION(USE_SYSTEM_INSTALLED_LIB "Use installed in the syctem C/C library and do not build one" OFF)
 OPTION(DIRECT_LINK_TESTS "Link tests directly against driver library(bypass DM)" OFF)
 # This is to be used for some testing scenarious, obviously. e.g. testing of the connector installation. 

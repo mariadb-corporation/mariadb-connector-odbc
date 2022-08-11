@@ -124,6 +124,7 @@ MADB_OptionsMap OptionsMap[]= {
   {LASTPAGE, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
   {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
   {LASTPAGE, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
+  {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
   {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   {LASTPAGE, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
   {LASTPAGE, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
@@ -144,7 +145,7 @@ void DsnApplyDefaults(MADB_Dsn* Dsn)
   /* Setting default port number if Tcp/Ip selected, and the port is 0 */
   if (Dsn->IsTcpIp && Dsn->Port == 0)
   {
-    Dsn->Port = 3306;
+    Dsn->Port= 3306;
   }
 }
 

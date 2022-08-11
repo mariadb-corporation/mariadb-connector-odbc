@@ -43,8 +43,7 @@ ODBC_TEST(my_positioned_cursor)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                (SQLPOINTER)SQL_CURSOR_DYNAMIC,0));
+  SKIP_IF_FORWARDONLY(Stmt, SQL_CURSOR_DYNAMIC);
 
   /* set the cursor name as 'mysqlcur' on Stmt */
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR*)"mysqlcur", SQL_NTS));
@@ -121,6 +120,7 @@ ODBC_TEST(my_setpos_cursor)
   SQLLEN      nRowCount;
   SQLINTEGER  id= 0;
   SQLCHAR     name[50]= {0};
+  SQLRETURN   rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_demo_cursor");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE my_demo_cursor (id INT, name VARCHAR(20))");
@@ -136,12 +136,26 @@ ODBC_TEST(my_setpos_cursor)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, name, sizeof(name),NULL));
 
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
+  if (ForwardOnly == FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
+  }
+  else
+  {
+    if (NoCache == TRUE)
+    {
+      skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+    }
+    /* if we have forced FORWARD_ONLY - technically at this poing SQL_FETCH_FIRST and SQL_FETCH_NEXT is the same, but
+     * for SQL_FETCH_FIRST SQLFetchScroll must return error
+     */
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L));
+  }
 
   strcpy((char *)name, "first-row");
 
   /* now update the name field to 'first-row' using SQLSetPos */
-  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
+  rc= SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
 
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
   is_num(nRowCount, 1);
@@ -198,6 +212,10 @@ ODBC_TEST(t_bug5853)
   SQLLEN    nLen= SQL_DATA_AT_EXEC;
   int       i= 0;
 
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt_pos));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug5853");
@@ -215,9 +233,9 @@ ODBC_TEST(t_bug5853)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug5853");
 
-  FAIL_IF(SQLPrepare(hstmt_pos, (SQLCHAR *)
+  CHECK_STMT_RC(hstmt_pos, SQLPrepare(hstmt_pos, (SQLCHAR *)
                      "UPDATE t_bug5853 SET a = ? WHERE CURRENT OF bug5853",
-                     SQL_NTS) != SQL_SUCCESS, "Unexpected error occured");
+                     SQL_NTS));
   CHECK_STMT_RC(hstmt_pos, SQLBindParameter(hstmt_pos, 1, SQL_PARAM_INPUT,
                                       SQL_C_CHAR, SQL_VARCHAR, 0, 0, NULL,
                                       0, &nLen));
@@ -272,6 +290,11 @@ ODBC_TEST(t_setpos_del_all)
   SQLCHAR szData[4][10]= {{0}, {0}, {0}, {0}};
   SQLUSMALLINT rgfRowStatus[4];
   SQLLEN nlen;
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_del_all");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_setpos_del_all (a INT NOT NULL PRIMARY KEY,"
@@ -334,6 +357,11 @@ ODBC_TEST(t_setpos_upd_decimal)
   SQLINTEGER   rec= 0;
   SQLUSMALLINT status;
 
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_upd_decimal");
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_setpos_upd_decimal (record DECIMAL(3,0),"
@@ -370,6 +398,11 @@ ODBC_TEST(t_setpos_position)
   SQLCHAR szData[255];
   SQLULEN pcrow;
   SQLUSMALLINT rgfRowStatus;
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_position");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_setpos_position (a INT, b VARCHAR(30))");
@@ -471,6 +504,11 @@ ODBC_TEST(t_pos_column_ignore)
   SQLUSMALLINT rgfRowStatus;
   SQLLEN Rows;
 
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_column_ignore");
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_pos_column_ignore "
@@ -565,6 +603,10 @@ ODBC_TEST(t_pos_datetime_delete)
   SQLLEN       row_count;
   SQLUSMALLINT rgfRowStatus;
 
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_datetime_delete");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_pos_datetime_delete (a INT NOT NULL DEFAULT 0,"
          "b VARCHAR(20) NOT NULL DEFAULT '', c DATETIME NOT NULL DEFAULT '2000-01-01')");
@@ -646,20 +688,21 @@ ODBC_TEST(t_pos_datetime_delete1)
   SQLLEN row_count, cur_type;
   SQLUSMALLINT rgfRowStatus;
 
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_delete");
 
   rc = SQLAllocStmt(Connection,&hstmt1);
   CHECK_DBC_RC(Connection,rc);
 
-  OK_SIMPLE_STMT(Stmt, "create table t_pos_delete(id int not null default '0',\
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_pos_delete(id int not null default '0',\
                                                   name varchar(20) NOT NULL default '',\
                                                   created datetime NOT NULL default '2000-01-01')");
-  OK_SIMPLE_STMT(Stmt, "insert into t_pos_delete values(1,'venu','2003-02-10 14:45:39')");
-  OK_SIMPLE_STMT(Stmt, "insert into t_pos_delete(name) values('')");
-  OK_SIMPLE_STMT(Stmt, "insert into t_pos_delete(id) values(2)");
-  OK_SIMPLE_STMT(Stmt, "insert into t_pos_delete(id) values(3)");
-  OK_SIMPLE_STMT(Stmt, "insert into t_pos_delete(id) values(4)");
-  OK_SIMPLE_STMT(Stmt, "insert into t_pos_delete(id) values(5)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete VALUES(1,'venu','2003-02-10 14:45:39')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(name) VALUES('')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(id) VALUES(2)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(id) VALUES(3)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(id) VALUES(4)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(id) VALUES(5)");
 
   rc = SQLTransact(NULL, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -667,7 +710,7 @@ ODBC_TEST(t_pos_datetime_delete1)
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_pos_delete");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_delete");
 
   IS(6 == myrowcount(Stmt));
 
@@ -688,7 +731,7 @@ ODBC_TEST(t_pos_datetime_delete1)
   rc = SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, &cur_type, 0, NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_pos_delete");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_delete");
 
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,&int_data,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -736,7 +779,7 @@ ODBC_TEST(t_pos_datetime_delete1)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_pos_delete");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_delete");
 
   IS(4 == myrowcount(Stmt));
 
@@ -816,23 +859,16 @@ ODBC_TEST(t_getcursor)
 
 ODBC_TEST(t_getcursor1)
 {
-  SQLRETURN rc;
   SQLHSTMT hstmt1;
   SQLCHAR curname[50];
   SQLSMALLINT nlen,index;
 
   for(index=0; index < 100; index++)
   {
-    rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt1);
-    CHECK_DBC_RC(Connection, rc);
-
-    rc = SQLGetCursorName(hstmt1,curname,50,&nlen);
-    if (rc != SQL_SUCCESS)
-      break;
+    CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt1));
+    CHECK_STMT_RC(hstmt1, SQLGetCursorName(hstmt1,curname,50,&nlen));
     fprintf(stdout,"%s(%d) \n",curname,nlen);
-
-    rc = SQLFreeHandle(SQL_HANDLE_STMT,hstmt1);
-    CHECK_STMT_RC(hstmt1,rc);
+    CHECK_STMT_RC(hstmt1, SQLFreeHandle(SQL_HANDLE_STMT, hstmt1));
   }
 
   return OK;
@@ -1039,13 +1075,13 @@ ODBC_TEST(tmysql_setpos_upd)
   SQLUSMALLINT rgfRowStatus;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos");
-  OK_SIMPLE_STMT(Stmt, "create table tmysql_setpos(col1 int, col2 varchar(30))");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos values(100,'MySQL1')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos values(300,'MySQL3')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos values(200,'MySQL2')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos values(300,'MySQL3')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos values(400,'MySQL4')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos values(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_setpos(col1 int, col2 varchar(30))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(100,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(200,'MySQL2')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(400,'MySQL4')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(300,'MySQL3')");
 
   rc = SQLTransact(NULL, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -1056,7 +1092,7 @@ ODBC_TEST(tmysql_setpos_upd)
 
   rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos");
 
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -1094,7 +1130,7 @@ ODBC_TEST(tmysql_setpos_upd)
   rc = SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos");
 
   myrowcount(Stmt);
 
@@ -1105,7 +1141,7 @@ ODBC_TEST(tmysql_setpos_upd)
 
   rc = SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
-  diag("\n total rows affceted:%d",nlen);
+  diag("\n total rows affected:%d",nlen);
   IS(nlen == 1);
 
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -1114,7 +1150,7 @@ ODBC_TEST(tmysql_setpos_upd)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos");
 
   IS(5 == myrowcount(Stmt));
 
@@ -1137,9 +1173,9 @@ ODBC_TEST(tmysql_setpos_add)
   SQLUSMALLINT rgfRowStatus;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos_add");
-  OK_SIMPLE_STMT(Stmt, "create table tmysql_setpos_add(col1 int, col2 varchar(30))");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_add values(100,'MySQL1')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_add values(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_setpos_add(col1 int, col2 varchar(30))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_add VALUES(100,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_add VALUES(300,'MySQL3')");
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -1149,7 +1185,7 @@ ODBC_TEST(tmysql_setpos_add)
 
   rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos_add");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_add");
 
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -1204,7 +1240,7 @@ ODBC_TEST(tmysql_setpos_add)
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt,"select * from tmysql_setpos_add");
+  OK_SIMPLE_STMT(Stmt,"SELECT * FROM tmysql_setpos_add");
 
   IS(6 == myrowcount(Stmt));
 
@@ -1472,8 +1508,16 @@ ODBC_TEST(tmysql_pos_update_ex3)
 
   OK_SIMPLE_STMT(Stmt,  "SELECT a, b FROM t_pos_updex3");
 
-  CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 2, &pcrow,
-                                  &rgfRowStatus));
+  if (ForwardOnly)
+  {
+    CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 2, &pcrow,
+      &rgfRowStatus));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 2, &pcrow,
+      &rgfRowStatus));
+  }
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLGetCursorName(Stmt, cursor, sizeof(cursor), NULL));
@@ -1483,10 +1527,12 @@ ODBC_TEST(tmysql_pos_update_ex3)
   sprintf((char *)sql,
           "UPDATE t_pos_updex3 SET a = 999, b = ? WHERE CURRENT OF %s", cursor);
 
-  FAIL_IF(SQLExecDirect(hstmt1, sql, SQL_NTS) != SQL_ERROR, "Error expected");
+  /* In case of RS streaming this returns not the error this test expects. Thus the error should be verified to be
+     a  right error */
+  ERR_SIMPLE_STMT(hstmt1, sql);
+  odbc_print_error(SQL_HANDLE_STMT, hstmt1);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_updex3");
@@ -1610,14 +1656,14 @@ ODBC_TEST(tmysql_mtab_setpos_del)
   SQLUSMALLINT rgfRowStatus;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_t1, tmysql_t2");
-  OK_SIMPLE_STMT(Stmt, "create table tmysql_t1(col1 int, col2 varchar(20))");
-  OK_SIMPLE_STMT(Stmt, "create table tmysql_t2(col1 int, col2 varchar(20))");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_t1 values(1,'t1_one')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_t1 values(2,'t1_two')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_t1 values(3,'t1_three')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_t2 values(2,'t2_one')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_t2 values(3,'t2_two')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_t2 values(4,'t2_three')");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_t1(col1 int, col2 varchar(20))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_t2(col1 int, col2 varchar(20))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t1 VALUES(1,'t1_one')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t1 VALUES(2,'t1_two')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t1 VALUES(3,'t1_three')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t2 VALUES(2,'t2_one')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t2 VALUES(3,'t2_two')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t2 VALUES(4,'t2_three')");
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -1674,11 +1720,11 @@ ODBC_TEST(tmysql_setpos_pkdel)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  OK_SIMPLE_STMT(Stmt, "create table tmysql_setpos1(col1 int primary key, col2 varchar(30))");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos1 values(100,'MySQL1')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos1 values(200,'MySQL2')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos1 values(300,'MySQL3')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos1 values(400,'MySQL4')");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_setpos1(col1 int primary key, col2 varchar(30))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos1 VALUES(100,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos1 VALUES(200,'MySQL2')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos1 VALUES(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos1 VALUES(400,'MySQL4')");
  
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -1690,7 +1736,7 @@ ODBC_TEST(tmysql_setpos_pkdel)
   rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos1");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos1");
 
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -1722,7 +1768,7 @@ ODBC_TEST(tmysql_setpos_pkdel)
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos1");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos1");
 
   IS( 3 == myrowcount(Stmt));
 
@@ -1938,14 +1984,14 @@ ODBC_TEST(t_setpos_upd_bug1)
   SQLUSMALLINT rgfRowStatus;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_upd_bug1");
-  OK_SIMPLE_STMT(Stmt, "create table t_setpos_upd_bug1(id int(11) NOT NULL auto_increment,\
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_setpos_upd_bug1(id int(11) NOT NULL auto_increment,\
                                                           fname char(20) NOT NULL default '',\
                                                           lname char(20) NOT NULL default '',\
                                                           last_modi timestamp,\
                                                           PRIMARY KEY(id)) ENGINE=MyISAM");
-  OK_SIMPLE_STMT(Stmt, "insert into t_setpos_upd_bug1(fname,lname) values('joshua','kugler')");
-  OK_SIMPLE_STMT(Stmt, "insert into t_setpos_upd_bug1(fname,lname) values('monty','widenius')");
-  OK_SIMPLE_STMT(Stmt, "insert into t_setpos_upd_bug1(fname,lname) values('mr.','venu')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_setpos_upd_bug1(fname,lname) VALUES('joshua','kugler')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_setpos_upd_bug1(fname,lname) VALUES('monty','widenius')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_setpos_upd_bug1(fname,lname) VALUES('mr.','venu')");
 
   rc = SQLTransact(NULL, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -1954,7 +2000,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_setpos_upd_bug1 order by id asc");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_upd_bug1 order by id asc");
 
   rc = SQLNumResultCols(Stmt,&pccol);
   CHECK_STMT_RC(Stmt,rc);
@@ -2000,7 +2046,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_setpos_upd_bug1");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_upd_bug1");
 
   myrowcount(Stmt);
 
@@ -2020,7 +2066,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_setpos_upd_bug1");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_upd_bug1");
 
   IS(2 == myrowcount(Stmt));
 
@@ -2044,9 +2090,9 @@ ODBC_TEST(my_setpos_upd_pk_order)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_setpos_upd_pk_order");
 
-  OK_SIMPLE_STMT(Stmt, "create table my_setpos_upd_pk_order(col1 int not null, col2 varchar(30) NOT NULL, primary key(col2,col1))");
-  OK_SIMPLE_STMT(Stmt, "insert into my_setpos_upd_pk_order values(100,'MySQL1')");
-  OK_SIMPLE_STMT(Stmt, "insert into my_setpos_upd_pk_order values(200,'MySQL2')");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE my_setpos_upd_pk_order(col1 int not null, col2 varchar(30) NOT NULL, primary key(col2,col1))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO my_setpos_upd_pk_order VALUES(100,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO my_setpos_upd_pk_order VALUES(200,'MySQL2')");
 
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
@@ -2058,7 +2104,7 @@ ODBC_TEST(my_setpos_upd_pk_order)
   rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from my_setpos_upd_pk_order");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_setpos_upd_pk_order");
 
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -2080,7 +2126,7 @@ ODBC_TEST(my_setpos_upd_pk_order)
   rc = SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
-  diag(" rows affected:%d\n",nlen);
+  is_num(1, nlen);
 
   rc = SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
@@ -2088,7 +2134,7 @@ ODBC_TEST(my_setpos_upd_pk_order)
   rc = SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from my_setpos_upd_pk_order");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_setpos_upd_pk_order");
 
   myrowcount(Stmt);
 
@@ -2184,15 +2230,15 @@ ODBC_TEST(tmy_cursor1)
 
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"MYSQL", 5));
   CHECK_STMT_RC(Stmt, SQLGetCursorName(Stmt, getCurName, 20, &getLen));
-  IS_STR(getCurName, "MYSQL", 5);
+  IS_STR(getCurName, "MYSQL", 6);
 
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"MYSQL", 10));
   CHECK_STMT_RC(Stmt, SQLGetCursorName(Stmt, getCurName, 20, &getLen));
-  IS_STR(getCurName, "MYSQL", 5);
+  IS_STR(getCurName, "MYSQL", 6);
 
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"MYSQL", 2));
   CHECK_STMT_RC(Stmt, SQLGetCursorName(Stmt, getCurName, 20, &getLen));
-  IS_STR(getCurName, "MY", 2);
+  IS_STR(getCurName, "MY", 3);
 
   return OK;
 }
@@ -2436,10 +2482,10 @@ ODBC_TEST(bug6741)
     SQLLEN ylen;
   } results[BUG6741_VALS];
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug6741");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug6741 (x int, y int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug6741");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug6741 (x int, y int)");
 
-  OK_SIMPLE_STMT(Stmt, "insert into t_bug6741 values (0,0),(1,NULL),(2,2),(3,NULL),(4,4)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug6741 values (0,0),(1,NULL),(2,2),(3,NULL),(4,4)");
   OK_SIMPLE_STMT(Stmt, "select x,y from t_bug6741 order by x");
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_OFFSET_PTR,
@@ -2473,7 +2519,7 @@ ODBC_TEST(bug6741)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug6741");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug6741");
 
   return OK;
 }
@@ -2487,15 +2533,15 @@ ODBC_TEST(t_update_type)
 {
   SQLUSMALLINT *val= malloc(sizeof(SQLUSMALLINT));
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_no_strlen");
-  OK_SIMPLE_STMT(Stmt, "create table t_update_no_strlen (x int not null)");
-  OK_SIMPLE_STMT(Stmt, "insert into t_update_no_strlen values (0xaaaa)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_update_no_strlen");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_update_no_strlen (x int not null)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_update_no_strlen values (0xaaaa)");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_update_no_strlen");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_update_no_strlen");
   /* server will use SQL_C_LONG, but we use short */
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_USHORT, val, 0, NULL));
 
@@ -2509,12 +2555,12 @@ ODBC_TEST(t_update_type)
 
   /* verify the right value was updated */
   *val= 0;
-  OK_SIMPLE_STMT(Stmt, "select * from t_update_no_strlen");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_update_no_strlen");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(*val, 0xcccc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_no_strlen");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_update_no_strlen");
 
   free(val);
 
@@ -2545,10 +2591,10 @@ ODBC_TEST(t_update_offsets)
   SQLUINTEGER i;
   SQLCHAR buf[50];
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_offsets");
-  OK_SIMPLE_STMT(Stmt, "create table t_update_offsets (id int not null, "
-                "name varchar(50), primary key (id))");
-  OK_SIMPLE_STMT(Stmt, "insert into t_update_offsets values "
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_update_offsets");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_update_offsets (id INT NOT NULL, "
+                "name VARCHAR(50), PRIMARY KEY (id))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_update_offsets VALUES "
                 "(0, 'name0'),(1,'name1'),(2,'name2')");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -2566,7 +2612,7 @@ ODBC_TEST(t_update_offsets)
                             &rows[0].name, 24, &rows[0].namelen));
 
   /* get the first block and verify it */
-  OK_SIMPLE_STMT(Stmt, "select id,name from t_update_offsets order by id");
+  OK_SIMPLE_STMT(Stmt, "SELECT id,name FROM t_update_offsets ORDER BY id");
 
   bind_offset= row_size * row_offset1;
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -2592,7 +2638,7 @@ ODBC_TEST(t_update_offsets)
   /* verify updates */
   memset(rows, 0, sizeof(rows));
   is_num(rows[0].id, 0);
-  OK_SIMPLE_STMT(Stmt, "select id,name from t_update_offsets order by id");
+  OK_SIMPLE_STMT(Stmt, "SELECT id,name FROM t_update_offsets ORDER by id");
 
   bind_offset= row_size;
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -2606,7 +2652,7 @@ ODBC_TEST(t_update_offsets)
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_update_offsets");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_update_offsets");
 
   return OK;
 }
@@ -2673,9 +2719,9 @@ ODBC_TEST(t_bug32420)
   SQLSMALLINT conn_out_len;
   SQLULEN row_count;
 
-  /* Don't cache result option in the connection string */
+  /* Don't cache result + force forward only cursors option in the connection string */
   sprintf((char *)conn, "DSN=%s;UID=%s;PASSWORD=%s;"
-          "DATABASE=%s;SERVER=%s;OPTION=1048576",
+          "DATABASE=%s;SERVER=%s;OPTION=3145728",
           my_dsn, my_uid, my_pwd, my_schema, my_servername);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -2685,7 +2731,7 @@ ODBC_TEST(t_bug32420)
                                  SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
 
-  OK_SIMPLE_STMT(hstmt1, "drop table if exists bug32420");
+  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS bug32420");
   OK_SIMPLE_STMT(hstmt1, "CREATE TABLE bug32420 ("\
                 "tt_int INT PRIMARY KEY auto_increment,"\
                 "tt_varchar VARCHAR(128) NOT NULL)");
@@ -2706,7 +2752,7 @@ ODBC_TEST(t_bug32420)
 
   CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_ROWSET_SIZE, 4));
 
-  OK_SIMPLE_STMT(hstmt1, "select * from bug32420");
+  OK_SIMPLE_STMT(hstmt1, "SELECT * FROM bug32420");
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_LONG, nData, 0, NULL));
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 2, SQL_C_CHAR, szData, sizeof(szData[0]),
                             NULL));
@@ -2752,7 +2798,7 @@ ODBC_TEST(t_bug32420)
   IS_STR(szData[2], "string B", 8);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
-  OK_SIMPLE_STMT(hstmt1, "drop table if exists bug32420");
+  OK_SIMPLE_STMT(hstmt1, "DROP TABLE bug32420");
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
@@ -2762,7 +2808,7 @@ ODBC_TEST(t_bug32420)
      broken
   */
   sprintf((char *)conn,"DRIVER=%s;UID=%s;PASSWORD=%s;"
-          "DATABASE=%s;SERVER=%s;%s;%s",
+          "DATABASE=%s;SERVER=%s;%s;%s;FORWARDONLY=0", /* Making sure FORWARDONLY is not enabled in DSN and/or additional parameters */
           my_drivername, my_uid, my_pwd, my_schema, my_servername, ma_strport, add_connstr);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
@@ -2773,7 +2819,6 @@ ODBC_TEST(t_bug32420)
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
   CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE,
                                  (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0));
-  OK_SIMPLE_STMT(hstmt1, "drop table if exists bug32420");
   OK_SIMPLE_STMT(hstmt1, "CREATE TABLE bug32420 ("\
                 "tt_int INT PRIMARY KEY auto_increment,"\
                 "tt_varchar VARCHAR(128) NOT NULL)");
@@ -2794,7 +2839,7 @@ ODBC_TEST(t_bug32420)
 
   CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_ROWSET_SIZE, 4));
 
-  OK_SIMPLE_STMT(hstmt1, "select * from bug32420");
+  OK_SIMPLE_STMT(hstmt1, "SELECT * FROM bug32420");
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_LONG, nData, 0, NULL));
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 2, SQL_C_CHAR, szData, sizeof(szData[0]),
                             NULL));
@@ -2882,7 +2927,7 @@ ODBC_TEST(t_bug32420)
   IS_STR(szData[3], "string 6", 8);
 
    CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
-  OK_SIMPLE_STMT(hstmt1, "drop table if exists bug32420");
+  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS bug32420");
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
@@ -2904,10 +2949,10 @@ int t_cursor_pos(SQLHANDLE Stmt)
   SQLINTEGER remaining_rows[]= {1, 5, 6, 7, 8};
   SQLINTEGER remaining_row_count= 5;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_cursor_pos");
-  OK_SIMPLE_STMT(Stmt, "create table t_cursor_pos (x int not null, "
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_cursor_pos");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_cursor_pos (x int not null, "
                 "y int, primary key (x))");
-  OK_SIMPLE_STMT(Stmt, "insert into t_cursor_pos values (0,0),(1,1),"
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_cursor_pos values (0,0),(1,1),"
                 "(2,2),(3,3),(4,4),  (5,5),(6,6),(7,7),  (8,8)");
 
   OK_SIMPLE_STMT(Stmt, "select x,y from t_cursor_pos order by 1");
@@ -2973,7 +3018,7 @@ int t_cursor_pos(SQLHANDLE Stmt)
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_cursor_pos");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_cursor_pos");
   return OK;
 }
 
@@ -3055,10 +3100,10 @@ ODBC_TEST(t_dae_setpos_insert)
   sprintf((char*)(data[1].y), "1234567890");
   data[1].ylen= SQL_LEN_DATA_AT_EXEC(10);
   
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_dae");
-  OK_SIMPLE_STMT(Stmt, "create table t_dae (x int not null, y varchar(5000), z int, "
-                "primary key (x) )");
-  OK_SIMPLE_STMT(Stmt, "select x, y, z from t_dae");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_dae");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_dae (x INT NOT NULL, y VARCHAR(5000), z INT, "
+                       "PRIMARY KEY (x) )");
+  OK_SIMPLE_STMT(Stmt, "SELECT x, y, z FROM t_dae");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &data[0].x, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, holder, 10, &data[0].ylen));
@@ -3078,7 +3123,7 @@ ODBC_TEST(t_dae_setpos_insert)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   offset= 0;
-  OK_SIMPLE_STMT(Stmt, "select x, y, z from t_dae");
+  OK_SIMPLE_STMT(Stmt, "SELECT x, y, z FROM t_dae");
   
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, data[0].y, 11, &data[0].ylen));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -3089,7 +3134,7 @@ ODBC_TEST(t_dae_setpos_insert)
   is_num(10, data[0].ylen);
   
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_dae");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_dae");
   return OK;
 }
 
@@ -3108,12 +3153,12 @@ ODBC_TEST(t_dae_setpos_update)
   SQLPOINTER paramptr;
   /* setup */
   
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_dae");
-  OK_SIMPLE_STMT(Stmt, "create table t_dae (x int not null, y varchar(5000), z int, "
-                "primary key (x) )");
-  OK_SIMPLE_STMT(Stmt, "insert into t_dae values (10, '9876', 30)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_dae");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_dae (x INT NOT NULL, y VARCHAR(5000), z INT, "
+                "PRIMARY KEY (x) )");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_dae VALUES (10, '9876', 30)");
   /* create cursor and get first row */
-  OK_SIMPLE_STMT(Stmt, "select x, y, z from t_dae");
+  OK_SIMPLE_STMT(Stmt, "SELECT x, y, z FROM t_dae");
 
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 0));
 
@@ -3134,7 +3179,7 @@ ODBC_TEST(t_dae_setpos_update)
   x= 0;
   z= 0;
   ylen= 0;
-  OK_SIMPLE_STMT(Stmt, "select x, y, z from t_dae");
+  OK_SIMPLE_STMT(Stmt, "SELECT x, y, z FROM t_dae");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, yout, 11, &ylen));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -3145,7 +3190,7 @@ ODBC_TEST(t_dae_setpos_update)
   is_num(10, ylen);
   
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_dae");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_dae");
   return OK;
 }
 
@@ -3160,11 +3205,11 @@ ODBC_TEST(t_bug39961)
   SQLCHAR buf[10];
   SQLINTEGER id;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug39961");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug39961(id int not null, m1 decimal(19, 4), "
-	 "primary key (id))");
-  OK_SIMPLE_STMT(Stmt, "insert into t_bug39961 values (1, 987)");
-  OK_SIMPLE_STMT(Stmt, "select id, m1 from t_bug39961");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug39961");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug39961(id INT NOT NULL, m1 DECIMAL(19, 4), "
+	 "PRIMARY KEY (id))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug39961 VALUES (1, 987)");
+  OK_SIMPLE_STMT(Stmt, "SELECT id, m1 FROM t_bug39961");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
@@ -3190,7 +3235,7 @@ ODBC_TEST(t_bug39961)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* fetch both rows, they should have the same decimal value */
-  OK_SIMPLE_STMT(Stmt, "select m1 from t_bug39961");
+  OK_SIMPLE_STMT(Stmt, "SELECT m1 FROM t_bug39961");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buf, 1), "0.1000", 4);
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -3198,7 +3243,7 @@ ODBC_TEST(t_bug39961)
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug39961");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug39961");
   return OK;
 }
 
@@ -3219,7 +3264,7 @@ ODBC_TEST(t_bug41946)
 				  Name varchar(32),\
 				  PRIMARY KEY  (Id))");
 
-	OK_SIMPLE_STMT(Stmt, "select * from other_test_db.t_41946");
+	OK_SIMPLE_STMT(Stmt, "SELECT * FROM other_test_db.t_41946");
 
 	CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 5, NULL));
 
@@ -3238,7 +3283,7 @@ ODBC_TEST(t_bug41946)
   /* We have to close the cursor before issuing next sql query */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
     
-  OK_SIMPLE_STMT(Stmt, "select * from other_test_db.t_41946");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM other_test_db.t_41946");
 
 	CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
@@ -3298,12 +3343,12 @@ ODBC_TEST(odbc276)
   SQLUSMALLINT rgfRowStatus;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos_bin");
-  OK_SIMPLE_STMT(Stmt, "create table tmysql_setpos_bin(col1 int, col2 binary(6))");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(100,'MySQL1')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(300,'MySQL3')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(200,'My\\0QL2')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(300,'MySQL3')");
-  OK_SIMPLE_STMT(Stmt, "insert into tmysql_setpos_bin values(400,'MySQL4')");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_setpos_bin(col1 INT, col2 BINARY(6))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_bin VALUES(100,'MySQL1')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_bin VALUES(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_bin VALUES(200,'My\\0QL2')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_bin VALUES(300,'MySQL3')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_bin VALUES(400,'MySQL4')");
 
   CHECK_DBC_RC(Connection, SQLTransact(NULL, Connection, SQL_COMMIT));
 
@@ -3311,10 +3356,9 @@ ODBC_TEST(odbc276)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
     (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos_bin");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_bin");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 100, NULL));
-
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_BINARY, szData, 100, NULL));
 
   // Fetch Row 2 (That does not have a null) and update it
@@ -3358,7 +3402,7 @@ ODBC_TEST(odbc276)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "select * from tmysql_setpos_bin");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_bin");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 100);
@@ -3378,7 +3422,7 @@ ODBC_TEST(odbc276)
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos_bin");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE tmysql_setpos_bin");
 
   return OK;
 }
@@ -3532,52 +3576,52 @@ MA_ODBC_TESTS my_tests[]=
   {t_setpos_upd_decimal, "t_setpos_upd_decimal",     NORMAL},
   {t_setpos_position, "t_setpos_position",     NORMAL},
   {t_pos_column_ignore, "t_pos_column_ignore",     NORMAL},
-  {t_pos_datetime_delete, "t_pos_datetime_delete",     NORMAL},
-  {t_pos_datetime_delete1, "t_pos_datetime_delete1",     NORMAL},
+  {t_pos_datetime_delete, "t_pos_datetime_delete",   NORMAL},
+  {t_pos_datetime_delete1, "t_pos_datetime_delete1", NORMAL, SkipIfRsStreming},
   {t_getcursor, "t_getcursor",     NORMAL},
-  {t_getcursor1, "t_getcursor1",     NORMAL},
-  {t_acc_crash, "t_acc_crash",     NORMAL},
-  {tmysql_setpos_del, "tmysql_setpos_del",     NORMAL},
-  {tmysql_setpos_del1, "tmysql_setpos_del1",     NORMAL},
-  {tmysql_setpos_upd, "tmysql_setpos_upd",     NORMAL},
-  {tmysql_setpos_add, "tmysql_setpos_add",     NORMAL},
-  {tmysql_pos_delete, "tmysql_pos_delete",     NORMAL},
-  {t_pos_update, "t_pos_update",     NORMAL},
-  {tmysql_pos_update_ex, "tmysql_pos_update_ex",     NORMAL},
-  {tmysql_pos_update_ex1, "tmysql_pos_update_ex1",     NORMAL},
-  {tmysql_pos_update_ex3, "tmysql_pos_update_ex3",     NORMAL},
-  {tmysql_pos_update_ex4, "tmysql_pos_update_ex4",     NORMAL},
-  {tmysql_pos_dyncursor, "tmysql_pos_dyncursor",     NORMAL},
-  {tmysql_mtab_setpos_del, "tmysql_mtab_setpos_del",     NORMAL},
-  {tmysql_setpos_pkdel, "tmysql_setpos_pkdel",     NORMAL},
-  {t_alias_setpos_pkdel, "t_alias_setpos_pkdel",     NORMAL},
-  {t_alias_setpos_del, "t_alias_setpos_del",     NORMAL},
-  {tmysql_setpos_pkdel2, "tmysql_setpos_pkdel2",     NORMAL},
-  {t_setpos_upd_bug1, "t_setpos_upd_bug1",     NORMAL},
-  {my_setpos_upd_pk_order, "my_setpos_upd_pk_order",     NORMAL},
-  {my_setpos_upd_pk_order1, "my_setpos_upd_pk_order1",     NORMAL},
+  {t_getcursor1, "t_getcursor1",   NORMAL},
+  {t_acc_crash, "t_acc_crash",     NORMAL, SkipIfRsStreming},
+  {tmysql_setpos_del, "tmysql_setpos_del",     NORMAL, SkipIfRsStreming},
+  {tmysql_setpos_del1, "tmysql_setpos_del1",   NORMAL, SkipIfRsStreming},
+  {tmysql_setpos_upd, "tmysql_setpos_upd",     NORMAL, SkipIfRsStreming},
+  {tmysql_setpos_add, "tmysql_setpos_add",     NORMAL, SkipIfRsStreming},
+  {tmysql_pos_delete, "tmysql_pos_delete",     NORMAL, SkipIfRsStreming},
+  {t_pos_update,      "t_pos_update",          NORMAL, SkipIfRsStreming},
+  {tmysql_pos_update_ex, "tmysql_pos_update_ex",   NORMAL, SkipIfRsStreming},
+  {tmysql_pos_update_ex1, "tmysql_pos_update_ex1", NORMAL, SkipIfRsStreming},
+  {tmysql_pos_update_ex3, "tmysql_pos_update_ex3", NORMAL},
+  {tmysql_pos_update_ex4, "tmysql_pos_update_ex4", NORMAL, SkipIfRsStreming},
+  {tmysql_pos_dyncursor,  "tmysql_pos_dyncursor",  NORMAL, SkipIfRsStreming},
+  {tmysql_mtab_setpos_del,"tmysql_mtab_setpos_del",NORMAL, SkipIfRsStreming},
+  {tmysql_setpos_pkdel,   "tmysql_setpos_pkdel",   NORMAL, SkipIfRsStreming},
+  {t_alias_setpos_pkdel,  "t_alias_setpos_pkdel",  NORMAL, SkipIfRsStreming},
+  {t_alias_setpos_del,    "t_alias_setpos_del",    NORMAL, SkipIfRsStreming},
+  {tmysql_setpos_pkdel2,  "tmysql_setpos_pkdel2",  NORMAL, SkipIfRsStreming},
+  {t_setpos_upd_bug1,     "t_setpos_upd_bug1",     NORMAL, SkipIfRsStreming},
+  {my_setpos_upd_pk_order,"my_setpos_upd_pk_order",NORMAL, SkipIfRsStreming},
+  {my_setpos_upd_pk_order1, "my_setpos_upd_pk_order1", NORMAL, SkipIfRsStreming},
   {tmy_cursor1, "tmy_cursor1",     NORMAL},
   {tmy_cursor2, "tmy_cursor2",     NORMAL},
-  {tmysql_pcbvalue, "tmysql_pcbvalue",     NORMAL},
-  {t_bug28255, "t_bug28255",     NORMAL},
-  {bug10563, "bug10563",     NORMAL},
+  {tmysql_pcbvalue, "tmysql_pcbvalue", NORMAL, SkipIfRsStreming},
+  {t_bug28255, "t_bug28255", NORMAL},
+  {bug10563, "bug10563",     NORMAL, SkipIfRsStreming},
   {bug6741, "bug6741",     NORMAL},
-  {t_update_type, "t_update_type",     NORMAL},
-  {t_update_offsets, "t_update_offsets",     NORMAL},
-  {t_bug6157, "t_bug6157",     NORMAL},
-  {t_bug32420, "t_bug32420",     NORMAL},
-  {t_cursor_pos_static, "t_cursor_pos_static",     NORMAL},
-  {t_cursor_pos_dynamic, "t_cursor_pos_dynamic",     NORMAL},
+  {t_update_type,    "t_update_type",    NORMAL, SkipIfRsStreming},
+  {t_update_offsets, "t_update_offsets", NORMAL, SkipIfRsStreming},
+  {t_bug6157, "t_bug6157",   NORMAL, SkipIfRsStreming},
+  {t_bug32420, "t_bug32420", NORMAL},
+  {t_cursor_pos_static, "t_cursor_pos_static",   NORMAL, SkipIfRsStreming},
+  {t_cursor_pos_dynamic, "t_cursor_pos_dynamic", NORMAL, SkipIfRsStreming},
   {t_bug11846, "t_bug11846",     NORMAL},
   {t_dae_setpos_insert, "t_dae_setpos_insert", NORMAL},
-  { t_dae_setpos_update, "t_dae_setpos_update", NORMAL},
-  {t_bug39961, "t_bug39961",        NORMAL},
+  {t_dae_setpos_update, "t_dae_setpos_update", NORMAL, SkipIfRsStreming},
+  {t_bug39961, "t_bug39961",        NORMAL, SkipIfRsStreming},
   {t_bug41946, "t_bug41946",        NORMAL},
   {odbc251, "odbc251-mblob_update", TO_FIX},
-  {odbc276, "odbc276-bin_update", NORMAL},
+  {odbc276, "odbc276-bin_update", NORMAL, SkipIfRsStreming},
   {odbc289, "odbc289-fech_after_close", NORMAL},
-  {odbc356, "odbc356-key_cursor", NORMAL},
-  {NULL, NULL}
+  {odbc356, "odbc356-key_cursor", NORMAL, SkipIfRsStreming},
+  {NULL, NULL, 0, NULL}
 };
 
 
@@ -3586,5 +3630,6 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
+  //DoNotSkipTests(my_tests);
   return run_tests(my_tests);
-  }
+}

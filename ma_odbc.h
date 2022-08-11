@@ -110,7 +110,7 @@ typedef struct
 {
 	SQLUSMALLINT *RowOperationPtr;
 	SQLULEN		   *RowOffsetPtr;
-  MADB_ColBind *ColumnBind;
+  /*MADB_ColBind *ColumnBind;*/
 	MYSQL_BIND   *Bind;
   SQLLEN      dummy;
   SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
@@ -121,7 +121,7 @@ typedef struct
 {
 	SQLUSMALLINT  *ParamOperationPtr;
 	SQLULEN       *ParamOffsetPtr;
-	MADB_ParmBind *ParamBind;
+	/*MADB_ParmBind *ParamBind;*/
 	MYSQL_BIND    *Bind;
   SQLLEN      ParamsetSize;
   SQLUINTEGER	ParamBindType;
@@ -147,7 +147,7 @@ typedef struct
 	SQLULEN *ParamProcessedPtr; /* SQLParamOptions */
 #endif /* ODBCVER */
 	SQLUSMALLINT *ParamStatusPtr;
-  MADB_ParmBind* Parameters;
+  /*MADB_ParmBind* Parameters;*/
 	SQLSMALLINT Allocated;
 } MADB_Ipd;
 
@@ -261,10 +261,10 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 
 enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3, MADB_SS_OUTPARAMSFETCHED= 4};
 
-#define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State >= MADB_SS_EMULATED)
-#define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ?\
-  (Stmt_Hndl->State == MADB_SS_EMULATED ? MADB_SS_EMULATED : MADB_SS_PREPARED) :\
-  MADB_SS_INITED
+#define STMT_WAS_PREPARED(Stmt_Hndl) ((Stmt_Hndl)->State >= MADB_SS_EMULATED)
+#define STMT_REALLY_PREPARED(Stmt_Hndl) ((Stmt_Hndl)->State > MADB_SS_EMULATED)
+#define STMT_EXECUTED(Stmt_Hndl) ((Stmt_Hndl)->State == MADB_SS_EXECUTED)
+#define RESET_STMT_STATE(Stmt_Hndl) if ((Stmt_Hndl)->State > MADB_SS_PREPARED) (Stmt_Hndl)->State= MADB_SS_PREPARED
 
 /* Struct used to define column type when driver has to fix it (in catalog functions + SQLGetTypeInfo) */
 typedef struct
@@ -298,6 +298,7 @@ struct st_ma_odbc_stmt
   long long                 AffectedRows;
   MADB_Dbc                  *Connection;
   struct st_ma_stmt_methods *Methods;
+  struct st_ma_stmt_rsstore *RsOps;
   MYSQL_STMT                *stmt;
   MYSQL_RES                 *metadata;
   MYSQL_RES                 *DefaultsResult;
@@ -381,18 +382,20 @@ struct st_ma_odbc_connection
 
   Client_Charset *ConnOrSrcCharset; /* "Source" here stands for which charset Windows DM was using as source, when converted to unicode.
                                   We have to use same charset to recode from unicode to get same string as application sent it.
-                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system codepage */
-  char *CurrentSchema; /* Used to store current schema if the seesion tracking is possible */
-  MADB_List *Stmts;
-  MADB_List *Descrs;
+                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system
+                                  codepage */
+  char*      CurrentSchema; /* Used to store current schema if the seesion tracking is possible */
+  MADB_List* Stmts;
+  MADB_List* Descrs;
   /* Attributes */
-  char *CatalogName;
-  HWND QuietMode;
-  char *TraceFile;
+  char*      CatalogName;
+  HWND       QuietMode;
+  char*      TraceFile;
+  MADB_Stmt* Streamer;
 
-  SQLULEN AsyncEnable;
+  SQLULEN    AsyncEnable;
   SQLPOINTER EnlistInDtc;
-  SQLULEN OdbcCursors;
+  SQLULEN    OdbcCursors;
   unsigned long Options;
   SQLUINTEGER AutoIpd;
   SQLUINTEGER AutoCommit;
@@ -401,14 +404,14 @@ struct st_ma_odbc_connection
   SQLUINTEGER ReadTimeout;
   SQLUINTEGER WriteTimeout;
   SQLUINTEGER PacketSize;
-  SQLINTEGER AccessMode;
-  SQLINTEGER IsolationLevel;     /* tx_isolation */
+  SQLINTEGER  AccessMode;
+  SQLINTEGER  IsolationLevel;     /* tx_isolation */
   SQLUINTEGER Trace;
   SQLUINTEGER LoginTimeout;
   SQLUINTEGER MetadataId;
-  SQLINTEGER TxnIsolation;
-  SQLINTEGER CursorCount;
-  char ServerCapabilities;
+  SQLINTEGER  TxnIsolation;
+  SQLINTEGER  CursorCount;
+  char    ServerCapabilities;
   my_bool IsAnsi;
   my_bool IsMySQL;
 };

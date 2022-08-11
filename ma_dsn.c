@@ -30,6 +30,7 @@
 #define DSNKEY_DATABASE_INDEX 10
 #define DSNKEY_FP_INDEX       25
 #define DSNKEY_FPLIST_INDEX   26
+#define DSNKEY_STREAMRS_INDEX 43
 
 
 /* If adding new connstring option, one should add them to the end of the array section before aliases, because some arrays defining program logic
@@ -85,7 +86,8 @@ MADB_DsnKey DsnKeys[]=
   {"READ_TIMEOUT",   offsetof(MADB_Dsn, ReadTimeout),       DSN_TYPE_INT,    0, 0},
   {"WRITE_TIMEOUT",  offsetof(MADB_Dsn, WriteTimeout),      DSN_TYPE_INT,    0, 0}, /* 40 */
   {"NOLOCALINFILE",  offsetof(MADB_Dsn, DisableLocalInfile),DSN_TYPE_BOOL,   0, 0},
-  {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent),DSN_TYPE_BOOL,   0, 0},
+  {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent),DSN_TYPE_BOOL, 0, 0},
+  {"STREAMRS",       offsetof(MADB_Dsn, StreamResult),      DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_CACHE, 0},
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
@@ -94,6 +96,7 @@ MADB_DsnKey DsnKeys[]=
   {"DB",             DSNKEY_DATABASE_INDEX,                 DSN_TYPE_COMBO,  0, 1},
   {"SSLFP",          DSNKEY_FP_INDEX,                       DSN_TYPE_STRING, 0, 1},
   {"SSLFPLIST",      DSNKEY_FPLIST_INDEX,                   DSN_TYPE_STRING, 0, 1},
+  {"NO_CACHE",       DSNKEY_STREAMRS_INDEX,                 DSN_TYPE_BOOL,   0, 1},
 
   /* Terminating Null */
   {NULL, 0, DSN_TYPE_BOOL,0,0}
@@ -133,7 +136,6 @@ MADB_Dsn *MADB_DSN_Init()
 
   if ((Dsn= (MADB_Dsn *)MADB_CALLOC(sizeof(MADB_Dsn))))
   {
-    Dsn->FreeMe= TRUE;
     Dsn->Keys= (MADB_DsnKey *)&DsnKeys;
     /*Dsn->NullSchemaMeansCurrent = '\1';*/
   }
@@ -171,8 +173,7 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->SaveFile);
   MADB_FREE(Dsn->ServerKey);
   MADB_FREE(Dsn->TlsKeyPwd);
-  if (Dsn->FreeMe)
-    MADB_FREE(Dsn); 
+  MADB_FREE(Dsn); 
 }
 /* }}} */
 

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -179,6 +179,10 @@ ODBC_TEST(t_mul_pkdel)
   SQLLEN nlen;
   SQLULEN pcrow;
 
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_mul_pkdel");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_mul_pkdel (a INT NOT NULL, b INT,"
          "c VARCHAR(30) NOT NULL, PRIMARY KEY(a, c))");
@@ -372,6 +376,7 @@ ODBC_TEST(t_bulk_insert_rows)
   return OK;
 }
 
+/** SQLBulkOperations/SQLSetPos SQL_ADD would fail if TIMESTAMP column ignored */
 #define MAODBC_ROWS 2
 ODBC_TEST(t_odbc90)
 {
@@ -384,8 +389,8 @@ ODBC_TEST(t_odbc90)
   SQLINTEGER nval[MAODBC_ROWS]={100, 500}, id[MAODBC_ROWS]={2, 7};
  
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc90");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id int not null primary key auto_increment, \
-                          nval int not null, sval varchar(32) not null, ts timestamp)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, \
+                          nval INT NOT NULL, sval VARCHAR(32) NOT NULL, ts TIMESTAMP)");
 
   /* odbc 3 */
   /* This cursor closing is required, otherwise DM(on Windows) freaks out */
@@ -439,18 +444,15 @@ ODBC_TEST(t_odbc90)
 
   /* odbc 2. Not sure if it's really needed internaly one call is mapped to another as well. But won't hurt. */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc90");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id int not null primary key auto_increment, \
-                                            nval int not null, sval varchar(32) not null, ts timestamp)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc90 (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, \
+                                            nval INT NOT NULL, sval VARCHAR(32) NOT NULL, ts TIMESTAMP)");
   id[0]= 2;
   ind4[0]= SQL_COLUMN_IGNORE;
   strcpy((char*)(sval[0]), "Record 1");
   strcpy((char*)(sval[1]), "Record 21");
   nval[0]= 100;
-
-  sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s;%s;%s",
-    my_drivername, my_servername, my_uid, "XXXXXXXX", my_schema, ma_strport, add_connstr);
-  diag("Starting new connection: %s", conn);
-  sprintf((char*)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s;%s;%s;",
+  /* Making sure we can make static cursor(and not forward-only) */
+  sprintf((char*)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s;%s;%s;FORWARDONLY=0",
     my_drivername, my_servername, my_uid, my_pwd, my_schema, ma_strport, add_connstr);
   CHECK_ENV_RC(henv1, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv1));
   CHECK_ENV_RC(henv1, SQLSetEnvAttr(henv1, SQL_ATTR_ODBC_VERSION,

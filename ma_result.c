@@ -180,14 +180,15 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 
   if (mysql_stmt_more_results(Stmt->stmt))
   {
-    mysql_stmt_free_result(Stmt->stmt);
+    LOCK_MARIADB(Stmt->Connection);
+    Stmt->RsOps->FreeRs(Stmt);
+    MakeStmtCacher(Stmt);
   }
   else
   {
     return SQL_NO_DATA;
   }
   
-  LOCK_MARIADB(Stmt->Connection);
   if (mysql_stmt_next_result(Stmt->stmt) > 0)
   {
     UNLOCK_MARIADB(Stmt->Connection);
@@ -217,11 +218,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     }
     else
     {
-      if (Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
-      {
-        mysql_stmt_store_result(Stmt->stmt);
-        mysql_stmt_data_seek(Stmt->stmt, 0);
-      }
+      Stmt->RsOps->CacheRs(Stmt);
     }
   }
   UNLOCK_MARIADB(Stmt->Connection);
@@ -233,7 +230,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
 /* {{{ MADB_RecordsToFetch */
 SQLULEN MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long long RowsInResultst)
 {
-  SQLULEN  Position= Cursor->Position >= 0 ? Cursor->Position : 0;
+  SQLULEN Position= Cursor->Position >= 0 ? Cursor->Position : 0;
   SQLULEN result= ArraySize;
 
   Cursor->RowsetSize= ArraySize;

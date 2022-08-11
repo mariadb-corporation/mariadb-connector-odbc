@@ -121,30 +121,6 @@ ODBC_TEST(test_numeric)
   return OK;
 }
 
-ODBC_TEST(unbuffered_result)
-{
-  SQLRETURN rc;
-  SQLHSTMT Stmt1, Stmt2;
-
-  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
-  SQLSetStmtAttr(Stmt1, SQL_CURSOR_TYPE, SQL_CURSOR_FORWARD_ONLY, SQL_IS_INTEGER);
-  OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t1");
-  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t1 (a int)");
-  OK_SIMPLE_STMT(Stmt1, "INSERT INTO t1 VALUES (1),(2),(3)");
-  OK_SIMPLE_STMT(Stmt1, "SELECT * from t1");
-
-  rc= SQLFetch(Stmt1);
-  FAIL_IF(rc == SQL_NO_DATA, "unexpected eof");
-
-  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2);
-  SQLSetStmtAttr(Stmt2, SQL_CURSOR_TYPE, SQL_CURSOR_FORWARD_ONLY, SQL_IS_INTEGER);
-  OK_SIMPLE_STMT(Stmt2, "SELECT * from t1");
-
-  SQLFreeStmt(Stmt1, SQL_DROP);
-  SQLFreeStmt(Stmt2, SQL_DROP);
-  return OK;
-}
-
 
 ODBC_TEST(my_param_update)
 {
@@ -809,12 +785,12 @@ ODBC_TEST(t_bug49029)
   SQLCHAR buff[6];
   SQLULEN len= 5;
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "set @@session.sql_mode='NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION,NO_BACKSLASH_ESCAPES'", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SET @@session.sql_mode='NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION,NO_BACKSLASH_ESCAPES'", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY,
     0, 0, (SQLPOINTER)bData, 0, &len));
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SELECT ?", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_BINARY, (SQLPOINTER)buff, 6, &len));
@@ -826,8 +802,7 @@ ODBC_TEST(t_bug49029)
 
 
 /*
-  Bug #56804 - Server with sql mode NO_BACKSLASHES_ESCAPE obviously
-  can work incorrectly (at least) with binary parameters
+  Bug #56804 - 
 */
 ODBC_TEST(t_bug56804)
 {
@@ -847,8 +822,8 @@ ODBC_TEST(t_bug56804)
   SQLLEN	    paramset_size	= PARAMSET_SIZE;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug56804");
-  OK_SIMPLE_STMT(Stmt, "create table bug56804 (c1 int primary key not null, c2 int)");
-  OK_SIMPLE_STMT(Stmt, "insert into bug56804 values( 1, 1 ), (9, 9009)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug56804 (c1 INT PRIMARY KEY NOT NULL, c2 INT)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO bug56804 VALUES( 1, 1 ), (9, 9009)");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"insert into bug56804 values( ?,? )", SQL_NTS));
@@ -1430,6 +1405,8 @@ ODBC_TEST(insert_fetched_null)
   is_num(len[5], 0);
   IS_WSTR(empty, sqlwchar_empty, len[5]);
 
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
   CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &id, 0, &len[0]));
   CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 2, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_DOUBLE, 0, 0, &double_val, 0, &len[1]));
   CHECK_STMT_RC(Stmt1, SQLBindParameter(Stmt1, 3, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_VARCHAR, 0, 0, &val, sizeof(val), &len[2]));
@@ -1488,7 +1465,6 @@ ODBC_TEST(insert_fetched_null)
   IS_WSTR(empty, sqlwchar_empty, len[5]);
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE t_insert_fetched_null");
 
@@ -1702,12 +1678,10 @@ ODBC_TEST(odbc279)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buffer, 1), "12:34:56", 8);
 
-  if (iOdbc())
-  {
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-    OK_SIMPLE_STMT(Stmt, "SELECT col1 FROM t_odbc279");
-  }
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "SELECT col1 FROM t_odbc279");
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
+ 
   ts.hour= ts.minute= ts.second= 0;
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIME, &ts, sizeof(SQL_TIME_STRUCT), NULL));
 
@@ -1724,7 +1698,6 @@ ODBC_TEST(odbc279)
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {unbuffered_result, "unbuffered_result"},
   {my_init_table, "my_init_table"},
   {my_param_insert, "my_param_insert"},
   {my_param_update, "my_param_update"},

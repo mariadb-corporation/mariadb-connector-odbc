@@ -34,7 +34,7 @@ const char *DsnConnStr=       "DSN=madb_connstring_test";
 const char *Description=      "MariaDB C/ODBC test DSN for automatic testing";
 
 /****************************** Helpers ****************************/
-#define RESET_DSN(dsn) MADB_DSN_Free(dsn);memset(dsn, 0, sizeof(MADB_Dsn))
+#define RESET_DSN(dsn) MADB_DSN_Free(dsn);dsn= MADB_DSN_Init();memset(dsn, 0, sizeof(MADB_Dsn))
 
 BOOL VerifyOptionFields(MADB_Dsn *Dsn)
 {
@@ -249,7 +249,7 @@ ODBC_TEST(all_other_fields_test)
     /* As already said - ini cache is buggy in UnixODBC, and it fails with UnixODBC version we have availabe in Travis tests.
        It's possible to change the test to pass in similar way as we did in some other tests - by either writing and reading
        the (new) DSN only once, or by creating new DSN for each keyword. */
-    skip("Skipping with test in Travis")
+    skip("Skipping with test in Travis");
   }
   FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
 
@@ -763,11 +763,9 @@ int main(int argc, char **argv)
   }
   plan(tests);
   Dsn= MADB_DSN_Init();
-  Dsn->FreeMe= FALSE; /* Let tests only reset dsn struct, but do not free it */
 
   ret= run_tests(my_tests);
 
-  Dsn->FreeMe= TRUE;
   MADB_DSN_Free(Dsn);
 
   if (CleanUp() == FAIL)

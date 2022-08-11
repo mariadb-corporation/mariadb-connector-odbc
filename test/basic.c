@@ -28,7 +28,6 @@
 ODBC_TEST(test_CONO1)
 {
   /* check SQLColumns with ANSI_QUOTES on and off */
-  SQLRETURN ret;
   SQLLEN rowCount;
   SQLCHAR *create_table= (SQLCHAR *)"CREATE TABLE cono1 (InitialStartDateTime datetime NOT NULL,  TicketId int(11) NOT NULL AUTO_INCREMENT,  CallCount int(11) NOT NULL DEFAULT '1',  CalledNumber varchar(30) DEFAULT NULL,  CallingNumber varchar(30) DEFAULT NULL,  CallType tinyint(3) unsigned DEFAULT NULL,  ChargeUnits smallint(6) DEFAULT NULL,  NetworkAndTrunkNode int(11) DEFAULT NULL,  TrunkGroupIdentity varchar(10) DEFAULT NULL,  EntityId int(11) DEFAULT NULL,  PersonalOrBusiness tinyint(3) unsigned DEFAULT NULL,   WaitingDuration smallint(6) DEFAULT '0',  EffectiveCallDuration int(11) DEFAULT NULL,  ComType tinyint(3) unsigned DEFAULT NULL,  CostInfo double DEFAULT NULL,  InitialDialledNumber varchar(30) DEFAULT NULL,  Carrier varchar(5) DEFAULT NULL,  UserToUserVolume smallint(6) DEFAULT '0',  StartDateTime datetime DEFAULT NULL,  Duration int(11) DEFAULT NULL,  RedirectedCallIndicator tinyint(3) unsigned DEFAULT NULL,  Subaddress varchar(20) DEFAULT NULL,  HighLevelComp tinyint(3) unsigned DEFAULT NULL,  CostType tinyint(3) unsigned DEFAULT NULL,  TrunkIdentity smallint(6) DEFAULT NULL,  SpecificChargeInfo char(7) DEFAULT NULL,  BearerCapability tinyint(3) unsigned DEFAULT NULL,  DataVolume int(11) DEFAULT NULL,  AdditionalEntityId int(11) DEFAULT NULL,  FirstCarrierCost double NOT NULL,  FirstCarrierCostT double DEFAULT NULL,  SecondCarrierCost double NOT NULL,  SecondCarrierCostT double DEFAULT NULL,  FacilityCost double NOT NULL,  FacilityCostT double DEFAULT NULL,  FacturedCost double DEFAULT NULL,  FacturedCostT double DEFAULT NULL,  SubscriptionCost double NOT NULL DEFAULT '0',  SubscriptionCostT double DEFAULT NULL,  FirstCarrierId int(11) DEFAULT NULL,  SecondCarrierId int(11) DEFAULT NULL,  FirstCarrierDirectionId int(11) DEFAULT NULL,  SecondCarrierDirectionId int(11) DEFAULT NULL,  FirstCarrierCcnId int(11) DEFAULT NULL,  SecondCarrierCcnId int(11) DEFAULT NULL,  ActingExtensionNumber varchar(30) DEFAULT NULL,  TransitTrunkGroupIdentity varchar(5) DEFAULT NULL,  NodeTimeOffset smallint(6) DEFAULT NULL,  ExternFacilities binary(5) DEFAULT NULL,  InternFacilities binary(5) DEFAULT NULL,  TicketOrigin tinyint(3) unsigned DEFAULT '0',  TimeDlt int(11) DEFAULT NULL,  PRIMARY KEY (TicketId),  UNIQUE KEY IX_Ticket (TicketId),  KEY IX2_Ticket (EntityId),  KEY IX3_Ticket (InitialStartDateTime),  KEY IX4_Ticket (StartDateTime))";
 
@@ -37,31 +36,30 @@ ODBC_TEST(test_CONO1)
   OK_SIMPLE_STMT(Stmt, create_table);
   
 
-  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
-  if (!SQL_SUCCEEDED(ret))
-    return FAIL;
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0));
 
-  SQLRowCount(Stmt, &rowCount);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
   diag("row_count: %u", rowCount);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "SET SQL_MODE=''");
 
-  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
-  if (!SQL_SUCCEEDED(ret))
-    return FAIL;
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0));
 
-  SQLRowCount(Stmt, &rowCount);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
   diag("row_count: %u", rowCount);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
 }
 
+/* I don't understand what this test is about. About binding column when there is no result? that it does not cause an error? */
 ODBC_TEST(test_CONO3)
 {
   int i= 0;
 
   OK_SIMPLE_STMT(Stmt, "SET @a:=1");
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)(SQLLEN)i, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)(SQLLEN)&i, 0, NULL));
 
   return OK;
 }
@@ -525,16 +523,16 @@ ODBC_TEST(charset_utf8)
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  FAIL_IF(conn[0] != 0xE4, "Comparison failed");
-  FAIL_IF(len != 3, "Comparison failed");
+  is_num(0xE4, conn[0]);
+  is_num(3, len);
   
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  FAIL_IF(conn[0] != 0xB8, "Comparison failed");
-  FAIL_IF(len != 2, "Comparison failed");
+  is_num(0xB8, conn[0]);
+  is_num(2, len);
   
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  FAIL_IF(conn[0] != 0xAD, "Comparison failed");
-  FAIL_IF(len != 1, "Comparison failed");
+  is_num(0xAD, conn[0]);
+  is_num(1, len);
   
   FAIL_IF(SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len) != SQL_NO_DATA_FOUND, "Expected SQL_NO_DATA_FOUND");
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND,"Expected SQL_NO_DATA_FOUND");
@@ -966,9 +964,10 @@ ODBC_TEST(t_bug32014)
       {SQL_CURSOR_FORWARD_ONLY, SQL_CURSOR_STATIC,        SQL_CURSOR_DYNAMIC,         SQL_CURSOR_STATIC},
       {SQL_CURSOR_FORWARD_ONLY, SQL_CURSOR_FORWARD_ONLY,  SQL_CURSOR_FORWARD_ONLY,    SQL_CURSOR_FORWARD_ONLY}};
 
+  add_connstr= "";
   do
   {
-    my_options= flags[i] +  67108866;
+    my_options= flags[i] | 67108866;
     ODBC_Connect(&henv1, &hdbc1, &hstmt1);
 
     diag("checking %d (%d)", i, flags[i]);
@@ -1013,8 +1012,6 @@ ODBC_TEST(t_bug32014)
     ODBC_Disconnect(henv1, hdbc1, hstmt1);
 
   } while (flags[++i]);
-
-  //SET_DSN_OPTION(0);
 
   return OK;
 }
@@ -1063,43 +1060,45 @@ ODBC_TEST(t_bug28820)
   SQLCHAR dummy[20];
   SQLSMALLINT i;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug28820");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug28820 ("
-                "x varchar(90) character set latin1,"
-                "y varchar(90) character set big5,"
-                "z varchar(90) character set utf8)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28820");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28820 ("
+                "x VARCHAR(90) CHARACTER SET latin1,"
+                "y VARCHAR(90) CHARACTER SET big5,"
+                "z VARCHAR(90) CHARACTER SET utf8)");
 
-  OK_SIMPLE_STMT(Stmt, "select x,y,z from t_bug28820");
+  OK_SIMPLE_STMT(Stmt, "SELECT x,y,z FROM t_bug28820");
 
   for (i= 0; i < 3; ++i)
   {
     length= 0;
     CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i+1, dummy, sizeof(dummy), NULL,
                                   NULL, &length, NULL, NULL));
-	diag("length: %d", length);
+    diag("length: %d", length);
     is_num(length, 90);
   }
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug28820");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug28820");
   return OK;
 }
 
+/* What is tested here? */
 ODBC_TEST(t_count)
 {
   SQLULEN length;
   SQLCHAR dummy[20];
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_count");
-  OK_SIMPLE_STMT(Stmt, "create table t_count (a int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_count");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_count (a INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_count VALUES (1),(2),(3)");
                 
-  OK_SIMPLE_STMT(Stmt, "select count(*) regcount from t_count");
+  OK_SIMPLE_STMT(Stmt, "SELECT COUNT(*) regcount FROM t_count");
 
   length= 0;
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, dummy, sizeof(dummy), NULL,
                                      NULL, &length, NULL, NULL));
-  
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_count");
+  IS_STR(dummy, "regcount", sizeof("regcount"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_count");
   return OK;
 }
 

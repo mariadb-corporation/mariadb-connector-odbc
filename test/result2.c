@@ -40,7 +40,7 @@ ODBC_TEST(t_bug32420)
 
   ODBC_Connect(&henv1, &hdbc1, &hstmt1);
 
-  OK_SIMPLE_STMT(hstmt1, "drop table if exists bug32420");
+  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS bug32420");
   OK_SIMPLE_STMT(hstmt1, "CREATE TABLE bug32420 ("\
                 "tt_int INT PRIMARY KEY auto_increment,"\
                 "tt_varchar VARCHAR(128) NOT NULL)");
@@ -54,7 +54,7 @@ ODBC_TEST(t_bug32420)
 
   CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_ROWSET_SIZE, 4));
 
-  OK_SIMPLE_STMT(hstmt1, "select * from bug32420 order by 1");
+  OK_SIMPLE_STMT(hstmt1, "SELECT * FROM bug32420 order by 1");
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_LONG, nData, 0, NULL));
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 2, SQL_C_CHAR, szData, sizeof(szData[0]),
                             NULL));
@@ -71,7 +71,7 @@ ODBC_TEST(t_bug32420)
   IS_STR(szData[3], "string 4", 8);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
-  OK_SIMPLE_STMT(hstmt1, "drop table if exists bug32420");
+  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS bug32420");
 
   ODBC_Disconnect(henv1, hdbc1, hstmt1);
 
@@ -132,7 +132,7 @@ ODBC_TEST(t_bug24131)
   UWORD status;
   SQLULEN colSize;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug24131");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug24131");
 
   /* Table definition should be long enough. */
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE `bug24131` ("
@@ -170,7 +170,7 @@ ODBC_TEST(t_bug24131)
   IS(colSize >= (SQLULEN)boundLen);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug24131");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug24131");
 
   return OK;
 }
@@ -222,14 +222,14 @@ ODBC_TEST(t_bug39644)
   char col3 = 0x0;
   char col4 = 0x1;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug39644");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug39644(col1 INT, col2 INT,"\
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug39644");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug39644(col1 INT, col2 INT,"\
 	            "col3 BIT, col4 BIT)");
 
-  OK_SIMPLE_STMT(Stmt, "insert into t_bug39644 VALUES (5, 0, 1, 0)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug39644 VALUES (5, 0, 1, 0)");
 
   /* Do SELECT */
-  OK_SIMPLE_STMT(Stmt, "SELECT * from t_bug39644");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug39644");
 
   /* Now bind buffers */
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_BIT, &col1, sizeof(char), 0));
@@ -272,7 +272,7 @@ ODBC_TEST(t_bug32821)
   SQLLEN      sPar= sizeof(SQLUINTEGER);
 
   /* 131071 = 0x1ffff - all 1 for field c*/
-  SQLCHAR * insStmt= (SQLCHAR*)"insert into t_bug32821 values (0,0,0),(1,1,1)\
+  SQLCHAR * insStmt= (SQLCHAR*)"INSERT INTO t_bug32821 values (0,0,0),(1,1,1)\
                       ,(1,255,131071),(1,258,?)";
   const unsigned char expected_a[]= {'\0', '\1', '\1', '\1'};
   const SQLUINTEGER   expected_b[]= {0L, 1L, 255L, 258L};
@@ -474,7 +474,7 @@ ODBC_TEST(t_bug56677)
   SQLCHAR     szData[16];
   SQLSMALLINT colCount;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug56677");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug56677");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug56677 ("\
     "tt_int INT PRIMARY KEY auto_increment,"\
     "tt_varchar VARCHAR(128) NOT NULL)");
@@ -486,7 +486,7 @@ ODBC_TEST(t_bug56677)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select * from bug56677", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT * FROM bug56677", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &colCount));
 
   is_num(colCount, 2);
@@ -514,7 +514,7 @@ ODBC_TEST(t_bug56677)
   IS_STR(szData, "string 4", 8);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug56677");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug56677");
 
   return OK;
 }
@@ -535,7 +535,7 @@ ODBC_TEST(t_desccol_before_exec)
   diag("desccol before exec not supported");
   return SKIP;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists desccol_before_exec");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS desccol_before_exec");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE desccol_before_exec ("\
     "tt_int INT PRIMARY KEY auto_increment,"\
     "tt_varchar VARCHAR(128) CHARACTER SET latin1 NOT NULL)");
@@ -601,7 +601,7 @@ ODBC_TEST(t_desccol_before_exec)
   IS_STR(szData, "string 2", 8);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists desccol_before_exec");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS desccol_before_exec");
 
   return OK;
 }
@@ -616,17 +616,17 @@ ODBC_TEST(t_bug62657)
 
   OK_SIMPLE_STMT(Stmt, "CREATE table b62657(i int)");
 
-  OK_SIMPLE_STMT(Stmt, "insert into b62657 values(1),(2)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO b62657 VALUES(1),(2)");
 
 
-  OK_SIMPLE_STMT(Stmt, "select * from b62657");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM b62657");
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   /* Any failing  query would do the job here */
   CHECK_DBC_RC(hstmt1, SQLAllocStmt(Connection, &hstmt1));
 
-  FAIL_IF(SQLExecDirect(hstmt1, (SQLCHAR*)"select * from some_ne_rubbish", SQL_NTS) != SQL_ERROR, "Error expected");
+  FAIL_IF(SQLExecDirect(hstmt1, (SQLCHAR*)"SELECT * FROM some_ne_rubbish", SQL_NTS) != SQL_ERROR, "Error expected");
 
   /* Error of other query before all rows fetched causes next fetch
      to fail */
@@ -659,7 +659,7 @@ ODBC_TEST(t_row_status)
 
   OK_SIMPLE_STMT(Stmt, "CREATE table b_row_status(i int)");
 
-  OK_SIMPLE_STMT(Stmt, "insert into b_row_status values(4),(2),(1),(NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO b_row_status VALUES(4),(2),(1),(NULL)");
 
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC,
                                 &ird, SQL_IS_POINTER, NULL));
@@ -671,7 +671,7 @@ ODBC_TEST(t_row_status)
   CHECK_DESC_RC(ird, SQLSetDescField(ard, 0, SQL_DESC_ARRAY_SIZE,
                                 (SQLPOINTER)2, SQL_IS_INTEGER));
 
-  OK_SIMPLE_STMT(Stmt, "select * from b_row_status\
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM b_row_status\
                         where i=1");
 
   /* it has to be SQL_SUCCESS here */
@@ -732,9 +732,9 @@ ODBC_TEST(t_prefetch)
     OK_SIMPLE_STMT(Stmt, "DROP table IF EXISTS b_prefecth");
     OK_SIMPLE_STMT(Stmt, "CREATE table b_prefecth(i int)");
 
-    OK_SIMPLE_STMT(Stmt, "insert into b_prefecth values(1),(2),(3),(4),(5),(6),(7)");
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO b_prefecth VALUES(1),(2),(3),(4),(5),(6),(7)");
 
-    CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"select * from b_prefecth;    ", SQL_NTS));
+    CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"SELECT * FROM b_prefecth;    ", SQL_NTS));
     CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
     CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1,SQL_DROP));
 
@@ -862,10 +862,10 @@ ODBC_TEST(t_bug11766437)
   char        rows[500]= {0};
   SQLINTEGER  MAX_CHAR_SIZE= 7; /*max size for character name*/ 
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug11766437");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug11766437 (id int not null, "
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug11766437");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug11766437 (id int not null, "
                 "name varchar(7))");
-  OK_SIMPLE_STMT(Stmt, "insert into t_bug11766437 values "
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug11766437 values "
                 "(0, 'name0'),(1,'name1'),(2,'name2')");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -943,7 +943,7 @@ ODBC_TEST(t_bug11766437)
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug11766437");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug11766437");
 
   return OK;
 }
@@ -956,7 +956,7 @@ ODBC_TEST(t_odbc29)
 {
   SQLSMALLINT cols_count;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug_odbc29");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug_odbc29");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug_odbc29 (id INT PRIMARY KEY auto_increment, value VARCHAR(100) NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO bug_odbc29(value) VALUES ('value')");
 
@@ -968,7 +968,7 @@ ODBC_TEST(t_odbc29)
   is_num(cols_count, 2);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug_odbc29");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug_odbc29");
 
   return OK;
 }
@@ -1212,7 +1212,7 @@ ODBC_TEST(t_odbc133)
   F1.scale= 1;
   
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC, SQL_DECIMAL, 19, 4, &F1, sizeof(SQL_NUMERIC_STRUCT), NULL));
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc133 values(?)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc133 VALUES(?)");
 
   memset(F1.val, 0, SQL_MAX_NUMERIC_LEN);
 
@@ -1445,7 +1445,7 @@ ODBC_TEST(t_odbc274)
 
   if (ServerNotOlderThan(Connection, 10, 5, 0) == FALSE)
   {
-    skip("The test requires min 10.5.0 version")
+    skip("The test requires min 10.5.0 version");
   }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc274");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc274 (id INT UNSIGNED NOT NULL PRIMARY KEY auto_increment, value varchar(32) not null)");

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2021 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -60,6 +60,11 @@ ODBC_TEST(t_stmt_attr_status)
   SQLUSMALLINT rowStatusPtr[3];
   SQLULEN      rowsFetchedPtr= 0;
 
+
+  if (ForwardOnly == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY option are selected");
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_stmtstatus");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_stmtstatus (id INT, name CHAR(20))");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_stmtstatus VALUES (10,'data1'),(20,'data2')");
@@ -389,7 +394,11 @@ ODBC_TEST(t_bug46910)
 	SQLExecDirect(Stmt, "CALL spbug46910_1()", SQL_NTS);
 	
 	CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &i));
-  is_num(i, 1);
+  if (ForwardOnly != TRUE || NoCache != TRUE)
+  {
+    /* With streaming we can't get this */
+    is_num(i, 1);
+  }
 	CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &col_count));
   is_num(col_count, 1);
   is_num(SQLMoreResults(Stmt), SQL_SUCCESS);

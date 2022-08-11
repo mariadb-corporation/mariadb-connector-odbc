@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -30,6 +30,10 @@ ODBC_TEST(t_scroll)
 {
   SQLUINTEGER i;
 
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_scroll");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_scroll (col1 INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_scroll VALUES (1),(2),(3),(4),(5)");
@@ -116,15 +120,18 @@ ODBC_TEST(t_array_relative_10)
   SQLLEN   nrows, index;
   SQLUINTEGER i;
   char name[21];
-
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_array_relative_10");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_array_relative_10(id int,name char(20))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_array_relative_10(id INT,name CHAR(20))");
 
-  rc = SQLPrepare(Stmt,(SQLCHAR *)"insert into t_array_relative_10 values(?,?)",SQL_NTS);
+  rc = SQLPrepare(Stmt,(SQLCHAR *)"INSERT INTO t_array_relative_10 VALUES(?,?)",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
   rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
@@ -154,7 +161,7 @@ ODBC_TEST(t_array_relative_10)
   rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROWS_FETCHED_PTR, &nrows, 0);
   CHECK_STMT_RC(Stmt,rc);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_array_relative_10");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_10");
 
   rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
@@ -254,205 +261,210 @@ ODBC_TEST(t_array_relative_10)
 /* Testing SQL_FETCH_RELATIVE with row_set_size as 1 */
 ODBC_TEST(t_relative_1)
 {
-    SQLRETURN rc;
-    SQLLEN nrows;
-    SQLUINTEGER i;
-    const SQLUINTEGER max_rows=10;
+  SQLRETURN rc;
+  SQLLEN nrows;
+  SQLUINTEGER i;
+  const SQLUINTEGER max_rows=10;
 
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_relative_1");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_relative_1(id int)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_relative_1(id int)");
 
-    rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_relative_1 values(?)",SQL_NTS);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_relative_1 VALUES(?)",SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
-                          SQL_INTEGER,0,0,&i,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
+                        SQL_INTEGER,0,0,&i,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    for ( i = 1; i <= max_rows; i++ )
-    {
-        rc = SQLExecute(Stmt);
-        CHECK_STMT_RC(Stmt,rc);
-    }
+  for ( i = 1; i <= max_rows; i++ )
+  {
+      rc = SQLExecute(Stmt);
+      CHECK_STMT_RC(Stmt,rc);
+  }
 
-    SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    rc = SQLEndTran(SQL_HANDLE_DBC,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLEndTran(SQL_HANDLE_DBC,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    /* set row_size as 1 */
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
-    CHECK_STMT_RC(Stmt,rc);
+  /* set row_size as 1 */
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_relative_1");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_relative_1");
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    /* row 1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 1 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
+  /* row 1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 1 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
 
-    /* Before start */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */
+  /* Before start */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  /* jump to last row */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* last row */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==max_rows);
+
+  /* jump to last row+1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after last */    
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  /* goto first row */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
+
+  /* before start */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* jump to last row */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* last row */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==max_rows);
+  /* goto fifth  row */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* 5 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==5);
 
-    /* jump to last row+1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after last */    
+  /* goto after end */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* after last */    
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  /* 
+      the scenarios from ODBC spec     
+  */    
+
+  /* CASE 1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  /* BeforeStart AND FetchOffset <= 0 */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-20);/* before start */    
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* before start */    
+  FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  /* case 1: Before start AND FetchOffset > 0 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
+
+  /* CASE 2 */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_LAST,1);/* last row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==max_rows);
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after end */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* goto first row */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
-
-    /* before start */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
-
-    /* goto fifth  row */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* 5 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==5);
-
-    /* goto after end */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* after last */    
+  /* After end AND FetchOffset >= 0 */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,10);/* after end */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* 
-       the scenarios from ODBC spec     
-    */    
-
-    /* CASE 1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
-
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,20);/* after end */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* BeforeStart AND FetchOffset <= 0 */    
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-20);/* before start */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after end */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* after end */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* before start */    
+  /* After end AND FetchOffset < 0 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* last row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==max_rows);
+
+
+  /* CASE 3 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
+
+  /* CurrRowsetStart = 1 AND FetchOffset < 0 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* case 1: Before start AND FetchOffset > 0 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
+  /* CASE 4 */
+  /* CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
+      | FetchOffset | > RowsetSize
+  */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
 
-    /* CASE 2 */    
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_LAST,1);/* last row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==max_rows);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==4);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* the following call satisfies 4 > 1 AND (3-4) < 1 AND |-4| > 1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* After end AND FetchOffset >= 0 */    
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,10);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* CASE 5 */
+  /* 1 <= CurrRowsetStart + FetchOffset <= LastResultRow */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,20);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* sixth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==6);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* 1 <= 6-2 <= 10 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-2);/* fourth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==4);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
-
-    /* After end AND FetchOffset < 0 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* last row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==max_rows);
-
-
-    /* CASE 3 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
-
-    /* CurrRowsetStart = 1 AND FetchOffset < 0 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
-
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
-
-    /* CASE 4 */
-    /* CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
-       | FetchOffset | > RowsetSize
+  /* CASE 6 */
+  /*  CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
+      | FetchOffset | <= RowsetSize
     */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==1);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==4);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(i==4);
 
-    /* the following call satisfies 4 > 1 AND (3-4) < 1 AND |-4| > 1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
-
-    /* CASE 5 */
-    /* 1 <= CurrRowsetStart + FetchOffset <= LastResultRow */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
-
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* sixth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==6);
-
-    /* 1 <= 6-2 <= 10 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-2);/* fourth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==4);
-
-    /* CASE 6 */
-    /*  CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
-        | FetchOffset | <= RowsetSize
-     */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==1);
-
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(i==4);
-
-    /* 4 >1 AND 4-4 <1 AND |-4| <=10 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* 4 >1 AND 4-4 <1 AND |-4| <=10 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);    
-    SQLFreeStmt(Stmt,SQL_CLOSE);          
+  SQLFreeStmt(Stmt,SQL_UNBIND);    
+  SQLFreeStmt(Stmt,SQL_CLOSE);          
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_relative_1");
 
@@ -463,20 +475,25 @@ ODBC_TEST(t_relative_1)
 /* Testing SQL_FETCH_RELATIVE with row_set_size as 2 */
 ODBC_TEST(t_array_relative_2)
 {
-    SQLRETURN rc;
-    SQLUINTEGER i;
-    SQLLEN nrows;
-    SQLINTEGER iarray[15];
-    const SQLUINTEGER max_rows=10;
+  SQLRETURN rc;
+  SQLUINTEGER i;
+  SQLLEN nrows;
+  SQLINTEGER iarray[15];
+  const SQLUINTEGER max_rows=10;
 
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_array_relative_2");
 
-  OK_SIMPLE_STMT(Stmt,"create table t_array_relative_2(id int)");
+  OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_array_relative_2(id INT)");
 
-    rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_array_relative_2 values(?)",SQL_NTS);
+    rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_array_relative_2 VALUES(?)",SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
@@ -502,7 +519,7 @@ ODBC_TEST(t_array_relative_2)
     rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_array_relative_2");
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_2");
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
@@ -708,7 +725,7 @@ ODBC_TEST(t_array_relative_2)
     rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_array_relative_2");
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_2");
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
@@ -776,19 +793,24 @@ ODBC_TEST(t_array_relative_2)
 /* Testing SQL_FETCH_ABSOLUTE with row_set_size as 1 */
 ODBC_TEST(t_absolute_1)
 {
-    SQLRETURN rc;
-    SQLLEN nrows;
-    SQLUINTEGER i;
-    const SQLUINTEGER max_rows=10;
+  SQLRETURN rc;
+  SQLLEN nrows;
+  SQLUINTEGER i;
+  const SQLUINTEGER max_rows=10;
 
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_absolute_1");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_absolute_1(id int)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_absolute_1(id INT)");
 
-    rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_absolute_1 values(?)",SQL_NTS);
+    rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_absolute_1 VALUES(?)", SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
@@ -814,7 +836,7 @@ ODBC_TEST(t_absolute_1)
     rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_absolute_1");
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_absolute_1");
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
@@ -960,20 +982,25 @@ ODBC_TEST(t_absolute_1)
 /* Testing SQL_FETCH_ABSOLUTE with row_set_size as 2 */
 ODBC_TEST(t_absolute_2)
 {
-    SQLRETURN rc;
-    SQLLEN nrows;
-    SQLINTEGER iarray[15];
-    const SQLUINTEGER max_rows=10;
-    SQLUINTEGER i;
+  SQLRETURN rc;
+  SQLLEN nrows;
+  SQLINTEGER iarray[15];
+  const SQLUINTEGER max_rows=10;
+  SQLUINTEGER i;
 
-    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                  (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_absolute_2");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_absolute_2(id int)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_absolute_2(id INT)");
 
-    rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_absolute_2 values(?)",SQL_NTS);
+    rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_absolute_2 VALUES(?)",SQL_NTS);
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
@@ -999,7 +1026,7 @@ ODBC_TEST(t_absolute_2)
     rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_absolute_2");
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_absolute_2");
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
@@ -1166,7 +1193,7 @@ ODBC_TEST(t_absolute_2)
     rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
     CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_absolute_2");
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_absolute_2");
     CHECK_STMT_RC(Stmt,rc);
 
     rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);

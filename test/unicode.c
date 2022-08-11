@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -68,15 +68,15 @@ ODBC_TEST(test_count)
   SQLULEN columnsize;
   SQLRETURN rc;
  
+  /* Strange test */
   rc= SQLExecDirectW(Stmt, CW("DROP TABLE IF EXISTS test_count"), SQL_NTS);
   rc= SQLExecDirectW(Stmt, CW("CREATE TABLE test_count (a int)"), SQL_NTS);
   rc= SQLExecDirectW(Stmt, CW("INSERT INTO test_count VALUES (1),(2)"), SQL_NTS);
   rc= SQLExecDirectW(Stmt, CW("SELECT count(*) RELEATED FROM test_count"), SQL_NTS);
 
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));  
-  SQLDescribeColW(Stmt,1, columnname, 64, &columnlength, &datatype, &columnsize, &digits, &nullable);
   SQLBindCol(Stmt, 1, SQL_INTEGER, &columnsize, sizeof(SQLINTEGER), NULL);
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L));  
+  SQLDescribeColW(Stmt,1, columnname, 64, &columnlength, &datatype, &columnsize, &digits, &nullable);
 
   wprintf(L"%s: %lu\n", columnname, (unsigned long)columnsize);
 
@@ -1633,7 +1633,7 @@ MA_ODBC_TESTS my_tests[]=
   {sqlchar,           "sqlchar",            NORMAL},
   {sqldriverconnect,  "sqldriverconnect",   NORMAL},
   {sqlnativesql,      "sqlnativesql",       NORMAL},
-  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL},
+  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL, SkipIfRsStreming},
   {sqlgetcursorname,  "sqlgetcursorname",   NORMAL},
   {sqlcolattribute,   "sqlcolattribute",    NORMAL},
   {sqldescribecol,    "sqldescribecol",     NORMAL},

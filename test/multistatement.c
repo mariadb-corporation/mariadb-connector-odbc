@@ -58,6 +58,7 @@ ODBC_TEST(test_multi_on_off)
   SQLRETURN rc;
 
   my_options= 0;
+  //add_connstr= "";
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
   rc= SQLPrepare(myStmt, (SQLCHAR*)"DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
@@ -232,9 +233,9 @@ ODBC_TEST(t_odbc74)
                         val VARCHAR(64) NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO odbc74 (val) VALUES('\"');INSERT INTO odbc74 (val) VALUES(\"'\");\
                         /*\"*//*'*//*/**/INSERT INTO odbc74 (val) VALUES('*/');\
-                        # Pound-sign comment\"'--; insert into non_existent values(1)\n\
+                        # Pound-sign comment\"'--; insert into non_existent VALUES(1)\n\
                         # 2 lines of comments \"'--;\n\
-                        INSERT INTO odbc74 (val) VALUES('/*');-- comment\"'; insert into non_existent values(1)\n\
+                        INSERT INTO odbc74 (val) VALUES('/*');-- comment\"'; insert into non_existent VALUES(1)\n\
                         INSERT INTO odbc74 (val) VALUES('end')\n\
                         # ;Unhappy comment at the end ");
   OK_SIMPLE_STMT(Stmt, "-- comment ;1 \n\
@@ -467,7 +468,7 @@ ODBC_TEST(t_odbc177)
                         BEGIN\
                           SELECT 1;\
                           SELECT 2 as id, 'val' as `Value` FROM dual WHERE 1=0;\
-                          INSERT INTO t_odbc177 values(3);\
+                          INSERT INTO t_odbc177 VALUES(3);\
                           DELETE FROM t_odbc177 WHERE 1=0;\
                           SELECT 5, 4;\
                           DELETE FROM t_odbc177;\
@@ -478,7 +479,7 @@ ODBC_TEST(t_odbc177)
                         BEGIN\
                           SELECT 1;\
                           SELECT 2, 'val' FROM dual WHERE 1=0;\
-                          INSERT INTO t_odbc177 values(3), (7);\
+                          INSERT INTO t_odbc177 VALUES(3), (7);\
                           DELETE FROM t_odbc177 WHERE 1=0;\
                           SELECT 5, 4;\
                           SELECT 6;\
@@ -545,7 +546,7 @@ ODBC_TEST(t_odbc177)
 
 ODBC_TEST(t_odbc169)
 {
-  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * from t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
+  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * FROM t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
                         "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * from t_odbc169"};
   char Expected[][3][7]={ {"1", "", "" },       /* RS 1*/
                           {"1", "2", "Row 1"},  /* RS 2*/
@@ -746,7 +747,7 @@ MA_ODBC_TESTS my_tests[]=
 int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
-  my_options= 67108866;
+  CHANGE_DEFAULT_OPTIONS(67108866);
   get_options(argc, argv);
   plan(tests);
   mark_all_tests_normal(my_tests);

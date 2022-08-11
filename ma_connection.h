@@ -19,10 +19,6 @@
 #ifndef _ma_connection_h_
 #define _ma_connection_h_
 
-#define MADB_CONN_OPT_NOT_SUPPORTED 0
-#define MADB_CONN_OPT_BEFORE        1
-#define MADB_CONN_OPT_AFTER         2
-#define MADB_CONN_OPT_BOTH          3
 
 /* sql_mode's identifiers */
 enum enum_madb_sql_mode {MADB_NO_BACKSLASH_ESCAPES, MADB_ANSI_QUOTES };
@@ -51,6 +47,7 @@ struct st_ma_connection_methods
   SQLRETURN (*GetCurrentDB)(MADB_Dbc* Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT* StringLengthPtr, my_bool isWChar);
   SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
   SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLINTEGER* txIsolation);
+  int       (*CacheRestOfCurrentRsStream)(MADB_Stmt* Stmt);
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);
@@ -70,11 +67,12 @@ char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size);
                                     SQL_CVT_WLONGVARCHAR | SQL_CVT_WVARCHAR
 /**************** Helper macros ****************/
 /* check if the connection is established */
-#define MADB_Dbc_ACTIVE(a) \
-  ((a)->mariadb && mysql_get_socket((a)->mariadb) != MARIADB_INVALID_SOCKET)
+#define MADB_Dbc_ACTIVE(a)  ((a)->mariadb && mysql_get_socket((a)->mariadb) != MARIADB_INVALID_SOCKET)
 
 #define MADB_Dbc_DSN(a) \
-(a) && (a)->Dsn  
+(a) && (a)->Dsn
 
-#define MADB_CONNECTED(DbConnHandler) (DbConnHandler->mariadb && mysql_get_socket(DbConnHandler->mariadb) != MARIADB_INVALID_SOCKET)
+#define MADB_GOT_STREAMER(_DBC) (_DBC->Streamer != NULL)
+#define MADB_RESET_STREAMER(_DBC) _DBC->Streamer= NULL
+
 #endif /* _ma_connection_h */

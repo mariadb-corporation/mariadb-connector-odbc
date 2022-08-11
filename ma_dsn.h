@@ -138,6 +138,7 @@ typedef struct st_madb_dsn
   unsigned int ConnectionTimeout;
   unsigned int ReadTimeout;
   unsigned int WriteTimeout;
+  my_bool StreamResult; /* bool so far, but in future should be changed to uint */
   my_bool Reconnect;
   my_bool MultiStatements;
   /* TRUE means "no prompt" */
@@ -153,8 +154,6 @@ typedef struct st_madb_dsn
   my_bool NeglectSchemaParam;
   my_bool DisableLocalInfile;
   my_bool NullSchemaMeansCurrent;
-  /* Internal */
-  my_bool FreeMe;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */
@@ -177,14 +176,14 @@ void        MADB_DsnUpdateOptionsFields (MADB_Dsn *Dsn);
 BOOL        MADB_DSN_PossibleConnect    (MADB_Dsn *Dsn);
 
 /*** Helper macros ***/
-#define DSN_OPTION(a,b)\
-  ((a)->Options & b)
+#define DSN_OPTION(_a,_b)\
+  ((_a)->Options & _b)
 
-#define MA_ODBC_CURSOR_DYNAMIC(a)\
-  DSN_OPTION((a), MADB_OPT_FLAG_DYNAMIC_CURSOR)
+#define MA_ODBC_CURSOR_DYNAMIC(_a)\
+  DSN_OPTION((_a), MADB_OPT_FLAG_DYNAMIC_CURSOR)
 
-#define MA_ODBC_CURSOR_FORWARD_ONLY(a)\
-  DSN_OPTION((a), MADB_OPT_FLAG_FORWARD_CURSOR)
+#define MA_ODBC_CURSOR_FORWARD_ONLY(_a)\
+  DSN_OPTION((_a), MADB_OPT_FLAG_FORWARD_CURSOR)
 
 #define MADB_DSN_SET_STR(dsn, item, value, len)\
   if((value) && (len) != 0)\

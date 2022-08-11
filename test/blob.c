@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -731,20 +731,26 @@ ODBC_TEST(t_bug10562)
   SQLCHAR *blob = malloc(bsize);
   SQLCHAR *blobcheck = malloc(bsize);
   int result= OK;
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
+
   memset(blob, 'X', bsize);
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug10562");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug10562 ( id int not null primary key DEFAULT 0, mb longblob )");
-  OK_SIMPLE_STMT(Stmt, "insert into t_bug10562 (mb) values ('zzzzzzzzzz')");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug10562 ( id INT NOT NULL PRIMARY KEY DEFAULT 0, mb LONGBLOB )");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug10562 (mb) VALUES ('zzzzzzzzzz')");
 
-  OK_SIMPLE_STMT(Stmt, "select id, mb from t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "SELECT id, mb FROM t_bug10562");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 2, SQL_C_BINARY, blob, bsize, &bsize));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Get the data back out to verify */
-  OK_SIMPLE_STMT(Stmt, "select mb from t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "SELECT mb FROM t_bug10562");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, blobcheck, bsize, NULL));
   if (memcmp(blob, blobcheck, bsize))

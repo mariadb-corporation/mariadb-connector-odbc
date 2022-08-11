@@ -29,9 +29,9 @@ ODBC_TEST(my_columns_null)
 {
   SQLLEN rowCount= 0;
   /* initialize data */
-  OK_SIMPLE_STMT(Stmt, "drop table if exists my_column_null");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_column_null");
 
-  OK_SIMPLE_STMT(Stmt, "create table my_column_null(id int not null, name varchar(30))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE my_column_null(id int not null, name varchar(30))");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -55,8 +55,8 @@ ODBC_TEST(my_columns_null)
 
 ODBC_TEST(my_drop_table)
 {
-  OK_SIMPLE_STMT(Stmt, "drop table if exists my_drop_table");
-  OK_SIMPLE_STMT(Stmt, "create table my_drop_table(id int not null)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_drop_table");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE my_drop_table(id int not null)");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -374,9 +374,9 @@ ODBC_TEST(t_catalog)
         9,11,10,11,9,9,11,13,14,14,8,7,10,13,16,17,16,11
     };
 
-    OK_SIMPLE_STMT(Stmt, "drop table if exists t_catalog");
+    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_catalog");
 
-    OK_SIMPLE_STMT(Stmt,"create table t_catalog(abc tinyint, bcdefghijklmno char(4), uifield int unsigned not null)");
+    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_catalog(abc tinyint, bcdefghijklmno char(4), uifield int unsigned not null)");
 
     CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0,
                               (SQLCHAR *)"t_catalog", 9, NULL, 0));
@@ -417,21 +417,21 @@ ODBC_TEST(t_catalog)
 
 ODBC_TEST(tmysql_specialcols)
 {
-  OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_specialcols");
-  OK_SIMPLE_STMT(Stmt,"create table tmysql_specialcols(col1 int primary key, col2 varchar(30), col3 int)");
+  OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS tmysql_specialcols");
+  OK_SIMPLE_STMT(Stmt,"CREATE TABLE tmysql_specialcols(col1 int primary key, col2 varchar(30), col3 int)");
     
 
   OK_SIMPLE_STMT(Stmt,"create index tmysql_ind1 on tmysql_specialcols(col1)");
     
-  OK_SIMPLE_STMT(Stmt,"insert into tmysql_specialcols values(100,'venu',1)");
+  OK_SIMPLE_STMT(Stmt,"INSERT INTO tmysql_specialcols VALUES(100,'venu',1)");
 
-  OK_SIMPLE_STMT(Stmt,"insert into tmysql_specialcols values(200,'MySQL',2)");
+  OK_SIMPLE_STMT(Stmt,"INSERT INTO tmysql_specialcols VALUES(200,'MySQL',2)");
     
   CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt,"select * from tmysql_specialcols");
+  OK_SIMPLE_STMT(Stmt,"SELECT * FROM tmysql_specialcols");
 
   myrowcount(Stmt);
 
@@ -726,9 +726,9 @@ ODBC_TEST(tmysql_showkeys)
 {
   SQLRETURN rc;
 
-  OK_SIMPLE_STMT(Stmt,"drop table if exists tmysql_spk");
+  OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS tmysql_spk");
 
-  OK_SIMPLE_STMT(Stmt,"create table tmysql_spk(col1 int primary key)");
+  OK_SIMPLE_STMT(Stmt,"CREATE TABLE tmysql_spk(col1 int primary key)");
    
   CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
     
@@ -1015,8 +1015,8 @@ ODBC_TEST(empty_set)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* SQLTables(): empty catalog with existing table */
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_sqltables_empty");
-  OK_SIMPLE_STMT(Stmt, "create table t_sqltables_empty (x int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_sqltables_empty");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_sqltables_empty (x int)");
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, NULL, 0,
 			   (SQLCHAR *) "t_sqltables_empty", SQL_NTS,
 			   NULL, SQL_NTS));
@@ -1024,7 +1024,7 @@ ODBC_TEST(empty_set)
   is_num(columns, 5);
   FAIL_IF(SQLFetch(Stmt) == SQL_NO_DATA_FOUND, "expected data");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_sqltables_empty");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_sqltables_empty");
 
   return OK;
 }
@@ -1391,8 +1391,8 @@ ODBC_TEST(t_bug32989)
   SQLCHAR name[20];
   SQLLEN len;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug32989");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug32989 (`doesn't work` int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug32989");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug32989 (`doesn't work` int)");
 
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, (SQLCHAR *)my_schema, SQL_NTS, NULL, 0,
                             (SQLCHAR *)"t_bug32989", SQL_NTS, NULL, 0));
@@ -1403,7 +1403,7 @@ ODBC_TEST(t_bug32989)
   IS_STR(name, "doesn't work", 13);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug32989");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug32989");
   return OK;
 }
 
@@ -1437,12 +1437,11 @@ ODBC_TEST(t_bug12805)
   SQLCHAR     dummy[10];
   SQLULEN     length;  
   SQLUINTEGER len2;
-  int         saved_options= my_options;
 
   diag("Option not supported yet");
   return SKIP;
 
-  my_options = 1 << 27;
+  my_options= 1 << 27;
 
   ODBC_Connect(&Env1, &Connection1, &Stmt1);
 
@@ -1491,7 +1490,6 @@ ODBC_TEST(t_bug12805)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "DROP TABLE bug12805");
 
-  my_options= saved_options;
   return OK;
 }
 
@@ -1567,15 +1565,15 @@ ODBC_TEST(t_bug36275)
 ODBC_TEST(t_bug39957)
 {
   SQLCHAR buf[50];
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug39957");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug39957 (x int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug39957");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug39957 (x int)");
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, 0, NULL, 0,
 			   (SQLCHAR *)"t_bug39957", SQL_NTS, NULL, 0));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(my_fetch_str(Stmt, buf, 3), "t_bug39957", 11);
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected no data");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug39957");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug39957");
 
   return OK;
 }

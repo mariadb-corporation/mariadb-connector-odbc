@@ -21,10 +21,6 @@ matrix:
     - os: linux
       env: DB=build
     - os: linux
-      env: DB=mysql:5.5
-    - os: linux
-      env: DB=mysql:5.6
-    - os: linux
       env: DB=mysql:5.7
     - os: osx
       env: DB=mariadb:10.8
@@ -61,10 +57,6 @@ matrix:
         - brew install mariadb
     - os: linux
       env: DB=mariadb:10.8 PACKET=8M MAXSCALE_VERSION=2.5.3
-    - os: linux
-      env: DB=mysql:5.5
-    - os: linux
-      env: DB=mysql:5.6
     - os: linux
       env: DB=mysql:5.7
     - os: linux

@@ -1,6 +1,6 @@
 ﻿/*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2021 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -67,18 +67,16 @@ ODBC_TEST(my_ts)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
   /* now fetch and verify the results .. */
-  OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_ts");
+  OK_SIMPLE_STMT(Stmt, "SELECT ts, ts as ts2 FROM my_ts");
 
   /* now fetch first row */
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, szTs, sizeof(szTs), &len));
   IS_STR(szTs, "2002-01-07 10:20:49", len);
   diag("# row1 using SQL_C_CHAR: %s (%ld)\n", szTs, len);
 
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
-
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
   is_num(ts.year,  2002);
   is_num(ts.month, 1);
   is_num(ts.day,   7);
@@ -90,15 +88,13 @@ ODBC_TEST(my_ts)
          ts.year, ts.month,ts.day, ts.hour, ts.minute, ts.second, ts.fraction,
          len);
 
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 2));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, szTs, sizeof(szTs), &len));
   IS_STR(szTs, "2002-01-07 19:47:59", len);
   diag("# row2 using SQL_C_CHAR: %s(%ld)\n", szTs, len);
 
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 2));
-
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_TIMESTAMP, &ts, sizeof(ts), &len));
   is_num(ts.year,  2002);
   is_num(ts.month, 1);
   is_num(ts.day,   7);
@@ -110,7 +106,7 @@ ODBC_TEST(my_ts)
          len);
 
 
-  FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 3) != SQL_NO_DATA_FOUND, "eof expected");
+  FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_UNBIND));
   CHECK_STMT_RC(Stmt,  SQLFreeStmt(Stmt,SQL_CLOSE));
@@ -1031,6 +1027,7 @@ ODBC_TEST(t_bug60646)
         " ,'2011-07-29 17:52:15.0000000009'"              /*3*/
         " ,'1000-01-01 12:00:00.000001'"                  /*4*/
         " ,time('2011-12-31 23:59:59.999999')"            /*5*/
+        " ,time('2011-12-31 23:59:59.999999')"            /*6 - same as 5th for */
         );
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
@@ -1075,14 +1072,14 @@ ODBC_TEST(t_bug60646)
 
   is_num(ts.fraction, 0);
 
-  /* 5th col once again This time we get it in time struct. Thus we are
+  /* 5th col once again(but from 6th column, that has to be the same as 5th)
+     This time we get it in time struct. Thus we are
      loosing fractioanl part. Thus the state has to be 01S07 and
      SQL_SUCCESS_WITH_INFO returned */
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
   {
     SQL_TIME_STRUCT timestruct;
 
-    EXPECT_STMT(Stmt, SQLGetData(Stmt, 5, SQL_C_TYPE_TIME, &timestruct,
+    EXPECT_STMT(Stmt, SQLGetData(Stmt, 6, SQL_C_TYPE_TIME, &timestruct,
       sizeof(timestruct), &len), SQL_SUCCESS_WITH_INFO);
 
     CHECK_SQLSTATE(Stmt, "01S07");
@@ -1329,7 +1326,16 @@ ODBC_TEST(t_17613161)
 
   memset(&interval, 0, sizeof(interval));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_MINUTE, &interval, 0, NULL));
-  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_SUCCESS_WITH_INFO);
+  if (ForwardOnly)
+  {
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_17613161");
+    EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1), SQL_SUCCESS_WITH_INFO);
+  }
+  else
+  {
+    EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_SUCCESS_WITH_INFO);
+  }
   CHECK_SQLSTATE(Stmt, "01S07");
   is_num(interval.intval.day_second.second, 0);
   is_num(interval.intval.day_second.minute, 20);
@@ -1337,7 +1343,16 @@ ODBC_TEST(t_17613161)
 
   memset(&interval, 0, sizeof(interval));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_SECOND, &interval, 0, NULL));
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
+  if (ForwardOnly)
+  {
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_17613161");
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
+  }
   is_num(interval.intval.day_second.second, 45);
   is_num(interval.intval.day_second.minute, 20);
   is_num(interval.intval.day_second.hour, 100);
@@ -1354,9 +1369,10 @@ ODBC_TEST(t_bug67793)
 {
   SQL_INTERVAL_STRUCT h2s;
   SQLLEN outlen= 0;
+  const SQLCHAR *query= "SELECT '123456789:45:07', '99999:42:09', CAST('-800:12:17' AS TIME)";
 
   /* check situations with sec and min overflow */
-  OK_SIMPLE_STMT(Stmt, "SELECT '123456789:45:07', '99999:42:09', CAST('-800:12:17' AS TIME)");
+  OK_SIMPLE_STMT(Stmt, query);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 
   EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen), SQL_ERROR);
@@ -1379,7 +1395,16 @@ ODBC_TEST(t_bug67793)
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_INTERVAL_HOUR_TO_SECOND, &h2s, sizeof(h2s), &outlen));
 
-  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_ERROR);
+  if (ForwardOnly)
+  {
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    OK_SIMPLE_STMT(Stmt, query);
+    EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1), SQL_ERROR);
+  }
+  else
+  {
+    EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0), SQL_ERROR);
+  }
   CHECK_SQLSTATE(Stmt, "22015");
 
   is_num(outlen, sizeof(h2s));

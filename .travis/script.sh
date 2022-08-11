@@ -161,4 +161,9 @@ export ODBCSYSINI=$PWD
 
 
 ctest --output-on-failure
+# Running tests 2nd time with resultset streaming
+if [ -z "$SKYSQL" ] && [ -z "$SKYSQL_HA" ]; then
+  export TEST_ADD_PARAM=STREAMRS=1;FORWARDONLY=1
+  ctest --output-on-failure
+fi
 

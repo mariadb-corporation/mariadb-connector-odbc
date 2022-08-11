@@ -136,6 +136,35 @@ struct st_ma_connection_methods MADB_Dbc_Methods; /* declared at the end of file
 SQLRETURN MADB_DbcDummyTrackSession(MADB_Dbc* Dbc);
 SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER*txIsolation);
 
+/* Stub for stream caching - i.e. cahing is desabled by default, and we just raise the error, if some stmt is streaming atm
+ * Stmt - the statement, that has requested the operation, and where the error has to be set 
+ */
+int MADB_Dbc_ErrorOnStreaming(MADB_Stmt* Stmt)
+{
+  MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "The requested operation cannot be executed at the moment: it would break "
+                                              "the protocol since other statement is currently streaming its resultset", 0);
+  return 1;
+}
+
+
+/* Main method for stream caching - i.e. cahing is desabled by default, and we are capable to store and operate the rest
+   of the RS.
+   Stmt - the statement, that has requested the operation, and where the error has to be set */
+int MADB_Dbc_CacheRestOfCurrentRsStream(MADB_Stmt* Stmt)
+{
+  MADB_Dbc* Dbc = Stmt->Connection;
+  if (Dbc->Streamer != NULL)
+  {
+    if (Dbc->Streamer->RsOps->CacheRestOfRs(Dbc->Streamer))
+    {
+      return MADB_Dbc_ErrorOnStreaming(Stmt);
+    }
+    Dbc->Streamer= NULL;
+    return 0;
+  }
+  return 0;
+}
+
 
 my_bool CheckConnection(MADB_Dbc *Dbc)
 {
@@ -707,7 +736,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     }
     if (iOdbc() && strcmp(Connection->Charset.cs_info->csname, "swe7") == 0)
     {
-      MADB_SetError(&Connection->Error, MADB_ERR_HY001, "Charset SWE7 is not supported with iODBC", 0);
+      MADB_SetError(&Connection->Error, MADB_ERR_HY000, "Charset SWE7 is not supported with iODBC", 0);
       goto end;
 
     }
@@ -963,6 +992,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
 
   MADB_SetCapabilities(Connection, mysql_get_server_version(Connection->mariadb), mysql_get_server_name(Connection->mariadb));
+
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_CACHE))
+  {
+    Connection->Methods->CacheRestOfCurrentRsStream= &MADB_Dbc_CacheRestOfCurrentRsStream;
+  }
 
   if (MADB_ServerSupports(Connection, MADB_SESSION_TRACKING) == TRUE)
   {
@@ -2150,7 +2184,7 @@ SQLRETURN MADB_DbcGetTrackedTxIsolatin(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
 
   *txIsolation= Dbc->TxnIsolation;
 
-  return Dbc->Error.ReturnValue;
+  return SQL_SUCCESS;
 }
 
 
@@ -2184,6 +2218,11 @@ SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
   return SQL_SUCCESS;
 }
 
+/* Default method for current stream caching - for the case caching is not disabled, and stream caching is not needed */
+int MADB_Dbc_StreamingIsNotUsed(MADB_Stmt* Stmt)
+{
+  return 0;
+}
 
 struct st_ma_connection_methods MADB_Dbc_Methods =
 { 
@@ -2196,5 +2235,6 @@ struct st_ma_connection_methods MADB_Dbc_Methods =
   MADB_DriverConnect,
   MADB_DbcGetTrackedCurrentDB,
   MADB_DbcTrackSession,
-  MADB_DbcGetTrackedTxIsolatin
+  MADB_DbcGetTrackedTxIsolatin,
+  MADB_Dbc_StreamingIsNotUsed /* and thus there is nothing to cache */
 };
