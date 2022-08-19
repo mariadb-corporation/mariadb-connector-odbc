@@ -354,8 +354,7 @@ ODBC_TEST(sqlnativesql)
 
 ODBC_TEST(sqlsetcursorname)
 {
-  HDBC hdbc1;
-  HSTMT hstmt1, hstmt_pos;
+  HSTMT   hstmt_pos;
   SQLLEN  nRowCount;
   SQLCHAR data[10];
 
@@ -366,25 +365,19 @@ ODBC_TEST(sqlsetcursorname)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
-                            wpwd, SQL_NTS));
-
-  CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
-
-  CHECK_STMT_RC(hstmt1, SQLSetStmtAttrW(hstmt1, SQL_ATTR_CURSOR_TYPE,
+  CHECK_STMT_RC(wStmt, SQLSetStmtAttrW(wStmt, SQL_ATTR_CURSOR_TYPE,
                                   (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
 
-  CHECK_STMT_RC(hstmt1, SQLSetCursorNameW(hstmt1, WW("a\x00e3b"), SQL_NTS));
+  CHECK_STMT_RC(wStmt, SQLSetCursorNameW(wStmt, WW("a\x00e3b"), SQL_NTS));
 
   /* Open the resultset of table 'my_demo_cursor' */
-  OK_SIMPLE_STMT(hstmt1, "SELECT * FROM my_demo_cursor");
+  OK_SIMPLE_STMT(wStmt, "SELECT * FROM my_demo_cursor");
 
   /* goto the last row */
-  CHECK_STMT_RC(hstmt1, SQLFetchScroll(hstmt1, SQL_FETCH_LAST, 1L));
+  CHECK_STMT_RC(wStmt, SQLFetchScroll(wStmt, SQL_FETCH_LAST, 1L));
 
   /* create new statement handle */
-  CHECK_DBC_RC(hdbc1, SQLAllocHandle(SQL_HANDLE_STMT, hdbc1, &hstmt_pos));
+  CHECK_DBC_RC(wConnection, SQLAllocHandle(SQL_HANDLE_STMT, wConnection, &hstmt_pos));
 
   /* now update the name field to 'updated' using positioned cursor */
   CHECK_STMT_RC(hstmt_pos,
@@ -396,13 +389,13 @@ ODBC_TEST(sqlsetcursorname)
   is_num(nRowCount, 1);
 
   CHECK_STMT_RC(hstmt_pos, SQLFreeStmt(hstmt_pos, SQL_CLOSE));
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
 
   /* Now delete 2nd row */
-  OK_SIMPLE_STMT(hstmt1, "SELECT * FROM my_demo_cursor");
+  OK_SIMPLE_STMT(wStmt, "SELECT * FROM my_demo_cursor");
 
   /* goto the second row */
-  CHECK_STMT_RC(hstmt1, SQLFetchScroll(hstmt1, SQL_FETCH_ABSOLUTE, 2L));
+  CHECK_STMT_RC(wStmt, SQLFetchScroll(wStmt, SQL_FETCH_ABSOLUTE, 2L));
 
   /* now delete the current row */
   CHECK_STMT_RC(hstmt_pos,
@@ -414,40 +407,35 @@ ODBC_TEST(sqlsetcursorname)
   is_num(nRowCount, 1);
 
   /* free the statement cursor */
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
 
   /* Free the statement 'hstmt_pos' */
   CHECK_STMT_RC(hstmt_pos, SQLFreeHandle(SQL_HANDLE_STMT, hstmt_pos));
 
   /* Now fetch and verify the data */
-  OK_SIMPLE_STMT(hstmt1, "SELECT * FROM my_demo_cursor");
+  OK_SIMPLE_STMT(wStmt, "SELECT * FROM my_demo_cursor");
 
-  CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  is_num(my_fetch_int(hstmt1, 1), 0);
-  IS_STR(my_fetch_str(hstmt1, data, 2), "MySQL0", 6);
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  is_num(my_fetch_int(wStmt, 1), 0);
+  IS_STR(my_fetch_str(wStmt, data, 2), "MySQL0", 6);
 
-  CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  is_num(my_fetch_int(hstmt1, 1), 2);
-  IS_STR(my_fetch_str(hstmt1, data, 2), "MySQL2", 6);
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  is_num(my_fetch_int(wStmt, 1), 2);
+  IS_STR(my_fetch_str(wStmt, data, 2), "MySQL2", 6);
 
-  CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  is_num(my_fetch_int(hstmt1, 1), 3);
-  IS_STR(my_fetch_str(hstmt1, data, 2), "MySQL3", 6);
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  is_num(my_fetch_int(wStmt, 1), 3);
+  IS_STR(my_fetch_str(wStmt, data, 2), "MySQL3", 6);
 
-  CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  is_num(my_fetch_int(hstmt1, 1), 4);
-  IS_STR(my_fetch_str(hstmt1, data, 2), "updated", 7);
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  is_num(my_fetch_int(wStmt, 1), 4);
+  IS_STR(my_fetch_str(wStmt, data, 2), "updated", 7);
 
-  FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
+  FAIL_IF(SQLFetch(wStmt)!= SQL_NO_DATA_FOUND, "eof expected");
 
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_demo_cursor");
-
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
-
-  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
   return OK;
 }
@@ -740,38 +728,26 @@ ODBC_TEST(sqlgetdiagfield)
 
 ODBC_TEST(sqlcolumns)
 {
-  HDBC hdbc1;
-  HSTMT hstmt1;
-  SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
+  SQLWCHAR wbuff[MAX_ROW_DATA_LEN + 1];
 
-  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS,
-                            wpwd, SQL_NTS));
+  OK_SIMPLE_STMT(wStmt, "DROP TABLE IF EXISTS t_columns");
+  CHECK_STMT_RC(wStmt, SQLExecDirectW(wStmt,
+    W(L"CREATE TABLE t_columns (a\x00e3g INT)"),
+    SQL_NTS));
 
-  CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
+  CHECK_STMT_RC(wStmt, SQLColumnsW(wStmt, wschema, SQL_NTS, NULL, 0,
+    CW("t_columns"), SQL_NTS,
+    W(L"a\x00e3g"), SQL_NTS));
 
-  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_columns");
-  CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1,
-                                 W(L"CREATE TABLE t_columns (a\x00e3g INT)"),
-                                 SQL_NTS));
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
 
-  CHECK_STMT_RC(hstmt1, SQLColumnsW(hstmt1, wschema, SQL_NTS, NULL, 0,
-                              CW("t_columns"), SQL_NTS,
-                              W(L"a\x00e3g"), SQL_NTS));
+  IS_WSTR(my_fetch_wstr(wStmt, wbuff, 4, MAX_ROW_DATA_LEN + 1), W(L"a\x00e3g"), 4);
 
-  CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
+  FAIL_IF(SQLFetch(wStmt) != SQL_NO_DATA_FOUND, "eof expected");
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 4, MAX_ROW_DATA_LEN+1), W(L"a\x00e3g"), 4);
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
 
-  FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
-
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
-
-  OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_columns");
-
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
-  CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
-  CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
+  OK_SIMPLE_STMT(wStmt, "DROP TABLE IF EXISTS t_columns");
 
   return OK;
 }

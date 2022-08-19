@@ -184,7 +184,7 @@ SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *P
     break;
   }
   /* work-around of probalby a bug in mariadb_stmt_execute_direct, that returns 1160 in case of lost connection */
-  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160) && (strcmp(Sqlstate, "HY000") == 0 || strcmp(Sqlstate, "00000") == 0))
+  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160 || NativeError == 5014) && (strcmp(Sqlstate, "HY000") == 0 || strcmp(Sqlstate, "00000") == 0))
   {
     Sqlstate= "08S01";
   }

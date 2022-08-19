@@ -231,6 +231,7 @@ ODBC_TEST(unbuffered_result)
   }
 
   EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
   /* Testing that all is fine after finishing fetching of the streamed RS */
   /* Also now need >2 rows */
   OK_SIMPLE_STMT(Stmt2, "INSERT INTO t_unbuffered_result VALUES (8)");
