@@ -42,8 +42,7 @@ Client_Charset utf8=  {CP_UTF8, NULL};
 /* {{{ ltrim */
 char* ltrim(char *Str)
 {
-  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
-  while (Str && iswspace(Str[0]))
+  while (Str && isspace(Str[0]))
     ++Str;
   return Str;
 }
@@ -57,7 +56,7 @@ char* trim(char *Str)
   Str= ltrim(Str);
 
   end= Str + strlen(Str) - 1;
-  while (iswspace(*end))
+  while (isspace(*end))
     *end--= 0;
   return Str;
 }

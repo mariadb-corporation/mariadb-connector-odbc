@@ -187,7 +187,7 @@ SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER Te
   LOCK_MARIADB(Stmt->Connection);
   if (StatementText)
   {
-    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt))
+    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
     {
       UNLOCK_MARIADB(Stmt->Connection);
       return Stmt->Error.ReturnValue;
@@ -517,7 +517,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     {
       MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
       if (MADB_GOT_STREAMER(Stmt->Connection) && !MADB_STMT_IS_STREAMING(Stmt) &&
-        Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt))
+        Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
       {
         return Stmt->Error.ReturnValue;
       }
@@ -603,7 +603,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
   MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt, STMT_STRING(Stmt));
 
-  if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt))
+  if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
   {
     return Stmt->Error.ReturnValue;
   }
@@ -735,7 +735,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
 
     /* If we don't cache RS of the referenced cursor now, we will still need to do this later, and if we can't now, we won't be able later.
        If there is other streamer - we can check later */
-    if (MADB_STMT_IS_STREAMING(Stmt->PositionedCursor) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt))
+    if (MADB_STMT_IS_STREAMING(Stmt->PositionedCursor) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
     {
       Stmt->PositionedCommand= 0;
       Stmt->PositionedCursor=  NULL;
@@ -1240,7 +1240,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   LOCK_MARIADB(Stmt->Connection);
   /* Prepare routine has the same check, thus I am not sure if we actually able to hit this case here */
-  if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt))
+  if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
   {
     return Stmt->Error.ReturnValue;
   }
@@ -3369,7 +3369,7 @@ SQLRETURN MADB_StmtRowCount(MADB_Stmt *Stmt, SQLLEN *RowCountPtr)
       LOCK_MARIADB(Stmt->Connection);
       if (MADB_STMT_IS_STREAMING(Stmt))
       {
-        Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt);
+        Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error);
       }
       UNLOCK_MARIADB(Stmt->Connection);
     }
@@ -3786,7 +3786,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   {
     LOCK_MARIADB(Stmt->Connection);
     /* Verifying now in safe way, that we are still a streamer */
-    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt))
+    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
     {
       UNLOCK_MARIADB(Stmt->Connection);
       return Stmt->Error.ReturnValue;

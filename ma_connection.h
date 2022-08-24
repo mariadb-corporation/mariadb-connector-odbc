@@ -47,7 +47,7 @@ struct st_ma_connection_methods
   SQLRETURN (*GetCurrentDB)(MADB_Dbc* Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT* StringLengthPtr, my_bool isWChar);
   SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
   SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLINTEGER* txIsolation);
-  int       (*CacheRestOfCurrentRsStream)(MADB_Stmt* Stmt);
+  int       (*CacheRestOfCurrentRsStream)(MADB_Dbc *Dbc, MADB_Error *Error);
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);

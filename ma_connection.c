@@ -139,10 +139,9 @@ SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER*txIsolation);
 /* Stub for stream caching - i.e. cahing is desabled by default, and we just raise the error, if some stmt is streaming atm
  * Stmt - the statement, that has requested the operation, and where the error has to be set 
  */
-int MADB_Dbc_ErrorOnStreaming(MADB_Stmt* Stmt)
+int MADB_Dbc_ErrorOnStreaming(MADB_Error *Error)
 {
-  MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "The requested operation cannot be executed at the moment: it would break "
-                                              "the protocol since other statement is currently streaming its resultset", 0);
+  MADB_SetError(Error, MADB_ERR_HY000, "The requested operation is blocked by another streaming operation", 0);
   return 1;
 }
 
@@ -150,14 +149,13 @@ int MADB_Dbc_ErrorOnStreaming(MADB_Stmt* Stmt)
 /* Main method for stream caching - i.e. cahing is desabled by default, and we are capable to store and operate the rest
    of the RS.
    Stmt - the statement, that has requested the operation, and where the error has to be set */
-int MADB_Dbc_CacheRestOfCurrentRsStream(MADB_Stmt* Stmt)
+int MADB_Dbc_CacheRestOfCurrentRsStream(MADB_Dbc* Dbc, MADB_Error *Error)
 {
-  MADB_Dbc* Dbc = Stmt->Connection;
   if (Dbc->Streamer != NULL)
   {
     if (Dbc->Streamer->RsOps->CacheRestOfRs(Dbc->Streamer))
     {
-      return MADB_Dbc_ErrorOnStreaming(Stmt);
+      return MADB_Dbc_ErrorOnStreaming(Error);
     }
     Dbc->Streamer= NULL;
     return 0;
@@ -622,10 +620,20 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
   LOCK_MARIADB(Dbc);
   switch (CompletionType) {
   case SQL_ROLLBACK:
+    if (Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, &Dbc->Error))
+    {
+      goto end;
+    }
     if (Dbc->mariadb && mysql_rollback(Dbc->mariadb))
+    {
       MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
+    }
     break;
   case SQL_COMMIT:
+    if (Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, &Dbc->Error))
+    {
+      goto end;
+    }
     if (Dbc->mariadb && mysql_commit(Dbc->mariadb))
       MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
     break;
@@ -633,6 +641,7 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
     MADB_SetError(&Dbc->Error, MADB_ERR_HY012, NULL, 0);
   }
   Dbc->Methods->TrackSession(Dbc);
+end:
   UNLOCK_MARIADB(Dbc);
 
   return Dbc->Error.ReturnValue;
@@ -2219,7 +2228,7 @@ SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
 }
 
 /* Default method for current stream caching - for the case caching is not disabled, and stream caching is not needed */
-int MADB_Dbc_StreamingIsNotUsed(MADB_Stmt* Stmt)
+int MADB_Dbc_StreamingIsNotUsed(MADB_Dbc *Dbc, MADB_Error *Error)
 {
   return 0;
 }

@@ -834,11 +834,11 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
     _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
       uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
       schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-      add_parameters ? add_parameters : add_connstr);
+      add_parameters ? add_parameters : (const char*)add_connstr);
     diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-           add_parameters ? add_parameters : add_connstr);
+           add_parameters ? add_parameters : (const char*)add_connstr);
   }
 
   if (DoWConnect == FALSE)
@@ -1044,8 +1044,9 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
 
     /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
     CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
+    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
 
-    if (SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0) == SQL_SUCCESS_WITH_INFO)
+    if (rc == SQL_SUCCESS_WITH_INFO)
     {
       SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&SetCursorType, 0, NULL);
 
@@ -1075,8 +1076,7 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
           SQLSMALLINT TextLengthPtr;
 
           SQLGetDiagRec(SQL_HANDLE_STMT, Stmt2, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
-
-          if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "cannot be executed at the moment") != NULL)
+          if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "The requested operation is blocked by another streaming operation") != NULL)
           {
             NoCache= TRUE;
           }
@@ -1230,6 +1230,7 @@ void printHex(char *str, int len)
   int i;
   for (i= 0; i<len; ++i)
   {
+    /*printf("%c%02hhx ", str[i], str[i]);*/
     printf("%02hhx", str[i]);
   }
 }
