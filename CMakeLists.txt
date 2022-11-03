@@ -1,26 +1,26 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2019 MariaDB Corporation AB
-#   
+#   Copyright (C) 2013,2022 MariaDB Corporation AB
+#
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
 #   License as published by the Free Software Foundation; either
 #   version 2.1 of the License, or (at your option) any later version.
-#   
+#
 #   This library is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 #   Library General Public License for more details.
-#   
+#
 #   You should have received a copy of the GNU Library General Public
 #   License along with this library; if not see <http://www.gnu.org/licenses>
-#   or write to the Free Software Foundation, Inc., 
+#   or write to the Free Software Foundation, Inc.,
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 
 CMAKE_POLICY(SET CMP0048 NEW)
-
+CMAKE_POLICY(SET CMP0040 OLD)
 PROJECT(mariadb_connector_odbc 
         VERSION 3.2.0
         LANGUAGES CXX C)
@@ -34,12 +34,10 @@ SET(MARIADB_ODBC_VERSION "03.02.0000")
 
 SET(MARIADB_DEFAULT_PLUGINS_SUBDIR "plugin")
 
-
 SET(DSN_DIALOG_FILES ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.c
                      ${CMAKE_SOURCE_DIR}/dsn/odbc_dsn.rc
                      ${CMAKE_SOURCE_DIR}/dsn/resource.h
                      ma_dsn.c
-#                     ma_error.c
                      ma_common.c)
 
 MACRO(ADD_OPTION _name _text _default)
@@ -50,7 +48,7 @@ MACRO(ADD_OPTION _name _text _default)
   ENDIF()
 ENDMACRO()
 
-# This has to be before C/C's cmake run, or it will build with /MD                  
+# This has to be before C/C's cmake run, or it will build with /MD
 IF(WIN32)
   IF (MSVC)
     SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO" "MINSIZEREL")
@@ -63,8 +61,8 @@ IF(WIN32)
             SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1 /RTCc")
             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
           ENDIF()
-          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}") 
-          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE 
+          MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
+          SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE
                STRING "overwritten by mariadb-odbc" FORCE)
         ENDIF()
       ENDFOREACH()
@@ -72,85 +70,100 @@ IF(WIN32)
   ENDIF()
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)# -DWIN32_LEAN_AND_MEAN)
   SET(INSTALL_PLUGINDIR "${MARIADB_DEFAULT_PLUGINS_SUBDIR}")
-ELSE()
-  # This has been done before C/C cmake scripts are included
-  IF(NOT DEFINED INSTALL_LIB_SUFFIX)
-    SET(INSTALL_LIB_SUFFIX "lib" CACHE STRING "Directory, under which to install libraries, e.g. lib or lib64")
-    IF("${CMAKE_SIZEOF_VOID_P}" EQUAL "8" AND EXISTS "/usr/lib64/")
-      SET(INSTALL_LIB_SUFFIX "lib64")
-    ENDIF()
-  ENDIF()
-  MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIB_SUFFIX}")
 ENDIF()
 
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
+
+### Build options, initial settings and platform defaults
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/options_defaults.cmake")
+
+### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those
+INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
+
+
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
-  IF(WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
-    FIND_PACKAGE(OpenSSL)
+  # If C/C is linked dynamically, we don't need link C/ODBC against encryption library
+  IF (NOT MARIADB_LINK_DYNAMIC)
+    IF(WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
+      FIND_PACKAGE(OpenSSL)
 
-    IF(OPENSSL_FOUND)
-      MESSAGE(STATUS "Configuring to build with OpenSSL ${OPENSSL_LIBRARIES}")
+      IF(OPENSSL_FOUND)
+        MESSAGE(STATUS "Configuring to build with OpenSSL ${OPENSSL_LIBRARIES}")
 
-      ADD_DEFINITIONS(-DHAVE_OPENSSL)
-      INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
-      SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
+        ADD_DEFINITIONS(-DHAVE_OPENSSL)
+        INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+        SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES})
 
-      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
+        SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${SSL_LIBRARIES})
+      ELSE()
+        MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
+      ENDIF()
     ELSE()
-      MESSAGE(FATAL_ERROR "OpenSSL not found. Please install OpenSSL or disable SSL support via option -DWITH_OPENSSL=Off")
+      MESSAGE(STATUS "Configuring SSL support using SChannel")
+      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} version.lib)
     ENDIF()
-  ELSE()
-    MESSAGE(STATUS "Configuring SSL support using SChannel")
-    SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} version.lib)
   ENDIF()
 ELSE()
   MESSAGE(STATUS "Configuring to build without SSL support")
 ENDIF()
 
-IF(APPLE)
-  SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
-  SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-  SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
-  OPTION(WITH_IODBC "Build with iOdbc" ON)
-  CMAKE_POLICY(SET CMP0042 NEW)
-  CMAKE_POLICY(SET CMP0068 NEW)
-  set(CMAKE_INSTALL_RPATH "")
-  SET(CMAKE_INSTALL_NAME_DIR "")
-  SET(CMAKE_MACOSX_RPATH ON)
-ELSE()
-  OPTION(WITH_IODBC "Build with iOdbc" OFF)
-ENDIF()
-
-ADD_OPTION(WITH_UNIT_TESTS "build test suite" ON)
-
-### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those 
-INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
-
+ADD_CUSTOM_TARGET(DEPENDENCIES_FOR_PACKAGE)
 ### Including C/C subproject
-IF(EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
+IF(NOT USE_SYSTEM_INSTALLED_LIB)
   IF(GIT_BUILD_SRCPKG)
-    # We don't want conn/c (wrong) src pkg to be built.
+    # We don't want with conn/c (wrong) src pkg to be built.
     SET(GIT_BUILD_SRCPKG FALSE)
     SET(ODBC_GIT_BUILD_SRCPKG TRUE)
   ENDIF()
   MESSAGE(STATUS "Running C/C cmake scripts")
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
 
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libmariadb/include)
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/libmariadb/include)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/driver ${CMAKE_SOURCE_DIR}/libmariadb/include)
+  INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/driver ${CMAKE_BINARY_DIR}/libmariadb/include)
+  SET(PLUGINS_LIST dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password client_ed25519)
+  IF(APPLE)
+    SET_TARGET_PROPERTIES(${PLUGINS_LIST}
+                          PROPERTIES XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+                                     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
+                         )
+    IF(WITH_SIGNCODE)
+      SET_TARGET_PROPERTIES(${PLUGINS_LIST} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Application: ${DEVELOPER_ID}")
+    ELSE()
+      SET_TARGET_PROPERTIES(${PLUGINS_LIST} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+    ENDIF()
+  ELSE()
+    INSTALL(FILES
+            $<TARGET_FILE:libmariadb>
+            DESTINATION ${INSTALL_LIBDIR}
+            COMPONENT ConCLib)
+    MESSAGE(STATUS "Configuring to install libmariadb to ${INSTALL_LIBDIR}")
+    IF(NOT ALL_PLUGINS_STATIC)
+      SET(OWN_PLUGINS_LIST mysql_clear_password dialog client_ed25519 sha256_password caching_sha2_password)
+      IF (PLUGINS_DYNAMIC)
+        # The list from CC is visible for us
+        SET(PLUGINS_LIST ${PLUGINS_DYNAMIC})
+      ELSE()
+        SET(PLUGINS_LIST ${OWN_PLUGINS_LIST})
+      ENDIF()
+      FOREACH(CC_PLUGIN ${PLUGINS_LIST})
+        IF(NOT PLUGINS_DYNAMIC OR "${PLUGIN_${CC_PLUGIN}_TYPE}" STREQUAL "MARIADB_CLIENT_PLUGIN_AUTH")
+          MESSAGE(STATUS "Configuring to install ${CC_PLUGIN} to ${INSTALL_PLUGINDIR}")
+          ADD_DEPENDENCIES(DEPENDENCIES_FOR_PACKAGE ${CC_PLUGIN})
+          INSTALL(FILES
+                  $<TARGET_FILE:${CC_PLUGIN}>
+                  DESTINATION ${INSTALL_PLUGINDIR}
+                  COMPONENT ConCPlugins)
+        ENDIF()
+      ENDFOREACH()
+    ENDIF()
+  ENDIF()
 ELSE()
-  SET(USE_SYSTEM_INSTALLED_LIB TRUE)
   # Adding mariadb subdirs of standard include locations
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/local/include/mariadb")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/include/mariadb")
-  MESSAGE(STATUS "There is no Connector/C sub-project folder, linking against libmariadb installed on the system")
+  MESSAGE(STATUS "Linking against libmariadb installed on the system")
 ENDIF()
-
-IF(WIN32)
-  #ADD_OPTION(WITH_MSI "Build MSI installation package" OFF)
-  ADD_OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
-ENDIF()
-
-#ADD_OPTION(WITH_SSL "Enables use of TLS/SSL library" ON)
 
 IF(WITH_SIGNCODE)
   IF(WIN32 AND NOT SIGN_OPTIONS)
@@ -164,25 +177,22 @@ ENDIF()
 #Debug log is controlled by conenction option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
-
 IF(WIN32)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/dsn)
   SET(ODBC_LIBS odbc32)
   SET(ODBC_INSTLIBS odbccp32)
   SET(PLATFORM_DEPENDENCIES ws2_32 Shlwapi Pathcch)
   IF (MSVC)
-    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}") 
+    MESSAGE(STATUS "MSVC_VERSION= ${MSVC_VERSION}")
     IF (NOT(MSVC_VERSION LESS 1900))
-      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions") 
+      MESSAGE(STATUS "Configuring to link connector against legacy_stdio_definitions")
       SET(LEGACY_STDIO legacy_stdio_definitions)
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${LEGACY_STDIO})
     ENDIF()
   ENDIF()
 ELSE()
   SEARCH_LIBRARY(LIB_MATH floor m)
-  SET(PLATFORM_DEPENDENCIES ${LIB_MATH})
+  SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${LIB_MATH})
 ENDIF()
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -192,7 +202,7 @@ ENDIF()
 IF(NOT WIN32)
   # Looking for DM(UnixODBC) files
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
-  
+
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
     LINK_DIRECTORIES(${ODBC_LIB_DIR})
@@ -201,15 +211,39 @@ IF(NOT WIN32)
   ENDIF()
 ENDIF()
 
-IF(APPLE)
-  # Looking for iconv files
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindIconv.cmake)
-  IF(ICONV_FOUND)
-    INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+IF(APPLE OR CMAKE_SYSTEM_NAME MATCHES AIX)
+  IF(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_HOST_SYSTEM_VERSION VERSION_GREATER_EQUAL 20)
+    SET(ICONV_LIBRARIES "-liconv")
     SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${ICONV_LIBRARIES})
   ELSE()
-    MESSAGE(FATAL_ERROR "iconv was not found")
+    # Looking for iconv files
+    INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindIconv.cmake)
+    IF(ICONV_FOUND)
+      INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+      SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${ICONV_LIBRARIES})
+    ELSE()
+      MESSAGE(FATAL_ERROR "iconv was not found")
+    ENDIF()
   ENDIF()
+ENDIF()
+
+# By now we have everything needed by tests. If we need to build them only - firing config now and exit
+# There is "normal" tests config below
+IF(BUILD_TESTS_ONLY)
+  ADD_SUBDIRECTORY(test)
+  IF(NOT WIN32)
+    # Configuring ini files for testing with UnixODBC
+    MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
+
+    # Should it really libmaodbc_prefix be here?
+    SET(DRIVER_LIB_LOCATION "${libmaodbc_prefix}/${INSTALL_LIBDIR}")
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in ${CMAKE_BINARY_DIR}/test/odbcinst.ini)
+
+    SET(TEST_DRIVER "${DRIVER_LIB_LOCATION}")
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/test/odbc.ini.in ${CMAKE_BINARY_DIR}/test/odbc.ini)
+  ENDIF()
+
+  RETURN()
 ENDIF()
 
 SET(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
@@ -246,13 +280,23 @@ ADD_SUBDIRECTORY("dsn_test")
 
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 IF(WIN32)
-  ADD_SUBDIRECTORY(wininstall)
+  IF(WITH_MSI)
+    ADD_SUBDIRECTORY(wininstall)
+  ELSE()
+    MESSAGE(STATUS "MSI package won't be generated - WITH_MSI=${WITH_MSI}")
+  ENDIF()
   ADD_EXECUTABLE(install_driver osxinstall/install_driver.c)
   TARGET_LINK_LIBRARIES(install_driver ${PLATFORM_DEPENDENCIES} ${ODBC_INSTLIBS})
 ELSE()
   IF(APPLE)
     MESSAGE(STATUS "Configuring to generate PKG package")
     ADD_SUBDIRECTORY(osxinstall)
+  ELSE()
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libmaodbc.pc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc @ONLY)
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc
+            DESTINATION "${INSTALL_PCDIR}"
+            COMPONENT Development)
   ENDIF()
 
   INSTALL(FILES
@@ -281,15 +325,19 @@ SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. ODBC driver library for c
 IF(NOT SYSTEM_NAME)
   STRING(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
 ENDIF()
+SET(QUALITY_SUFFIX "")
+IF (MARIADB_ODBC_VERSION_QUALITY AND NOT "${MARIADB_ODBC_VERSION_QUALITY}" STREQUAL "ga" AND NOT "${MARIADB_ODBC_VERSION_QUALITY}" STREQUAL "GA")
+  SET(QUALITY_SUFFIX "-${MARIADB_ODBC_VERSION_QUALITY}")
+ENDIF()
 IF(PACKAGE_PLATFORM_SUFFIX)
   SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${PACKAGE_PLATFORM_SUFFIX}")
 ELSE()
- SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${MARIADB_ODBC_VERSION_QUALITY}-${system_name}-${CMAKE_SYSTEM_PROCESSOR}")
+ SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-${system_name}-${CMAKE_SYSTEM_PROCESSOR}")
 ENDIF()
 MESSAGE(STATUS "Package Name: ${CPACK_PACKAGE_FILE_NAME}")
 SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${MARIADB_ODBC_VERSION_QUALITY}-src")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-src")
 SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
 SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation AB")
 SET(CPACK_SOURCE_IGNORE_FILES

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -33,6 +33,11 @@ ODBC_TEST(t_relative)
   SQLUINTEGER i, iarray[15];
   SQLULEN nrows, index;
   SQLCHAR name[21];
+
+  if (ForwardOnly == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY option is selected");
+  }
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
@@ -131,6 +136,11 @@ ODBC_TEST(t_relative1)
   SQLULEN nrows;
   SQLUINTEGER i;
   const SQLUINTEGER max_rows= 10;
+
+  if (ForwardOnly == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY option is selected");
+  }
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
@@ -306,6 +316,10 @@ ODBC_TEST(t_relative2)
   const SQLUINTEGER max_rows=10;
   SQLLEN            len[15];
 
+  if (ForwardOnly == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY option is selected");
+  }
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 

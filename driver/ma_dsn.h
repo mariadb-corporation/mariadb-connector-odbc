@@ -99,28 +99,20 @@ extern const char TlsVersionBits[3];
 
 typedef struct st_madb_dsn
 {
+  /* TODO: Does it really matter to keep this array in the DSN structure? */
+  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
   /*** General ***/
   char    *DSNName;
   char    *Driver;
   char    *Description;
   /*** Connection parameters ***/
   char    *ServerName;
-  my_bool IsNamedPipe;
-  my_bool IsTcpIp;
   char    *UserName;
   char    *Password;
   char    *Catalog;
-  unsigned int Port;
-  /* Options */
-  unsigned int Options;
   char *CharacterSet;
   char *InitCommand;
   char *TraceFile;
-  unsigned int ConnectionTimeout;
-  my_bool Reconnect;
-  my_bool MultiStatements;
-  /* TRUE means "no prompt" */
-  my_bool ConnectPrompt;
   char *Socket;
   char *ConnCPluginsDir;
   /* SSL Settings */
@@ -134,23 +126,38 @@ typedef struct st_madb_dsn
   char *TlsPeerFp;
   char *TlsPeerFpList;
   char *TlsKeyPwd;
+  char* ServerKey;
+  char* SaveFile;
+  /* --- Internal --- */
+  MADB_DsnKey* Keys;
+  /* Callbacke required for prompt to keep all memory de/allocation operations
+     on same side of libraries */
+  char* (*allocator)(size_t);
+  void (*free)(void*);
+  int isPrompt;
+  /* Internal - end */
+  unsigned int Port;
+  /* Options */
+  unsigned int Options;
+  unsigned int ConnectionTimeout;
+  unsigned int ReadTimeout;
+  unsigned int WriteTimeout;
+  my_bool StreamResult; /* bool so far, but in future should be changed to uint */
+  my_bool Reconnect;
+  my_bool MultiStatements;
+  /* TRUE means "no prompt" */
+  my_bool ConnectPrompt;
+  my_bool IsNamedPipe;
+  my_bool IsTcpIp;
   my_bool SslVerify;
   char TlsVersion;
   my_bool ForceTls;
-  char *ServerKey;
-  char *SaveFile;
   my_bool ReadMycnf;
   my_bool InteractiveClient;
   my_bool ForceForwardOnly;
-  /* --- Internal --- */
-  int isPrompt;
-  MADB_DsnKey *Keys;
-  char ErrorMsg[SQL_MAX_MESSAGE_LENGTH];
-  my_bool FreeMe;
-  /* Callbacke required for prompt to keep all memory de/allocation operations
-     on same side of libraries */
-  char * (*allocator)(size_t);
-  void (*free)(void*);
+  my_bool NeglectSchemaParam;
+  my_bool DisableLocalInfile;
+  my_bool NullSchemaMeansCurrent;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */
@@ -177,14 +184,14 @@ BOOL        MADB_DSN_PossibleConnect    (MADB_Dsn *Dsn);
 #endif
 
 /*** Helper macros ***/
-#define DSN_OPTION(a,b)\
-  ((a)->Options & b)
+#define DSN_OPTION(_a,_b)\
+  ((_a)->Options & _b)
 
-#define MA_ODBC_CURSOR_DYNAMIC(a)\
-  DSN_OPTION((a), MADB_OPT_FLAG_DYNAMIC_CURSOR)
+#define MA_ODBC_CURSOR_DYNAMIC(_a)\
+  DSN_OPTION((_a), MADB_OPT_FLAG_DYNAMIC_CURSOR)
 
-#define MA_ODBC_CURSOR_FORWARD_ONLY(a)\
-  DSN_OPTION((a), MADB_OPT_FLAG_FORWARD_CURSOR)
+#define MA_ODBC_CURSOR_FORWARD_ONLY(_a)\
+  DSN_OPTION((_a), MADB_OPT_FLAG_FORWARD_CURSOR)
 
 #define MADB_DSN_SET_STR(dsn, item, value, len)\
   if((value) && (len) != 0)\

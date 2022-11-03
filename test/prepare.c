@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -30,17 +30,17 @@ SQLRETURN rc;
 /* Basic prepared statements - binary protocol test */
 ODBC_TEST(t_prep_basic)
 {
-    SQLINTEGER id;
-    SQLLEN length1, length2, pcrow;
-    char       name[20];
+  SQLINTEGER id;
+  SQLLEN length1, length2, pcrow;
+  char       name[20];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_prep_basic");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_prep_basic(a int, b char(4))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_prep_basic(a INT, b CHAR(4))");
 
   CHECK_STMT_RC(Stmt,
           SQLPrepare(Stmt,
-                     (SQLCHAR *)"insert into t_prep_basic values(?,'venu')",
+                     (SQLCHAR *)"INSERT INTO t_prep_basic VALUES(?,'venu')",
                      SQL_NTS));
 
     rc = SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &id, 0, NULL);
@@ -59,7 +59,7 @@ ODBC_TEST(t_prep_basic)
     SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt, "select * from t_prep_basic");
+    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_prep_basic");
 
     rc = SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, &length1);
     mystmt(Stmt,rc);
@@ -265,6 +265,11 @@ ODBC_TEST(t_prep_truncate)
 ODBC_TEST(t_prep_scroll)
 {
   SQLINTEGER i, data, max_rows= 5;
+
+  if (ForwardOnly == TRUE)
+  {
+    skip("This test cannot be run with FORWARDONLY option selected");
+  }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_prep_scroll");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_prep_scroll (a TINYINT)");
@@ -737,7 +742,7 @@ ODBC_TEST(t_prepare)
     rc = SQLFetch(Stmt);
     mystmt(Stmt,rc);
 
-    fprintf(stdout," outdata: %d, %s(%ld)\n", nodata,szodata,nlen);
+    fprintf(stdout," outdata: %d, %s(%lld)\n", nodata, szodata, (unsigned long long)nlen);
     IS(nodata == 200);
 
     rc = SQLFetch(Stmt);
@@ -1231,7 +1236,7 @@ ODBC_TEST(t_odbc269)
   /* Not sure when "BEGIN NOT ATOMIC" was introduced, but it's not supported in 5.5, and 10.0 is already not supported */
   if (ServerNotOlderThan(Connection, 10, 1, 0) == FALSE)
   {
-    skip("The test requires min 10.5.0 version")
+    skip("The test requires min 10.5.0 version");
   }
 
   OK_SIMPLE_STMT(Stmt, "BEGIN NOT ATOMIC SET @SOME_ODBC267= 'someinfo';  SELECT 1, @SOME_ODBC267; SELECT 127, 'value',2020; END");
@@ -1261,6 +1266,27 @@ ODBC_TEST(t_odbc269)
 }
 
 
+ODBC_TEST(t_mdev16708)
+{
+  SQLCHAR query[5/*USE */+ MAX_NAME_LEN];
+
+  /*  */
+  if (ServerNotOlderThan(Connection, 10, 6, 0) == FALSE)
+  {
+    skip("The test requires min 10.6.0 version");
+  }
+  _snprintf(query, sizeof(query), "USE %s", my_schema);
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, query, SQL_NTS));
+  /* USE in particular won't support parameters */
+  /* CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, my_schema, strlen(dbname), NULL)); */
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_prep_basic, "t_prep_basic"},
@@ -1282,6 +1308,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc57, "odbc-57-query_in_parenthesis"},
   {t_odbc141, "odbc-141-load_data_infile"},
   {t_odbc269, "odbc-269-begin_not_atomic"},
+  {t_mdev16708, "t_mdev16708-new_supported_statements"},
   {NULL, NULL}
 };
 

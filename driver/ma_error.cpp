@@ -23,21 +23,21 @@ extern Client_Charset utf8;
 /* {{{ MADB_ErrorList[] */
 MADB_ERROR MADB_ErrorList[] =
 {
-  { "00000", "", "", SQL_ERROR},
-  { "01000", "", "General warning", SQL_ERROR},
-  { "01001", "01S03", "Cursor operation conflict", SQL_ERROR},
-  { "01002", "", "Disconnect error", SQL_ERROR},
-  { "01003", "", "NULL value eliminated in set function", SQL_ERROR},
-  { "01004", "", "String data, right-truncated", SQL_ERROR},
-  { "01006", "", "Privilege not revoked", SQL_ERROR},
-  { "01007", "", "Privilege not granted", SQL_ERROR},
-  { "01S00", "", "Invalid connection string attribute", SQL_ERROR},
-  { "01S01", "", "Error in row", SQL_ERROR},
-  { "01S02", "", "Option value changed", SQL_ERROR},
-  { "01S06", "", "Attempt to fetch before the result set returned the first rowset", SQL_ERROR},
-  { "01S07", "", "Fractional truncation", SQL_ERROR},
-  { "01S08", "", "Error saving File DSN", SQL_ERROR},
-  { "01S09", "", "Invalid keyword", SQL_ERROR},
+  { "00000", "", "", SQL_SUCCESS},
+  { "01000", "", "General warning", SQL_SUCCESS_WITH_INFO},
+  { "01001", "01S03", "Cursor operation conflict", SQL_SUCCESS_WITH_INFO},
+  { "01002", "", "Disconnect error", SQL_SUCCESS_WITH_INFO},
+  { "01003", "", "NULL value eliminated in set function", SQL_SUCCESS_WITH_INFO},
+  { "01004", "", "String data, right-truncated", SQL_SUCCESS_WITH_INFO},
+  { "01006", "", "Privilege not revoked", SQL_SUCCESS_WITH_INFO},
+  { "01007", "", "Privilege not granted", SQL_SUCCESS_WITH_INFO},
+  { "01S00", "", "Invalid connection string attribute", SQL_SUCCESS_WITH_INFO},
+  { "01S01", "", "Error in row", SQL_SUCCESS_WITH_INFO},
+  { "01S02", "", "Option value changed", SQL_SUCCESS_WITH_INFO},
+  { "01S06", "", "Attempt to fetch before the result set returned the first rowset", SQL_SUCCESS_WITH_INFO},
+  { "01S07", "", "Fractional truncation", SQL_SUCCESS_WITH_INFO},
+  { "01S08", "", "Error saving File DSN", SQL_SUCCESS_WITH_INFO},
+  { "01S09", "", "Invalid keyword", SQL_SUCCESS_WITH_INFO},
   { "07001", "", "Wrong number of parameters", SQL_ERROR},
   { "07002", "", "COUNT field incorrect", SQL_ERROR},
   { "07005", "2400", "Prepared statement not a cursor-specification", SQL_ERROR},
@@ -184,7 +184,7 @@ SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *P
     break;
   }
   /* work-around of probalby a bug in mariadb_stmt_execute_direct, that returns 1160 in case of lost connection */
-  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160) && (strcmp(Sqlstate, "HY000") == 0 || strcmp(Sqlstate, "00000") == 0))
+  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160 || NativeError == 5014) && (strcmp(Sqlstate, "HY000") == 0 || strcmp(Sqlstate, "00000") == 0))
   {
     Sqlstate= "08S01";
   }
@@ -218,7 +218,7 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
 
   Error->ErrRecord= &MADB_ErrorList[ErrorCode];
 
-  Error->ReturnValue= SQL_ERROR;
+  Error->ReturnValue= MADB_ErrorList[ErrorCode].ReturnValue;
 
   if (NativeErrorMsg)
   {
@@ -231,10 +231,6 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
   }
   strcpy_s(Error->SqlState, SQLSTATE_LENGTH + 1, MADB_ErrorList[ErrorCode].SqlState);
   Error->NativeError= NativeError;
-  /* Check the return code */
-  if (Error->SqlState[0] == '0')
-    Error->ReturnValue= (Error->SqlState[1] == '0') ? SQL_SUCCESS :
-                        (Error->SqlState[1] == '1') ? SQL_SUCCESS_WITH_INFO : SQL_ERROR;
 
   return Error->ReturnValue;
 }

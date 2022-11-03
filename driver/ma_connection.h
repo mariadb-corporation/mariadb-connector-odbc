@@ -19,10 +19,6 @@
 #ifndef _ma_connection_h_
 #define _ma_connection_h_
 
-#define MADB_CONN_OPT_NOT_SUPPORTED 0
-#define MADB_CONN_OPT_BEFORE        1
-#define MADB_CONN_OPT_AFTER         2
-#define MADB_CONN_OPT_BOTH          3
 
 /* sql_mode's identifiers */
 enum enum_madb_sql_mode {MADB_NO_BACKSLASH_ESCAPES, MADB_ANSI_QUOTES };
@@ -31,7 +27,8 @@ struct st_ma_connection_methods;
 
 struct st_madb_isolation {
   long SqlIsolation;
-  char *StrIsolation;
+  const char *StrIsolation;
+  const char* TrackStr; /* String coming with session tracking */
 };
 
 struct st_ma_connection_methods
@@ -41,23 +38,26 @@ struct st_ma_connection_methods
   SQLRETURN (*ConnectDB)(MADB_Dbc *Connection, MADB_Dsn *Dsn);
   SQLRETURN (*EndTran)(MADB_Dbc *Dbc, SQLSMALLINT CompletionType);
   SQLRETURN (*GetFunctions)(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr);
-  SQLRETURN(*GetInfo)(MADB_Dbc *Dnc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
+  SQLRETURN (*GetInfo)(MADB_Dbc *Dnc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                       SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, my_bool isWChar);
   SQLRETURN (*DriverConnect)(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InConnectionString,
                              SQLULEN StringLength1, SQLCHAR *OutConnectionString,
                              SQLULEN BufferLength, SQLSMALLINT *StringLength2Ptr,
                              SQLUSMALLINT DriverCompletion);
+  SQLRETURN (*GetCurrentDB)(MADB_Dbc* Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT* StringLengthPtr, my_bool isWChar);
+  SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
+  SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLINTEGER* txIsolation);
+  int       (*CacheRestOfCurrentRsStream)(MADB_Dbc *Dbc, MADB_Error *Error);
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);
 
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
 MADB_Dbc * MADB_DbcInit(MADB_Env *Env);
-SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
-                                SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);
 /* Has platform versions */
 char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size);
+
 
 #define MADB_SUPPORTED_CONVERSIONS  SQL_CVT_BIGINT | SQL_CVT_BIT | SQL_CVT_CHAR | SQL_CVT_DATE |\
                                     SQL_CVT_DECIMAL | SQL_CVT_DOUBLE | SQL_CVT_FLOAT |\
@@ -67,11 +67,12 @@ char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size);
                                     SQL_CVT_WLONGVARCHAR | SQL_CVT_WVARCHAR
 /**************** Helper macros ****************/
 /* check if the connection is established */
-#define MADB_Dbc_ACTIVE(a) \
-  ((a)->mariadb && mysql_get_socket((a)->mariadb) != MARIADB_INVALID_SOCKET)
+#define MADB_Dbc_ACTIVE(a)  ((a)->mariadb && mysql_get_socket((a)->mariadb) != MARIADB_INVALID_SOCKET)
 
 #define MADB_Dbc_DSN(a) \
-(a) && (a)->Dsn  
+(a) && (a)->Dsn
 
-#define MADB_CONNECTED(DbConnHandler) (DbConnHandler->mariadb && mysql_get_socket(DbConnHandler->mariadb) != MARIADB_INVALID_SOCKET)
+#define MADB_GOT_STREAMER(_DBC) (_DBC->Streamer != NULL)
+#define MADB_RESET_STREAMER(_DBC) _DBC->Streamer= NULL
+
 #endif /* _ma_connection_h */

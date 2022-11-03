@@ -167,79 +167,96 @@ char MADB_ConvertCharToBit(MADB_Stmt *Stmt, char *src)
 /* {{{ MADB_ConvertNumericToChar */
 size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode)
 {
-  long long Numerator= 0;
-  long long Denominator= 1;
-  unsigned long long Left= 0, Right= 0;
+  const double DenominatorTable[]= {1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0, 100000000.0, 1000000000.0/*9*/,
+                                    10000000000.0, 100000000000.0, 1000000000000.0, 10000000000000.0, 100000000000000.0, 1000000000000000.0/*15*/,
+                                    10000000000000000.0, 100000000000000000.0, 1000000000000000000.0, 10000000000000000000.0, 1e+20 /*20*/, 1e+21,
+                                    1e+22, 1e+23, 1e+24, 1e+25, 1e+26, 1e+27, 1e+28, 1e+29, 1e+30, 1e+31, 1e+32, 1e+33, 1e+34, 1e+35, 1e+36, 1e+37, 1e+38 };
+  unsigned long long Numerator= 0;
+  double Denominator;
   int Scale= 0;
-  int ppos= 0;
-  long ByteDenominator= 1;
+  unsigned long long ByteDenominator= 1;
   int i;
-  char *p;
-  my_bool hasDot= FALSE;
+  char* p;
+  size_t Length;
 
   Buffer[0]= 0;
   *ErrorCode= 0;
 
   Scale+= (Numeric->scale < 0) ? -Numeric->scale : Numeric->scale;
 
-  for (i=0; i < SQL_MAX_NUMERIC_LEN; ++i)
+  for (i= 0; i < SQL_MAX_NUMERIC_LEN; ++i)
   {
-    Numerator+= Numeric->val[i] * ByteDenominator;
-    ByteDenominator<<= 8;
+    if (i > 7 && Numeric->val[i] != '\0')
+    {
+      *ErrorCode = MADB_ERR_22003;
+      return 0;
+    }
+    Numerator += Numeric->val[i] * ByteDenominator;
+    ByteDenominator <<= 8;
   }
-  if (!Numeric->sign)
-    Numerator= -Numerator;
-  Denominator= (long long)pow(10, Scale);
-  Left= Numerator / Denominator;
-  //_i64toa_s(Numerator, Buffer, 38, 10);
+
   if (Numeric->scale > 0)
   {
-    char tmp[38];
-    _snprintf(tmp, 38, "%%.%df", Numeric->scale);
-    _snprintf(Buffer, 38, tmp, Numerator / pow(10, Scale));
+    Denominator = DenominatorTable[Scale];// pow(10, Scale);
+    char tmp[10 /*1 sign + 1 % + 1 dot + 3 scale + 1f + 1\0 */];
+    _snprintf(tmp, sizeof(tmp), "%s%%.%df", Numeric->sign ? "" : "-", Numeric->scale);
+    _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, tmp, Numerator / Denominator);
   }
   else
   {
-    _snprintf(Buffer, 38, "%lld", Numerator);
-    while (strlen(Buffer) < (size_t)(Numeric->precision - Numeric->scale))
+    _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, "%s%llu", Numeric->sign ? "" : "-", Numerator);
+    /* Checking Truncation for negative/zero scale before adding 0 */
+    Length= strlen(Buffer) - (Numeric->sign ? 0 : 1);
+    if (Length > Numeric->precision)
+    {
+      *ErrorCode = MADB_ERR_22003;
+      goto end;
+    }
+    for (i= 0; i < Scale; ++i)
+    {
       strcat(Buffer, "0");
+    }
   }
 
-
   if (Buffer[0] == '-')
-    Buffer++;
+  {
+    ++Buffer;
+  }
 
+  Length= strlen(Buffer);
   /* Truncation checks:
   1st ensure, that the digits before decimal point will fit */
   if ((p= strchr(Buffer, '.')))
   {
-    if (p - Buffer - 1 > Numeric->precision)
+    if (Numeric->precision != 0 && (p - Buffer) > Numeric->precision)
     {
       *ErrorCode= MADB_ERR_22003;
+      Length= Numeric->precision;
       Buffer[Numeric->precision]= 0;
       goto end;
     }
-    if (Numeric->scale > 0 && Left > 0 && (p - Buffer) + strlen(p) > Numeric->precision)
+
+    /* If scale >= precision, we still can have no truncation */
+    if (Length > (unsigned int)(Numeric->precision + 1)/*dot*/ && Scale < Numeric->precision)
     {
       *ErrorCode= MADB_ERR_01S07;
-      Buffer[Numeric->precision + 1]= 0;
+      Length = Numeric->precision + 1/*dot*/;
+      Buffer[Length]= 0;
       goto end;
     }
   }
-  while (Numeric->scale < 0 && strlen(Buffer) < (size_t)(Numeric->precision - Numeric->scale))
-    strcat(Buffer, "0");
-
-
-  if (strlen(Buffer) > (size_t)(Numeric->precision + Scale) && Numeric->scale > 0)
-    *ErrorCode= MADB_ERR_01S07;
 
 end:
   /* check if last char is decimal point */
-  if (strlen(Buffer) && Buffer[strlen(Buffer)-1] == '.')
-    Buffer[strlen(Buffer)-1] = 0;
-  if (!Numeric->sign)
-    Buffer--;
-  return strlen(Buffer);
+  if (Length > 0 && Buffer[Length - 1] == '.')
+  {
+    Buffer[Length - 1]= 0;
+  }
+  if (Numeric->sign == 0)
+  {
+    ++Length;
+  }
+  return Length;
 }
 /* }}} */
 
@@ -494,7 +511,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
 
   /* Default types. Not quite clear if time_type has any effect */
   tm->time_type=       MYSQL_TIMESTAMP_DATETIME;
-  MaBind->buffer_type= MYSQL_TYPE_TIMESTAMP;
+  MaBind->buffer_type= MYSQL_TYPE_DATETIME;//MYSQL_TYPE_TIMESTAMP;
 
   switch (SqlRec->ConciseType) {
   case SQL_TYPE_DATE:
@@ -520,7 +537,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
       return MADB_SetError(&Stmt->Error, MADB_ERR_22007, "Invalid time", 0);
     }
     MaBind->buffer_type= MYSQL_TYPE_TIME;
-    tm->time_type=       MYSQL_TIMESTAMP_TIME;
+    tm->time_type= MYSQL_TIMESTAMP_TIME;
     tm->hour=   ts->hour;
     tm->minute= ts->minute;
     tm->second= ts->second;
@@ -732,8 +749,8 @@ SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPt
     }
     *Buffer= DataPtr;
   }           /* End of switch (CRec->ConsiseType) */
-
-  return SQL_SUCCESS;
+  /* We need it in case SQL_SUCCESS_WITH_INFO was set, we can't just return SQL_SUCCESS */
+  return Stmt->Error.ReturnValue;
 }
 /* }}} */
 
@@ -782,7 +799,7 @@ SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *Sq
   Length= MADB_CalculateLength(Stmt, OctetLengthPtr, CRec, DataPtr);
 
   RETURN_ERROR_OR_CONTINUE(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, Length, SqlRec, MaBind, NULL, NULL));
-
-  return SQL_SUCCESS;
+  /* We need it in case SUCCESS_WITH_INFO was set */
+  return Stmt->Error.ReturnValue;
 }
 /* }}} */

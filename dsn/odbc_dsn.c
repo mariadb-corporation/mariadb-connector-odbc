@@ -79,12 +79,17 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[11], 1, txtPort,              5, 0},
   {&DsnKeys[12], 2, txtInitCmd,        2048, 0},
   {&DsnKeys[13], 2, txtConnectionTimeOut, 5, 0},
+  {&DsnKeys[39], 2, txtReadTimeOut,       5, 0},
+  {&DsnKeys[40], 2, txtWriteTimeOut,      5, 0},
   {&DsnKeys[36], 2, cbInteractive,        0, 0},
   {&DsnKeys[14], 2, ckReconnect,          0, 0},
   {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[16], 2, cbCharset,            0, 0},
   {&DsnKeys[34], 2, txtServerKey,       260, 0},
   {&DsnKeys[18], 3, txtPluginDir,       260, 0},
+  {&DsnKeys[38], 3, ckSchParamNoError,    0, 0},
+  {&DsnKeys[41], 3, ckNoLocalInfile,      0, 0},
+  {&DsnKeys[42], 3, ckNullSchemaMeansCurrent, 0, 0},
   {&DsnKeys[19], 4, txtSslKey,          260, 0},
   {&DsnKeys[20], 4, txtSslCert,         260, 0},
   {&DsnKeys[21], 4, txtSslCertAuth,     260, 0},
@@ -115,11 +120,11 @@ MADB_OptionsMap OptionsMap[]= {
   {3, ckIgnoreSchema,                  MADB_OPT_FLAG_NO_SCHEMA},
   {3, ckIgnoreSpace,                   MADB_OPT_FLAG_IGNORE_SPACE},
   {3, ckMultiStmt,                     MADB_OPT_FLAG_MULTI_STATEMENTS},
-  {LASTPAGE, ckIgnoreSchema,           MADB_OPT_FLAG_NO_SCHEMA},
   {LASTPAGE, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
   {LASTPAGE, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
   {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
   {LASTPAGE, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
+  {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
   {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   {LASTPAGE, ckEnableSQLAutoIsNull,    MADB_OPT_FLAG_AUTO_IS_NULL},
   {LASTPAGE, ckPadCharFullLength,      MADB_OPT_FLAG_PAD_SPACE},
@@ -134,11 +139,27 @@ MADB_OptionsMap OptionsMap[]= {
 void GetDialogFields(void);
 HBRUSH hbrBg= NULL;
 
+
+void DsnApplyDefaults(MADB_Dsn* Dsn)
+{
+  /* Setting default port number if Tcp/Ip selected, and the port is 0 */
+  if (Dsn->IsTcpIp && Dsn->Port == 0)
+  {
+    Dsn->Port= 3306;
+  }
+}
+
+
 my_bool SetDialogFields()
 {
   int  i= 0;
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
 
+  /* Basically - if dialog does not exist yet */
+  if (Dsn == NULL)
+  {
+    return TRUE;
+  }
   while (DsnMap[i].Key)
   {
     switch (DsnMap[i].Key->Type) {
@@ -224,8 +245,10 @@ my_bool GetButtonState(int Dialog, int Button)
   return (my_bool)IsDlgButtonChecked(hwndTab[Dialog], Button);
 }
 
+
 my_bool SaveDSN(HWND hDlg, MADB_Dsn *Dsn)
 {
+  DsnApplyDefaults(Dsn);
   if (Dsn->SaveFile != NULL || MADB_SaveDSN(Dsn))
     return TRUE;
   MessageBox(hDlg, Dsn->ErrorMsg, "Error", MB_OK);
@@ -474,6 +497,11 @@ static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn, SQLCHAR *ConnStrBuffer)
   {
     ConnStr= ConnStrBuffer;
   }
+
+  DsnApplyDefaults(Dsn);
+  /* If defaults has changed actual values - let them be reflected in the dialog(if it exists - SetDialogFields
+     cares about that) */
+  SetDialogFields();
   MADB_DsnToString(Dsn, ConnStr, CONNSTR_BUFFER_SIZE);
 
   SQLAllocHandle(SQL_HANDLE_DBC, Environment, (SQLHANDLE *)&Connection);
@@ -531,7 +559,11 @@ char* HidePwd(char *ConnStr)
       }
       ++Ptr;
     }
-    ++Ptr;
+    /* Do not move if we already at the terminating null */
+    if (*Ptr)
+    {
+      ++Ptr;
+    }
   }
 
   return ConnStr;
@@ -832,10 +864,10 @@ void CenterWindow(HWND hwndWindow)
 
 
 BOOL DSNDialog(HWND     hwndParent,
-                  WORD     fRequest,
-                  LPCSTR   lpszDriver,
-                  LPCSTR   lpszAttributes,
-                  MADB_Dsn *Dsn)
+               WORD     fRequest,
+               LPCSTR   lpszDriver,
+               LPCSTR   lpszAttributes,
+               MADB_Dsn *Dsn)
 {
   MSG     msg;
   BOOL    ret;
@@ -907,13 +939,18 @@ BOOL DSNDialog(HWND     hwndParent,
         Dsn->Driver= _strdup(lpszDriver);
       }
 
-      if (SQL_SUCCEEDED(TestDSN(Dsn, NULL, NULL)))
+      /* If we don't have parent window - we are not supposed to show the dialog, but only
+         perform operation, if sufficient data has been provided */
+      if (hwndParent == NULL)
       {
-        return MADB_SaveDSN(Dsn);
-      }
-      else if (hwndParent == NULL)
-      {
-        return FALSE;
+        if (SQL_SUCCEEDED(TestDSN(Dsn, NULL, NULL)))
+        {
+          return MADB_SaveDSN(Dsn);
+        }
+        else
+        {
+          return FALSE;
+        }
       }
 
       break;
@@ -943,7 +980,7 @@ BOOL DSNDialog(HWND     hwndParent,
         {
           return MADB_SaveDSN(Dsn);
         }
-        else if (hwndParent == NULL)
+        else
         {
           return FALSE;
         }

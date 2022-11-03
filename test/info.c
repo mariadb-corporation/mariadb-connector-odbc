@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2020 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -60,6 +60,11 @@ ODBC_TEST(t_stmt_attr_status)
   SQLUSMALLINT rowStatusPtr[3];
   SQLULEN      rowsFetchedPtr= 0;
 
+
+  if (ForwardOnly == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY option are selected");
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_stmtstatus");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_stmtstatus (id INT, name CHAR(20))");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_stmtstatus VALUES (10,'data1'),(20,'data2')");
@@ -225,8 +230,8 @@ ODBC_TEST(t_bug3780)
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
 
-  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, strlen(conn), conn_out,
-                                 sizeof(conn_out), &conn_out_len,
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, (SQLSMALLINT)strlen(conn), conn_out,
+                                 (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(Connection1, SQLAllocStmt(Connection1, &Stmt1));
 
@@ -370,7 +375,7 @@ MyODBC 5 - calling SQLGetConnectAttr before getting all results of "CALL ..." st
 */
 ODBC_TEST(t_bug46910)
 {
-	SQLCHAR     catalog[30];
+	SQLCHAR     catalog[64];
 	SQLINTEGER  len;
   SQLLEN      i;
   SQLSMALLINT col_count;
@@ -389,7 +394,11 @@ ODBC_TEST(t_bug46910)
 	SQLExecDirect(Stmt, "CALL spbug46910_1()", SQL_NTS);
 	
 	CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &i));
-  is_num(i, 1);
+  if (ForwardOnly != TRUE || NoCache != TRUE)
+  {
+    /* With streaming we can't get this */
+    is_num(i, 1);
+  }
 	CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &col_count));
   is_num(col_count, 1);
   is_num(SQLMoreResults(Stmt), SQL_SUCCESS);
@@ -750,6 +759,78 @@ ODBC_TEST(odbc143)
   return OK;
 }
 
+/**
+  Test of connect attributes that used to be treated as wrong data type.
+  SQL_ATTR_TXN_ISOLATION aslo had issue, but it is already cared of by other test
+*/
+ODBC_TEST(odbc317)
+{
+  const SQLULEN init= sizeof(SQLULEN)==8 ? 0xcacacacacacacaca : 0; //on 32 bit it's the same size with SQLUINTEGER, thus nothing to test
+  SQLULEN lenAttr= init;
+  /*SQLINTEGER intAttr= 0xacacacac;*/
+
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_ODBC_CURSORS, &lenAttr,
+    SQL_IS_UINTEGER, NULL));
+
+  /* We ourselves kinda return ODBC(TODO: need to check why), but all other DM's return DRIVER. iODBC 3.52.12 used to do that toTODO: need to check why. The test is anyway about using correct data type for the attribute */
+  if (iOdbc() && DmMinVersion(3, 52, 13))
+  {
+    is_num(lenAttr, SQL_CUR_USE_ODBC);
+  }
+  else
+  {
+    is_num(lenAttr, SQL_CUR_USE_DRIVER);
+  }
+
+  return OK;
+}
+
+
+/* ODBC-326 Connecting Excel with MariaDB through Microsoft Query - String data right truncated
+   The problem occured in the SQLGetInfo call when one of fetches returned SQL_SUCCESS_WITH_INFO
+   because of incorrectly detected truncation
+ */
+ODBC_TEST(odbc326)
+{
+  SQLLEN len[7]= {0,0,0,0,0,0,0};
+  SQLSMALLINT col2, col9, col15, col7;
+  /* This are expected ODBCv3 type results */
+  const SQLSMALLINT ref2[]= {SQL_BIT, SQL_BIT, SQL_TINYINT, SQL_TINYINT, SQL_BIGINT, SQL_BIGINT, SQL_LONGVARBINARY,
+    SQL_LONGVARBINARY, SQL_LONGVARBINARY, SQL_LONGVARBINARY, SQL_LONGVARBINARY, SQL_VARBINARY, SQL_BINARY, SQL_LONGVARCHAR ,
+    SQL_LONGVARCHAR, SQL_LONGVARCHAR, SQL_LONGVARCHAR, SQL_LONGVARCHAR, SQL_CHAR, SQL_NUMERIC, SQL_DECIMAL,
+    SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_INTEGER, SQL_SMALLINT, SQL_SMALLINT,
+    SQL_FLOAT, SQL_DOUBLE, SQL_DOUBLE, SQL_DOUBLE, SQL_VARCHAR, SQL_VARCHAR, SQL_VARCHAR, SQL_TYPE_DATE, SQL_TYPE_TIME,
+    SQL_TYPE_TIMESTAMP, SQL_TYPE_TIMESTAMP, SQL_WCHAR, SQL_WVARCHAR, SQL_WLONGVARCHAR};
+  SQLINTEGER col3;
+  SQLCHAR col4[128], col5[128];
+  SQLRETURN rc;
+  unsigned int i= 0;
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_ALL_TYPES));
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_DEFAULT, (SQLPOINTER)&col2, 2, &len[0]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, (SQLPOINTER)col4, 128, &len[1]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 5, SQL_C_CHAR, (SQLPOINTER)col5, 128, &len[2]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 9, SQL_C_DEFAULT, (SQLPOINTER)&col9, 2, &len[3]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_DEFAULT, (SQLPOINTER)&col3, 4, &len[4]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 15, SQL_C_DEFAULT, (SQLPOINTER)&col15, 2, &len[5]));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 7, SQL_C_DEFAULT, (SQLPOINTER)&col7, 2, &len[6]));
+
+  while ((rc = SQLFetch(Stmt)) == SQL_SUCCESS)
+  {
+    IS(i < sizeof(ref2)/sizeof(SQLSMALLINT));
+    is_num(col2, ref2[i]);
+    ++i;
+  }
+  
+  EXPECT_STMT(Stmt, rc, SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -772,6 +853,8 @@ MA_ODBC_TESTS my_tests[]=
   { odbc123odbc277, "odbc123_catalog_start_odbc277", NORMAL },
   { odbc109, "odbc109_shema_owner_term", NORMAL },
   { odbc143, "odbc143_odbc160_ANSI_QUOTES", NORMAL },
+  { odbc317, "odbc317_conattributes", NORMAL },
+  { odbc326, "odbc326", NORMAL },
   { NULL, NULL }
 };
 

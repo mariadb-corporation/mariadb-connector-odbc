@@ -241,6 +241,15 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   }
 
   Record->ConciseType= MapMariadDbToOdbcType(Field);
+
+  if (0)//Stmt->Connection->IsAnsi == '\0')
+  {
+    switch (Record->ConciseType) {
+    case SQL_CHAR:        Record->ConciseType= SQL_WCHAR; break;
+    case SQL_VARCHAR:     Record->ConciseType= SQL_WVARCHAR; break;
+    case SQL_LONGVARCHAR: Record->ConciseType= SQL_WLONGVARCHAR; break;
+    }
+  }
   /* 
       TYPE:
       For the datetime and interval data types, this field returns the verbose data type: SQL_DATETIME or SQL_INTERVAL.
@@ -506,8 +515,6 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
   MADB_FixDisplaySize(Record, &cs);
   MADB_FixDataSize(Record, &cs);
     
-  /*Record->TypeName= strdup(MADB_GetTypeName(Fields[i]));*/
-
   switch(Record->ConciseType) {
   case SQL_BINARY:
   case SQL_VARBINARY:
@@ -844,8 +851,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   /* Application may set IPD's field SQL_DESC_UNNAMED to SQL_UNNAMED only */
   if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)(SQLULEN)ValuePtr == SQL_NAMED)
   {
-    MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
-    ret= Desc->Error.ReturnValue;
+    ret= MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
   }
 
   if (!SQL_SUCCEEDED(ret))
@@ -921,7 +927,15 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
       DescRecord->Precision= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_SCALE:
-      DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
+      if ((SQLSMALLINT)(SQLLEN)ValuePtr > MADB_MAX_SCALE)
+      {
+        DescRecord->Scale= MADB_MAX_SCALE;
+        ret= MADB_SetError(&Desc->Error, MADB_ERR_01S02, NULL, 0); 
+      }
+      else
+      {
+        DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
+      }
       break;
     case SQL_DESC_TYPE:
       DescRecord->Type= (SQLSMALLINT)(SQLLEN)ValuePtr;

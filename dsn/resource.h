@@ -50,6 +50,8 @@
 #define ckConnectPrompt                 1041
 #define IDC_EDIT1                       1042
 #define txtConnectionTimeOut            1043
+#define txtReadTimeOut                  1230
+#define txtWriteTimeOut                 1231
 #define txtDriver                       1200
 #define ckEnableDC                      1045
 #define ckReconnect2                    1046
@@ -78,6 +80,9 @@
 #define ckMatchedRows                   1114
 #define txtPluginDir                    1115
 #define pbPlugindirBrowse               1116
+#define ckSchParamNoError               1221
+#define ckNoLocalInfile                 1310
+#define ckNullSchemaMeansCurrent        1222
 #define txtSslKey                       1117
 #define txtSslCert                      1118
 #define txtSslCertAuth                  1119

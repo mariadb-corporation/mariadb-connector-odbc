@@ -19,6 +19,7 @@
 
 #include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <odbcinst.h>
 
 typedef BOOL (*DSNDialog)(HWND hwndParent,
@@ -33,7 +34,17 @@ int  main()
   DSNDialog DsnFunc= NULL;
   HWND hWnd;
   DWORD dwProcID= GetCurrentProcessId();
+  const char *driver= getenv("TEST_DRIVER");
 
+  if (driver == NULL)
+  {
+    printf("Test requires environment variable TEST_DRIVER to be set!\n");
+    return 1;
+  }
+  else
+  {
+    printf("# Using Driver=%s for testing.\n", driver);
+  }
   hWnd= GetConsoleWindow();
   if (hWnd == NULL)
   {
@@ -52,30 +63,30 @@ int  main()
   {
     if (DsnFunc= (DSNDialog)GetProcAddress(hmod, "ConfigDSN"))
     {
-      ret= DsnFunc(NULL, ODBC_ADD_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0OPTIONS=2\0\0");
+      ret= DsnFunc(NULL, ODBC_ADD_DSN, driver, "DSN=dsn_test\0OPTIONS=2\0\0");
       printf("%s 1 Null hWnd and not enough info\n", ret ? "not ok" : "ok");
 
       printf("# The dialog is supposed to show up now - please complete info for connection\n");
-      ret= DsnFunc(hWnd, ODBC_ADD_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0OPTIONS=2\0\0");
+      ret= DsnFunc(hWnd, ODBC_ADD_DSN, driver, "DSN=dsn_test\0OPTIONS=2\0\0");
 
       if (ret != FALSE)
       {
         printf("ok 2 hWnd and not enough info\n");
-        ret= DsnFunc(NULL, ODBC_ADD_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0OPTIONS=2\0\0");
+        ret= DsnFunc(NULL, ODBC_ADD_DSN, driver, "DSN=dsn_test\0OPTIONS=2\0\0");
         printf("%s 3 Null hWnd trying to add existing dsn \n", ret ? "not ok" : "ok");
-        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
+        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, driver, "DSN=dsn_test\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
         printf("%s 4 Null hWnd trying to config with insufficient data \n", ret ? "not ok" : "ok");
         printf("# The dialog asking if you want to overwrite existing DSN is supposed to show up. Please say 'No'. Otherwise please cancel config dialog\n");
-        ret= DsnFunc(hWnd, ODBC_ADD_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
+        ret= DsnFunc(hWnd, ODBC_ADD_DSN, driver, "DSN=dsn_test\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
         printf("%s 5 Replace Prompt \n", ret ? "not ok" : "ok");
-        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, getenv("TEST_DRIVER"), "DSN=inexistent_dsn\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
+        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, driver, "DSN=inexistent_dsn\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
         printf("%s 6 Null hWnd trying to config inexisting DSN\n", ret ? "not ok" : "ok");
-        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, getenv("TEST_DRIVER"), "DSN=inexistent_dsn\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
+        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, driver, "DSN=inexistent_dsn\0UID=garbage\0PWD=DoubleGarbage\0OPTIONS=2\0\0");
         printf("%s 7 hWnd trying to config inexisting DSN\n", ret ? "not ok" : "ok");
-        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0OPTIONS=0\0\0");
+        ret= DsnFunc(NULL, ODBC_CONFIG_DSN, driver, "DSN=dsn_test\0OPTIONS=0\0\0");
         printf("%s 8 Null hWnd config with sufficient data \n", ret ? "ok" : "not ok");
         printf("# Please make sure that in dialog Named pipe is selected, and all options are un-checked\n");
-        ret= DsnFunc(hWnd, ODBC_CONFIG_DSN, getenv("TEST_DRIVER"), "DSN=dsn_test\0NamedPipe=1\0\0");
+        ret= DsnFunc(hWnd, ODBC_CONFIG_DSN, driver, "DSN=dsn_test\0NamedPipe=1\0\0");
         printf("%s 9 hWnd config with sufficient data \n", ret ? "ok" : "not ok");
       }
       else
@@ -96,5 +107,5 @@ int  main()
     FreeLibrary(hmod);
   }
 
-  return 1;
+  return 0;
 }

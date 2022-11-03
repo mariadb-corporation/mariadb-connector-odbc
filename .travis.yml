@@ -4,18 +4,9 @@ services: docker
 addons:
   hosts:
     - mariadb.example.com
-#  homebrew:
-#    packages:
-#      - openssl
-#      - libiodbc
-#      - mariadb
 
 before_install:
-  #- chmod +x .travis/script.sh
-  #- chmod +x .travis/osx.sh
-  #- chmod +x .travis/gen-ssl.sh
-  #- chmod +x .travis/build/build.sh
-  #- chmod +x .travis/build/docker-entrypoint.sh
+  - chmod +x .travis/s390x.sh
   - chmod 777 .travis/build/
   - export PROJ_PATH=`pwd`
   - export ENTRYPOINT=$PROJ_PATH/.travis/sql
@@ -26,57 +17,55 @@ before_install:
 matrix:
   allow_failures:
     - os: linux
-      env: DB=mariadb:10.2 PACKET=8M MAXSCALE_VERSION=2.1.8
+      env: DB=mariadb:10.8 PACKET=8M MAXSCALE_VERSION=2.5.3
     - os: linux
       env: DB=build
-    - os: linux
-      env: DB=mysql:5.5
-    - os: linux
-      env: DB=mysql:5.6
     - os: linux
       env: DB=mysql:5.7
     - os: osx
-      env: DB=mariadb:10.5
+      env: DB=mariadb:10.8
+    - env: SKYSQL=true
+    - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
     - os: linux
-      env: DB=mariadb:10.1
+      arch: s390x
+      dist: focal
   include:
     - os: linux
-      env: DB=build
+      env: DB=mariadb:10.8
     - os: linux
-      env: DB=mariadb:10.1
+      compiler: clang
+      env: DB=mariadb:10.7
     - os: linux
-      env: DB=mariadb:10.2
+      env: DB=mariadb:10.6
     - os: linux
-      env: DB=mariadb:10.3
+      env: DB=mariadb:10.5
     - os: linux
       env: DB=mariadb:10.4
     - os: linux
-      compiler: gcc
-      env: DB=mariadb:10.5
-    - os: linux
-      compiler: clang
-      env: DB=mariadb:10.5
+      env: DB=mariadb:10.3
+    - env: SKYSQL=true
+    - env: SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
     - os: osx
       compiler: gcc
-      env: DB=mariadb:10.5
+      env: DB=mariadb:10.8
       addons:
-        mariadb: '10.5'
+        mariadb: '10.8'
       before_script:
         - brew update
         - brew install openssl
         - brew install libiodbc
         - brew install mariadb
     - os: linux
-      env: DB=mariadb:10.2 PACKET=8M MAXSCALE_VERSION=2.1.8
-    - os: linux
-      env: DB=mysql:5.5
-    - os: linux
-      env: DB=mysql:5.6
+      env: DB=mariadb:10.8 PACKET=8M MAXSCALE_VERSION=2.5.3
     - os: linux
       env: DB=mysql:5.7
-
+    - os: linux
+      arch: s390x
+      dist: focal
+      
 script:
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DB" = "build" ] ; then .travis/build/build.sh; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$DB" = "build" ] ; then docker build -t build:latest --label build .travis/build/; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ] ; then .travis/script.sh; fi
+  - if [[ "$DB" == build* ]] ; then .travis/build/build.sh; fi
+  - if [[ "$DB" == build* ]] ; then docker build -t build:10.6 --label build .travis/build/; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ] && [ "$TRAVIS_ARCH" != "s390x" ] ; then .travis/script.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then .travis/osx.sh; fi
+  - if [ "$TRAVIS_ARCH" = "s390x" ]; then .travis/s390x.sh; fi

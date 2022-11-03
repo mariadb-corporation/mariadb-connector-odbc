@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,7 +24,7 @@ MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt);
 BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
 unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);
-int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int KeyFlag);
+int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
 void MADB_CopyOdbcTsToMadbTime(SQL_TIMESTAMP_STRUCT *Src, MYSQL_TIME *Dst);
@@ -36,7 +36,11 @@ int  MADB_GetWCharType(int Type);
 BOOL MADB_CheckODBCType(SQLSMALLINT Type);
 SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType);
 size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length);
-SQLLEN MADB_GetDataSize(SQLSMALLINT SqlType, SQLLEN OctetLength, BOOL Unsigned,
+
+/* MADB_GetDataSize is used to calcualte value for the column size descriptor field.
+   It(this field) is SQLULEN since SQLDescribeCol returns it as SQLULEN. While in
+   other places(SQLColAttribute) it is SQLLEN :( */
+SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen);
 enum enum_field_types MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);

@@ -52,7 +52,7 @@ ENDIF()
 
 MESSAGE(STATUS "PKG package file name ${PKG_PACKAGE}")
 IF(WITH_SIGNCODE)
-  SET(SIGN_WITH_DEVID "--sign \"${DEVELOPER_ID}\"")
+  SET(SIGN_WITH_DEVID "--sign \"Developer ID Installer: ${DEVELOPER_ID}\"")
 ELSE()
   SET(SIGN_WITH_DEVID "")
 ENDIF()
@@ -71,10 +71,23 @@ TARGET_LINK_LIBRARIES(install_driver ${ODBC_INSTLIBS})
 # On Windows should look like
 #TARGET_LINK_LIBRARIES(install_driver ${ODBC_INSTLIBS} legacy_stdio_definitions Shlwapi)
 
+IF(APPLE)
+  SET_TARGET_PROPERTIES(install_driver
+                        PROPERTIES XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+                                   XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
+                       )
+  IF(WITH_SIGNCODE)
+    SET_TARGET_PROPERTIES(install_driver
+                          PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Application: ${DEVELOPER_ID}"
+                          XCODE_ATTRIBUTE_CODE_SIGN_INJECT_BASE_ENTITLEMENTS "NO")
+  ELSE()
+    SET_TARGET_PROPERTIES(install_driver PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+  ENDIF()
+ENDIF()
 
 IF(USE_SYSTEM_INSTALLED_LIB)
   ADD_CUSTOM_TARGET(copypkgfiles
-                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc>
+                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:install_driver>
                   DEPENDS maodbc install_driver
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ELSE()
@@ -84,7 +97,7 @@ ELSE()
     MESSAGE(STATUS "Configuring to include gnutls library(${GNUTLS_LIB}) into the package")
   ENDIF()
   ADD_CUSTOM_TARGET(copypkgfiles
-                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:dialog> ${GNUTLS_LIB}
+                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:install_driver> $<TARGET_FILE_DIR:dialog> ${GNUTLS_LIB}
                   DEPENDS maodbc install_driver
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF()

@@ -34,7 +34,7 @@ const char *DsnConnStr=       "DSN=madb_connstring_test";
 const char *Description=      "MariaDB C/ODBC test DSN for automatic testing";
 
 /****************************** Helpers ****************************/
-#define RESET_DSN(dsn) MADB_DSN_Free(dsn);memset(dsn, 0, sizeof(MADB_Dsn))
+#define RESET_DSN(dsn) MADB_DSN_Free(dsn);dsn= MADB_DSN_Init();memset(dsn, 0, sizeof(MADB_Dsn))
 
 BOOL VerifyOptionFields(MADB_Dsn *Dsn)
 {
@@ -61,8 +61,7 @@ BOOL VerifyOptionFields(MADB_Dsn *Dsn)
 /* {{{ ltrim */
 char* ltrim(char* Str)
 {
-  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
-  while (Str && iswspace(Str[0]))
+  while (Str && isspace(Str[0]))
     ++Str;
   return Str;
 }
@@ -73,7 +72,7 @@ char *trim(char *Str)
 
   Str = ltrim(Str);
   end= Str + strlen(Str) - 1;
-  while (iswspace(*end))
+  while (isspace(*end))
     *end--= 0;
   return Str;
 }
@@ -249,7 +248,7 @@ ODBC_TEST(all_other_fields_test)
     /* As already said - ini cache is buggy in UnixODBC, and it fails with UnixODBC version we have availabe in Travis tests.
        It's possible to change the test to pass in similar way as we did in some other tests - by either writing and reading
        the (new) DSN only once, or by creating new DSN for each keyword. */
-    skip("Skipping with test in Travis")
+    skip("Skipping with test in Travis");
   }
   FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
 
@@ -636,6 +635,11 @@ ODBC_TEST(odbc_284)
   IS_STR(Dsn->Description, descr, strlen(descr) + 1);
   IS_STR(Dsn->ServerName, host, strlen(host) + 1);
 
+  RESET_DSN(Dsn);
+  _snprintf(connstr4dsn, sizeof(connstr4dsn), "driver={MariaDB ODBC 3.0 Driver};server={127.0.0.1};port=16001;database={test};pwd={}}};uid={root}}};OPTION=131;");
+
+  IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
+
   return OK;
 }
 
@@ -643,7 +647,6 @@ ODBC_TEST(odbc_284)
 /* Testing INTERACTIVE connection string option, which is supposed to make server to use interactive_timeout as wait_timeout */
 ODBC_TEST(odbc_288)
 {
-  char interactive[512];
   int WaitTimeout= get_server_variable(GLOBAL, "wait_timeout");
   int InteractiveTimeout= get_server_variable(GLOBAL, "interactive_timeout");
   SQLHDBC     hdbc;
@@ -691,6 +694,43 @@ ODBC_TEST(odbc_290)
   return OK;
 }
 
+
+ODBC_TEST(odbc_366)
+{
+  SQLHDBC  hdbc;
+  SQLHSTMT hstmt;
+
+  const char *DummyHost = "240.0.0.1:3307", *HostsSeparator = ",";
+  char FailoverHost[512];
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
+
+  _snprintf(FailoverHost, sizeof(FailoverHost), "%s%s%s:%u", DummyHost, HostsSeparator, my_servername, my_port);
+  hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, FailoverHost, "CONN_TIMEOUT=5");
+
+  IS(hstmt != NULL);
+  OK_SIMPLE_STMT(hstmt, "SELECT CONNECTION_ID()");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+
+  /* Now good host first */
+  _snprintf(FailoverHost, sizeof(FailoverHost), "%s:%u%s%s", my_servername, my_port, HostsSeparator, DummyHost);
+
+  hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, FailoverHost, "CONN_TIMEOUT=5");
+
+  IS(hstmt != NULL);
+  OK_SIMPLE_STMT(hstmt, "SELECT CONNECTION_ID()");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeConnect(hdbc));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {connstring_test,       "connstring_parsing_test", NORMAL},
@@ -705,6 +745,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc_284,              "odbc284_escapebrace",     NORMAL},
   {odbc_288,              "odbc288_interactive",     NORMAL},
   {odbc_290,              "odbc290_forwardonly",     NORMAL},
+  {odbc_366,              "odbc366_failover",        NORMAL},
   {NULL, NULL, 0}
 };
 
@@ -714,13 +755,16 @@ int main(int argc, char **argv)
   int ret, tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
 
   get_options(argc, argv);
+
+  if (getenv("TEST_SKIP_UNSTABLE_TEST") != NULL)
+  {
+    my_tests[2].test_type= UNSTABLE;
+  }
   plan(tests);
   Dsn= MADB_DSN_Init();
-  Dsn->FreeMe= FALSE; /* Let tests only reset dsn struct, but do not free it */
 
   ret= run_tests(my_tests);
 
-  Dsn->FreeMe= TRUE;
   MADB_DSN_Free(Dsn);
 
   if (CleanUp() == FAIL)

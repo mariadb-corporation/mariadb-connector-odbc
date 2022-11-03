@@ -1,15 +1,15 @@
 environment: 
     matrix:
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-          DB: 10.4.12
+          DB: 10.4.14
           CMAKE_PARAM_G: 'Visual Studio 14 2015 Win64'
 
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-          DB: 10.4.12
+          DB: 10.4.14
           CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
 
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-          DB: 10.5.0
+          DB: 10.5.5
           CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
 
 # scripts that are called at very beginning, before repo cloning
@@ -38,7 +38,7 @@ before_build:
     - rm -rf win64
     - mkdir win64
     - cd win64
-    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL -DWITH_OPENSSL=ON 
+    - cmake .. -G "%CMAKE_PARAM_G%" -DCONC_WITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SIGNCODE=0 -DWITH_SSL=SCHANNEL
 
 after_build:
     # download and install MariaDB Server

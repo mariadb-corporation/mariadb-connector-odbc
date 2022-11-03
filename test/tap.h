@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -126,7 +126,7 @@ static SQLCHAR *my_pwd=        (SQLCHAR *)"";
 static SQLCHAR *my_schema=     (SQLCHAR *)"odbc_test";
 static SQLCHAR *my_drivername= (SQLCHAR *)"MariaDB ODBC 3.1 Driver";
 static SQLCHAR *my_servername= (SQLCHAR *)"localhost";
-static SQLCHAR *add_connstr=   (SQLCHAR*)"";
+static SQLCHAR *add_connstr=   (SQLCHAR*)"", *storedAddConnstr= (SQLCHAR*)"";
 
 static SQLWCHAR *wdsn;
 static SQLWCHAR *wuid;
@@ -137,15 +137,18 @@ static SQLWCHAR *wservername;
 static SQLWCHAR *wstrport;
 static SQLWCHAR *wadd_connstr;
 
+static unsigned long defaultOptions= 67108866;
 static unsigned long my_options= 67108866;
+#define CHANGE_DEFAULT_OPTIONS(_NEW_OPTIONS) my_options=defaultOptions=_NEW_OPTIONS
 
 static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
 static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
-
+static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port=        3306;
-char          ma_strport[12]= "PORT=3306";
-
-static int Travis= 0, TravisOnOsx= 0;
+char                 ma_strport[12]= "PORT=3306";
+char                 my_host[256];
+static int           Travis= 0, TravisOnOsx= 0;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -177,6 +180,8 @@ char *test_status[]= {"not ok", "ok", "skip"};
 #define TEST_PROBLEM  2
 /* Test for the known problem waiting for a fix. */
 #define TO_FIX        3
+/* Tests is known to sometimes fail in some environments */
+#define UNSTABLE      4
 
 const char comments[][2][64]= { {"\t#TODO: not ok - test is known to fail, unknown reason",
                                  "\t#Yay, seems like this problem has been magically fixed"},
@@ -184,22 +189,24 @@ const char comments[][2][64]= { {"\t#TODO: not ok - test is known to fail, unkno
                                 {"\t#TODO: Test is marked as requiring fix",
                                  "\t#TODO: Test is marked as requiring fix"},
                                 {"\t#TODO: Test is for the known problem that is waiting for a fix",
-                                 "\t#The problem seems to be fixed. Mark test as normal"}
+                                 "\t# The problem seems to be fixed. Mark test as normal"},
+                                {"\t# The test is known to sometimes fail with some DM versions", ""}
                               };
 #define MAX_ROW_DATA_LEN 1000
 #define MAX_NAME_LEN     255
 
-/* We don't test corresponding EnvAttr, but assume that connections are made using heler functions, and they use OdbcVer */
+/* We don't test corresponding EnvAttr, but assume that connections are made using helper functions, and they use OdbcVer */
 #define IS_ODBC3() (OdbcVer == SQL_OV_ODBC3)
 /* Atm iODBC is the only DM using SQLWCHAR of 4 bytes size */
 #define iOdbc() (sizeof(SQLWCHAR)==4)
 
-#define skip(A) diag((A)); return SKIP;
+#define skip(A) diag((A)); return SKIP
 
 typedef struct st_ma_odbc_test {
   int   (*my_test)();
   char  *title;
   int   test_type;
+  int   (*skip_condition)();
 } MA_ODBC_TESTS;
 
 #define ODBC_TEST(a)\
@@ -273,6 +280,7 @@ void get_env_defaults()
   if ((env_val= getenv("TEST_ADD_PARAM")) != NULL)
   {
     add_connstr= env_val;
+    storedAddConnstr= add_connstr;
   }
 }
 
@@ -319,6 +327,7 @@ void get_options(int argc, char **argv)
       break;
     case 'a':
       add_connstr= (SQLCHAR*)argv[i+1];
+      storedAddConnstr= add_connstr;
       break;
     case '?':
       Usage();
@@ -634,7 +643,6 @@ do {\
 #define CHECK_ENV_RC(env,rc) CHECK_HANDLE_RC(SQL_HANDLE_ENV,env,rc)
 #define CHECK_DESC_RC(desc,rc) CHECK_HANDLE_RC(SQL_HANDLE_DESC,desc,rc)
 
-
 #define FAIL_IF(expr,message)\
   if (expr)\
     {\
@@ -687,6 +695,7 @@ do {\
     return FAIL;\
   }\
 } while(0)
+
 
 int my_fetch_int(SQLHANDLE Stmt, unsigned int ColumnNumber)
 {
@@ -743,6 +752,10 @@ int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 #define CHECK_SQLSTATE_EX(A,B,C) FAIL_IF(check_sqlstate_ex(A,B,C) != OK, "Unexpected sqlstate!")
 #define CHECK_SQLSTATE(A,C) CHECK_SQLSTATE_EX(A, SQL_HANDLE_STMT, C)
 
+/* Tries to set requested cursor type, and if it returns */
+#define SKIP_IF_FORWARDONLY(_Stmt, _CursorType)  do{ if (ForwardOnly == TRUE){skip("FORWARDONLY cursor option is selected, and test requires other cursor type");}\
+CHECK_STMT_RC((_Stmt),SQLSetStmtAttr((_Stmt),SQL_ATTR_CURSOR_TYPE,(SQLPOINTER)(_CursorType),0));\
+} while (0)
 
 int get_native_errcode(SQLHSTMT Stmt)
 {
@@ -755,13 +768,7 @@ int get_native_errcode(SQLHSTMT Stmt)
 
 int using_dm(HDBC hdbc)
 {
-  SQLCHAR val[20];
-  SQLSMALLINT len;
-
-  if (SQLGetInfo(hdbc, SQL_DM_VER, val, sizeof(val), &len) == SQL_ERROR)
-    return 0;
-
-  return 1;
+  return (DmMajor != 0 || DmMinor !=  0 || DmPatch != 0);
 }
 
 
@@ -827,11 +834,11 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
     _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
       uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
       schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-      add_parameters ? add_parameters : "");
+      add_parameters ? add_parameters : (const char*)add_connstr);
     diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
            uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
            schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-           add_parameters ? add_parameters : "");
+           add_parameters ? add_parameters : (const char*)add_connstr);
   }
 
   if (DoWConnect == FALSE)
@@ -1020,12 +1027,87 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     return 1;
   }
 
+  {
+    SQLCHAR val[20];
+    SQLSMALLINT len;
+    SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
+
+    if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
+    {
+      sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
+    }
+
+    OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+    /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
+    CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
+    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+
+    if (rc == SQL_SUCCESS_WITH_INFO)
+    {
+      SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&SetCursorType, 0, NULL);
+
+      /* Other cases are not interesting for us. If it's static - means dynamic is not allowed, but DynamicAllowed is FALSE by default.
+       * If it was dynamic, then SQLGetStmtAttr would not return SQL_SUCCESS_WITH_INFO, but SQL_SUCCESS
+       */
+      if (SetCursorType == SQL_CURSOR_FORWARD_ONLY)
+      {
+        SQLHANDLE Stmt2;
+
+        ForwardOnly=  TRUE;
+        OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS codbc_checkcaching");
+        OK_SIMPLE_STMT(Stmt, "CREATE TABLE codbc_checkcaching (id INT NOT NULL)");
+        OK_SIMPLE_STMT(Stmt, "INSERT INTO codbc_checkcaching VALUES(1),(2)");
+        OK_SIMPLE_STMT(Stmt, "SELECT * FROM codbc_checkcaching");
+        CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+        CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2));
+        /* Currently if "NO CACHE" aka streaming is endabled, any query will error */
+        rc= SQLExecDirect(Stmt2, "INSERT INTO codbc_checkcaching VALUES(3)", SQL_NTS);
+
+        if (!SQL_SUCCEEDED(rc))
+        {
+          SQLCHAR SQLState[6];
+          SQLINTEGER NativeError;
+          SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
+          SQLSMALLINT TextLengthPtr;
+
+          SQLGetDiagRec(SQL_HANDLE_STMT, Stmt2, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
+          if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "The requested operation is blocked by another streaming operation") != NULL)
+          {
+            NoCache= TRUE;
+          }
+        }
+        CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+        CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+      }
+    }
+    else
+    {
+      DynamicAllowed= TRUE;
+    }
+    if (SetCursorType != CurCursorType)
+    {
+      CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)CurCursorType, 0));
+    }
+  }
+
   fprintf(stdout, "1..%d\n", tests_planned);
   while (tests->title)
   {
     buff_before_test= buff_pos;
 
-    rc= tests->my_test();
+    if (tests->skip_condition != NULL && tests->skip_condition())
+    {
+      rc= SKIP;
+    }
+    else
+    {
+      rc= tests->my_test();
+    }
     comment= "";
     if (rc!= SKIP && tests->test_type != NORMAL)
     {
@@ -1053,6 +1135,9 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     tests++;
 
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
+    /* Relieving tests from resoting my_options and/or add_connstr. Also, a test may fail */
+    my_options= defaultOptions;
+    add_connstr= storedAddConnstr;
     /* reset Statement */
     fflush(stdout);
   }
@@ -1145,6 +1230,7 @@ void printHex(char *str, int len)
   int i;
   for (i= 0; i<len; ++i)
   {
+    /*printf("%c%02hhx ", str[i], str[i]);*/
     printf("%02hhx", str[i]);
   }
 }
@@ -1277,6 +1363,18 @@ BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, un
   return TRUE;
 }
 
+
+BOOL DmMinVersion(unsigned int major, unsigned int minor, unsigned int patch)
+{
+  /* Should normally check if Dm is present at all, but if it is not, than all version parts are zero, and FALSE will be returned. Thus we are fine. */
+  if (DmMajor < major || (DmMajor == major && (DmMinor < minor || (DmMinor == minor && DmPatch < patch))))
+  {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 #ifdef _WIN32
 char * GenGUID(char *buffer)
 {
@@ -1374,5 +1472,24 @@ const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
 BOOL WindowsDM(HDBC hdbc)
 {
   return using_dm(hdbc) && UnixOdbc() == FALSE && iOdbc() == FALSE;
+}
+
+int SkipIfRsStreming()
+{
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    diag("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+    return 1;
+  }
+  return 0;
+}
+
+void DoNotSkipTests(MA_ODBC_TESTS* tests)
+{
+  while (tests && tests->title != NULL)
+  {
+    tests->skip_condition= NULL;
+    ++tests;
+  }
 }
 #endif      /* #ifndef _tap_h_ */

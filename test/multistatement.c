@@ -58,6 +58,7 @@ ODBC_TEST(test_multi_on_off)
   SQLRETURN rc;
 
   my_options= 0;
+  //add_connstr= "";
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
   rc= SQLPrepare(myStmt, (SQLCHAR*)"DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
@@ -232,9 +233,9 @@ ODBC_TEST(t_odbc74)
                         val VARCHAR(64) NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO odbc74 (val) VALUES('\"');INSERT INTO odbc74 (val) VALUES(\"'\");\
                         /*\"*//*'*//*/**/INSERT INTO odbc74 (val) VALUES('*/');\
-                        # Pound-sign comment\"'--; insert into non_existent values(1)\n\
+                        # Pound-sign comment\"'--; insert into non_existent VALUES(1)\n\
                         # 2 lines of comments \"'--;\n\
-                        INSERT INTO odbc74 (val) VALUES('/*');-- comment\"'; insert into non_existent values(1)\n\
+                        INSERT INTO odbc74 (val) VALUES('/*');-- comment\"'; insert into non_existent VALUES(1)\n\
                         INSERT INTO odbc74 (val) VALUES('end')\n\
                         # ;Unhappy comment at the end ");
   OK_SIMPLE_STMT(Stmt, "-- comment ;1 \n\
@@ -411,6 +412,12 @@ ODBC_TEST(t_odbc159)
   SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
   SQLRETURN rc;
 
+  if (ServerNotOlderThan(Connection, 10, 6, 0))
+  {
+    /* INFORMATION_SCHEMA.STATISTICS has 17 columns in 10.6 */
+    expCols[2]= 17;
+  }
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
                         CREATE TEMPORARY TABLE _temp_odbc159 AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
                         SELECT * FROM _temp_odbc159 LIMIT 5;");
@@ -461,7 +468,7 @@ ODBC_TEST(t_odbc177)
                         BEGIN\
                           SELECT 1;\
                           SELECT 2 as id, 'val' as `Value` FROM dual WHERE 1=0;\
-                          INSERT INTO t_odbc177 values(3);\
+                          INSERT INTO t_odbc177 VALUES(3);\
                           DELETE FROM t_odbc177 WHERE 1=0;\
                           SELECT 5, 4;\
                           DELETE FROM t_odbc177;\
@@ -472,7 +479,7 @@ ODBC_TEST(t_odbc177)
                         BEGIN\
                           SELECT 1;\
                           SELECT 2, 'val' FROM dual WHERE 1=0;\
-                          INSERT INTO t_odbc177 values(3), (7);\
+                          INSERT INTO t_odbc177 VALUES(3), (7);\
                           DELETE FROM t_odbc177 WHERE 1=0;\
                           SELECT 5, 4;\
                           SELECT 6;\
@@ -539,7 +546,7 @@ ODBC_TEST(t_odbc177)
 
 ODBC_TEST(t_odbc169)
 {
-  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * from t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
+  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * FROM t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
                         "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * from t_odbc169"};
   char Expected[][3][7]={ {"1", "", "" },       /* RS 1*/
                           {"1", "2", "Row 1"},  /* RS 2*/
@@ -649,6 +656,73 @@ ODBC_TEST(t_odbc219)
   return OK;
 }
 
+/* As part of ODBC-313 - if multistmt is allowed, all queries run at connect time are assembled in single batch.
+   This test verifies, that all is fine in this case */
+ODBC_TEST(test_autocommit)
+{
+  SQLHDBC Dbc;
+  SQLHSTMT Stmt;
+  SQLUINTEGER ac;
+  unsigned long noMsOptions= my_options & (~67108864);
+  SQLCHAR tracked[256];
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Dbc));
+  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+  /* First testing with multistatements off */
+  Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, &noMsOptions, NULL, "INITSTMT={SELECT 1}");
+  FAIL_IF(Stmt == NULL, "Connection error");
+
+  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  is_num(ac, SQL_AUTOCOMMIT_ON);
+  OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
+
+  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF));
+
+  Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
+  FAIL_IF(Stmt == NULL, "Connection error");
+
+  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  is_num(ac, SQL_AUTOCOMMIT_OFF);
+  OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 0);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  if (SQL_SUCCEEDED(SQLExecDirect(Stmt, "SELECT @@session_track_system_variables", SQL_NTS)))
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, tracked, sizeof(tracked), NULL));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+    OK_SIMPLE_STMT(Stmt, "SET autocommit=1;");
+    CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+    is_num(ac, SQL_AUTOCOMMIT_ON);
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
+
+  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+
+  Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
+  FAIL_IF(Stmt == NULL, "Connection error");
+
+  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  is_num(ac, SQL_AUTOCOMMIT_ON);
+  OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
+  CHECK_DBC_RC(Dbc, SQLFreeConnect(Dbc));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -666,13 +740,14 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc177, "t_odbc177"},
   {t_odbc169, "t_odbc169"},
   {t_odbc219, "t_odbc219"},
+  {test_autocommit, "test_autocommit"},
   {NULL, NULL}
 };
 
 int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
-  my_options= 67108866;
+  CHANGE_DEFAULT_OPTIONS(67108866);
   get_options(argc, argv);
   plan(tests);
   mark_all_tests_normal(my_tests);

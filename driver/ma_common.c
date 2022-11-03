@@ -27,9 +27,11 @@
 /* {{{ ltrim */
 char* ltrim(char *Str)
 {
-  /* I am not sure using iswspace, and not isspace makes any sense here. But probably does not hurt either */
-  while (Str && iswspace(Str[0]))
-    ++Str;
+  if (Str)
+  {
+    while (*Str && (*Str > 0 && isspace(*Str)))
+      ++Str;
+  }
   return Str;
 }
 /* }}} */
@@ -42,7 +44,7 @@ char* trim(char *Str)
   Str= ltrim(Str);
 
   end= Str + strlen(Str) - 1;
-  while (iswspace(*end))
+  while (isspace(*end))
     *end--= 0;
   return Str;
 }

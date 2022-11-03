@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2021 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,15 +19,33 @@
 #include <ma_odbc.h>
 
 extern const char* DefaultPluginLocation;
+static const char* utf8mb3 = "utf8mb3";
+static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
 
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
-  {SQL_TRANSACTION_REPEATABLE_READ, "REPEATABLE READ"},
-  {SQL_TRANSACTION_READ_COMMITTED, "READ COMMITTED"},
-  {SQL_TRANSACTION_READ_UNCOMMITTED, "READ UNCOMMITTED"},
-  {SQL_TRANSACTION_SERIALIZABLE, "SERIALIZABLE"},
+  {SQL_TRANSACTION_REPEATABLE_READ, "REPEATABLE READ", "REPEATABLE-READ"},
+  {SQL_TRANSACTION_READ_COMMITTED, "READ COMMITTED", "READ-COMMITTED"},
+  {SQL_TRANSACTION_READ_UNCOMMITTED, "READ UNCOMMITTED", "READ-UNCOMMITTED"},
+  {SQL_TRANSACTION_SERIALIZABLE, "SERIALIZABLE", "SERIALIZABLE"},
   {0, 0}
 };
+
+
+static long TranslateTxIsolation(const char* txIsolation, size_t len)
+{
+  unsigned int i;
+  for (i = 0; i < 4; i++)
+  {
+    if (strncmp(txIsolation, MADB_IsolationLevel[i].StrIsolation, len) == 0 || strncmp(txIsolation, MADB_IsolationLevel[i].TrackStr, len) == 0)
+    {
+      return MADB_IsolationLevel[i].SqlIsolation;
+      break;
+    }
+  }
+  return SQL_TRANSACTION_REPEATABLE_READ;
+}
+
 
 /* used by SQLGetFunctions */
 SQLUSMALLINT MADB_supported_api[]=
@@ -112,6 +130,36 @@ SQLUSMALLINT MADB_supported_api[]=
   SQL_API_SQLTABLEPRIVILEGES
 
 };
+
+SQLRETURN MADB_DbcDummyTrackSession(MADB_Dbc* Dbc);
+SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER*txIsolation);
+
+/* Stub for stream caching - i.e. cahing is desabled by default, and we just raise the error, if some stmt is streaming atm
+ * Stmt - the statement, that has requested the operation, and where the error has to be set 
+ */
+int MADB_Dbc_ErrorOnStreaming(MADB_Error *Error)
+{
+  MADB_SetError(Error, MADB_ERR_HY000, "The requested operation is blocked by another streaming operation", 0);
+  return 1;
+}
+
+
+/* Main method for stream caching - i.e. cahing is desabled by default, and we are capable to store and operate the rest
+   of the RS.
+   Stmt - the statement, that has requested the operation, and where the error has to be set */
+int MADB_Dbc_CacheRestOfCurrentRsStream(MADB_Dbc* Dbc, MADB_Error *Error)
+{
+  if (Dbc->Streamer != NULL)
+  {
+    if (Dbc->Streamer->RsOps->CacheRestOfRs(Dbc->Streamer))
+    {
+      return MADB_Dbc_ErrorOnStreaming(Error);
+    }
+    Dbc->Streamer= NULL;
+    return 0;
+  }
+  return 0;
+}
 
 
 my_bool CheckConnection(MADB_Dbc *Dbc)
@@ -211,6 +259,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       {
         return MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
       }
+      MADB_RESET(Dbc->CurrentSchema, Dbc->CatalogName);
     }
     break;
   case SQL_ATTR_LOGIN_TIMEOUT:
@@ -260,14 +309,15 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         if (MADB_IsolationLevel[i].SqlIsolation == (SQLLEN)ValuePtr)
         {
           char StmtStr[128];
-          _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+          int len= _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                       MADB_IsolationLevel[i].StrIsolation);
           LOCK_MARIADB(Dbc);
-          if (mysql_query(Dbc->mariadb, StmtStr))
+          if (mysql_real_query(Dbc->mariadb, StmtStr, (unsigned long)len))
           {
             UNLOCK_MARIADB(Dbc);
             return MADB_SetError(&Dbc->Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb), mysql_errno(Dbc->mariadb));
           }
+          Dbc->Methods->TrackSession(Dbc);
           UNLOCK_MARIADB(Dbc);
           ValidTx= TRUE;
           break;
@@ -314,7 +364,8 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= SQL_FALSE;
     break;
   case SQL_ATTR_AUTOCOMMIT:
-    *(SQLUINTEGER *)ValuePtr= Dbc->AutoCommit;
+    /* Not sure why Dbc->AutoCommit is initialized with 4. Probably the idea has been lost in time. But keeping it so far, and workarounding here. Looks like all DMs but iOdbc corrects the value to SQL_AUTOCOMMIT_ON, when returning */
+    *(SQLUINTEGER *)ValuePtr= (Dbc->AutoCommit != 0 ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
     break;
   case SQL_ATTR_CONNECTION_DEAD:
     /* ping may fail if status isn't ready, so we need to check errors */
@@ -329,12 +380,12 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     SQLSMALLINT StrLen;
     SQLRETURN   ret;
 
-    ret= MADB_Dbc_GetCurrentDB(Dbc, ValuePtr, BufferLength, &StrLen, isWChar);
+    ret= Dbc->Methods->GetCurrentDB(Dbc, ValuePtr, BufferLength, &StrLen, isWChar);
     /* if we weren't able to determine the current db, we will return the cached catalog name */
     if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
     {
       MADB_CLEAR_ERROR(&Dbc->Error);
-      StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : 0, ValuePtr, BufferLength, 
+      StrLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : 0, ValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                           Dbc->CatalogName, strlen(Dbc->CatalogName), &Dbc->Error);
       ret= SQL_SUCCESS;
     }
@@ -351,9 +402,10 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLUINTEGER *)ValuePtr= 0;
     break;
   case SQL_ATTR_METADATA_ID:
+    /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
-    *(SQLINTEGER *)ValuePtr= SQL_CUR_USE_ODBC;
+    *(SQLULEN*)ValuePtr= SQL_CUR_USE_ODBC;
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
@@ -363,11 +415,13 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     {
       unsigned long packet_size= 0;
       mysql_get_option(Dbc->mariadb, MYSQL_OPT_NET_BUFFER_LENGTH, &packet_size);
-      *(SQLINTEGER *)ValuePtr= (SQLINTEGER)packet_size;
+      *(SQLUINTEGER *)ValuePtr= (SQLUINTEGER)packet_size;
     }
     break;
   case SQL_ATTR_QUIET_MODE:
-    Dbc->QuietMode= (HWND)ValuePtr;
+#ifdef _WIN32
+  ValuePtr= static_cast<SQLPOINTER>(Dbc->QuietMode);
+#endif // _WIN32
     break;
   case SQL_ATTR_TRACE:
     break;
@@ -382,37 +436,14 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
        assume a default of REPETABLE_READ */
     if (!Dbc->TxnIsolation)
     {
-      *(SQLULEN *)ValuePtr= SQL_TRANSACTION_REPEATABLE_READ;
+      Dbc->TxnIsolation= SQL_TRANSACTION_REPEATABLE_READ;
       if (Dbc->mariadb)
       {
-        MYSQL_RES *result;
-        MYSQL_ROW row;
-        const char *StmtString= "SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='TX_ISOLATION'";
-
-        LOCK_MARIADB(Dbc);
-        if (mysql_query(Dbc->mariadb, StmtString))
-        {
-          UNLOCK_MARIADB(Dbc);
-          MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
-          return Dbc->Error.ReturnValue;
-        }
-        result= mysql_store_result(Dbc->mariadb);
-        UNLOCK_MARIADB(Dbc);
-        if ((row = mysql_fetch_row(result)))
-        {
-          unsigned int i;
-          for (i=0; i < 4; i++)
-            if (!strcmp(row[0], MADB_IsolationLevel[i].StrIsolation))
-            {
-              *(SQLULEN *)ValuePtr= MADB_IsolationLevel[i].SqlIsolation;
-              break;
-            }
-        }
-        mysql_free_result(result);
+        Dbc->Methods->GetTxIsolation(Dbc, (SQLINTEGER*)ValuePtr);
       }
     }
     else 
-      *(SQLULEN *)ValuePtr= Dbc->TxnIsolation;
+      *(SQLINTEGER*)ValuePtr= Dbc->TxnIsolation;
     break;
 
   default:
@@ -453,7 +484,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
 
   MADB_FREE(Connection->CatalogName);
   CloseClientCharset(&Connection->Charset);
-  MADB_FREE(Connection->DataBase);
+  MADB_FREE(Connection->CurrentSchema);
   MADB_DSN_Free(Connection->Dsn);
   DeleteCriticalSection(&Connection->cs);
 
@@ -462,38 +493,65 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
 }
 /* }}} */
 
-/* {{{ MADB_Dbc_GetCurrentDB */
-SQLRETURN MADB_Dbc_GetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
+/* {{{ MADB_DbcGetCurrentDB
+   Fetches current DB. For use without session tracking
+*/
+SQLRETURN MADB_DbcGetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, 
                                 SQLSMALLINT *StringLengthPtr, my_bool isWChar) 
 {
-  MADB_Stmt *Stmt;
-  SQLRETURN ret;
   SQLLEN Size;
-  char Buffer[65 * sizeof(SQLWCHAR)];
+  MYSQL_RES *res;
+  MYSQL_ROW row;
 
   MADB_CLEAR_ERROR(&Connection->Error);
-  ret= MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE) Connection, (SQLHANDLE*)&Stmt);
-  if (!SQL_SUCCEEDED(ret))
-    return ret;
-  if (!SQL_SUCCEEDED(Stmt->Methods->ExecDirect(Stmt, (char *)"SELECT IF(DATABASE() IS NOT NULL,DATABASE(),'null')", SQL_NTS)) ||
-      !SQL_SUCCEEDED(Stmt->Methods->Fetch(Stmt)))
+  if (CheckConnection(Connection) == FALSE)
   {
-    MADB_CopyError(&Connection->Error, &Stmt->Error);
+    return MADB_SetError(&Connection->Error, MADB_ERR_08003, NULL, 0);
+  }
+
+  LOCK_MARIADB(Connection);
+
+  if (mysql_real_query(Connection->mariadb, "SELECT DATABASE()", 17) || (res= mysql_store_result(Connection->mariadb)) == NULL)
+  {
+    MADB_SetNativeError(&Connection->Error, SQL_HANDLE_DBC, Connection->mariadb);;
     goto end;
   }
   
-  ret= Stmt->Methods->GetData(Stmt, 1, SQL_CHAR, Buffer, 65, &Size, TRUE);
+  row = mysql_fetch_row(res);
 
   Size= (SQLSMALLINT)MADB_SetString(isWChar ? & Connection->Charset : 0, 
-                                     (void *)CurrentDB, BUFFER_CHAR_LEN(CurrentDBLength, isWChar), Buffer,
+                                     (void *)CurrentDB, BUFFER_CHAR_LEN(CurrentDBLength, isWChar), row[0] != NULL ? row[0] : "null",
                                      SQL_NTS, &Connection->Error);
+  mysql_free_result(res);
+
   if (StringLengthPtr)
     *StringLengthPtr= isWChar ? (SQLSMALLINT)Size * sizeof(SQLWCHAR) : (SQLSMALLINT)Size;
   
 end:
-  Stmt->Methods->StmtFree(Stmt, SQL_DROP);
+  UNLOCK_MARIADB(Connection);
   return Connection->Error.ReturnValue;
 }
+/* }}} */
+
+/* {{{ MADB_DbcGetTrackedCurrentDB
+   Fetches current DB. For use without session tracking
+*/
+SQLRETURN MADB_DbcGetTrackedCurrentDB(MADB_Dbc* Dbc, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength,
+  SQLSMALLINT* StringLengthPtr, my_bool isWChar)
+{
+  SQLLEN Size;
+
+  MADB_CLEAR_ERROR(&Dbc->Error);
+  Size = (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : 0,
+    (void*)CurrentDB, BUFFER_CHAR_LEN(CurrentDBLength, isWChar), Dbc->CurrentSchema != NULL ? Dbc->CurrentSchema : "null",
+    SQL_NTS, &Dbc->Error);
+
+  if (StringLengthPtr)
+    *StringLengthPtr = isWChar ? (SQLSMALLINT)Size * sizeof(SQLWCHAR) : (SQLSMALLINT)Size;
+  return Dbc->Error.ReturnValue;
+}
+/* }}} */
+
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
 {
   unsigned int ServerStatus;
@@ -520,19 +578,54 @@ SQLRETURN MADB_DbcEndTran(MADB_Dbc *Dbc, SQLSMALLINT CompletionType)
   LOCK_MARIADB(Dbc);
   switch (CompletionType) {
   case SQL_ROLLBACK:
+    if (Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, &Dbc->Error))
+    {
+      goto end;
+    }
     if (Dbc->mariadb && mysql_rollback(Dbc->mariadb))
+    {
       MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
+    }
     break;
   case SQL_COMMIT:
+    if (Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, &Dbc->Error))
+    {
+      goto end;
+    }
     if (Dbc->mariadb && mysql_commit(Dbc->mariadb))
       MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
     break;
   default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY012, NULL, 0);
   }
+  Dbc->Methods->TrackSession(Dbc);
+end:
   UNLOCK_MARIADB(Dbc);
 
   return Dbc->Error.ReturnValue;
+}
+/* }}} */
+
+/* {{{ MADB_AddInitCommand
+*/
+static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned long MultiStmtAllowed, const char *StmtToAdd)
+{
+  if (MultiStmtAllowed == 0)
+  {
+    mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, StmtToAdd);
+    return 0;
+  }
+  else
+  {
+    if (InitCmd->length != 0)
+    {
+      if (MADB_DynstrAppendMem(InitCmd, ";", 1))
+      {
+        return 1;
+      }
+    }
+    return MADB_DynstrAppend(InitCmd, StmtToAdd);
+  }
 }
 /* }}} */
 
@@ -543,10 +636,13 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     MADB_Dsn *Dsn)
 {
   char StmtStr[128];
-  unsigned ReportDataTruncation= 1;
+  my_bool ReportDataTruncation= 1;
   unsigned int i;
-  unsigned long client_flags= 0L;
+  unsigned long client_flags= CLIENT_MULTI_RESULTS;
   my_bool my_reconnect= 1;
+  int protocol = MYSQL_PROTOCOL_TCP;
+  MADB_DynString InitCmd;
+  const char* defaultSchema= NULL;
   
   if (!Connection || !Dsn)
     return SQL_ERROR;
@@ -587,6 +683,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
     if (!MADB_IS_EMPTY(Dsn->CharacterSet))
     {
+      if (strcmp(Dsn->CharacterSet, "utf8") == 0)
+      {
+        cs_name= utf8mb3;
+      }
      cs_name= Dsn->CharacterSet;
     }
     else if (Connection->IsAnsi)
@@ -603,7 +703,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     }
     if (iOdbc() && strcmp(Connection->Charset.cs_info->csname, "swe7") == 0)
     {
-      MADB_SetError(&Connection->Error, MADB_ERR_HY001, "Charset SWE7 is not supported with iODBC", 0);
+      MADB_SetError(&Connection->Error, MADB_ERR_HY000, "Charset SWE7 is not supported with iODBC", 0);
       goto end;
 
     }
@@ -617,19 +717,65 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* todo: error handling */
   mysql_optionsv(Connection->mariadb, MYSQL_SET_CHARSET_NAME, Connection->Charset.cs_info->csname);
 
+  /* This should go before any DSN_OPTION macro use. I don't know why can't we use Dsn directly, though */
+  Connection->Options = Dsn->Options;
+
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
+  {
+    client_flags|= CLIENT_MULTI_STATEMENTS;
+    MADB_InitDynamicString(&InitCmd, "", 1024, 1024);
+  }
+
   if (Dsn->InitCommand && Dsn->InitCommand[0])
-    mysql_optionsv(Connection->mariadb, MYSQL_INIT_COMMAND, Dsn->InitCommand);
- 
+  {
+    MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), Dsn->InitCommand);
+  }
+  /* Turn sql_auto_is_null behavior off.
+    For more details see: http://bugs.mysql.com/bug.php?id=47005 */
+  MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION SQL_AUTO_IS_NULL=0");
+
+  /* set autocommit behavior */
+  if (Connection->AutoCommit != 0)
+  {
+    MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=1");
+  }
+  else
+  {
+    MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=0");
+  }
+
+  /* Set isolation level */
+  if (Connection->IsolationLevel)
+  {
+    for (i = 0; i < 4; i++)
+    {
+      if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
+      {
+        _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+          MADB_IsolationLevel[i].StrIsolation);
+        MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), StmtStr);
+        break;
+      }
+    }
+  }
+
+  /* If multistmts allowed - we've put all queries to run in InitCmd. Now need to set it to MYSQL_INIT_COMMAND option */
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_INIT_COMMAND, InitCmd.str);
+  }
+
   if (Dsn->ConnectionTimeout)
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
 
-  Connection->Options= Dsn->Options;
+  if (Dsn->ReadTimeout)
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const char *)&Dsn->ReadTimeout);
+
+  if (Dsn->WriteTimeout)
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const char *)&Dsn->WriteTimeout);
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
-
-  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void *)Dsn->ServerName);
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
     client_flags|= CLIENT_NO_SCHEMA;
@@ -640,8 +786,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     client_flags|= CLIENT_FOUND_ROWS;
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_COMPRESSED_PROTO))
     client_flags|= CLIENT_COMPRESS;
-  if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
-    client_flags|= CLIENT_MULTI_STATEMENTS;
+  
 
   if (Dsn->InteractiveClient)
   {
@@ -652,9 +797,22 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
 
   if (Dsn->Socket)
   {
-    int protocol= MYSQL_PROTOCOL_SOCKET;
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+    protocol= MYSQL_PROTOCOL_SOCKET;
   }
+  else if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void*)Dsn->ServerName);
+    protocol = MYSQL_PROTOCOL_PIPE;
+  }
+  else if (Dsn->Port > 0 || Dsn->IsTcpIp)
+  {
+    protocol = MYSQL_PROTOCOL_TCP;
+    if (Dsn->Port == 0)
+    {
+      Dsn->Port= 3306;
+    }
+  }
+  mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
 
   {
     /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
@@ -719,7 +877,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
         mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
       }
     }
-  
+
     if (Dsn->SslVerify)
     {
       const unsigned int verify= 0x01010101;
@@ -766,9 +924,28 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
   }
 
+  if (Dsn->DisableLocalInfile != '\0')
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &unselectedIntOption);
+  }
+  else
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &selectedIntOption);
+  }
+
+  /* set default catalog. If we have value set via SQL_ATTR_CURRENT_CATALOG - it takes priority. Otherwise - DSN */
+  if (Connection->CatalogName && Connection->CatalogName[0])
+  {
+    defaultSchema= Connection->CatalogName;
+  }
+  else if (Dsn->Catalog && Dsn->Catalog[0])
+  {
+    //MADB_RESET(Connection->CatalogName, Dsn->Catalog);
+    defaultSchema= Dsn->Catalog;
+  }
+
   if (!mysql_real_connect(Connection->mariadb,
-      Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password,
-        Dsn->Catalog && Dsn->Catalog[0] ? Dsn->Catalog : NULL, Dsn->Port, Dsn->Socket, client_flags))
+      Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password, defaultSchema, Dsn->Port, Dsn->Socket, client_flags))
   {
     goto err;
   }
@@ -781,37 +958,48 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       goto err;*/
   }
 
-  /* set default catalog */
-  if (Connection->CatalogName && Connection->CatalogName[0])
+  MADB_SetCapabilities(Connection, mysql_get_server_version(Connection->mariadb), mysql_get_server_name(Connection->mariadb));
+
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_CACHE))
   {
-    if (mysql_select_db(Connection->mariadb, Connection->CatalogName))
-      goto err;
+    Connection->Methods->CacheRestOfCurrentRsStream= &MADB_Dbc_CacheRestOfCurrentRsStream;
   }
 
-  /* Turn sql_auto_is_null behavior off.
-     For more details see: http://bugs.mysql.com/bug.php?id=47005 */
-  if (mysql_query(Connection->mariadb, "SET SESSION SQL_AUTO_IS_NULL=0"))
-    goto err;
-
-  /* set autocommit behavior */
-  if (mysql_autocommit(Connection->mariadb, (my_bool)Connection->AutoCommit))
-    goto err;
-
-  /* Set isolation level */
-  if (Connection->IsolationLevel)
-    for (i=0; i < 4; i++)
+  if (MADB_ServerSupports(Connection, MADB_SESSION_TRACKING) == TRUE)
+  {
+    int len;
+    if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
     {
-      if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
+      char buffer[sizeof("SET session_track_schema= ON;SET session_track_system_variables='autocommit'") + 1/*','*/ + 21/*transaction_isolation*/];
+      len= _snprintf(buffer, sizeof(buffer), "SET session_track_schema= ON;SET session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
+      if (mysql_real_query(Connection->mariadb, buffer, (unsigned long)len) ||
+        mysql_next_result(Connection->mariadb))
       {
-        _snprintf(StmtStr, 128, "SET SESSION TRANSACTION ISOLATION LEVEL %s",
-                    MADB_IsolationLevel[i].StrIsolation);
-        if (mysql_query(Connection->mariadb, StmtStr))
-          goto err;
-        break;
+        goto sessionTrackinErr;
       }
     }
+    else
+    {
+      char buffer[sizeof("SET session_track_system_variables='autocommit'") + 1/*','*/ + 21/*transaction_isolation*/];
+      len= _snprintf(buffer, sizeof(buffer), "SET session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
+      if (mysql_real_query(Connection->mariadb, "SET session_track_schema= ON", 28) ||
+        mysql_real_query(Connection->mariadb, buffer, (unsigned long)len))
+      {
+        goto sessionTrackinErr;
+      }
+    }
+    if (defaultSchema != NULL)
+    {
+      Connection->CurrentSchema= _strdup(defaultSchema);
+    }
+    goto end;
+  }
 
-  MADB_SetCapabilities(Connection, mysql_get_server_version(Connection->mariadb));
+sessionTrackinErr:
+  /* Default methods are for use of session tracking */
+  Connection->Methods->GetCurrentDB= &MADB_DbcGetCurrentDB;
+  Connection->Methods->TrackSession= &MADB_DbcDummyTrackSession;
+  Connection->Methods->GetTxIsolation= &MADB_DbcGetServerTxIsolation;
 
   goto end;
 
@@ -1147,7 +1335,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                                      Dbc->Dsn ? Dbc->Dsn->DSNName : "", SQL_NTS, &Dbc->Error);
     break;
   case SQL_DATABASE_NAME:
-    return MADB_Dbc_GetCurrentDB(Dbc, InfoValuePtr, BufferLength, (SQLSMALLINT *)StringLengthPtr, isWChar);
+    return Dbc->Methods->GetCurrentDB(Dbc, InfoValuePtr, BufferLength, (SQLSMALLINT *)StringLengthPtr, isWChar);
     break;
   case SQL_DATETIME_LITERALS:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_DL_SQL92_DATE | SQL_DL_SQL92_TIME |
@@ -1919,6 +2107,90 @@ error:
 }
 /* }}} */
 
+SQLRETURN MADB_DbcTrackSession(MADB_Dbc* Dbc)
+{
+  const char *key, *value;
+  size_t keyLength, length;
+
+  if (mysql_session_track_get_first(Dbc->mariadb, SESSION_TRACK_SCHEMA, &value, &length) == 0)
+  {
+    MADB_FREE(Dbc->CurrentSchema);
+    Dbc->CurrentSchema= strndup(value, length);
+  }
+
+  if (mysql_session_track_get_first(Dbc->mariadb, SESSION_TRACK_SYSTEM_VARIABLES, &key, &keyLength) == 0)
+  {
+    do {
+      mysql_session_track_get_next(Dbc->mariadb, SESSION_TRACK_SYSTEM_VARIABLES, &value, &length);
+      if (strncmp(key, "autocommit", keyLength) == 0)
+      {
+        /* Seemingly it's ON or OFF, but checking also lowercase and '0' or '1' */
+        Dbc->AutoCommit= test(length > 1 && (value[1] == 'N' || value[1] == 'n') || length == 1 && *value == '1');
+      }
+      else if (strncmp(key, MADB_GetTxIsolationVarName(Dbc), keyLength) == 0)
+      {
+        Dbc->TxnIsolation= TranslateTxIsolation(value, length);
+      }
+    } while (mysql_session_track_get_next(Dbc->mariadb, SESSION_TRACK_SYSTEM_VARIABLES, &key, &keyLength) == 0);
+  }
+  return SQL_SUCCESS;
+}
+
+SQLRETURN MADB_DbcDummyTrackSession(MADB_Dbc* Dbc)
+{
+  return SQL_SUCCESS;
+}
+
+
+/* {{{ MADB_DbcGetTrackedTxIsolatin
+   
+*/
+SQLRETURN MADB_DbcGetTrackedTxIsolatin(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
+{
+  MADB_CLEAR_ERROR(&Dbc->Error);
+
+  *txIsolation= Dbc->TxnIsolation;
+
+  return SQL_SUCCESS;
+}
+
+
+/* {{{ MADB_DbcGetServerTxIsolation
+   
+*/
+SQLRETURN MADB_DbcGetServerTxIsolation(MADB_Dbc* Dbc, SQLINTEGER* txIsolation)
+{
+  MYSQL_RES* result;
+  MYSQL_ROW row;
+  const char* StmtString = MADB_GetTxIsolationQuery(Dbc);
+
+  LOCK_MARIADB(Dbc);
+  if (mysql_real_query(Dbc->mariadb, StmtString, 21))
+  {
+    UNLOCK_MARIADB(Dbc);
+    return MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
+  }
+  result = mysql_store_result(Dbc->mariadb);
+  UNLOCK_MARIADB(Dbc);
+  if ( result != NULL && (row = mysql_fetch_row(result)))
+  {
+    *txIsolation= Dbc->TxnIsolation= TranslateTxIsolation(row[0], strlen(row[0]));
+    mysql_free_result(result);
+  }
+  else
+  {
+    return MADB_SetNativeError(&Dbc->Error, SQL_HANDLE_DBC, Dbc->mariadb);
+  }
+
+  return SQL_SUCCESS;
+}
+
+/* Default method for current stream caching - for the case caching is not disabled, and stream caching is not needed */
+int MADB_Dbc_StreamingIsNotUsed(MADB_Dbc *Dbc, MADB_Error *Error)
+{
+  return 0;
+}
+
 struct st_ma_connection_methods MADB_Dbc_Methods =
 {
   MADB_DbcSetAttr,
@@ -1927,7 +2199,11 @@ struct st_ma_connection_methods MADB_Dbc_Methods =
   MADB_DbcEndTran,
   MADB_DbcGetFunctions,
   MADB_DbcGetInfo,
-  MADB_DriverConnect
+  MADB_DriverConnect,
+  MADB_DbcGetTrackedCurrentDB,
+  MADB_DbcTrackSession,
+  MADB_DbcGetTrackedTxIsolatin,
+  MADB_Dbc_StreamingIsNotUsed /* and thus there is nothing to cache */
 };
 
 /* {{{ MADB_DbcInit() */

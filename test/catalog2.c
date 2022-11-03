@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2019 MariaDB Corporation AB
+                2017, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -79,10 +79,11 @@ and (some) IS_NULLABLE
 ODBC_TEST(t_bug34272)
 {
   SQLCHAR dummy[20];
-  SQLULEN col6, col18, length;
+  SQLULEN col6= 0, col18= 0;
+  SQLLEN length= 0, buf_len= 0;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug34272");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug34272 (x int unsigned)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug34272");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug34272 (x INT UNSIGNED)");
 
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
     (SQLCHAR *)"t_bug34272", SQL_NTS, NULL, 0));
@@ -91,18 +92,30 @@ ODBC_TEST(t_bug34272)
     &col6, NULL, NULL));
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 18, dummy, sizeof(dummy), NULL, NULL,
     &col18, NULL, NULL));
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_DISPLAY_SIZE, NULL, 0, NULL, &length));
+  FAIL_IF(length < 0, "Returned negative display length value for 32b SQLLEN");
+  CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_LENGTH, NULL, 0, NULL, &length));
+  FAIL_IF(length < 0, "Returned negative column length value for 32b SQLLEN");
+  /* On ODBC2 tests run iODBC this field identifier is invalid */
+  if (!iOdbc() || OdbcVer != SQL_OV_ODBC2)
+  {
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 6, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &length));
+    FAIL_IF(length < 0, "Returned negative octet length value for 32b SQLLEN");
+  }
+
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, dummy, col6+1, &length));
+  buf_len= col6 + 1;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 6, SQL_C_CHAR, dummy, buf_len < 0 ? 0x7FFFFFFF : buf_len, &length));
   is_num(length,12);
   IS_STR(dummy, "INT UNSIGNED", length+1);
 
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 18, SQL_C_CHAR, dummy, col18+1, &length));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 18, SQL_C_CHAR, dummy, col18 + 1, &length));
   is_num(length,3);
   IS_STR(dummy, "YES", length+1);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug34272");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug34272");
 
   return OK;
 }
@@ -275,7 +288,7 @@ ODBC_TEST(t_bug50195)
                          "DROP", "INDEX", "INSERT", "REFERENCES", "SHOW VIEW", "TRIGGER", "UPDATE" },
               *expected= expected_privs[0];
   int         i, privs_count= sizeof(expected_privs)/sizeof(expected_privs[0]);
-  SQLCHAR     priv[24];
+  SQLCHAR     priv[24], dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[36 + sizeof(my_host)], revokeSelect[44 + sizeof(my_host)];
   SQLLEN      len;
 
   if (ServerNotOlderThan(Connection, 10, 3, 4))
@@ -302,13 +315,16 @@ ODBC_TEST(t_bug50195)
   }
   else
   {
-    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@127.0.0.1", SQL_NTS);
-    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@localhost", SQL_NTS);
+    /* Basically this can be used for Travis as well, and the if's above and below can be removed*/
+    _snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
+    _snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+    _snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
+    _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
+    SQLExecDirect(Stmt, dropUser, SQL_NTS);
 
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@127.0.0.1 IDENTIFIED BY 's3CureP@wd'");
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@localhost IDENTIFIED BY 's3CureP@wd'");
+    OK_SIMPLE_STMT(Stmt, createUser);
 
-    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "GRANT ALL ON bug50195 TO bug50195@'127.0.0.1'", SQL_NTS)))
+    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grantAll, SQL_NTS)))
     {
       odbc_print_error(SQL_HANDLE_STMT, Stmt);
       if (get_native_errcode(Stmt) == 1142)
@@ -318,10 +334,7 @@ ODBC_TEST(t_bug50195)
       return FAIL;
     }
 
-    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'localhost'");
-
-    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@127.0.0.1");
-    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@localhost");
+    OK_SIMPLE_STMT(Stmt, revokeSelect);
   }
 
   OK_SIMPLE_STMT(Stmt, "FLUSH PRIVILEGES");
@@ -340,8 +353,7 @@ ODBC_TEST(t_bug50195)
     }
     else
     {
-      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
-      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+      OK_SIMPLE_STMT(Stmt, dropUser);
     }
     OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
 
@@ -372,8 +384,7 @@ ODBC_TEST(t_bug50195)
   }
   else
   {
-    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@127.0.0.1");
-    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@localhost");
+    OK_SIMPLE_STMT(Stmt, dropUser);
   }
   
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
@@ -1006,7 +1017,7 @@ ODBC_TEST(sqlcolumns_nodbselected)
 
   
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn_in, strlen(conn_in), NULL,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn_in, (SQLSMALLINT)strlen(conn_in), NULL,
                                  0, NULL,
                                  SQL_DRIVER_NOPROMPT));
 
@@ -1508,6 +1519,353 @@ ODBC_TEST(odbc231)
 }
 
 
+/*
+  ODBC-313 - more like a side effect, or rather the reason why optimization is possible.
+  SQLPrimaryKeys(and SQLStatistics) parameters cannot be treated as search patterns. Thus _ should
+  mean onlye _, and not any character
+*/
+ODBC_TEST(odbc313)
+{
+  SQLCHAR Catalog[MAX_NAME_LEN + 1], Table[MAX_NAME_LEN + 1], Column[MAX_NAME_LEN + 1], AddSchema[MAX_NAME_LEN + 1], temp[256];
+  SQLCHAR Create[16/*CREATE DATABASE */ + MAX_NAME_LEN + 1], Drop[24/*DROP DATABASE IF EXISTS */ + MAX_NAME_LEN + 1];
+  SQLLEN  CatalogLen, RowCount, TableLen, ColumnLen;
+  SQLRETURN rc;
+  SQLHANDLE Hdbc, Hstmt;
+
+  strcpy(AddSchema, my_schema);
+  AddSchema[0]= '_';
+
+  sprintf(Drop, "DROP DATABASE IF EXISTS %s", AddSchema);
+  rc= SQLExecDirect(Stmt, Drop, SQL_NTS);
+
+  if (SQL_SUCCEEDED(rc))
+  {
+    sprintf(Create, "CREATE DATABASE %s", AddSchema);
+    rc= SQLExecDirect(Stmt, Create, SQL_NTS);
+  }
+
+  if (!SQL_SUCCEEDED(rc))
+  {
+    skip("Test user does not have sufficient privileges. It should be able to drop/create database");
+  }
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, AddSchema, NULL, NULL, NULL);
+  FAIL_IF(Hstmt == NULL, "Could not connect with created schema as default, or other error occurred");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Hstmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313x1");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc313_1(pk1 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc313x1(pk2 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+  OK_SIMPLE_STMT(Hstmt, "CREATE TABLE odbc313_1(pk3 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, AddSchema, SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc313_1", SQL_NTS));
+
+  /* Test of SQLRowCount with SQLPrimaryKeys */
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, Catalog, sizeof(Catalog), &CatalogLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, Table, sizeof(Table), &TableLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(CatalogLen, strlen(AddSchema));
+  IS_STR(Catalog, AddSchema, strlen(AddSchema));
+  IS_STR(Table, "odbc313_1", sizeof("odbc313_1"));
+  IS_STR(Column, "pk3", sizeof("pk3"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "No more rows expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, AddSchema, SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR*)"odbc313_1", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, Catalog, sizeof(Catalog), &CatalogLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, Table, sizeof(Table), &TableLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 9, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  is_num(CatalogLen, strlen(AddSchema));
+  IS_STR(Catalog, AddSchema, strlen(AddSchema));
+  IS_STR(Table, "odbc313_1", sizeof("odbc313_1"));
+  IS_STR(Column, "pk3", sizeof("pk3"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "No more rows expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, AddSchema, SQL_NTS, NULL, 0,
+    (SQLCHAR*)"odbc313_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  Catalog[0]= '\0';
+  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, temp, sizeof(temp), &ColumnLen));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR(temp, "pk3", sizeof("pk3"));
+
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "No more rows expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Hstmt, "DROP TABLE IF EXISTS odbc313_1");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313x1");
+  OK_SIMPLE_STMT(Stmt, Drop);
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+
+
+/*
+  ODBC-316 - various typical (minor) issues
+  - empty string parameter
+*/
+ODBC_TEST(odbc316)
+{
+  SQLCHAR grant[256];
+  BOOL runColumnPrivileges= TRUE, runTablePrivileges= TRUE;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc316_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc316_1");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS odbc316");
+  OK_SIMPLE_STMT(Stmt,
+    "CREATE PROCEDURE odbc316(IN inParam INT UNSIGNED)"
+    "BEGIN"
+    " SELECT inParam AS ret;"
+    "END");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc316_1(pk1 INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc316_2(pk INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, fk INTEGER NOT NULL,"
+                       "FOREIGN KEY (fk) REFERENCES odbc316_1(pk1))");
+
+  _snprintf(grant, sizeof(grant), "GRANT INSERT (pk1), SELECT (pk1), UPDATE (pk1) ON odbc316_1 TO %s", my_uid);
+
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
+  {
+    /* We could not set col privileges, thus SQLColumnPrivileges will return empty set anyway. There is no sense to test */
+    runColumnPrivileges= FALSE;
+  }
+  _snprintf(grant, sizeof(grant), "GRANT INSERT, SELECT, UPDATE, DROP ON odbc316_1 TO %s", my_uid);
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
+  {
+    /* We could not set table privileges, thus SQLTablePrivileges will return empty set anyway. There is no sense to test */
+    runTablePrivileges = FALSE;
+  }
+  /* Empty string Catalog name -> empty RS */
+  if (runColumnPrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLColumnPrivileges(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+                        NULL, SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, "", SQL_NTS,
+    NULL, SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, "", SQL_NTS, NULL, 0,
+    (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, "", SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR*)"odbc316_1", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  if (runTablePrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  /* SQLTables has different special meaning of "" arguments, but only if one of others is "%" */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, "", SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Empty string Schema name -> empty RS */
+  if (runColumnPrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLColumnPrivileges(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+                        NULL, SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
+                        "", SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, "", 0,
+    (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, "", SQL_NTS,
+    (SQLCHAR*)"odbc316_1", SQL_NTS,
+    SQL_INDEX_ALL, SQL_QUICK));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, "", SQL_NTS, NULL, 0,
+    (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  if (runTablePrivileges != FALSE)
+  {
+    CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, NULL, SQL_NTS, "", SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0));
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "Empty ResultSet expected");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE odbc316");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc316_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc316_1");
+
+  return OK;
+}
+
+
+ODBC_TEST(odbc324)
+{
+  SQLCHAR tableType[32];
+
+  if (ServerNotOlderThan(Connection, 10,3,4) == FALSE)
+  {
+    skip("The test does not make sense with servers older than 10.3.4 version");
+  }
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc324");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc324 (id int not null) WITH SYSTEM VERSIONING");
+
+  /* It doesn't matter if we call SQLColumns or SQLColumnsW */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, my_schema, SQL_NTS, NULL, 0,
+    "t_odbc324", SQL_NTS, "TABLE,VIEW", SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  IS_STR("TABLE", my_fetch_str(Stmt, tableType, 4), sizeof("TABLE"));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc324");
+
+  return OK;
+}
+
+
+ODBC_TEST(odbc361)
+{
+  char buffer[16];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc361_1");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc361_1 (key1 INT, key2 INT NOT NULL, UNIQUE INDEX t361_1key12(key1,key2))");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc361_2");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc361_2 (key1 INT, key2 INT NOT NULL, key3 INT NOT NULL PRIMARY KEY,"
+                       "UNIQUE INDEX t361_2key12(key1,key2))");
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, NULL, 0,
+    (SQLCHAR*)"t_odbc361_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, NULL, 0,
+    (SQLCHAR*)"t_odbc361_2", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key3", my_fetch_str(Stmt, buffer, 2), sizeof("key3"));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, 0, NULL, 0,
+    "t_odbc361_1", SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key1", my_fetch_str(Stmt, buffer, 9), sizeof("key1"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key2", my_fetch_str(Stmt, buffer, 9), sizeof("key2"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, 0, NULL, 0,
+    "t_odbc361_2", SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
+
+  /* Unique go first */
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key3", my_fetch_str(Stmt, buffer, 9), sizeof("key3"));
+  is_num(0, my_fetch_int(Stmt, 4));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key1", my_fetch_str(Stmt, buffer, 9), sizeof("key1"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("key2", my_fetch_str(Stmt, buffer, 9), sizeof("key2"));
+  is_num(1, my_fetch_int(Stmt, 4));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc361_1");
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -1531,8 +1889,12 @@ MA_ODBC_TESTS my_tests[]=
   {odbc131, "odbc131_columns_data_len",      NORMAL},
   {odbc119, "odbc119_sqlstats_orderby",      NORMAL},
   {odbc185, "odbc185_sqlcolumns_wtypes",     NORMAL},
-  {odbc152, "odbc152_sqlcolumns_sql_data_type",   NORMAL},
-  {odbc231, "odbc231_sqlcolumns_longtext",   NORMAL},
+  {odbc152, "odbc152_sqlcolumns_sql_data_type", NORMAL},
+  {odbc231, "odbc231_sqlcolumns_longtext",      NORMAL},
+  {odbc313, "odbc313_no_patterns_for_sqlpkeys", NORMAL},
+  {odbc316, "odbc316_empty_string_parameters",  NORMAL},
+  {odbc324, "odbc324_sqltables_versioned_table",NORMAL},
+  {odbc361, "odbc361_unique_with_nulls",        NORMAL},
   {NULL, NULL}
 };
 

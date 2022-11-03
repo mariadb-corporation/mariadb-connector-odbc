@@ -43,10 +43,10 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLLEN     SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length);
 SQLLEN     SafeStrlen(SQLCHAR *str, SQLLEN buff_length);
 
-#define ADJUST_LENGTH(ptr, len)\
-  if((ptr) && ((len) == SQL_NTS))\
-    len= sizeof(len) == 2 ? (SQLSMALLINT)strlen((ptr)) : (SQLINTEGER)strlen((ptr));\
-  else if (!(ptr))\
-    len= 0
-
+#define ADJUST_LENGTH(__ptr, __len)\
+  if((__ptr) == NULL || (__len) == SQL_NTS)\
+    { (__len)= (SQLSMALLINT)((__ptr) ? strlen((__ptr)) : 0); }
+#define ADJUST_INTLENGTH(__ptr, __len)\
+  if((__ptr) == NULL || (__len) == SQL_NTS)\
+    { (__len)= (SQLINTEGER)((__ptr) ? strlen((__ptr)) : 0); }
 #endif

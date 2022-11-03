@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -30,8 +30,8 @@
 /* UPDATE with no keys ...  */
 ODBC_TEST(my_no_keys)
 {
-    SQLRETURN rc;
-    SQLINTEGER nData;
+  SQLRETURN rc;
+  SQLINTEGER nData;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_no_keys");
   OK_SIMPLE_STMT(Stmt, "create table my_no_keys(col1 int,\
@@ -44,59 +44,65 @@ ODBC_TEST(my_no_keys)
   OK_SIMPLE_STMT(Stmt, "insert into my_no_keys values(300,'MySQL1',3,3000)");
   OK_SIMPLE_STMT(Stmt, "insert into my_no_keys values(400,'MySQL1',4,3000)");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);     
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);     
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
-    CHECK_STMT_RC(Stmt, rc);  
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  CHECK_STMT_RC(Stmt, rc);  
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
-    CHECK_STMT_RC(Stmt, rc);  
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1 , 0);
+  CHECK_STMT_RC(Stmt, rc);  
 
-    /* UPDATE ROW[2]COL[4] */
-    OK_SIMPLE_STMT(Stmt, "select col4 from my_no_keys");
-    CHECK_STMT_RC(Stmt,rc);    
+  /* UPDATE ROW[2]COL[4] */
+  OK_SIMPLE_STMT(Stmt, "SELECT col4 FROM my_no_keys");    
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,2,NULL,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  if (ForwardOnly)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 2, NULL, NULL));
+  }
 
-    nData = 999;
+  nData = 999;
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt,"select * from my_no_keys");
+  OK_SIMPLE_STMT(Stmt,"select * from my_no_keys");
 
-    IS(4 == myrowcount(Stmt));
+  IS(4 == myrowcount(Stmt));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt,"select * from my_no_keys");
+  OK_SIMPLE_STMT(Stmt,"select * from my_no_keys");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-    IS(3000 == my_fetch_int(Stmt,4));
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
+  IS(3000 == my_fetch_int(Stmt,4));
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-    IS(3000 == my_fetch_int(Stmt,4));
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
+  IS(3000 == my_fetch_int(Stmt,4));
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
-    IS(3000 == my_fetch_int(Stmt,4));
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
+  IS(3000 == my_fetch_int(Stmt,4));
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  SQLFreeStmt(Stmt,SQL_UNBIND);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_no_keys");
 

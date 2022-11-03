@@ -18,10 +18,10 @@
 # *************************************************************************************/
 
 
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/ma_odbc_version.h.in
-               ${CMAKE_BINARY_DIR}/driver/ma_odbc_version.h)
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/maodbcu.rc.in
-               ${CMAKE_BINARY_DIR}/driver/maodbcu.rc)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ma_odbc_version.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/ma_odbc_version.h)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/maodbcu.rc.in
+               ${CMAKE_CURRENT_BINARY_DIR}/maodbcu.rc)
 
 SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           ma_api_internal.cpp   
@@ -34,6 +34,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           ma_info.cpp
                           ma_environment.cpp
                           ma_parse.cpp
+                          ma_catalog.cpp
                           ma_statement.cpp
                           ma_desc.cpp
                           ma_string.cpp
@@ -59,12 +60,13 @@ IF(WIN32)
                           ma_info.h
                           ma_environment.h
                           ma_parse.h
+                          ma_catalog.h
                           ma_statement.h
                           ma_desc.h
                           ma_string.h
                           ma_odbc.h
                           ma_api_internal.h
-                          ma_odbc_version.h
+                          ${CMAKE_CURRENT_BINARY_DIR}/ma_odbc_version.h
                           ma_result.h
                           ma_server.h
                           ma_legacy_helpers.h
@@ -77,9 +79,6 @@ ELSE()
                         ma_platform_posix.cpp
                         ma_conv_charset.cpp)
 ENDIF()
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/driver)
-INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/driver)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/mariadb-odbc-driver.def.in
                ${CMAKE_BINARY_DIR}/driver/mariadb-odbc-driver-uni.def)
@@ -108,8 +107,18 @@ ELSE()
                           PROPERTIES LINK_FLAGS "-Wl"
                                      INSTALL_RPATH_USE_LINK_PATH 0
                                      BUILD_WITH_INSTALL_RPATH 1
+                                     XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+                                     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp -f"
                                      INSTALL_RPATH "${MAODBC_INSTALL_RPATH}")
-  ELSE()
+    IF(WITH_SIGNCODE)
+      SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Developer ID Application: ${DEVELOPER_ID}")
+    ELSE()
+      SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+    ENDIF()
+    ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+                       COMMAND ${CMAKE_SOURCE_DIR}/osxpostbuild.sh ARGS $<TARGET_FILE:${LIBRARY_NAME}>
+    )
+  ELSEIF(NOT CMAKE_SYSTEM_NAME MATCHES AIX)
     SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/driver/maodbc.def")
   ENDIF()
 ENDIF()
@@ -122,19 +131,31 @@ SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES
 MESSAGE(STATUS "All linked targets/external dependencies: ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES}")
 TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})
 
-# Currently on Windows only
-IF(WIN32)
-  ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:maodbc>
-                                  -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
-                                  # Implib may be in diff directory as dll. We currently care to have it in the same folder, but let this just stay
-                                  -DIMPORT_LIB_DIR=$<TARGET_LINKER_FILE_DIR:maodbc>
-                                  -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
-                                  -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
-                                  -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
-                                  -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
-                                  -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                     )
+IF(WITH_MSI)
+  IF(ALL_PLUGINS_STATIC)
+    ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:${LIBRARY_NAME}>
+                                    -DPLUGINS_LIB_DIR=""
+                                    # Implib may be in diff directory as dll. We currently care to have it in the same folder, but let this just stay
+                                    -DIMPORT_LIB_DIR=$<TARGET_LINKER_FILE_DIR:${LIBRARY_NAME}>
+                                    -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
+                                    -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
+                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
+                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/wininstall/binaries_dir.xml
+                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
+  ELSE()
+    ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_DIR=$<TARGET_FILE_DIR:${LIBRARY_NAME}>
+                                    -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
+                                    # Implib may be in diff directory as dll. We currently care to have it in the same folder, but let this just stay
+                                    -DIMPORT_LIB_DIR=$<TARGET_LINKER_FILE_DIR:${LIBRARY_NAME}>
+                                    -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
+                                    -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
+                                    -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
+                                    -DFILE_OUT=${CMAKE_BINARY_DIR}/wininstall/binaries_dir.xml
+                                    -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
+                                  
+  ENDIF()
 ELSEIF(APPLE)
   ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
     COMMAND ${CMAKE_SOURCE_DIR}/osxpostbuild.sh ARGS $<TARGET_FILE:${LIBRARY_NAME}>
@@ -158,7 +179,7 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
       MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
 
       ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
+        COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:${LIBRARY_NAME}>
                                       -DTEST_DRIVER=${TEST_DRIVER}
                                       -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
                                       -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
@@ -166,7 +187,7 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
                          )
 
       ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${TEST_DRIVER}
+        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=$<TARGET_FILE:${LIBRARY_NAME}>
                                       -DTEST_DSN=${TEST_DSN}
                                       -DTEST_PORT=${TEST_PORT}
                                       -DTEST_SERVER=${TEST_SERVER}
@@ -174,6 +195,7 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
                                       -DTEST_SCHEMA=${TEST_SCHEMA}
                                       -DTEST_UID=${TEST_UID}
                                       -DTEST_PASSWORD=${TEST_PASSWORD}
+                                      -DTEST_USETLS=${TEST_USETLS}
                                       -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
                                       -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
                                       -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake

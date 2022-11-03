@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -93,7 +93,6 @@ ODBC_TEST(t_blob)
 
     rc = SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     CHECK_STMT_RC(Stmt, rc);
-
 
     memset(blobbuf, ~0, 100);
     CHECK_STMT_RC(Stmt, SQLPrepare(Stmt,
@@ -633,25 +632,25 @@ ODBC_TEST(t_text_fetch)
   rc = SQLFetch(Stmt);
   while (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
   {
-      printf("# row '%ld' (lengths:", row_count);
+      printf("# row '%lld' (lengths:", (long long)row_count);
       rc = SQLGetData(Stmt,1,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf("%ld", length);
+      printf("%lld", (long long)length);
       FAIL_IF(length != 255, "assert");
 
       rc = SQLGetData(Stmt,2,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf(",%ld", length);
+      printf(",%lld", (long long)length);
       FAIL_IF(length != TEST_ODBC_TEXT_LEN*3, "assert");
 
       rc = SQLGetData(Stmt,3,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf(",%ld", length);
+      printf(",%lld", (long long)length);
       FAIL_IF(length != (SQLINTEGER)(TEST_ODBC_TEXT_LEN*4), "assert");
 
       rc = SQLGetData(Stmt,4,SQL_C_CHAR,(char *)data,TEST_ODBC_TEXT_LEN*6,&length);
       CHECK_STMT_RC(Stmt, rc);
-      printf(",%ld)\n", length);
+      printf(",%zd)\n", length);
       FAIL_IF(length != TEST_ODBC_TEXT_LEN*6-1, "assert");
       row_count++;
 
@@ -732,20 +731,26 @@ ODBC_TEST(t_bug10562)
   SQLCHAR *blob = malloc(bsize);
   SQLCHAR *blobcheck = malloc(bsize);
   int result= OK;
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
+
   memset(blob, 'X', bsize);
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug10562");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug10562 ( id int not null primary key DEFAULT 0, mb longblob )");
-  OK_SIMPLE_STMT(Stmt, "insert into t_bug10562 (mb) values ('zzzzzzzzzz')");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug10562 ( id INT NOT NULL PRIMARY KEY DEFAULT 0, mb LONGBLOB )");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug10562 (mb) VALUES ('zzzzzzzzzz')");
 
-  OK_SIMPLE_STMT(Stmt, "select id, mb from t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "SELECT id, mb FROM t_bug10562");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindCol(Stmt, 2, SQL_C_BINARY, blob, bsize, &bsize));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Get the data back out to verify */
-  OK_SIMPLE_STMT(Stmt, "select mb from t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "SELECT mb FROM t_bug10562");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_BINARY, blobcheck, bsize, NULL));
   if (memcmp(blob, blobcheck, bsize))
@@ -933,6 +938,35 @@ ODBC_TEST(t_blob_reading_in_chunks)
 }
 
 
+/** ODBC-359 When calling SQLBindCol with a lengthPtr but no targetBuffer to get column data length
+    the buffer got dereferenced without first checking if it is set.
+ */
+ODBC_TEST(odbc359)
+{
+  SQLCHAR* create_table= (SQLCHAR *)"CREATE TABLE `odbc359` (`id` bigint(20) NOT NULL, `msg` mediumtext);";
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc359");
+  OK_SIMPLE_STMT(Stmt, create_table);
+
+  // msg 'Hello there!' is 12 characters long
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO `odbc359` (`id`, `msg`) VALUES(1, 'Hello there!')");
+  SQLWCHAR id[255];
+  SQLLEN idLen, msgLen;
+
+  OK_SIMPLE_STMTW(Stmt, CW("SELECT id, msg from odbc359"));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, id, sizeof(id), &idLen));
+
+  // Binding lengthBuffer, but no targetBuffer, type must be SQL_C_WCHAR
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, NULL, 0, &msgLen));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS);
+
+  //Length of 'Hello there!'
+  is_num(12 * sizeof(SQLWCHAR), msgLen);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_blob, "t_blob"},
@@ -948,6 +982,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug_11746572, "t_bug_11746572"},
   {t_odbc_26, "t_odbc_26"},
   {t_blob_reading_in_chunks, "t_blob_reading_in_chunks"},
+  { odbc359, "odbc359"},
   {NULL, NULL}
 };
 

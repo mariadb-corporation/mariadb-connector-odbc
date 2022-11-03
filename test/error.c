@@ -366,6 +366,42 @@ ODBC_TEST(getdata_need_nullind)
   return OK;
 }
 
+ODBC_TEST(connection_readwrite_timeout)
+{
+  SQLHDBC  Connection1;
+  SQLHSTMT Stmt1;
+  SQLCHAR conn[512];
+  SQLCHAR message[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+  SQLINTEGER error;
+  SQLSMALLINT len;
+  time_t start, elapsed;
+
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;READ_TIMEOUT=5;WRITE_TIMEOUT=5", 
+                        my_dsn, my_uid, my_pwd);
+
+  CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
+
+  CHECK_DBC_RC(Connection1, SQLDriverConnect(Connection1, NULL, conn, sizeof(conn), NULL,
+                                 0, NULL,
+                                 SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(Connection1, SQLAllocStmt(Connection1, &Stmt1));
+
+  start= time(NULL);
+  ERR_SIMPLE_STMT(Stmt1, "SET @a:=SLEEP(6)");
+  elapsed= time(NULL) - start;
+  diag("elapsed: %lu", (unsigned long)elapsed);
+
+  CHECK_STMT_RC(Stmt, SQLGetDiagRec(SQL_HANDLE_STMT, Stmt1, 1, sqlstate, &error,
+                               message, sizeof(message), &len));
+  is_num(error, 2013);  /* 2013 = CR_SERVER_LOST */
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1,SQL_DROP));
+  CHECK_DBC_RC(Connection1, SQLDisconnect(Connection1));
+  CHECK_DBC_RC(Connection1, SQLFreeHandle(SQL_HANDLE_DBC, Connection1));
+
+  return OK;
+}
 
 /*
    Handle-specific tests for env and dbc diagnostics
@@ -574,8 +610,17 @@ ODBC_TEST(t_bug14285620)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO bug14285620 (id) VALUES (1)");
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM bug14285620");
 
-  FAIL_IF(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS, "Success expected");
-  FAIL_IF(SQLDescribeCol(Stmt, 1, szData, 0, &cblen, &data_type, &col_size, &dec_digits, &nullable) != SQL_SUCCESS_WITH_INFO, "swi expected");
+  /* Somehow strange things are observed with iOdbc - with 3.52.12 else branch is fine, with 3.52.15 it returns ERROR if name buffer len is 0 - the call is not even passed to the driver */
+  if (iOdbc() && DmMinVersion(3, 52, 14))
+  {
+    is_num(SQLDescribeCol(Stmt, 1, szData, sizeof(szData), &cblen, &data_type, &col_size, &dec_digits, &nullable),SQL_SUCCESS);
+    is_num(SQLDescribeCol(Stmt, 1, szData, 1, &cblen, &data_type, &col_size, &dec_digits, &nullable), SQL_SUCCESS_WITH_INFO);
+  }
+  else
+  {
+    is_num(SQLDescribeCol(Stmt, 1, NULL, 0, NULL, &data_type, &col_size, &dec_digits, &nullable),SQL_SUCCESS);
+    is_num(SQLDescribeCol(Stmt, 1, szData, 1, &cblen, &data_type, &col_size, &dec_digits, &nullable), SQL_SUCCESS_WITH_INFO);
+  }
 
   FAIL_IF(SQLColAttribute(Stmt,1, SQL_DESC_TYPE, NULL, 0, NULL, NULL) != SQL_SUCCESS, "Success expected");
   FAIL_IF(SQLColAttribute(Stmt,1, SQL_DESC_TYPE, &data_type, 0, NULL, NULL)!= SQL_SUCCESS, "Success expected");
@@ -664,7 +709,7 @@ ODBC_TEST(t_odbc94)
 
 ODBC_TEST(t_odbc115)
 {
-  SQLINTEGER Big;
+  SQLINTEGER Big= 0;
   SQLCHAR Str[8];
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -700,13 +745,22 @@ ODBC_TEST(t_odbc115)
   return OK;
 }
 
-/* ODBC-123 Crash in LibreOffice Base. It sets SQL_ATTR_USE_BOOKMARKS, but does not use them. Connector did not care about such case*/
+/* ODBC-123 Crash in LibreOffice Base. It sets SQL_ATTR_USE_BOOKMARKS, but does not use them. Connector did not care
+   about such case */
 ODBC_TEST(t_odbc123)
 {
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_USE_BOOKMARKS, (SQLPOINTER)SQL_UB_VARIABLE, 0));
   OK_SIMPLE_STMT(Stmt, "SELECT 1");
-  /* We used to return error on this, and then crash */
-  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  /* We used to return error on this, and then crash. Not sure if SQL_FETCH_FIRST was importand for this test, but
+     doing NEXT for forward-only cursors */
+  if (ForwardOnly == TRUE)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1));
+  }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
@@ -771,6 +825,57 @@ ODBC_TEST(t_odbc226)
 }
 
 
+ODBC_TEST(t_odbc316)
+{
+  EXPECT_STMT(Stmt, SQLColumnPrivileges(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+  NULL, SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLForeignKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
+    (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLProcedureColumns(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLProcedures(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS,
+  (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS,
+  SQL_INDEX_ALL, SQL_QUICK), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLTablePrivileges(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  EXPECT_STMT(Stmt, SQLTables(Stmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "HYC00");
+  {
+    SQLHANDLE hdbc, hstmt;
+    AllocEnvConn(&Env, &hdbc);
+    hstmt = DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, "SCHEMANOERROR=1");
+    CHECK_STMT_RC(hstmt, SQLColumnPrivileges(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLColumns(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLForeignKeys(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, SQL_NTS,
+      NULL, SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLForeignKeys(hstmt, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS, NULL, SQL_NTS,
+      (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_2", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLPrimaryKeys(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLProcedureColumns(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS, NULL, SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLProcedures(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLSpecialColumns(hstmt, SQL_BEST_ROWID, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS,
+      (SQLCHAR*)"odbc316_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
+    CHECK_STMT_RC(hstmt, SQLStatistics(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS,
+      SQL_INDEX_ALL, SQL_QUICK));
+    CHECK_STMT_RC(hstmt, SQLTablePrivileges(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS));
+    CHECK_STMT_RC(hstmt, SQLTables(hstmt, NULL, SQL_NTS, (SQLCHAR*)my_schema, SQL_NTS, (SQLCHAR*)"odbc316_1", SQL_NTS, NULL, 0));
+  }
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_odbc3_error, "t_odbc3_error"},
@@ -783,6 +888,7 @@ MA_ODBC_TESTS my_tests[]=
   {bind_notenoughparam1, "bind_notenoughparam1"},
   {bind_notenoughparam2, "bind_notenoughparam2" },
   {getdata_need_nullind, "getdata_need_nullind"},
+  {connection_readwrite_timeout, "connection_readwrite_timeout"},
   {t_handle_err, "t_handle_err"},
   {sqlerror, "sqlerror"},
   {t_bug27158, "t_bug27158"},
@@ -794,6 +900,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc123, "t_odbc123"},
   {t_odbc43, "t_odbc43_datetime_overflow"},
   {t_odbc226, "t_odbc226"},
+  {t_odbc316, "t_odbc316_error_on_non_empty_schema"},
   {NULL, NULL}
 };
 

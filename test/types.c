@@ -487,12 +487,16 @@ ODBC_TEST(t_bug27862_2)
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
                                  NULL, &len));
   is_num(len, 52);
+
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_LENGTH, NULL, 0,
                                  NULL, &len));
-  is_num(len, 13);
+  /* DATE_FORMAT width is 38 + max 11 of int + 3 added by concat_ws */
+  is_num(len, 52);
+
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLColAttribute(Stmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
-  is_num(len, 14);
+  /* Octet length should not include terminating NULL */
+  is_num(len, 13);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -730,10 +734,10 @@ ODBC_TEST(sqlwchar)
   OK_SIMPLE_STMT(Stmt, "SELECT a FROM t_sqlwchar");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
-  IS_WSTR(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 9);
+  IS_WSTR(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 8);
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
-  IS_WSTR(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 9);
+  IS_WSTR(my_fetch_wstr(Stmt, wbuff, 1, 30), wcdata, 8);
 
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "expected EOF"); 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -797,14 +801,14 @@ ODBC_TEST(t_sqlnum_msdn)
 int sqlnum_test_from_str(SQLHANDLE Stmt,
                          const char *numstr, SQLCHAR prec, SQLSCHAR scale,
                          SQLCHAR sign, SQLCHAR *expdata, int expnum,
-                         int overflow)
+                         SQLRETURN overflow)
 {
   SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
   SQLCHAR buf[512];
   SQLHANDLE ard;
-  unsigned long numval;
+  unsigned long long numval;
 
-  sprintf((char *)buf, "select %s", numstr);
+  sprintf((char *)buf, "SELECT %s", numstr);
   /* OK_SIMPLE_STMT(Stmt, buf); */
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLExecDirect(Stmt, buf, SQL_NTS));
 
@@ -818,11 +822,18 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
                                (SQLPOINTER)(SQLLEN) scale, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
                                sqlnum, SQL_IS_POINTER));
-
-  if (overflow)
+  if (overflow != SQL_SUCCESS)
   {
-    FAIL_IF(SQLFetch(Stmt) != SQL_ERROR, "expected SQL_ERROR");
-    CHECK_SQLSTATE(Stmt, "22003");
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), overflow);
+    if (overflow == SQL_ERROR)
+    {
+      CHECK_SQLSTATE(Stmt, "22003");
+      return OK;
+    }
+    else
+    {
+      CHECK_SQLSTATE(Stmt, "01S07");
+    }
   }
   else
     CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
@@ -838,10 +849,13 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   {
     /* only use this for <=32bit values */
     int i;
+    unsigned long long singleByte;
     numval= 0;
     for (i= 0; i < 8; ++i)
-      numval += sqlnum->val[7 - i] << (8 * (7 - i));
-    
+    {
+      singleByte= sqlnum->val[7 - i]; 
+      numval+= singleByte << (8 * (7 - i));
+    }
     if (numval != expnum)
       diag("compare %d %d", numval, expnum);
     is_num(numval, expnum);
@@ -865,30 +879,27 @@ ODBC_TEST(t_sqlnum_from_str)
   char *num2= "-101234.0010";
   char *num3= "-101230.0010";
 
-  diag("rounding not implemented yet");
-  return SKIP;
-
-  /* some basic tests including min-precision and scale changes */
+  /* some basic tests including min-precision and scale changes. Overflow 0==SQL_SUCCESS */
   IS(sqlnum_test_from_str(Stmt, num1, 5, 3, 1, NULL, 25212, 0) == OK);
-  IS(sqlnum_test_from_str(Stmt, num1, 4, 3, 1, NULL, 0, 1) == OK);
-  IS(sqlnum_test_from_str(Stmt, num1, 4, 2, 1, NULL, 2521, 0) == OK);
+  IS(sqlnum_test_from_str(Stmt, num1, 4, 3, 1, NULL, 0, SQL_ERROR) == OK);
+  IS(sqlnum_test_from_str(Stmt, num1, 4, 2, 1, NULL, 2521, SQL_SUCCESS_WITH_INFO) == OK);
   IS(sqlnum_test_from_str(Stmt, num1, 2, 0, 1, NULL, 25, 0) == OK);
-  IS(sqlnum_test_from_str(Stmt, num1, 2, -1, 1, NULL, 0, 1) == OK);
+  IS(sqlnum_test_from_str(Stmt, num1, 2, -1, 1, NULL, 0, SQL_ERROR) == OK);
 
   /* more comprehensive testing of scale and precision */
   {SQLCHAR expdata[]= {0x2a, 0x15, 0x57, 0x3c, 0,0,0,0,0,0,0,0,0,0,0,0};
-//   IS(sqlnum_test_from_str(Stmt, num2, 9, 4, 0, expdata, 0, 0) == OK);
-//  IS(sqlnum_test_from_str(Stmt, num2, 9, 4, 0, NULL, 1012340010, 0) == OK);
+  IS(sqlnum_test_from_str(Stmt, num2, 9, 4, 0, expdata, 0, 0) == OK);
+  IS(sqlnum_test_from_str(Stmt, num2, 9, 4, 0, NULL, 1012340010, 0) == OK);
   IS(sqlnum_test_from_str(Stmt, num2, 9, 3, 0, NULL, 101234001, 0) == OK);
-  IS(sqlnum_test_from_str(Stmt, num2, 8, 3, 0, NULL, 0, 1) == OK);
+  IS(sqlnum_test_from_str(Stmt, num2, 8, 3, 0, NULL, 0, SQL_ERROR) == OK);
   IS(sqlnum_test_from_str(Stmt, num2, 8, 2, 0, NULL, 10123400, 0) == OK);
   IS(sqlnum_test_from_str(Stmt, num2, 7, 2, 0, NULL, 10123400, 0) == OK);
   IS(sqlnum_test_from_str(Stmt, num2, 6, 2, 0, NULL, 10123400, 0) == OK);
   IS(sqlnum_test_from_str(Stmt, num2, 6, 1, 0, NULL, 1012340, 0) == OK);
   IS(sqlnum_test_from_str(Stmt, num2, 6, 0, 0, NULL, 101234, 0) == OK);
-  IS(sqlnum_test_from_str(Stmt, num2, 6, -1, 0, NULL, 0, 1) == OK);}
+  IS(sqlnum_test_from_str(Stmt, num2, 6, -1, 0, NULL, 0, SQL_ERROR) == OK);}
 
-  IS(sqlnum_test_from_str(Stmt, num3, 6, -1, 0, NULL, 101230, 0) == OK);
+  IS(sqlnum_test_from_str(Stmt, num3, 6, -1, 0, NULL, 10123, 0) == OK);
   IS(sqlnum_test_from_str(Stmt, num3, 5, -1, 0, NULL, 10123, 0) == OK);
 
   /* Bug#35920 */
@@ -911,14 +922,14 @@ ODBC_TEST(t_sqlnum_from_str)
   {SQLCHAR expdata[SQL_MAX_NUMERIC_LEN]= {0x95, 0xFA, 0x0B, 0xF1, 0xED, 0x3C, 0x7C, 0xE4, 0x1B, 0x5F, 0x80, 0x1A, 0x16, 0x06, 0,0};
    IS(OK == sqlnum_test_from_str(Stmt, "123445678999123445678999543216789", 33, 0, 1, expdata, 0, 0));}
   {SQLCHAR expdata[SQL_MAX_NUMERIC_LEN]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-   IS(OK == sqlnum_test_from_str(Stmt, "12344567899912344567899954321678909876543212", 44, 0, 1, expdata, 0, 1));}
+   IS(OK == sqlnum_test_from_str(Stmt, "12344567899912344567899954321678909876543212", 44, 0, 1, expdata, 0, SQL_ERROR));}
   /* overflow with dec pt after the overflow */
   {SQLCHAR expdata[SQL_MAX_NUMERIC_LEN]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-   IS(OK == sqlnum_test_from_str(Stmt, "1234456789991234456789995432167890987654321.2", 44, 1, 1, expdata, 0, 1));}
+   IS(OK == sqlnum_test_from_str(Stmt, "1234456789991234456789995432167890987654321.2", 44, 1, 1, expdata, 0, SQL_ERROR));}
   {SQLCHAR expdata[SQL_MAX_NUMERIC_LEN]= {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
-   IS(OK == sqlnum_test_from_str(Stmt, "340282366920938463463374607431768211455", 39, 0, 1, expdata, 0, 0)); /* MAX */}
+   IS(OK == sqlnum_test_from_str(Stmt, "340282366920938463463374607431768211455", 39, 0, 1, expdata, 0, 0)); /* max precision is 38*/}
   {SQLCHAR expdata[SQL_MAX_NUMERIC_LEN]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-   IS(OK == sqlnum_test_from_str(Stmt, "340282366920938463463374607431768211456", 39, 0, 1, expdata, 0, 1)); /* MAX+1 */}
+   IS(OK == sqlnum_test_from_str(Stmt, "340282366920938463463374607431768211456", 39, 0, 1, expdata, 0, SQL_ERROR)); /* MAX+1 */}
   {SQLCHAR expdata[SQL_MAX_NUMERIC_LEN]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_from_str(Stmt, "0", 1, 0, 1, expdata, 0, 0));}
 
@@ -1022,42 +1033,55 @@ ODBC_TEST(t_bindsqlnum_wide)
   @param[in]  exptrunc    Expected truncation failure
   @return OK/FAIL just like a test.
 */
-int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR *numdata, SQLCHAR prec,
-                       SQLSCHAR scale, SQLCHAR sign, char *outstr,
-                       char *exptrunc)
+int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
+  SQLSCHAR scale, SQLCHAR sign, char* outstr,
+  char* exptrunc)
 {
-  SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
-  SQLCHAR obuf[30];
-  SQLRETURN exprc= SQL_SUCCESS;
+  SQL_NUMERIC_STRUCT* sqlnum = malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQLCHAR obuf[80]; /*1 sign + 39 + 1 dot + 38 + \0 */
+  SQLRETURN exprc = SQL_SUCCESS;
+  SQLLEN len;
 
   /* TODO until sqlnum errors are supported */
-  /*
+
   if (!strcmp("01S07", exptrunc))
-    exprc= SQL_SUCCESS_WITH_INFO;
+  {
+    /* iOdbc seemingly doesn't think, that SQLExecute or SQLExecDirect may return SQL_SUCCESS_WITH_INFO, and returns SQL_SUCCESS instead.
+       Observed with 3.52.12, but not with 3.52.15, but I can't see anything resembling that in the 3.52.15 changelog */
+    if (!iOdbc() || DmMinVersion(3, 52,14))
+    {
+      exprc= SQL_SUCCESS_WITH_INFO;
+    }
+  }
   else if (!strcmp("22003", exptrunc))
     exprc= SQL_ERROR;
-  */
 
-  sqlnum->sign= sign;
+  sqlnum->sign = sign;
   memcpy(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN);
 
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC,
-                                  SQL_DECIMAL, prec, scale, sqlnum, 0, NULL));
+  EXPECT_STMT(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC,
+                       SQL_DECIMAL, prec, scale, sqlnum, 0, NULL), scale > 38 ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS);
 
-  OK_SIMPLE_STMT(Stmt, "select ?");
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT ?", SQL_NTS), exprc);
 
-  exprc= SQLFetch(Stmt);
   if (exprc != SQL_SUCCESS)
   {
-    CHECK_SQLSTATE(Stmt, (char *)exptrunc);
+    CHECK_SQLSTATE(Stmt, (char*)exptrunc);
+    if (exprc == SQL_ERROR)
+    {
+      return OK;
+    }
   }
-  if (exprc == SQL_ERROR)
-    return OK;
+
+  /* Error heere may occur on execution. Checking SQLFetch result is pretty useless */
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
   is_num(sqlnum->precision, prec);
-  is_num(sqlnum->scale, scale);
+  is_num(sqlnum->scale, (scale > 38 ? 38 : scale));
   is_num(sqlnum->sign, sign);
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, obuf, sizeof(obuf), NULL));
-  IS_STR(obuf, outstr, strlen(outstr));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, obuf, sizeof(obuf), &len));
+  IS_STR(obuf, outstr, len + 1);
+  /* This is seemingly useless check */
   FAIL_IF(memcmp(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN), "memcmp failed");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1075,31 +1099,58 @@ ODBC_TEST(t_sqlnum_to_str)
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, 4, 1, "123445.6789", ""));}
 
-  /* fractional truncation */
+  /* fractional truncation. These also test ODBC-309 */
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 9, 2, 1, "12344567.8", "01S07"));}
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 8, 2, 1, "12344567", "01S07"));}
 
   /* whole number truncation - error */
-  /* TODO need err handling for this test
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 7, 2, 1, "1234456", "22003"));}
-  */
 
   /* negative scale */
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, -2, 1, "123445678900", ""));}
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, -2, 0, "-123445678900", ""));}
+  /* Overflow with negative scale */
+  {SQLCHAR numdata[] = { 0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0 };
+  IS(OK == sqlnum_test_to_str(Stmt, numdata, 9, -2, 0, "-123445678900", "22003")); }
 
+  /* Walking thru all scales */
+  {
+    SQLCHAR numdata[] = { 0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0 };
+    char expected[][41]= {"1234456789", "123445678.9", "12344567.89", "1234456.789", "123445.6789", "12344.56789", "1234.456789", "123.4456789",
+        "12.34456789", "1.234456789", "0.1234456789", "0.01234456789", "0.001234456789", "0.0001234456789", "0.00001234456789", "0.000001234456789",
+        "0.0000001234456789", "0.00000001234456789", "0.000000001234456789", "0.0000000001234456789", "0.00000000001234456789", "0.000000000001234456789",
+        "0.0000000000001234456789", "0.00000000000001234456789", "0.000000000000001234456789", "0.0000000000000001234456789", "0.00000000000000001234456789",
+        "0.000000000000000001234456789", "0.0000000000000000001234456789", "0.00000000000000000001234456789", "0.000000000000000000001234456789",
+        "0.0000000000000000000001234456789", "0.00000000000000000000001234456789", "0.000000000000000000000001234456789", "0.0000000000000000000000001234456789",
+        "0.00000000000000000000000001234456789", "0.000000000000000000000000001234456789", "0.0000000000000000000000000001234456789",
+        "0.00000000000000000000000000001234456789" };
+    unsigned int i;
+    for (i= 0; i < sizeof(expected)/sizeof(expected[0]); ++i)
+    {
+      IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, i, 1, expected[i], ""));
+    }
+    /* 38 is max */
+    IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, 39, 1, expected[38], ""));
+  }
   /* scale > prec */
-  {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
-   IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, 11, 1, "0.01234456789", ""));}
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
    IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, 11, 0, "-0.01234456789", ""));}
   {SQLCHAR numdata[]= {0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0};
-   IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, 20, 1, "0.00000000001234456789", ""));}
+   IS(OK == sqlnum_test_to_str(Stmt, numdata, 10, 20, 0, "-0.00000000001234456789", ""));}
+  {SQLCHAR numdata[] = { 0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0 };
+  IS(OK == sqlnum_test_to_str(Stmt, numdata, 3, 6, 1, "1234.456789", "22003")); }
+  {SQLCHAR numdata[] = { 0xD5, 0x50, 0x94, 0x49, 0,0,0,0,0,0,0,0,0,0,0,0 };
+  IS(OK == sqlnum_test_to_str(Stmt, numdata, 3, 7, 1, "123.4456789", "")); } /* I have some doubts about this, but atm this is my understanding */
+
+  {SQLCHAR numdata[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0,0,0,0,0,0,0,0 };
+  IS(OK == sqlnum_test_to_str(Stmt, numdata, 21, 0, 1, "18446744073709551615", "")); } /* Current MAX */
+  {SQLCHAR numdata[] = { 0x00, 0x00, 0x00, 0x00, 0,0,0,0,0x01,0,0,0,0,0,0,0 };
+  IS(OK == sqlnum_test_to_str(Stmt, numdata, 21, 0, 1, "18446744073709551616", "22003")); } /* Current MAX+1 */
 
   return OK;
 }
@@ -1254,7 +1305,7 @@ ODBC_TEST(t_sqlnum_truncate)
   return OK;
 }
 
-/* ODBC-158 QUery with some of aggregate functions returns error on execution. The reason is that those functions type is
+/* ODBC-158 Query with some of aggregate functions returns error on execution. The reason is that those functions type is
             MYSQL_TYPE_LONGLONG, Access gets them as SQL_C_LONG, and connector returned data length 8.
             Checking also if correct length returned is the opposite case - field is smaller than the buffer */
 ODBC_TEST(t_odbc158)
@@ -1286,6 +1337,32 @@ ODBC_TEST(t_odbc158)
 }
 
 
+/* ODBC-305  */
+ODBC_TEST(t_odbc305)
+{
+  SQL_NUMERIC_STRUCT  sendVal;
+  SQLLEN len;
+  SQLCHAR receiveVal[32];
+
+  sendVal.sign= 1;
+  sendVal.precision= 13;
+  sendVal.scale= 4;
+  memcpy(sendVal.val, "\0\0\0\x80\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN);
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC, SQL_DECIMAL, 19, 4, &sendVal, sizeof(SQL_NUMERIC_STRUCT), NULL));
+  OK_SIMPLE_STMT(Stmt, "SELECT ?");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, &receiveVal, sizeof(receiveVal), &len));
+  is_num(len, 11);
+  IS_STR(receiveVal, "214748.3648", 11);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_longlong1,        "t_longlong1",       NORMAL},
@@ -1311,6 +1388,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29402,         "t_bug29402",        NORMAL},
   {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
   {t_odbc158,          "odbc158_bigintcolumn_as_c_long", NORMAL},
+  {t_odbc305,          "odbc305_numeric_as_numeric", NORMAL},
   {NULL, NULL, NORMAL}
 };
 

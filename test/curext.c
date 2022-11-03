@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2022 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -29,11 +29,16 @@
 
 ODBC_TEST(my_pcbvalue)
 {
-    SQLRETURN   rc;
-    SQLLEN      nRowCount;
-    SQLINTEGER  nData= 500;
-    SQLLEN      int_pcbValue, pcbValue, pcbValue1, pcbValue2;
-    SQLCHAR     szData[255]={0};
+  SQLRETURN   rc;
+  SQLLEN      nRowCount;
+  SQLINTEGER  nData= 500;
+  SQLLEN      int_pcbValue, pcbValue, pcbValue1, pcbValue2;
+  SQLCHAR     szData[255]={0};
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_pcbValue");
 
@@ -45,96 +50,103 @@ ODBC_TEST(my_pcbvalue)
 
   OK_SIMPLE_STMT(Stmt, "insert into my_pcbValue(id,name) values(200,'monty')");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData, 0, &int_pcbValue);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData, 0, &int_pcbValue);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData, 15, &pcbValue);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData, 15, &pcbValue);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,3,SQL_C_CHAR,szData, 3, &pcbValue1);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,3,SQL_C_CHAR,szData, 3, &pcbValue1);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,4,SQL_C_CHAR,szData, 2, &pcbValue2);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,4,SQL_C_CHAR,szData, 2, &pcbValue2);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+  CHECK_STMT_RC(Stmt, rc);
 
-    /* Open the resultset of table 'my_demo_cursor' */
-    OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_pcbValue");
+  /* Open the resultset of table 'my_demo_cursor' */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_pcbValue");
 
-    /* goto the last row */
-    rc = SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1L);
-    CHECK_STMT_RC(Stmt,rc);
+  /* goto the last row */
+  if (ForwardOnly)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1L));
+  }
 
-    /* Now delete the newly updated record */
-    strcpy((char*)szData,"updated");
-    nData = 99999;
+  /* Now delete the newly updated record */
+  strcpy((char*)szData,"updated");
+  nData = 99999;
 
-    int_pcbValue=2;
-    pcbValue=3;
-    pcbValue1=9;
-    pcbValue2=SQL_NTS;
+  int_pcbValue=2;
+  pcbValue=3;
+  pcbValue1=9;
+  pcbValue2=SQL_NTS;
 
-    rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLRowCount(Stmt, &nRowCount);
-    CHECK_STMT_RC(Stmt, rc);
+  rc = SQLRowCount(Stmt, &nRowCount);
+  CHECK_STMT_RC(Stmt, rc);
 
-    diag(" total rows updated:%d\n",nRowCount);
-    is_num(nRowCount, 1);
+  diag(" total rows updated:%d\n",nRowCount);
+  is_num(nRowCount, 1);
 
-    /* Free statement cursor resorces */
-    rc = SQLFreeStmt(Stmt, SQL_UNBIND);
-    CHECK_STMT_RC(Stmt,rc);
+  /* Free statement cursor resorces */
+  rc = SQLFreeStmt(Stmt, SQL_UNBIND);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  CHECK_STMT_RC(Stmt,rc);
 
-    /* commit the transaction */
-    rc = SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  /* commit the transaction */
+  rc = SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    /* Now fetch and verify the data */
-    OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_pcbValue");
+  /* Now fetch and verify the data */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_pcbValue");
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetch(Stmt);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-    is_num(nData, 99999);
+  rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+  is_num(nData, 99999);
 
-    rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-    IS_STR(szData, "upd", 4);
+  rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+  IS_STR(szData, "upd", 4);
 
-    rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,50,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-    IS_STR(szData, "updated", 8);
+  rc = SQLGetData(Stmt,3,SQL_C_CHAR,szData,50,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+  IS_STR(szData, "updated", 8);
 
-    rc = SQLGetData(Stmt,4,SQL_C_CHAR,szData,50,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-    IS_STR(szData, "updated", 8);
+  rc = SQLGetData(Stmt,4,SQL_C_CHAR,szData,50,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+  IS_STR(szData, "updated", 8);
 
-    FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
+  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
-    SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt, SQL_UNBIND);
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+  SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt, SQL_UNBIND);
+  SQLFreeStmt(Stmt, SQL_CLOSE);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_pcbValue");
 
@@ -145,11 +157,16 @@ ODBC_TEST(my_pcbvalue)
 /* to test the pcbValue on cursor ops **/
 ODBC_TEST(my_pcbvalue_add)
 {
-    SQLRETURN   rc;
-    SQLLEN      nRowCount;
-    SQLINTEGER  nData= 500;
-    SQLLEN      int_pcbValue, pcbValue, pcbValue1, pcbValue2;
-    SQLCHAR     szData[255]={0};
+  SQLRETURN   rc;
+  SQLLEN      nRowCount;
+  SQLINTEGER  nData= 500;
+  SQLLEN      int_pcbValue, pcbValue, pcbValue1, pcbValue2;
+  SQLCHAR     szData[255]={0};
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_pcbValue_add");
 

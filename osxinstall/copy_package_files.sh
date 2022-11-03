@@ -25,24 +25,24 @@ rm -rf ./ROOT
 
 mkdir -p ./ROOT/${LibPath}/bin
 cp $1/libmaodbc.dylib ./ROOT/${LibPath}/
-cp ./install_driver ./ROOT/${LibPath}/bin
-
-if [ $2 ]; then
-  mkdir ./ROOT/${LibPath}/plugin
-  cp $2/dialog.so ./ROOT/${LibPath}/plugin/
-  cp $2/auth_gssapi_client.so ./ROOT/${LibPath}/plugin/
-  cp $2/caching_sha2_password.so ./ROOT/${LibPath}/plugin/
-  cp $2/mysql_clear_password.so ./ROOT/${LibPath}/plugin/
-  cp $2/client_ed25519.so ./ROOT/${LibPath}/plugin/
-  cp $2/sha256_password.so ./ROOT/${LibPath}/plugin/
-fi
+cp $2//install_driver ./ROOT/${LibPath}/bin
 
 if [ $3 ]; then
-  if [ -L $3 ]; then
-    LibRealName=`readlink $3`
-    cp $3 ./ROOT/${LibPath}/${LibRealName}
-    cp -a $3 ./ROOT/${LibPath}/
+  mkdir ./ROOT/${LibPath}/plugin
+  cp $3/dialog.so ./ROOT/${LibPath}/plugin/
+  cp $3/auth_gssapi_client.so ./ROOT/${LibPath}/plugin/
+  cp $3/caching_sha2_password.so ./ROOT/${LibPath}/plugin/
+  cp $3/mysql_clear_password.so ./ROOT/${LibPath}/plugin/
+  cp $3/client_ed25519.so ./ROOT/${LibPath}/plugin/
+  cp $3/sha256_password.so ./ROOT/${LibPath}/plugin/
+fi
+
+if [ $4 ]; then
+  if [ -L $4 ]; then
+    LibRealName=`readlink $4`
+    cp $4 ./ROOT/${LibPath}/${LibRealName}
+    cp -a $4 ./ROOT/${LibPath}/
   else
-    cp $3 ./ROOT/${LibPath}/
+    cp $4 ./ROOT/${LibPath}/
   fi
 fi

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2020 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -64,19 +64,19 @@ typedef struct
   SQLINTEGER NativeError;
   /* Order number of last requested error record */
   unsigned int ErrorNum;
-  char SqlState[SQLSTATE_LENGTH + 1];  
-  SQLRETURN ReturnValue;
   char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
+  char SqlState[SQLSTATE_LENGTH + 1];
+  SQLRETURN ReturnValue;
 } MADB_Error;
 
 typedef struct
 {
-  SQLUINTEGER TargetType;
   SQLPOINTER TargetValuePtr;
   SQLLEN BufferLength;
   SQLLEN Utf8BufferLength;
   SQLLEN *StrLen_or_Ind;
   void *InternalBuffer; /* used for conversion */
+  SQLUINTEGER TargetType;
 } MADB_ColBind;
 
 typedef struct
@@ -95,104 +95,104 @@ typedef struct
 typedef struct
 {
   /* Header */
-  SQLSMALLINT   AllocType;
-  SQLULEN       ArraySize;
   SQLUSMALLINT *ArrayStatusPtr;
   SQLULEN      *BindOffsetPtr;
-  SQLULEN       BindType;
-  SQLSMALLINT   Count;
   /* TODO: In IPD this is SQLUINTEGER* field */
   SQLULEN      *RowsProcessedPtr;
+  SQLULEN       ArraySize;
+  SQLULEN       BindType;
+  SQLSMALLINT   AllocType;
+  SQLSMALLINT   Count;
   /* Header end */
 } MADB_Header;
 
 typedef struct
 {
-	SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
-	SQLUSMALLINT	*RowOperationPtr;
-	SQLULEN		*RowOffsetPtr;
-  MADB_ColBind *ColumnBind;
-	MYSQL_BIND *Bind;
+	SQLUSMALLINT *RowOperationPtr;
+	SQLULEN		   *RowOffsetPtr;
+  /*MADB_ColBind *ColumnBind;*/
+	MYSQL_BIND   *Bind;
+  SQLLEN      dummy;
+  SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
 	SQLSMALLINT	Allocated;
 } MADB_Ard;
 
 typedef struct
 {
-	SQLLEN ParamsetSize;
-	SQLUINTEGER	ParamBindType;
-	SQLUSMALLINT *ParamOperationPtr;
-	SQLULEN *ParamOffsetPtr;
-	MADB_ParmBind *ParamBind;
-	MYSQL_BIND *Bind;
+	SQLUSMALLINT  *ParamOperationPtr;
+	SQLULEN       *ParamOffsetPtr;
+	/*MADB_ParmBind *ParamBind;*/
+	MYSQL_BIND    *Bind;
+  SQLLEN      ParamsetSize;
+  SQLUINTEGER	ParamBindType;
 	SQLSMALLINT	Allocated;
-	SQLLEN Dummy; /* dummy item to fit APD to ARD */
 } MADB_Apd;
 
 typedef struct
 {
-  MADB_Stmt *stmt;
-	SQLULEN *RowsFetched;
-	SQLUSMALLINT *RowStatusArray;
+  MADB_Stmt* stmt;
+	SQLULEN* RowsFetched;
+	SQLUSMALLINT* RowStatusArray;
+  MYSQL_FIELD* Fields;
 	SQLUINTEGER FieldCount;
 	SQLSMALLINT	Allocated;
-	MYSQL_FIELD *Fields;
 } MADB_Ird;
 
 typedef struct
 {
-  MADB_Header Header;
+  //MADB_Header Header;
 #if (ODBCVER >= 0x0300)
 	SQLUINTEGER *ParamProcessedPtr;
 #else
 	SQLULEN *ParamProcessedPtr; /* SQLParamOptions */
 #endif /* ODBCVER */
 	SQLUSMALLINT *ParamStatusPtr;
+  /*MADB_ParmBind* Parameters;*/
 	SQLSMALLINT Allocated;
-	MADB_ParmBind *Parameters;
 } MADB_Ipd;
 
 typedef struct {
-  SQLINTEGER  AutoUniqueValue;
   char        *BaseCatalogName;
   char        *BaseColumnName;
   char        *BaseTableName;
-  SQLINTEGER  CaseSensitive;
   char        *CatalogName;
   char        *ColumnName;
-  SQLSMALLINT ConciseType;
   SQLPOINTER  DataPtr;
-  SQLSMALLINT DateTimeIntervalCode;
+  SQLLEN* OctetLengthPtr;
+  SQLLEN* IndicatorPtr;
+  char* Label;
+  char* SchemaName;
+  char* TableName;
+  char* LiteralPrefix;
+  char* LiteralSuffix;
+  char* LocalTypeName;
+  char* TypeName;
+  char* InternalBuffer;  /* used for internal conversion */
+  char* DefaultValue;
+  char* DaeData;
+  SQLLEN      DisplaySize;
+  SQLULEN     Length;
+  SQLLEN      OctetLength;
+  SQLULEN     DaeDataLength;    /* Doesn't seem to be used anywhere */
+  unsigned long InternalLength; /* This to be used in the MYSQL_BIND. Thus is the type */
+  SQLINTEGER  AutoUniqueValue;
   SQLINTEGER  DateTimeIntervalPrecision;
   SQLINTEGER  DescLength;
-  SQLLEN      DisplaySize;
-  SQLSMALLINT FixedPrecScale;
-  SQLLEN      *IndicatorPtr;
-  char        *Label;
-  SQLULEN     Length;
-  char        *LiteralPrefix;
-  char        *LiteralSuffix;
-  char        *LocalTypeName;
-  SQLSMALLINT Nullable;
+  SQLINTEGER  CaseSensitive;
   SQLINTEGER  NumPrecRadix;
-  SQLLEN      OctetLength;
-  SQLLEN      *OctetLengthPtr;
+  SQLSMALLINT ConciseType;
+  SQLSMALLINT DateTimeIntervalCode;
+  SQLSMALLINT FixedPrecScale;
+  SQLSMALLINT Nullable;
   SQLSMALLINT ParameterType;
   SQLSMALLINT Precision;
   SQLSMALLINT RowVer;
   SQLSMALLINT Scale;
-  char        *SchemaName;
   SQLSMALLINT Searchable;
-  char        *TableName;
   SQLSMALLINT Type;
-  char        *TypeName;
   SQLSMALLINT Unnamed;
   SQLSMALLINT Unsigned;
   SQLSMALLINT Updateable;
-  unsigned long InternalLength; /* This to be used in the MYSQL_BIND. Thus is the type */
-  char        *InternalBuffer;  /* used for internal conversion */
-  char        *DefaultValue;
-  char        *DaeData;
-  SQLULEN     DaeDataLength;    /* Doesn't seem to be used anywhere */
   my_bool     PutData;
   my_bool     inUse;
   my_bool     TruncError;
@@ -201,13 +201,9 @@ typedef struct {
 typedef struct
 {
   MADB_Header Header;
-  SQLINTEGER DescType;  /* SQL_ATTR_APP_ROW_DESC or SQL_ATTR_APP_PARAM_DESC */
-  my_bool AppType;      /* Allocated by Application ? */
   MADB_DynArray Records;
   MADB_DynArray Stmts;
   MADB_Error Error;
-  MADB_Dbc * Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
-                           descriptor has to know the connection it is allocated on */
   MADB_List ListItem;        /* To store in the dbc */
   union {
     MADB_Ard Ard;
@@ -215,6 +211,11 @@ typedef struct
     MADB_Ipd Ipd;
     MADB_Ird Ird;
   } Fields;
+
+  MADB_Dbc* Dbc;       /* Disconnect must automatically free allocated descriptors. Thus
+                         descriptor has to know the connection it is allocated on */
+  SQLINTEGER DescType;  /* SQL_ATTR_APP_ROW_DESC or SQL_ATTR_APP_PARAM_DESC */
+  my_bool AppType;      /* Allocated by Application ? */
 } MADB_Desc;
 
 struct st_ma_desc_fldid
@@ -236,9 +237,9 @@ typedef struct
 	SQLUINTEGER UseBookmarks;
 	void* BookmarkPtr;
   SQLLEN BookmarkLength;
-  SQLSMALLINT BookmarkType;
   SQLULEN	MetadataId;
   SQLULEN SimulateCursor;
+  SQLSMALLINT BookmarkType;
 } MADB_StmtOptions;
 
 /* TODO: To check is it 0 or 1 based? not quite clear from its usage */
@@ -260,10 +261,10 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 
 enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_EMULATED= 1, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3, MADB_SS_OUTPARAMSFETCHED= 4};
 
-#define STMT_WAS_PREPARED(Stmt_Hndl) (Stmt_Hndl->State >= MADB_SS_EMULATED)
-#define RESET_STMT_STATE(Stmt_Hndl) Stmt_Hndl->State= STMT_WAS_PREPARED(Stmt_Hndl) ?\
-  (Stmt_Hndl->State == MADB_SS_EMULATED ? MADB_SS_EMULATED : MADB_SS_PREPARED) :\
-  MADB_SS_INITED
+#define STMT_WAS_PREPARED(Stmt_Hndl) ((Stmt_Hndl)->State >= MADB_SS_EMULATED)
+#define STMT_REALLY_PREPARED(Stmt_Hndl) ((Stmt_Hndl)->State > MADB_SS_EMULATED)
+#define STMT_EXECUTED(Stmt_Hndl) ((Stmt_Hndl)->State == MADB_SS_EXECUTED)
+#define RESET_STMT_STATE(Stmt_Hndl) if ((Stmt_Hndl)->State > MADB_SS_PREPARED) (Stmt_Hndl)->State= MADB_SS_PREPARED
 
 /* Struct used to define column type when driver has to fix it (in catalog functions + SQLGetTypeInfo) */
 typedef struct
@@ -291,42 +292,30 @@ typedef struct
 
 struct st_ma_odbc_stmt
 {
-  MADB_Dbc                  *Connection;
-  struct st_ma_stmt_methods *Methods;
   MADB_StmtOptions          Options;
   MADB_Error                Error;
   MADB_Cursor               Cursor;
+  MADB_QUERY                Query;
+  MADB_List                 ListItem;
+  long long                 AffectedRows;
+  MADB_Dbc                  *Connection;
+  struct st_ma_stmt_methods *Methods;
+  struct st_ma_stmt_rsstore *RsOps;
   MYSQL_STMT                *stmt;
   MYSQL_RES                 *metadata;
-  MADB_List                 ListItem;
-  MADB_QUERY                Query;
-  SQLSMALLINT               ParamCount;
-  enum MADB_DaeType         DataExecutionType;
   MYSQL_RES                 *DefaultsResult;
-  int                       ArrayOffset;
-  SQLSETPOSIROW             DaeRowNumber;
-  int                       Status;
   MADB_DescRecord           *PutDataRec;
   MADB_Stmt                 *DaeStmt;
   MADB_Stmt                 *PositionedCursor;
-  my_bool                   PositionedCommand;
-  enum MADB_StmtState       State;
   MYSQL_STMT                **MultiStmts;
-  unsigned int              MultiStmtNr;
-  unsigned int              MultiStmtMaxParam;
   SQLLEN                    LastRowFetched;
   MYSQL_BIND                *result;
   MYSQL_BIND                *params;
-  int                       PutParam;
-  my_bool                   RebindParams;
-  my_bool                   bind_done;
-  long long                 AffectedRows;
   unsigned long             *CharOffset;
   unsigned long             *Lengths;
   char                      *TableName;
   char                      *CatalogName;
   MADB_ShortTypeInfo        *ColsTypeFixArr;
-  MADB_BulkOperationInfo    Bulk;
   /* Application Descriptors */
   MADB_Desc *Apd;
   MADB_Desc *Ard;
@@ -337,6 +326,20 @@ struct st_ma_odbc_stmt
   MADB_Desc *IArd;
   MADB_Desc *IIrd;
   MADB_Desc *IIpd;
+  unsigned short            *UniqueIndex; /* Insdexes of columns that make best available unique identifier */
+  SQLSETPOSIROW             DaeRowNumber;
+  int                       ArrayOffset;
+  int                       Status;
+  unsigned int              MultiStmtNr;
+  unsigned int              MultiStmtMaxParam;
+  int                       PutParam;
+  enum MADB_StmtState       State;
+  enum MADB_DaeType         DataExecutionType;
+  SQLSMALLINT               ParamCount;
+  MADB_BulkOperationInfo    Bulk;
+  my_bool                   PositionedCommand;
+  my_bool                   RebindParams;
+  my_bool                   bind_done;
 };
 
 enum MADB_AppType{
@@ -344,6 +347,7 @@ enum MADB_AppType{
   ATypeMSAccess= 1
 };
 
+/*const size_t stmtsime = sizeof(struct st_ma_odbc_stmt);*/
 typedef struct st_ma_odbc_environment {
   MADB_Error Error;
   CRITICAL_SECTION cs;
@@ -363,44 +367,50 @@ typedef struct st_client_charset
 
 struct st_ma_odbc_connection
 {
-  MYSQL *mariadb;                /* handle to a mariadb connection */
+  MADB_Error Error;
   CRITICAL_SECTION cs;           /* mutex for mariadb handle, i.e. for server communications */
   CRITICAL_SECTION ListsCs;      /*       for operations with lists */
+  MADB_List ListItem;
+  Client_Charset Charset;
+  MYSQL *mariadb;                /* handle to a mariadb connection */
   MADB_Env *Environment;         /* global environment */
   MADB_Dsn *Dsn;
   struct st_ma_connection_methods *Methods;
-  MADB_Error Error;
 
-  Client_Charset Charset;
   Client_Charset *ConnOrSrcCharset; /* "Source" here stands for which charset Windows DM was using as source, when converted to unicode.
                                   We have to use same charset to recode from unicode to get same string as application sent it.
-                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system codepage */
-  char *DataBase;
-  MADB_List ListItem;
-  MADB_List *Stmts;
-  MADB_List *Descrs;
+                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system
+                                  codepage */
+  char*      CurrentSchema; /* Used to store current schema if the seesion tracking is possible */
+  MADB_List* Stmts;
+  MADB_List* Descrs;
   /* Attributes */
-  SQLINTEGER AccessMode;
-  my_bool IsAnsi;
-  SQLINTEGER IsolationLevel;     /* tx_isolation */
-  SQLULEN AsyncEnable;
+  char*      CatalogName;
+  HWND       QuietMode;
+  char*      TraceFile;
+  MADB_Stmt* Streamer;
+
+  SQLULEN    AsyncEnable;
+  SQLPOINTER EnlistInDtc;
+  SQLULEN    OdbcCursors;
+  unsigned long Options;
   SQLUINTEGER AutoIpd;
   SQLUINTEGER AutoCommit;
   SQLUINTEGER ConnectionDead;
   SQLUINTEGER ConnectionTimeout;
-  unsigned long Options;
-  char *CatalogName;
-  SQLPOINTER EnlistInDtc;
+  SQLUINTEGER ReadTimeout;
+  SQLUINTEGER WriteTimeout;
+  SQLUINTEGER PacketSize;
+  SQLINTEGER  AccessMode;
+  SQLINTEGER  IsolationLevel;     /* tx_isolation */
+  SQLUINTEGER Trace;
   SQLUINTEGER LoginTimeout;
   SQLUINTEGER MetadataId;
-  SQLULEN OdbcCursors;
-  SQLUINTEGER PacketSize;
-  HWND QuietMode;
-  SQLUINTEGER Trace;
-  char *TraceFile;
-  SQLINTEGER TxnIsolation;
-  SQLINTEGER CursorCount;
-  char ServerCapabilities;
+  SQLINTEGER  TxnIsolation;
+  SQLINTEGER  CursorCount;
+  char    ServerCapabilities;
+  my_bool IsAnsi;
+  my_bool IsMySQL;
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
@@ -417,12 +427,13 @@ int DSNPrompt_Lookup(MADB_Prompt *prompt, const char *SetupLibName);
 
 int DSNPrompt_Free  (MADB_Prompt *prompt);
 
-int             InitClientCharset  (Client_Charset *cc, const char * name);
-void            CopyClientCharset(Client_Charset * Src, Client_Charset * Dst);
-void            CloseClientCharset(Client_Charset *cc);
+int   InitClientCharset (Client_Charset *cc, const char *name);
+void  CopyClientCharset (Client_Charset *Src, Client_Charset *Dst);
+void  CloseClientCharset(Client_Charset *cc);
 
 /* Default precision of SQL_NUMERIC */
 #define MADB_DEFAULT_PRECISION 38
+#define MADB_MAX_SCALE         MADB_DEFAULT_PRECISION
 #define BINARY_CHARSETNR       63
 /* Inexistent param id */
 #define MADB_NOPARAM           -1

@@ -28,7 +28,6 @@
 ODBC_TEST(test_CONO1)
 {
   /* check SQLColumns with ANSI_QUOTES on and off */
-  SQLRETURN ret;
   SQLLEN rowCount;
   SQLCHAR *create_table= (SQLCHAR *)"CREATE TABLE cono1 (InitialStartDateTime datetime NOT NULL,  TicketId int(11) NOT NULL AUTO_INCREMENT,  CallCount int(11) NOT NULL DEFAULT '1',  CalledNumber varchar(30) DEFAULT NULL,  CallingNumber varchar(30) DEFAULT NULL,  CallType tinyint(3) unsigned DEFAULT NULL,  ChargeUnits smallint(6) DEFAULT NULL,  NetworkAndTrunkNode int(11) DEFAULT NULL,  TrunkGroupIdentity varchar(10) DEFAULT NULL,  EntityId int(11) DEFAULT NULL,  PersonalOrBusiness tinyint(3) unsigned DEFAULT NULL,   WaitingDuration smallint(6) DEFAULT '0',  EffectiveCallDuration int(11) DEFAULT NULL,  ComType tinyint(3) unsigned DEFAULT NULL,  CostInfo double DEFAULT NULL,  InitialDialledNumber varchar(30) DEFAULT NULL,  Carrier varchar(5) DEFAULT NULL,  UserToUserVolume smallint(6) DEFAULT '0',  StartDateTime datetime DEFAULT NULL,  Duration int(11) DEFAULT NULL,  RedirectedCallIndicator tinyint(3) unsigned DEFAULT NULL,  Subaddress varchar(20) DEFAULT NULL,  HighLevelComp tinyint(3) unsigned DEFAULT NULL,  CostType tinyint(3) unsigned DEFAULT NULL,  TrunkIdentity smallint(6) DEFAULT NULL,  SpecificChargeInfo char(7) DEFAULT NULL,  BearerCapability tinyint(3) unsigned DEFAULT NULL,  DataVolume int(11) DEFAULT NULL,  AdditionalEntityId int(11) DEFAULT NULL,  FirstCarrierCost double NOT NULL,  FirstCarrierCostT double DEFAULT NULL,  SecondCarrierCost double NOT NULL,  SecondCarrierCostT double DEFAULT NULL,  FacilityCost double NOT NULL,  FacilityCostT double DEFAULT NULL,  FacturedCost double DEFAULT NULL,  FacturedCostT double DEFAULT NULL,  SubscriptionCost double NOT NULL DEFAULT '0',  SubscriptionCostT double DEFAULT NULL,  FirstCarrierId int(11) DEFAULT NULL,  SecondCarrierId int(11) DEFAULT NULL,  FirstCarrierDirectionId int(11) DEFAULT NULL,  SecondCarrierDirectionId int(11) DEFAULT NULL,  FirstCarrierCcnId int(11) DEFAULT NULL,  SecondCarrierCcnId int(11) DEFAULT NULL,  ActingExtensionNumber varchar(30) DEFAULT NULL,  TransitTrunkGroupIdentity varchar(5) DEFAULT NULL,  NodeTimeOffset smallint(6) DEFAULT NULL,  ExternFacilities binary(5) DEFAULT NULL,  InternFacilities binary(5) DEFAULT NULL,  TicketOrigin tinyint(3) unsigned DEFAULT '0',  TimeDlt int(11) DEFAULT NULL,  PRIMARY KEY (TicketId),  UNIQUE KEY IX_Ticket (TicketId),  KEY IX2_Ticket (EntityId),  KEY IX3_Ticket (InitialStartDateTime),  KEY IX4_Ticket (StartDateTime))";
 
@@ -37,31 +36,30 @@ ODBC_TEST(test_CONO1)
   OK_SIMPLE_STMT(Stmt, create_table);
   
 
-  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
-  if (!SQL_SUCCEEDED(ret))
-    return FAIL;
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0));
 
-  SQLRowCount(Stmt, &rowCount);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
   diag("row_count: %u", rowCount);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "SET SQL_MODE=''");
 
-  ret= SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0);
-  if (!SQL_SUCCEEDED(ret))
-    return FAIL;
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"cono1", SQL_NTS, NULL, 0));
 
-  SQLRowCount(Stmt, &rowCount);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
   diag("row_count: %u", rowCount);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
 }
 
+/* I don't understand what this test is about. About binding column when there is no result? that it does not cause an error? */
 ODBC_TEST(test_CONO3)
 {
   int i= 0;
 
   OK_SIMPLE_STMT(Stmt, "SET @a:=1");
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)(SQLLEN)i, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, (SQLPOINTER)(SQLLEN)&i, 0, NULL));
 
   return OK;
 }
@@ -70,8 +68,7 @@ ODBC_TEST(test_CONO3)
 ODBC_TEST(simple_test)
 {
   SQLRETURN rc= SQL_SUCCESS;
-
-  SQLINTEGER value=3;
+  SQLSMALLINT value=3;
   SQLWCHAR Buffer[20];
 
   char buffer[128];
@@ -526,16 +523,16 @@ ODBC_TEST(charset_utf8)
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  FAIL_IF(conn[0] != 0xE4, "Comparison failed");
-  FAIL_IF(len != 3, "Comparison failed");
+  is_num(0xE4, conn[0]);
+  is_num(3, len);
   
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  FAIL_IF(conn[0] != 0xB8, "Comparison failed");
-  FAIL_IF(len != 2, "Comparison failed");
+  is_num(0xB8, conn[0]);
+  is_num(2, len);
   
   CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  FAIL_IF(conn[0] != 0xAD, "Comparison failed");
-  FAIL_IF(len != 1, "Comparison failed");
+  is_num(0xAD, conn[0]);
+  is_num(1, len);
   
   FAIL_IF(SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len) != SQL_NO_DATA_FOUND, "Expected SQL_NO_DATA_FOUND");
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND,"Expected SQL_NO_DATA_FOUND");
@@ -703,7 +700,13 @@ ODBC_TEST(t_driverconnect_outstring)
   SQLWCHAR    *connw, connw_out[1024];
   SQLSMALLINT conn_out_len;
   SQLCHAR     conna[512], conna_out[1024];
+  size_t      lenCorrector= 1; 
 
+  if (iOdbc() && !DmMinVersion(3, 52,14))
+  {
+    /* Old iODBC returns octets count. Thus must multiply(actually divide) by 4 this case(sizeof(SQLWCHAR)==4) */
+    lenCorrector= sizeof(SQLWCHAR);
+  }
   /* Testing how driver's doing if no out string given. ODBC-17
      ';' at the end is important - otherwise DM adds it while converting connstring for W function */
   sprintf((char*)conna, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8;", my_dsn, my_uid, my_pwd);
@@ -750,8 +753,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out)/sizeof(SQLWCHAR), &conn_out_len,
                                         SQL_DRIVER_NOPROMPT));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  /* Old iODBC returns octets count here */
+  is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -759,8 +762,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  /* Old iODBC returns octets count here */
+  is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -768,8 +771,8 @@ ODBC_TEST(t_driverconnect_outstring)
   CHECK_DBC_RC(hdbc1, SQLDriverConnectW(hdbc1, NULL, connw, SQL_NTS, connw_out,
                                         sizeof(connw_out), &conn_out_len,
                                         SQL_DRIVER_COMPLETE_REQUIRED));
-  /* iODBC returns octets count here. Thus must multiply by 4 in cas of iODBC(sizeof(SQLWCHAR)==4) */
-  is_num(conn_out_len, strlen((const char*)conna)*(iOdbc() ? 4 : 1));
+  /* Old iODBC returns octets count here */
+  is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
   IS_WSTR(connw_out, connw, strlen((const char*)conna));
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -961,9 +964,10 @@ ODBC_TEST(t_bug32014)
       {SQL_CURSOR_FORWARD_ONLY, SQL_CURSOR_STATIC,        SQL_CURSOR_DYNAMIC,         SQL_CURSOR_STATIC},
       {SQL_CURSOR_FORWARD_ONLY, SQL_CURSOR_FORWARD_ONLY,  SQL_CURSOR_FORWARD_ONLY,    SQL_CURSOR_FORWARD_ONLY}};
 
+  add_connstr= "";
   do
   {
-    my_options= flags[i] +  67108866;
+    my_options= flags[i] | 67108866;
     ODBC_Connect(&henv1, &hdbc1, &hstmt1);
 
     diag("checking %d (%d)", i, flags[i]);
@@ -1008,8 +1012,6 @@ ODBC_TEST(t_bug32014)
     ODBC_Disconnect(henv1, hdbc1, hstmt1);
 
   } while (flags[++i]);
-
-  //SET_DSN_OPTION(0);
 
   return OK;
 }
@@ -1058,43 +1060,45 @@ ODBC_TEST(t_bug28820)
   SQLCHAR dummy[20];
   SQLSMALLINT i;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug28820");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug28820 ("
-                "x varchar(90) character set latin1,"
-                "y varchar(90) character set big5,"
-                "z varchar(90) character set utf8)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28820");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28820 ("
+                "x VARCHAR(90) CHARACTER SET latin1,"
+                "y VARCHAR(90) CHARACTER SET big5,"
+                "z VARCHAR(90) CHARACTER SET utf8)");
 
-  OK_SIMPLE_STMT(Stmt, "select x,y,z from t_bug28820");
+  OK_SIMPLE_STMT(Stmt, "SELECT x,y,z FROM t_bug28820");
 
   for (i= 0; i < 3; ++i)
   {
     length= 0;
     CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i+1, dummy, sizeof(dummy), NULL,
                                   NULL, &length, NULL, NULL));
-	diag("length: %d", length);
+    diag("length: %d", length);
     is_num(length, 90);
   }
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug28820");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug28820");
   return OK;
 }
 
+/* What is tested here? */
 ODBC_TEST(t_count)
 {
   SQLULEN length;
   SQLCHAR dummy[20];
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_count");
-  OK_SIMPLE_STMT(Stmt, "create table t_count (a int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_count");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_count (a INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_count VALUES (1),(2),(3)");
                 
-  OK_SIMPLE_STMT(Stmt, "select count(*) regcount from t_count");
+  OK_SIMPLE_STMT(Stmt, "SELECT COUNT(*) regcount FROM t_count");
 
   length= 0;
   CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, dummy, sizeof(dummy), NULL,
                                      NULL, &length, NULL, NULL));
-  
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_count");
+  IS_STR(dummy, "regcount", sizeof("regcount"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_count");
   return OK;
 }
 
@@ -1415,7 +1419,8 @@ ODBC_TEST(t_odbc69)
   return OK;
 }
 
-/* If connection handle re-used, it would try to select database used in previous connection */
+/* If connection handle re-used, it would try to select database used in previous connection.
+   Additionnaly tests if "manual" changes of schema by application are detected(with session tracking) */
 ODBC_TEST(t_odbc91)
 {
   HDBC      hdbc;
@@ -1426,15 +1431,33 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS t_odbc91");
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
 
-  /* Connecting to newly created tatabase */
+  /* Connecting to newly created tatabase. Need multistatement allowed for some tests */
   sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=%lu;SERVER=%s;%s",
-    my_dsn, my_uid, my_pwd, "t_odbc91", my_options, my_servername, ma_strport);
+    my_dsn, my_uid, my_pwd, "t_odbc91", my_options | 67108864, my_servername, ma_strport);
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc));
 
   CHECK_DBC_RC(hdbc, SQLDriverConnect(hdbc, NULL, conn, (SQLSMALLINT)strlen((const char*)conn),
     conn_out, (SQLSMALLINT)sizeof(conn_out), &conn_out_len,
     SQL_DRIVER_NOPROMPT));
+
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, "t_odbc91", sizeof("t_odbc91"));
+  /* Checking if selescting schema with USE is reflected by SQLGetConnectAttr.
+     Re-using conn_out buffer here, as it is > NAME_LEN + "USE " and harmless to reuse */
+  sprintf(conn_out, "USE %s", my_schema);
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
+  OK_SIMPLE_STMT(hstmt, conn_out);
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, my_schema, strlen(my_schema));
+
+  /* No checking the same if changing schema is part ot a batch */
+  sprintf(conn_out, "USE t_odbc91;USE %s", my_schema);
+  OK_SIMPLE_STMT(hstmt, conn_out);
+  /* Session tracked after result is read */
+  CHECK_STMT_RC(hstmt, SQLMoreResults(hstmt));
+  CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
+  IS_STR(buffer, my_schema, strlen(my_schema));
 
   CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
 
@@ -1461,6 +1484,8 @@ ODBC_TEST(t_odbc91)
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE t_odbc91");
   CHECK_DBC_RC(hdbc, SQLSetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"t_odbc91", SQL_NTS));
 
+  diag("Connection string: Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
+    my_drivername, my_uid, "*****" , my_options, my_servername, add_connstr, ma_strport);
   sprintf((char *)conn, "Driver=%s;UID=%s;PWD=%s;OPTION=%lu;SERVER=%s;%s;%s",
     my_drivername, my_uid, my_pwd, my_options, my_servername, add_connstr, ma_strport);
 
@@ -1670,7 +1695,7 @@ ODBC_TEST(t_replace)
   {
     skip("REPLACE SQL command is not supported by your server version");
   }
-  
+  /* I think this test is not complete */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc_replace`");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc_replace` (`uuid` VARCHAR(64), PRIMARY KEY (`uuid`)) ENGINE=InnoDB");
   OK_SIMPLE_STMT(Stmt, "REPLACE INTO `t_odbc_replace` (`uuid`) VALUES(\"5b7fe80c-7de1-4744-ab33-3f65f26726f6\"),\
@@ -1731,6 +1756,32 @@ ODBC_TEST(t_odbc181)
 }
 
 
+ODBC_TEST(t_local_data_infile)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  /* Connection with *disabled* LOAD DATA LOCAL INFILE */
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NOLOCALINFILE=1");
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "LOAD DATA LOCAL INFILE 'nonexistent.txt' INTO TABLE nonexistent(b)", SQL_NTS), SQL_ERROR);
+  check_sqlstate(Hstmt, "42000");
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+
+  /* Connection with *enabled* LOAD DATA LOCAL INFILE */
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NOLOCALINFILE=0");
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "LOAD DATA LOCAL INFILE 'nonexistent.txt' INTO TABLE nonexistent(b)", SQL_NTS), SQL_ERROR);
+  /* Non-existent error */
+  check_sqlstate(Hstmt, "42S02");
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1773,11 +1824,12 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc91,      "odbc91_hdbc_reuse",        NORMAL},
   {t_odbc137,     "odbc137_ansi",             NORMAL},
 #ifdef _WIN32
-  {t_odbc139,     "odbc139_compression",       NORMAL},
+  {t_odbc139,     "odbc139_compression",      NORMAL},
 #endif
   {t_odbc162,     "t_odbc162_CTE_query",      NORMAL },
   {t_replace,     "t_replace",      NORMAL },
   {t_odbc181,     "t_odbc181",      NORMAL },
+  {t_local_data_infile, "odbc347_local_data_infile", NORMAL },
   {NULL, NULL, 0}
 };
 

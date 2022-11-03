@@ -282,6 +282,14 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
   if (RequiredLength > UnicodeLength)
   {
     Tmp= (SQLWCHAR *)malloc(RequiredLength * sizeof(SQLWCHAR));
+    if (Tmp == NULL)
+    {
+      if (Error)
+      {
+        MADB_SetError(Error, MADB_ERR_HY001, NULL, 0);
+      }
+      return 1;
+    }
   }
   else
   {
