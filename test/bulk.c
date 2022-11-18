@@ -65,48 +65,55 @@ ODBC_TEST(t_bulk_insert_nts)
   return OK;
 }
 
-/* TODO: As of now this test is useless */
+/* This is changed to cover ODBC-374 - crash if SQL_C_FLOAT array bound for fetching */
 ODBC_TEST(t_bulk_insert_test)
 {
-  char a[2][30]= {"Name 1", "Name 23"};
-  double b[2]= {5.78, 6.78};
-  double d[2]= {1.23, 3.45};
+  char a[2][32]= {"Name 1", "Name 23"}, res_a[2][32];
+  float b[2]= {5.78f, 6.78f}, res_b[2];
+  double d[2]= {1.23, 3.45}, res_d[2];
   SQLLEN indicator[2]= {SQL_NTS, SQL_NTS};
   SQLLEN b_indicator[2]= {0,0};
   SQLLEN d_indicator[2]= {0,0};
+  size_t i= 0;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_insert");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_insert (a VARCHAR(20), b bigint(20), c decimal(15,2))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_insert (a VARCHAR(20), b FLOAT NOT NULL, d DECIMAL(15,2))");
          
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 0));
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
                                 (SQLPOINTER)2, 0));
 
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t_bulk_insert VALUES (?,?,?)", SQL_NTS));
   
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, &a[0], 30, indicator));
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_DOUBLE, &b[0], 8, b_indicator));
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_DOUBLE, &d[0], 8, d_indicator));
-
-  OK_SIMPLE_STMT(Stmt, "SELECT a,b,c FROM t_bulk_insert LIMIT 1");
-
- 
-//  CHECK_STMT_RC(Stmt, SQLBulkOperations(Stmt, SQL_ADD));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, &a[0], sizeof(a[0]), indicator));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_FLOAT, SQL_REAL, 0, 0, &b[0], 0, b_indicator));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_DOUBLE, 0, 0, &d[0], 8, d_indicator));
+  
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   CHECK_DBC_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, 0));
 
-  SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)1, 0));
+  OK_SIMPLE_STMT(Stmt, "SELECT a,b,d FROM t_bulk_insert");
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)2, 0));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, &res_a[0], sizeof(res_a[0]), indicator));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_FLOAT, &res_b[0], 4, b_indicator));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_DOUBLE, &res_d[0], 0, d_indicator));
 
-  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt));
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                (SQLPOINTER)SQL_CURSOR_FORWARD_ONLY, 0));
-  //SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
-  CHECK_DBC_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, 0));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  for (i = 0; i < sizeof(indicator) / sizeof(SQLLEN); ++i)
+  {
+    IS_STR(a[i], res_a[i], strlen(a[i]) + 1);
+    IS(b[i] == res_b[i]);
+    IS(d[i] == res_d[i]);
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
 
-  //CHECK_DBC_RC(Connection, SQLDisconnect(Connection));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
 
   return OK;
 }

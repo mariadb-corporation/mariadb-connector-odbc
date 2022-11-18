@@ -775,7 +775,7 @@ SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *Sq
     else
     {
       MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
-      /* I guess we can leave w/out this. Keeping it so far for safety */
+      /* I guess we can live w/out this. Keeping it so far for safety */
       MaBind->long_data_used= '\1';
       return SQL_SUCCESS;
     }

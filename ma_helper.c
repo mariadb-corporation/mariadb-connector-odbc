@@ -590,7 +590,7 @@ int MADB_GetDefaultType(int SQLDataType)
   case SQL_DOUBLE:
     return SQL_C_DOUBLE; 
   case SQL_FLOAT:
-    return SQL_C_FLOAT;
+    return SQL_C_DOUBLE;
   case SQL_INTEGER:
     return SQL_C_LONG;
   case SQL_LONGVARBINARY:
@@ -705,7 +705,7 @@ size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length)
   case SQL_C_DOUBLE:
     return sizeof(SQLDOUBLE);
   case SQL_C_FLOAT:
-    return sizeof(SQLFLOAT);
+    return sizeof(SQLREAL);
   case SQL_C_NUMERIC:
     return sizeof(SQL_NUMERIC_STRUCT);
   case SQL_C_TYPE_TIME:
@@ -761,7 +761,7 @@ int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigne
     *Length= sizeof(SQLDOUBLE);
     return MYSQL_TYPE_DOUBLE;
   case SQL_C_FLOAT:
-    *Length =sizeof(SQLFLOAT);
+    *Length= sizeof(SQLREAL);
     return MYSQL_TYPE_FLOAT;
   case SQL_C_NUMERIC:
     /**Length= sizeof(SQL_NUMERIC_STRUCT);*/

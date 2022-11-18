@@ -42,8 +42,11 @@ Client_Charset utf8=  {CP_UTF8, NULL};
 /* {{{ ltrim */
 char* ltrim(char *Str)
 {
-  while (Str && isspace(Str[0]))
-    ++Str;
+  if (Str)
+  {
+    while (*Str && isspace(Str[0]))
+      ++Str;
+  }
   return Str;
 }
 /* }}} */
