@@ -412,5 +412,6 @@ int main(int argc, char** argv)
     DoOdbcWay(NewDriverName, SystemDsns);
   }
 
+  MessageBoxA(NULL, "Updating of referenced driver has been finished", "DSN's Driver Change", MB_OK);
   return 0;
 }

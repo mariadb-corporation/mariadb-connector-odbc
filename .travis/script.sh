@@ -1,168 +1,114 @@
 #!/bin/bash
 
-set -x
-set -e
+set -ex
 
-###################################################################################################################
-# test different type of configuration
-###################################################################################################################
+#if [ -n "$BENCH" ] ; then
+#  benchmark/build.sh
+#  cd benchmark
+#  ./installation.sh
+#  ./launch.sh
+#  exit
+#fi
 
-export TEST_SOCKET=
-export ENTRYPOINT=$PROJ_PATH/.travis/sql
-export ENTRYPOINT_PAM=$PROJ_PATH/.travis/pam
-export TEST_DSN=maodbc_test
-
-set +x
-
-if [ -n "$SKYSQL" ] || [ -n "$SKYSQL_HA" ]; then
-  if [ -n "$SKYSQL" ]; then
-    ###################################################################################################################
-    # test SKYSQL
-    ###################################################################################################################
-    if [ -z "$SKYSQL_HOST" ] ; then
-      echo "No SkySQL configuration found !"
-      exit 0
-    fi
-
-    export TEST_UID=$SKYSQL_USER
-    export TEST_SERVER=$SKYSQL_HOST
-    export TEST_PASSWORD=$SKYSQL_PASSWORD
-    export TEST_PORT=$SKYSQL_PORT
-
-  else
-
-    ###################################################################################################################
-    # test SKYSQL with replication
-    ###################################################################################################################
-    if [ -z "$SKYSQL_HA" ] ; then
-      echo "No SkySQL HA configuration found !"
-      exit 0
-    fi
-
-    export TEST_UID=$SKYSQL_HA_USER
-    export TEST_SERVER=$SKYSQL_HA_HOST
-    export TEST_PASSWORD=$SKYSQL_HA_PASSWORD
-    export TEST_PORT=$SKYSQL_HA_PORT
+# Setting test environment before building connector to configure tests default credentials
+if [ "$TRAVIS_OS_NAME" = "windows" ] ; then
+  echo "build from windows"
+  ls -l
+  if [ -e ./settestenv.sh ] ; then
+    source ./settestenv.sh
   fi
-  # Common for both SKYSQL testing modes
-  export TEST_SCHEMA=testo
-  export TEST_USETLS=1
-  export TEST_ADD_PARAM="FORCETLS=1"
-
 else
-  export COMPOSE_FILE=.travis/docker-compose.yml
+  echo "build from linux"
+  export SSLCERT=$TEST_DB_SERVER_CERT
+  export MARIADB_PLUGIN_DIR=$PWD
 
-  export TEST_DRIVER=maodbc_test
-  export TEST_SCHEMA=odbc_test
-  export TEST_UID=bob
-  export TEST_SERVER=mariadb.example.com
-  export TEST_PASSWORD=
-  export TEST_PORT=3305
-
-  if [ -n "$MAXSCALE_VERSION" ] ; then
-      # maxscale ports:
-      # - non ssl: 4006
-      # - ssl: 4009
-      export TEST_PORT=4006
-      export TEST_SSL_PORT=4009
-      export COMPOSE_FILE=.travis/maxscale-compose.yml
-      docker-compose -f ${COMPOSE_FILE} build
+  export SSLCERT=$TEST_DB_SERVER_CERT
+  if [ -n "$MYSQL_TEST_SSL_PORT" ] ; then
+    export TEST_SSL_PORT=$MYSQL_TEST_SSL_PORT
   fi
-
-  mysql=( mysql --protocol=tcp -ubob -h127.0.0.1 --port=3305 )
-
-  ###################################################################################################################
-  # launch docker server and maxscale
-  ###################################################################################################################
-  docker-compose -f ${COMPOSE_FILE} up -d
-
-
-  ###################################################################################################################
-  # wait for docker initialisation
-  ###################################################################################################################
-  for i in {30..0}; do
-    if echo 'SELECT 1' | "${mysql[@]}" &> /dev/null; then
-        break
-    fi
-    echo 'data server still not active'
-    sleep 2
-  done
-
-  if [ "$i" = 0 ]; then
-    if echo 'SELECT 1' | "${mysql[@]}" ; then
-        break
-    fi
-
-    docker-compose -f ${COMPOSE_FILE} logs
-    if [ -n "$MAXSCALE_VERSION" ] ; then
-        docker-compose -f ${COMPOSE_FILE} exec maxscale tail -n 500 /var/log/maxscale/maxscale.log
-    fi
-    echo >&2 'data server init process failed.'
-    exit 1
-  fi
-
-  if [[ "$DB" != mysql* ]] ; then
-    ###################################################################################################################
-    # execute pam
-    ###################################################################################################################
-    docker-compose -f ${COMPOSE_FILE} exec -u root db bash /pam/pam.sh
-    sleep 1
-    docker-compose -f ${COMPOSE_FILE} restart db
-    sleep 5
-
-    ###################################################################################################################
-    # wait for restart
-    ###################################################################################################################
-
-    for i in {30..0}; do
-      if echo 'SELECT 1' | "${mysql[@]}" &> /dev/null; then
-          break
-      fi
-      echo 'data server restart still not active'
-      sleep 2
-    done
-
-    if [ "$i" = 0 ]; then
-      if echo 'SELECT 1' | "${mysql[@]}" ; then
-          break
-      fi
-
-      docker-compose -f ${COMPOSE_FILE} logs
-      if [ -n "$MAXSCALE_VERSION" ] ; then
-          docker-compose -f ${COMPOSE_FILE} exec maxscale tail -n 500 /var/log/maxscale/maxscale.log
-      fi
-      echo >&2 'data server restart process failed.'
-      exit 1
-    fi
-  fi
-
-  #list ssl certificates
-  ls -lrt ${SSLCERT}
 fi
 
-DEBIAN_FRONTEND=noninteractive sudo apt-get update
-DEBIAN_FRONTEND=noninteractive sudo apt-get install --allow-unauthenticated -y --force-yes -m unixodbc-dev odbcinst1debian2 libodbc1 
+export TEST_DSN=maodbc_test
+export TEST_DRIVER=maodbc_test
+export TEST_UID=$TEST_DB_USER
+export TEST_SERVER=$TEST_DB_HOST
+export TEST_PASSWORD=$TEST_DB_PASSWORD
+export TEST_PORT=$TEST_DB_PORT
+export TEST_SCHEMA=testo
+export TEST_VERBOSE=true
+export TEST_SOCKET=
+if [ "${TEST_REQUIRE_TLS}" = "1" ] ; then
+  export TEST_USETLS=true
+  export TEST_ADD_PARAM="FORCETLS=1"
+fi
 
-#build odbc connector
+sudo apt install cmake
 
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL
-# In Travis we are interested in tests with latest C/C version, while for release we must use only latest release tag
-#git submodule update --remote
+if [ "$TRAVIS_OS_NAME" = "windows" ] ; then
+  cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL .
+else
+  if [ "$TRAVIS_OS_NAME" = "osx" ] ; then
+    export TEST_DRIVER="$PWD/libmaodbc.dylib"
+    cmake -G Xcode -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DOPENSSL_LIBRARIES=/usr/local/opt/openssl/lib -DWITH_EXTERNAL_ZLIB=On .
+  else
+    cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL .
+  fi
+fi
+
+set -x
 cmake --build . --config RelWithDebInfo 
 
-###################################################################################################################
-# run test suite
-###################################################################################################################
-echo "Running tests"
+if [ -n "$server_branch" ] ; then
 
-cd test
+  ###################################################################################################################
+  # Building server for testing
+  ###################################################################################################################
+  echo "Testing against built from the source server is not supported at the moment"
+  exit 1
+
+  # change travis localhost to use only 127.0.0.1
+  sudo sed -i 's/127\.0\.1\.1 localhost/127.0.0.1 localhost/' /etc/hosts
+  sudo tail /etc/hosts
+
+  # get latest server
+  git clone -b ${server_branch} https://github.com/mariadb/server ../workdir-server --depth=1
+
+  cd ../workdir-server
+  export SERVER_DIR=$PWD
+
+  # don't pull in submodules. We want the latest C/C as libmariadb
+  # build latest server with latest C/C as libmariadb
+  # skip to build some storage engines to speed up the build
+
+  mkdir bld
+  cd bld
+  cmake .. -DPLUGIN_MROONGA=NO -DPLUGIN_ROCKSDB=NO -DPLUGIN_SPIDER=NO -DPLUGIN_TOKUDB=NO
+  echo "PR:${TRAVIS_PULL_REQUEST} TRAVIS_COMMIT:${TRAVIS_COMMIT}"
+  if [ -n "$TRAVIS_PULL_REQUEST" ] && [ "$TRAVIS_PULL_REQUEST" != "false" ] ; then
+    # fetching pull request
+    echo "fetching PR"
+  else
+    echo "checkout commit"
+  fi
+
+  cd $SERVER_DIR/bld
+  make -j9
+
+fi
+###################################################################################################################
+# run connector test suite
+###################################################################################################################
+echo "run connector test suite"
+
+cd ./test
 export ODBCINI="$PWD/odbc.ini"
 export ODBCSYSINI=$PWD
 
+cat $ODBCINI
 
 ctest --output-on-failure
-# Running tests 2nd time with resultset streaming
-if [ -z "$SKYSQL" ] && [ -z "$SKYSQL_HA" ]; then
+# Running tests 2nd time with resultset streaming. "${TEST_REQUIRE_TLS}" = "1" basically means "not on skysql"
+if ! [ "${TEST_REQUIRE_TLS}" = "1" ] && ! [ "$srv" = "xpand" ]; then
   export TEST_ADD_PARAM="STREAMRS=1;FORWARDONLY=1"
   ctest --output-on-failure
 fi
