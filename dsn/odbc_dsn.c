@@ -559,7 +559,11 @@ char* HidePwd(char *ConnStr)
       }
       ++Ptr;
     }
-    ++Ptr;
+    /* Do not move if we already at the terminating null */
+    if (*Ptr)
+    {
+      ++Ptr;
+    }
   }
 
   return ConnStr;

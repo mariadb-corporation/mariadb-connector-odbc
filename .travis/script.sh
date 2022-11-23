@@ -15,7 +15,9 @@ if [ "$TRAVIS_OS_NAME" = "windows" ] ; then
   echo "build from windows"
   ls -l
   if [ -e ./settestenv.sh ] ; then
+    set +x
     source ./settestenv.sh
+    set -ex
   fi
 else
   echo "build from linux"
@@ -26,23 +28,28 @@ else
   if [ -n "$MYSQL_TEST_SSL_PORT" ] ; then
     export TEST_SSL_PORT=$MYSQL_TEST_SSL_PORT
   fi
+  if ! [ "$TRAVIS_OS_NAME" = "osx" ] ; then
+    sudo apt install cmake
+  fi
 fi
 
 export TEST_DSN=maodbc_test
 export TEST_DRIVER=maodbc_test
 export TEST_UID=$TEST_DB_USER
 export TEST_SERVER=$TEST_DB_HOST
+set +x
 export TEST_PASSWORD=$TEST_DB_PASSWORD
+# Just to see in log that this was done
+echo "export TEST_PASSWORD=******************"
+set -ex
 export TEST_PORT=$TEST_DB_PORT
 export TEST_SCHEMA=testo
-export TEST_VERBOSE=true
 export TEST_SOCKET=
 if [ "${TEST_REQUIRE_TLS}" = "1" ] ; then
   export TEST_USETLS=true
   export TEST_ADD_PARAM="FORCETLS=1"
 fi
 
-sudo apt install cmake
 
 if [ "$TRAVIS_OS_NAME" = "windows" ] ; then
   cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL .
@@ -101,10 +108,14 @@ fi
 echo "run connector test suite"
 
 cd ./test
-export ODBCINI="$PWD/odbc.ini"
-export ODBCSYSINI=$PWD
 
-cat $ODBCINI
+if ! [ "$TRAVIS_OS_NAME" = "windows" ] ; then
+  export ODBCINI="$PWD/odbc.ini"
+  export ODBCSYSINI=$PWD
+
+  cat $ODBCSYSINI/odbcinst.ini
+  cat $ODBCSYSINI/odbc.ini | grep -v TEST_PASSWORD
+fi
 
 ctest --output-on-failure
 # Running tests 2nd time with resultset streaming. "${TEST_REQUIRE_TLS}" = "1" basically means "not on skysql"

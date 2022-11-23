@@ -48,12 +48,15 @@ jobs:
     - env: srv=xpand
     - env: srv=mysql v=5.7
     - env: srv=mysql v=8.0
-    - env: srv=mariadb v=10.8
+    - env: srv=mariadb v=10.6
       os: windows
     - os: osx
     - os: linux
       arch: s390x
       dist: focal
+    - env: srv=maxscale MAXSCALE_TEST_DISABLE=true
+    - env: srv=skysql SKYSQL=true
+    - env: srv=skysql-ha SKYSQL_HA=true MAXSCALE_TEST_DISABLE=true
   include:
     - stage: Minimal
       env: srv=mariadb v=10.6 local=1
@@ -104,6 +107,9 @@ jobs:
       name: "CS build"
     - os: osx
       compiler: clang
+      before_script:
+        - brew install openssl
+        - brew install libiodbc
     - os: linux
       arch: s390x
       dist: focal

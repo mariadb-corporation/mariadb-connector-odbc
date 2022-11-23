@@ -44,7 +44,7 @@ char* ltrim(char *Str)
 {
   if (Str)
   {
-    while (*Str && isspace(Str[0]))
+    while (*Str && iswspace(Str[0]))
       ++Str;
   }
   return Str;

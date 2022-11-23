@@ -734,7 +734,8 @@ ODBC_TEST(t_driverconnect_outstring)
                                  0, &conn_out_len, SQL_DRIVER_COMPLETE));
 
   is_num(conn_out_len, strlen((const char*)conna));
-  IS_STR(conna_out, conna, conn_out_len);
+  /* Not to show sensitive data in automatic testing logs */
+  IS_STR_EX(conna_out, conna, conn_out_len, FALSE);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 
@@ -742,7 +743,7 @@ ODBC_TEST(t_driverconnect_outstring)
                                  0, &conn_out_len, SQL_DRIVER_COMPLETE_REQUIRED));
  
   is_num(conn_out_len, strlen((const char*)conna));
-  IS_STR(conna_out, conna, conn_out_len);
+  IS_STR_EX(conna_out, conna, conn_out_len, FALSE);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeHandle(SQL_HANDLE_DBC, hdbc1));
@@ -755,7 +756,7 @@ ODBC_TEST(t_driverconnect_outstring)
                                         SQL_DRIVER_NOPROMPT));
   /* Old iODBC returns octets count here */
   is_num(conn_out_len, strlen((const char*)conna)*lenCorrector);
-  IS_WSTR(connw_out, connw, strlen((const char*)conna));
+  IS_WSTR_EX(connw_out, connw, strlen((const char*)conna), FALSE);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
 

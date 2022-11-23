@@ -651,9 +651,10 @@ do {\
     }
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
-#define IS_STR(A,B,C) do {const char *loc_a=(const char *)(A), *loc_b=(const char *)(B);\
-diag("%s %s", loc_a, loc_b);\
+#define IS_STR_EX(A,B,C,D) do {const char *loc_a=(const char *)(A), *loc_b=(const char *)(B);\
+if ((D)) diag("%s %s", loc_a, loc_b);\
 FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "Strings do not match"); } while(0)
+#define IS_STR(A,B,C) IS_STR_EX(A,B,C,TRUE)
 
 #define is_num(A,B) \
 do {\
@@ -1235,21 +1236,23 @@ void printHex(char *str, int len)
   }
 }
 
-#define IS_WSTR(a, b, c) \
+#define IS_WSTR_EX(a, b, c, _OUTPUT) \
 do { \
   SQLWCHAR *val_a= (SQLWCHAR*)(a), *val_b= (SQLWCHAR*)(b); \
   int val_len= (int)(c); \
   if (memcmp(val_a, val_b, val_len * sizeof(SQLWCHAR)) != 0) { \
-    printf("#%s('", #a); \
-    printHex((char*)val_a, val_len*sizeof(SQLWCHAR)); \
-    printf("') != %s('", #b); \
-    printHex((char*)val_b, val_len*sizeof(SQLWCHAR)); \
-    printf("') in %s on line %d", __FILE__, __LINE__); \
-    printf("\n"); \
+    if ((_OUTPUT)) {\
+      printf("#%s('", #a); \
+      printHex((char*)val_a, val_len*sizeof(SQLWCHAR)); \
+      printf("') != %s('", #b); \
+      printHex((char*)val_b, val_len*sizeof(SQLWCHAR)); \
+      printf("') in %s on line %d", __FILE__, __LINE__); \
+      printf("\n");\
+    }\
     return FAIL;\
   } \
 } while (0);
-
+#define IS_WSTR(a, b, c) IS_WSTR_EX(a, b, c, TRUE)
 
 
 SQLWCHAR *dup_char_as_sqlwchar(SQLCHAR *from)
