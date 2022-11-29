@@ -724,6 +724,21 @@ ODBC_TEST(test_autocommit)
   return OK;
 }
 
+ODBC_TEST(t_odbc375)
+{
+  SQLSMALLINT ColumnCount;
+  const SQLCHAR *Query= "SELECT 1; SELECT(SELECT ENGINE FROM INFORMATION_SCHEMA.ENGINES); SELECT 2";
+
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, Query, SQL_NTS), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Still checking if error returnded in case of single statement */
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT(SELECT ENGINE FROM INFORMATION_SCHEMA.ENGINES)", SQL_NTS), SQL_ERROR);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -741,6 +756,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc169, "t_odbc169"},
   {t_odbc219, "t_odbc219"},
   {test_autocommit, "test_autocommit"},
+  {t_odbc375, "t_odbc375_reStoreError"},
   {NULL, NULL}
 };
 

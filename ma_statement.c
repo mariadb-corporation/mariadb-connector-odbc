@@ -1417,6 +1417,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
           }
           if (j == Start + Stmt->Apd->Header.ArraySize - 1)
           {
+            /* What if this is multistatement? */
             goto end;
           }
         }
@@ -1445,7 +1446,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       if (mysql_stmt_field_count(Stmt->stmt))
       {
         /* We don't stream multistatement queries. */
-        mysql_stmt_store_result(Stmt->stmt);
+        if (MADB_CacheRs(Stmt))
+        {
+          MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+          ++ErrorCount;
+        }
       }
     }
   }       /* End of for() on statements(Multistatmt) */
