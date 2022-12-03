@@ -24,7 +24,7 @@
 
 char* SkipSpacesAndComments(char **CurPtr, size_t *Length, BOOL OverWrite)
 {
-  char *End= *CurPtr + *Length, *Prev= NULL;
+  char *End= *CurPtr + *Length, *Prev= NULL, *NotTrimmed = NULL;
 
   /* Making sure that we don't have leading whitespaces and/or comments,
   and the string begins from something meainingful */
@@ -32,8 +32,9 @@ char* SkipSpacesAndComments(char **CurPtr, size_t *Length, BOOL OverWrite)
   {
     Prev= *CurPtr;
     *CurPtr= StripLeadingComments(*CurPtr, Length, OverWrite);
+    NotTrimmed= *CurPtr;
     *CurPtr= ltrim(*CurPtr);
-    *Length= strlen(*CurPtr);
+    *Length-= *CurPtr - NotTrimmed;
   }
 
   return *CurPtr;
@@ -142,6 +143,7 @@ int MADB_ParseQuery(MADB_QUERY * Query)
 
   /* Making copy of "original" string, with minimal changes required to be able to execute */
   Query->Original= strndup(Query->RefinedText, Query->RefinedLength);
+  Query->Length= Query->RefinedLength;
   SkipSpacesAndComments(&Query->RefinedText, &Query->RefinedLength, FALSE);
 
   return ParseQuery(Query);

@@ -287,6 +287,7 @@ typedef struct
 #include <ma_parse.h>
 
 #define STMT_STRING(STMT) (STMT)->Query.Original
+#define STMT_LENGTH(STMT) (STMT)->Query.Length
 
 struct st_ma_odbc_stmt
 {

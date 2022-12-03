@@ -115,6 +115,7 @@ SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier);
 MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
 SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect);
 void         MakeStmtCacher         (MADB_Stmt* Stmt);
+SQLRETURN    MADB_RealQuery         (MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error* Error);
 
 #define MADB_MAX_CURSOR_NAME 64 * 4 + 1
 #define MADB_CHECK_STMT_HANDLE(a,b)\

@@ -162,46 +162,41 @@ int  MADB_GetWCharType(int Type)
    TODO: if there are >1 of unique keys, this will go wrong */
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount)
 {
-  int          Count= -1;
-  int          i;
-  char         StmtStr[1024];
-  char         *p= StmtStr;
-  char         Database[65]= {'\0'};
-  MADB_Stmt    *Stmt= NULL;
-  MYSQL_FIELD  *Field;
+  int         Count= -1;
+  int         i;
+  char        StmtStr[512];
+  char        *p= StmtStr;
+  char        Database[65]= {'\0'};
+  MYSQL_RES   *Res;
+  MYSQL_FIELD *Field;
   
-  Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
-  p+= _snprintf(p, 1024, "SELECT * FROM ");
+  Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
+  p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(p), "`%s`.", Database);
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
   }
-  p+= _snprintf(p, sizeof(StmtStr) - strlen(p), "%s LIMIT 0", TableName);
-  if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
-    Stmt->Methods->ExecDirect(Stmt, (char *)StmtStr, SQL_NTS) == SQL_ERROR ||
-    Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
+  p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
+  LOCK_MARIADB(Connection);
+  if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (unsigned long)(p - StmtStr), &Connection->Error)) &&
+     (Res= mysql_store_result(Connection->mariadb)) != NULL)
   {
-    goto end;
-  }
-
-  Count= mysql_stmt_field_count(Stmt->stmt);
-  for (i=0; i < Count; ++i)
-  {
-    Field= mysql_fetch_field_direct(Stmt->metadata, i);
-    if (Field->flags & PRI_KEY_FLAG)
+    Count= mysql_field_count(Connection->mariadb);
+    for (i=0; i < Count; ++i)
     {
-      ++*PrimaryKeysCount;
+      Field= mysql_fetch_field_direct(Res, i);
+      if (Field->flags & PRI_KEY_FLAG)
+      {
+        ++*PrimaryKeysCount;
+      }
+      if (Field->flags & UNIQUE_KEY_FLAG)
+      {
+        ++*UniqueKeysCount;
+      }
     }
-    if (Field->flags & UNIQUE_KEY_FLAG)
-    {
-      ++*UniqueKeysCount;
-    }
+    mysql_free_result(Res);
   }
-end:
-  if (Stmt)
-  {
-    Stmt->Methods->StmtFree(Stmt, SQL_DROP);
-  }
+  UNLOCK_MARIADB(Connection);
   return Count;
 }
 
@@ -369,12 +364,13 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
     goto error;
 
   LOCK_MARIADB(Stmt->Connection);
-  if (mysql_query(Stmt->Connection->mariadb, DynStr.str))
-    goto errorunderlock;
-  result= mysql_store_result(Stmt->Connection->mariadb);
+  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, DynStr.str, (SQLINTEGER)DynStr.length, &Stmt->Error)))
+  {
+    result= mysql_store_result(Stmt->Connection->mariadb);
+  }
 
-errorunderlock:
-    UNLOCK_MARIADB(Stmt->Connection);
+  UNLOCK_MARIADB(Stmt->Connection);
+
 error:
     MADB_DynstrFree(&DynStr);
     return result;
@@ -1270,7 +1266,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS, FALSE)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, (SQLINTEGER)DynStmt.length, FALSE)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);

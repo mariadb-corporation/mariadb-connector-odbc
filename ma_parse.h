@@ -52,6 +52,7 @@ typedef struct {
   MADB_DynArray Tokens;
   MADB_DynArray SubQuery; /* List of queries or batches of queries, that can be executed together at once */
   char        * Original;
+  size_t        Length;
   char        * allocated; /* Pointer to the allocated area. The refined query may go to the right */
   char        * RefinedText;
   size_t        RefinedLength;

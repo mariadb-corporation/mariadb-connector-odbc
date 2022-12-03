@@ -179,39 +179,49 @@ error:
 }
 /* }}} */
 
-/* {{{ MADB_ExecuteQuery */
-SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER TextLength)
+/* {{{ MADB_RealQuery - the caller is responsible for locking, as the caller may need to do some operations
+       before it's ok to unlock. e.g. read results */
+SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error *Error)
 {
-  SQLRETURN ret= SQL_ERROR;
-  
-  LOCK_MARIADB(Stmt->Connection);
+  SQLRETURN ret = SQL_ERROR;
+
   if (StatementText)
   {
-    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
+    if (MADB_GOT_STREAMER(Dbc) && Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, Error))
     {
-      UNLOCK_MARIADB(Stmt->Connection);
-      return Stmt->Error.ReturnValue;
+      return Error->ReturnValue;
     }
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_real_query(%0x,%s,%lu)", Stmt->Connection->mariadb, StatementText, TextLength);
-    if(!mysql_real_query(Stmt->Connection->mariadb, StatementText, TextLength))
+    MDBUG_C_PRINT(Dbc, "mysql_real_query(%0x,%s,%lu)", Dbc->mariadb, StatementText, TextLength);
+    if (!mysql_real_query(Dbc->mariadb, StatementText, TextLength))
     {
-      ret= SQL_SUCCESS;
-      MADB_CLEAR_ERROR(&Stmt->Error);
+      ret = SQL_SUCCESS;
+      MADB_CLEAR_ERROR(Error);
 
-      Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
-      Stmt->Connection->Methods->TrackSession(Stmt->Connection);
+      Dbc->Methods->TrackSession(Dbc);
     }
     else
     {
-      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_DBC, Stmt->Connection->mariadb);
+      MADB_SetNativeError(Error, SQL_HANDLE_DBC, Dbc->mariadb);
     }
   }
   else
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
-                            mysql_errno(Stmt->Connection->mariadb));
-  UNLOCK_MARIADB(Stmt->Connection);
+    MADB_SetError(Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb),
+      mysql_errno(Dbc->mariadb));
 
   return ret;
+}
+/* }}} */
+
+/* {{{ MADB_ExecuteQuery */
+SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER TextLength)
+{
+  LOCK_MARIADB(Stmt->Connection);
+  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, StatementText, TextLength, &Stmt->Error)))
+  {
+    Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
+  }
+  UNLOCK_MARIADB(Stmt->Connection);
+  return Stmt->Error.ReturnValue;
 }
 /* }}} */
 
@@ -607,7 +617,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
   {
     return Stmt->Error.ReturnValue;
   }
-  if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
+  if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)STMT_LENGTH(Stmt)))
   {
     /* Need to save error first */
     MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
@@ -749,6 +759,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_DynStrGetWhere(Stmt->PositionedCursor, &StmtStr, TableName, TRUE);
     
     MADB_RESET(STMT_STRING(Stmt), StmtStr.str);
+    STMT_LENGTH(Stmt) = StmtStr.length;
     /* Constructed query we've copied for execution has parameters */
     Stmt->Query.HasParameters= 1;
     MADB_DynstrFree(&StmtStr);
@@ -760,8 +771,8 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
        Thus we need to check query type and last tokens, and possibly put limit before them */
     char *p;
     STMT_STRING(Stmt)= realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40);
-    p= STMT_STRING(Stmt) + strlen(STMT_STRING(Stmt));
-    _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
+    p= STMT_STRING(Stmt) + STMT_LENGTH(Stmt);
+    STMT_LENGTH(Stmt)+= _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
   }
 
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
@@ -1144,7 +1155,7 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   MDBUG_C_PRINT(Stmt->Connection, ExecDirect ? "mariadb_stmt_execute_direct(%0x,%s)"
     : "mariadb_stmt_execute(%0x)(%s)", Stmt->stmt, STMT_STRING(Stmt));
 
-  if ((ExecDirect && mariadb_stmt_execute_direct(Stmt->stmt, STMT_STRING(Stmt), strlen(STMT_STRING(Stmt))))
+  if ((ExecDirect && mariadb_stmt_execute_direct(Stmt->stmt, STMT_STRING(Stmt), STMT_LENGTH(Stmt)))
     || (!ExecDirect && mysql_stmt_execute(Stmt->stmt)))
   {
     ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
@@ -1215,7 +1226,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   if (Stmt->State == MADB_SS_EMULATED)
   {
-    return MADB_ExecuteQuery(Stmt, STMT_STRING(Stmt), (SQLINTEGER)strlen(STMT_STRING(Stmt)));
+    return MADB_ExecuteQuery(Stmt, STMT_STRING(Stmt), (SQLINTEGER)STMT_LENGTH(Stmt));
   }
 
   if (MADB_POSITIONED_COMMAND(Stmt))
