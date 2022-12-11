@@ -403,7 +403,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
       char *ServerName= "";
       if (Stmt && Stmt->stmt)
       {
-        mariadb_get_infov(Stmt->stmt->mysql, MARIADB_CONNECTION_HOST, (void*)&ServerName);
+        mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_HOST, (void*)&ServerName);
       }
       else if (Dbc && Dbc->mariadb)
       {

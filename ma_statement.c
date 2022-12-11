@@ -1078,7 +1078,7 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
   /* Since Outparams are only one row, we use store result */
   if (mysql_stmt_store_result(Stmt->stmt))
   {
-    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt);
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
 
   Bind= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt));
@@ -1098,8 +1098,10 @@ SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
           Bind[ParameterNr].length= (unsigned long *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr,
                                                         CurrentOffset, sizeof(SQLLEN));
         }
+        
+        Bind[ParameterNr].buffer_type = MADB_GetMaDBTypeAndLength(ApdRecord->ConciseType, &Bind[ParameterNr].is_unsigned,
+          &Bind[ParameterNr].buffer_length);
         Bind[ParameterNr].buffer_length= (unsigned long)ApdRecord->OctetLength;
-        Bind[ParameterNr].buffer_type= Stmt->stmt->params[i].buffer_type;
         ParameterNr++;
       }
     }
