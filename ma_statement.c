@@ -1531,7 +1531,7 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
 
   if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || 
       (mysql_stmt_field_count(Stmt->stmt) &&
-       Stmt->stmt->state > MYSQL_STMT_PREPARED && 
+        STMT_WAS_PREPARED(Stmt) &&
        ColumnNumber > mysql_stmt_field_count(Stmt->stmt)))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
@@ -2929,25 +2929,30 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char  *ClientValue= NULL;
         BOOL isTime;
 
         Bind.buffer_length = (Stmt->stmt->fields[Offset].max_length != 0 ?
           Stmt->stmt->fields[Offset].max_length : Stmt->stmt->fields[Offset].length) + 1;
-
-        if (!(ClientValue = (char *)MADB_CALLOC(Bind.buffer_length)))
+        if (IrdRec->InternalBuffer != NULL)
+        {
+          IrdRec->InternalBuffer = (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
+        }
+        else
+        {
+          IrdRec->InternalBuffer= (char*)MADB_ALLOC(Bind.buffer_length);
+        }
+          
+        if (IrdRec->InternalBuffer == NULL)
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer=        ClientValue;
+        Bind.buffer=        IrdRec->InternalBuffer;
         Bind.buffer_type=   MYSQL_TYPE_STRING;
         mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, FALSE, &Stmt->Error, &isTime));
+        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(IrdRec->InternalBuffer, Bind.length_value, &tm, FALSE, &Stmt->Error, &isTime));
       }
       else
       {
-
-
         Bind.buffer_length= sizeof(MYSQL_TIME);
         Bind.buffer= (void *)&tm;
         /* c/c is too smart to convert hours to days and days to hours, we don't need that */
@@ -2974,20 +2979,28 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char *ClientValue= NULL;
         BOOL isTime;
 
         Bind.buffer_length= (Stmt->stmt->fields[Offset].max_length != 0 ? Stmt->stmt->fields[Offset].max_length :
           Stmt->stmt->fields[Offset].length) + 1;
 
-        if (!(ClientValue = (char *)MADB_CALLOC(Bind.buffer_length)))
+        if (IrdRec->InternalBuffer != NULL)
+        {
+          IrdRec->InternalBuffer = (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
+        }
+        else
+        {
+          IrdRec->InternalBuffer = (char*)MADB_ALLOC(Bind.buffer_length);
+        }
+
+        if (IrdRec->InternalBuffer == NULL)
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer=        ClientValue;
+        Bind.buffer=        IrdRec->InternalBuffer;
         Bind.buffer_type=   MYSQL_TYPE_STRING;
         mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, TRUE, &Stmt->Error, &isTime));
+        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(IrdRec->InternalBuffer, Bind.length_value, &tm, TRUE, &Stmt->Error, &isTime));
       }
       else
       {
@@ -3277,13 +3290,28 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   case SQL_NUMERIC:
   {
     SQLRETURN rc;
-    char *tmp;
+    char *tmp= NULL;
     MADB_DescRecord *Ard= MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
 
     Bind.buffer_length= MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
-    tmp=                (char *)MADB_CALLOC(Bind.buffer_length);
-    Bind.buffer=        tmp;
+    if (IrdRec->InternalBuffer != NULL)
+    {
+      tmp= (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
+    }
+    else
+    {
+      tmp= (char*)MADB_ALLOC(Bind.buffer_length);
+    }
 
+    if (tmp == NULL)
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    }
+    else
+    {
+      IrdRec->InternalBuffer= tmp;
+    }
+    Bind.buffer=        IrdRec->InternalBuffer;
     Bind.buffer_type=   MadbType;
 
     mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
@@ -3293,11 +3321,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     if (Bind.buffer_length < *Bind.length)
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
-      MADB_FREE(tmp);
       return Stmt->Error.ReturnValue;
     }
 
-    rc= MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, TargetValuePtr, 0);
+    rc= MADB_CharToSQLNumeric(IrdRec->InternalBuffer, Stmt->Ard, Ard, TargetValuePtr, 0);
 
     /* Ugly */
     if (rc != SQL_SUCCESS)

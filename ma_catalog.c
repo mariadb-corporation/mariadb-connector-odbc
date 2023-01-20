@@ -476,7 +476,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   MADB_DynString StmtStr;
   SQLRETURN ret;
   size_t Length= strlen(MADB_CATALOG_COLUMNSp3);
-  char *ColumnsPart= MADB_CALLOC(Length);
+  char *ColumnsPart= NULL;
   unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 && Stmt->Connection->Charset.cs_info->char_maxlen < 10 ? Stmt->Connection->Charset.cs_info->char_maxlen : 1;
 
   MDBUG_C_ENTER(Stmt->Connection, "StmtColumns");
@@ -485,11 +485,12 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+
+  ColumnsPart = MADB_CALLOC(Length);
   if (ColumnsPart == NULL)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
-
   _snprintf(ColumnsPart, Length, MADB_CATALOG_COLUMNSp3, OctetsPerChar);
 
   MADB_InitDynamicString(&StmtStr, "", 8192, 1024);

@@ -803,7 +803,7 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
                          SQLCHAR sign, SQLCHAR *expdata, int expnum,
                          SQLRETURN overflow)
 {
-  SQL_NUMERIC_STRUCT *sqlnum= malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQL_NUMERIC_STRUCT sqlnum;/*= malloc(sizeof(SQL_NUMERIC_STRUCT));*/
   SQLCHAR buf[512];
   SQLHANDLE ard;
   unsigned long long numval;
@@ -821,7 +821,7 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
                                (SQLPOINTER)(SQLLEN) scale, SQL_IS_INTEGER));
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
-                               sqlnum, SQL_IS_POINTER));
+                               &sqlnum, SQL_IS_POINTER));
   if (overflow != SQL_SUCCESS)
   {
     EXPECT_STMT(Stmt, SQLFetch(Stmt), overflow);
@@ -838,12 +838,12 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
   else
     CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  is_num(sqlnum->precision, prec);
-  is_num(sqlnum->scale, scale);
-  is_num(sqlnum->sign, sign);
+  is_num(sqlnum.precision, prec);
+  is_num(sqlnum.scale, scale);
+  is_num(sqlnum.sign, sign);
   if (expdata)
   {
-    IS(!memcmp(sqlnum->val, expdata, SQL_MAX_NUMERIC_LEN));
+    IS(!memcmp(sqlnum.val, expdata, SQL_MAX_NUMERIC_LEN));
   }
   else
   {
@@ -853,7 +853,7 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
     numval= 0;
     for (i= 0; i < 8; ++i)
     {
-      singleByte= sqlnum->val[7 - i]; 
+      singleByte= sqlnum.val[7 - i]; 
       numval+= singleByte << (8 * (7 - i));
     }
     if (numval != expnum)
@@ -863,7 +863,6 @@ int sqlnum_test_from_str(SQLHANDLE Stmt,
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  free(sqlnum);
   return OK;
 }
 
@@ -1037,7 +1036,7 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
   SQLSCHAR scale, SQLCHAR sign, char* outstr,
   char* exptrunc)
 {
-  SQL_NUMERIC_STRUCT* sqlnum = malloc(sizeof(SQL_NUMERIC_STRUCT));
+  SQL_NUMERIC_STRUCT sqlnum;
   SQLCHAR obuf[80]; /*1 sign + 39 + 1 dot + 38 + \0 */
   SQLRETURN exprc = SQL_SUCCESS;
   SQLLEN len;
@@ -1056,11 +1055,11 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
   else if (!strcmp("22003", exptrunc))
     exprc= SQL_ERROR;
 
-  sqlnum->sign = sign;
-  memcpy(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN);
+  sqlnum.sign = sign;
+  memcpy(sqlnum.val, numdata, SQL_MAX_NUMERIC_LEN);
 
   EXPECT_STMT(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC,
-                       SQL_DECIMAL, prec, scale, sqlnum, 0, NULL), scale > 38 ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS);
+                       SQL_DECIMAL, prec, scale, &sqlnum, 0, NULL), scale > 38 ? SQL_SUCCESS_WITH_INFO : SQL_SUCCESS);
 
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT ?", SQL_NTS), exprc);
 
@@ -1076,17 +1075,16 @@ int sqlnum_test_to_str(SQLHANDLE Stmt, SQLCHAR* numdata, SQLCHAR prec,
   /* Error heere may occur on execution. Checking SQLFetch result is pretty useless */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-  is_num(sqlnum->precision, prec);
-  is_num(sqlnum->scale, (scale > 38 ? 38 : scale));
-  is_num(sqlnum->sign, sign);
+  is_num(sqlnum.precision, prec);
+  is_num(sqlnum.scale, (scale > 38 ? 38 : scale));
+  is_num(sqlnum.sign, sign);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, obuf, sizeof(obuf), &len));
   IS_STR(obuf, outstr, len + 1);
   /* This is seemingly useless check */
-  FAIL_IF(memcmp(sqlnum->val, numdata, SQL_MAX_NUMERIC_LEN), "memcmp failed");
+  FAIL_IF(memcmp(sqlnum.val, numdata, SQL_MAX_NUMERIC_LEN), "memcmp failed");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  free(sqlnum);
   return OK;
 }
 

@@ -256,7 +256,7 @@ ODBC_TEST(sqlchar)
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
 
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(hstmt1, SQL_DROP));
+  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   is_num(SQLFreeHandle(SQL_HANDLE_STMT, hstmt1), SQL_INVALID_HANDLE);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));

@@ -805,6 +805,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
   {
     mysql_optionsv(Connection->mariadb, MYSQL_INIT_COMMAND, InitCmd.str);
+    MADB_DynstrFree(&InitCmd);
   }
 
   if (Dsn->ConnectionTimeout)
