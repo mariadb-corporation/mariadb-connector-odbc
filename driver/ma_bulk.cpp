@@ -22,6 +22,9 @@
 
 #include <ma_odbc.h>
 
+#include "class/ClientSidePreparedStatement.h"
+#include "class/ServerSidePreparedStatement.h"
+
 #define MAODBC_DATTIME_AS_PTR_ARR 1
 
 static BOOL CanUseStructArrForDatetime(MADB_Stmt *Stmt)
@@ -105,9 +108,7 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
             MADB_FREE(MaBind->buffer);
           }
         }
-
         MADB_FREE(MaBind->length);
-
         MADB_FREE(MaBind->u.indicator);
       }
     }
@@ -194,6 +195,12 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
 
   MaBind->buffer_length= 0;
   MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
+  /*enum enum_field_types preferredType= Stmt->stmt->getPreferredParamType(MaBind->buffer_type);
+
+  if (preferredType != MaBind->buffer_type)
+  {
+    MaBind->buffer_length= 0;
+  }*/
 
   /* For fixed length types MADB_GetMaDBTypeAndLength has set buffer_length */
   if (MaBind->buffer_length != 0)
@@ -265,6 +272,12 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
   unsigned int  i, IndIdx= -1;
   unsigned long Dummy;
 
+  if (Stmt->stmt->isServerSide() && !MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS))
+  {
+    Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt), Stmt->Options.CursorType
+      , Stmt->Query.NoBackslashEscape));
+  }
+
   for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
   {
     MADB_DescRecord *CRec, *SqlRec;
@@ -313,24 +326,6 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       if (MaBind->u.indicator != NULL && IndIdx == (unsigned int)-1)
       {
         IndIdx= i - ParamOffset;
-      }
-
-      /* Doing it on last parameter - just to do do this once, and to use already allocated indicator array.
-         Little stupid optimization. But it's actually even a bit simpler this way */
-      if (i == ParamOffset + MADB_STMT_PARAM_COUNT(Stmt) - 1 && Stmt->Bulk.HasRowsToSkip)
-      {
-        if (IndIdx == (unsigned int)-1)
-        {
-          IndIdx= 0;
-        }
-
-        for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
-        {
-          if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
-          {
-            MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], (unsigned int)row, SQL_PARAM_IGNORE);
-          }
-        }       
       }
 
       if (MADB_AppBufferCanBeUsed(CRec->ConciseType, SqlRec->ConciseType))
@@ -382,6 +377,24 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
     }
   }
 
-  return MADB_DoExecute(Stmt, FALSE);
+  /* just to do this once, and to use already allocated indicator array */
+  if (Stmt->Bulk.HasRowsToSkip)
+  {
+    SQLULEN row, Start = Stmt->ArrayOffset;
+    if (IndIdx == (unsigned int)-1)
+    {
+      IndIdx = 0;
+    }
+
+    for (row = Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+    {
+      if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+      {
+        MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], (unsigned int)row, SQL_PARAM_IGNORE);
+      }
+    }
+  }
+
+  return Stmt->DoExecuteBatch();
 }
 /* }}} */

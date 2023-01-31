@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,63 +16,87 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
+
 #include <ma_odbc.h>
+
+#include "ResultSetMetaData.h"
 
 extern MARIADB_CHARSET_INFO*  DmUnicodeCs;
 
 char* MADB_GetTableName(MADB_Stmt *Stmt)
 {
-  char *TableName= NULL;
-  unsigned int  i= 0;
+  char *TableName= nullptr;
+  uint32_t  i= 0, colCount= 0;
+  const MYSQL_FIELD *Field= nullptr;
 
   if (Stmt->TableName && Stmt->TableName[0])
-    return Stmt->TableName;
-  if (!mysql_stmt_field_count(Stmt->stmt))
-    return NULL;
-
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
   {
-    if (Stmt->stmt->fields[i].org_table)
+    return Stmt->TableName;
+  }
+  if (!Stmt->rs)
+  {
+    return nullptr;
+  }
+
+  colCount= Stmt->metadata->getColumnCount();
+  Field= Stmt->metadata->getFields();
+  for (i=0; i < colCount; i++)
+  {
+    if (Field[i].org_table)
     {
       if (!TableName)
-        TableName= Stmt->stmt->fields[i].org_table;
-      if (strcmp(TableName, Stmt->stmt->fields[i].org_table))
+      {
+        TableName= Field[i].org_table;
+      }
+      if (strcmp(TableName, Field[i].org_table))
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Couldn't identify unique table name", 0);
-        return NULL;
+        return nullptr;
       }
     }
   }
   if (TableName)
-    Stmt->TableName= _strdup(TableName);
-  return TableName;
+  {
+    Stmt->TableName = _strdup(TableName);
+  }
+  return Stmt->TableName;
 }
 
 char *MADB_GetCatalogName(MADB_Stmt *Stmt)
 {
-  char *CatalogName= NULL;
-  unsigned int i= 0;
-  if (Stmt->CatalogName && Stmt->CatalogName[0])
-    return Stmt->CatalogName;
-  if (!mysql_stmt_field_count(Stmt->stmt))
-    return NULL;
+  char *CatalogName= nullptr;
+  uint32_t i= 0, colCount= 0;
+  const MYSQL_FIELD* Field = nullptr;
 
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  if (Stmt->CatalogName && Stmt->CatalogName[0])
   {
-    if (Stmt->stmt->fields[i].org_table)
+    return Stmt->CatalogName;
+  }
+  if (!Stmt->metadata)
+  {
+    return nullptr;
+  }
+
+  colCount = Stmt->metadata->getColumnCount();
+  Field = Stmt->metadata->getFields();
+  for (i=0; i < colCount; i++)
+  {
+    if (Field[i].org_table)
     {
       if (!CatalogName)
-        CatalogName= Stmt->stmt->fields[i].db;
-      if (strcmp(CatalogName, Stmt->stmt->fields[i].db))
+        CatalogName= Field[i].db;
+      if (strcmp(CatalogName, Field[i].db))
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Couldn't identify unique catalog name", 0);
-        return NULL;
+        return nullptr;
       }
     }
   }
   if (CatalogName)
+  {
     Stmt->CatalogName= _strdup(CatalogName);
-  return CatalogName;
+  }
+  return Stmt->CatalogName;
 }
 
 my_bool MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String)
@@ -93,13 +117,15 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
 
   if (MADB_DYNAPPENDCONST(DynString, " SET "))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
     return TRUE;
   }
+
+  const MYSQL_FIELD *Field = Stmt->metadata->getFields();
   // ???? memcpy(&Stmt->Da->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
   for (i=0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
-    SQLLEN *IndicatorPtr= NULL;
+    SQLLEN *IndicatorPtr= nullptr;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
       IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber-1 : 0,
@@ -112,23 +138,23 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
     
     if ((i - IgnoredColumns) && MADB_DYNAPPENDCONST(DynString, ","))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return TRUE;
     }
-    if (MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name))
+    if (MADB_DynStrAppendQuoted(DynString, Field[i].org_name))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return TRUE;
     }
     if (MADB_DYNAPPENDCONST(DynString, "=?"))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return TRUE;
     }
   }
-  if (IgnoredColumns == mysql_stmt_field_count(Stmt->stmt))
+  if (IgnoredColumns == Stmt->metadata->getColumnCount())
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_21S02, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_21S02, nullptr, 0);
     return TRUE;
   }
   return FALSE;
@@ -139,6 +165,7 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
   MADB_DynString  ColVals;
   int             i, NeedComma= 0;
   MADB_DescRecord *Record;
+  const MYSQL_FIELD *Field;
 
   MADB_InitDynamicString(&ColVals, "VALUES (", 32, 32);
   if (MADB_DYNAPPENDCONST(DynString, " ("))
@@ -148,7 +175,9 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
     return TRUE;
   }
 
-  /* We use only columns, that have been bound, and are not IGNORED */
+  Field= Stmt->metadata->getFields();
+  /* We use only columns, that have been bound, and are not IGNORED
+     TODO: we gave to use this column count in most, if not all, places, where it's got via API function */
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
@@ -161,7 +190,7 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
         (MADB_DYNAPPENDCONST(DynString, ",") || MADB_DYNAPPENDCONST(&ColVals, ",")))
       goto dynerror;
 
-    if (MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name) ||
+    if (MADB_DynStrAppendQuoted(DynString, Field[i].org_name) ||
         MADB_DYNAPPENDCONST(&ColVals, "?"))
        goto dynerror;
 
@@ -174,35 +203,38 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
   MADB_DynstrFree(&ColVals);
   return FALSE;
 dynerror:
-  MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
   MADB_DynstrFree(&ColVals);
   return TRUE;
 }
 
 my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString)
 {
-  unsigned int i;
   if (MADB_DYNAPPENDCONST(DynString, " ("))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
     return TRUE;
   }
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+
+  unsigned int i;
+  std::size_t colCount= Stmt->metadata->getColumnCount();
+  const MYSQL_FIELD *Field=   Stmt->metadata->getFields();
+  for (i=0; i < colCount; i++)
   {
     if (i && MADB_DYNAPPENDCONST(DynString, ", "))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return TRUE;
     }
-    if (MADB_DynStrAppendQuoted(DynString, Stmt->stmt->fields[i].org_name))
+    if (MADB_DynStrAppendQuoted(DynString, Field[i].org_name))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return TRUE;
     }
   }
   if (MADB_DYNAPPENDCONST(DynString, " )"))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
     return TRUE;
   }
   return FALSE;
@@ -212,11 +244,11 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
 {
   int UniqueCount=0, PrimaryCount= 0, TotalPrimaryCount= 0, TotalUniqueCount= 0, TotalTableFieldCount= 0;
   int i, Flag= 0, IndexArrIdx= 0;
-  char *Column= NULL, *Escaped= NULL;
+  char *Column= nullptr, *Escaped= nullptr;
   SQLLEN StrLength;
   unsigned long EscapedLength;
 
-  if (Stmt->UniqueIndex != NULL)
+  if (Stmt->UniqueIndex != nullptr)
   {
     TotalUniqueCount= Stmt->UniqueIndex[0];
     IndexArrIdx= 1;
@@ -225,7 +257,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
   {
     for (i = 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
     {
-      MYSQL_FIELD* field = mysql_fetch_field_direct(FetchMetadata(Stmt), i);
+      const MYSQL_FIELD* field = FetchMetadata(Stmt)->getField(i);
       if (field->flags & PRI_KEY_FLAG)
         PrimaryCount++;
       if (field->flags & UNIQUE_KEY_FLAG)
@@ -277,7 +309,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     {
       /* First element gets number of columns in the index */
       Stmt->UniqueIndex= static_cast<unsigned short*>(MADB_ALLOC((TotalUniqueCount + 1) * sizeof(*Stmt->UniqueIndex)));
-      if (Stmt->UniqueIndex == NULL)
+      if (Stmt->UniqueIndex == nullptr)
       {
         goto memerror;
       }
@@ -295,7 +327,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     IndexArrIdx == 0 ? i < MADB_STMT_COLUMN_COUNT(Stmt) : IndexArrIdx <= Stmt->UniqueIndex[0];
     i= IndexArrIdx == 0 ? i + 1 : Stmt->UniqueIndex[++IndexArrIdx])
   {
-    MYSQL_FIELD *field= mysql_fetch_field_direct(Stmt->metadata, i);
+    const MYSQL_FIELD *field= Stmt->metadata->getField(i);
 
     /* If we have already index columns, or column has right flag(primary or unique) set, or there is no good index */
     if ( IndexArrIdx != 0 || field->flags & Flag || Flag == 0)
@@ -316,7 +348,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
       }
       else
       { 
-        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, NULL, 0, &StrLength, TRUE)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, nullptr, 0, &StrLength, TRUE)))
         {
           MADB_FREE(Column);
           return TRUE;
@@ -354,7 +386,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
 
 memerror:
   MADB_FREE(Column);
-  MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
 
   return TRUE;
 }
@@ -365,20 +397,20 @@ my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString)
   unsigned int i;
   if (MADB_DYNAPPENDCONST(DynString, " VALUES("))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
     return TRUE;
   }
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i=0; i < Stmt->metadata->getColumnCount(); i++)
   {
     if (MADB_DynstrAppend(DynString, (i) ? ",?" : "?"))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return TRUE;
     }
   }
   if (MADB_DYNAPPENDCONST(DynString, ")"))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
     return TRUE;
   }
   return FALSE;
@@ -390,45 +422,47 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
   size_t Length= 1024;
   char *p;
   char *TableName;
-  unsigned int i;
+  uint32_t i, colCount;
 
   if (!(StmtStr= static_cast<char*>(MADB_CALLOC(1024))))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
-    return NULL;
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
+    return nullptr;
   }
   if (!(TableName= MADB_GetTableName(Stmt)))
     goto error;
   p= StmtStr;
-  
   p+= _snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+
+  const MYSQL_FIELD* Field= Stmt->metadata->getFields();
+  colCount= Stmt->metadata->getColumnCount();
+  for (i=0; i < colCount; i++)
   {
-    if (strlen(StmtStr) > Length - NAME_LEN - 4/* comma + 2 ticks + terminating NULL */)
+    if (strlen(StmtStr) > Length - NAME_LEN - 4/* comma + 2 ticks + terminating nullptr */)
     {
       Length+= 1024;
       if (!(StmtStr= static_cast<char*>(MADB_REALLOC(StmtStr, Length))))
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
         goto error;
       }
     }
-    p+= _snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Stmt->stmt->fields[i].org_name);
+    p+= _snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Field[i].org_name);
   }
   p+= _snprintf(p, Length - strlen(StmtStr), ") VALUES (");
 
-  if (strlen(StmtStr) > Length - mysql_stmt_field_count(Stmt->stmt)*2 - 1)/* , and ? for each column  + (- 1 comma for 1st column + closing ')')
-                                                                            + terminating NULL */
+  if (strlen(StmtStr) > Length - colCount*2 - 1)/* , and ? for each column  + (- 1 comma for 1st column + closing ')')
+                                                                            + terminating nullptr */
   {
-    Length= strlen(StmtStr) + mysql_stmt_field_count(Stmt->stmt)*2 + 1;
+    Length= strlen(StmtStr) + colCount*2 + 1;
     if (!(StmtStr= static_cast<char*>(MADB_REALLOC(StmtStr, Length))))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY013, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
       goto error;
     }
   }
 
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i=0; i < colCount; i++)
   {
     p+= _snprintf(p, Length - strlen(StmtStr), "%s?", (i==0) ? "" : ",");
   }
@@ -438,7 +472,7 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
 error:
   if (StmtStr)
     MADB_FREE(StmtStr);
-  return NULL;
+  return nullptr;
 }
 
 
@@ -471,7 +505,7 @@ int InitClientCharset(Client_Charset *cc, const char * name)
   char lowered[32];
   cc->cs_info= mariadb_get_charset_by_name(MADB_ToLower(name, lowered, sizeof(lowered)));
 
-  if (cc->cs_info == NULL)
+  if (cc->cs_info == nullptr)
   {
     return 1;
   }
@@ -501,7 +535,7 @@ SQLLEN MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
 
   if (str)
   {
-    if (cs->mb_charlen == NULL)
+    if (cs->mb_charlen == nullptr)
     {
       /* Charset uses no more than a byte per char. Result is strlen or umber of chars */
       if (*CharLen < 0)
@@ -543,7 +577,7 @@ SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *
 
   if (str)
   {
-    if (cs->mb_charlen == NULL || cs->char_maxlen == 1)
+    if (cs->mb_charlen == nullptr || cs->char_maxlen == 1)
     {
       return OctetLen;
     }
@@ -563,7 +597,7 @@ SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *
           ++ptr;
       }
 
-      /* Stopping if current character is terminating NULL - charlen == 0 means all bytes of current char was 0 */
+      /* Stopping if current character is terminating nullptr - charlen == 0 means all bytes of current char was 0 */
       if (charlen == 0)
       {
         return result;

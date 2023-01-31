@@ -556,7 +556,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 
     MDBUG_C_DUMP(Stmt->Connection, StmtStr.str, s);
   }
-  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
+  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, static_cast<SQLINTEGER>(StmtStr.length));
 
   if (SQL_SUCCEEDED(ret))
   {

@@ -17,8 +17,8 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #define _GNU_SOURCE
-#include <ma_odbc.h>
-
+#include "ma_dsn.h"
+#include "stdio.h"
 
 #define DSNKEY_OPTIONS_INDEX   3
 #define DSNKEY_OPTION_INDEX    4
@@ -553,7 +553,7 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
           i= DsnKeys[i].DsnOffset; /* For aliases DsnOffset is index of aliased "main" key */
         }
 
-        Value= ltrim(Value);
+        Value= (char*)ltrim(Value);
 
         if (Value[0] == '{')
         {

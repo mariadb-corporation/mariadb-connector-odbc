@@ -22,7 +22,7 @@
 void MADB_StmtResetResultStructures(MADB_Stmt *Stmt);
 SQLRETURN MoveNext(MADB_Stmt *Stmt, unsigned long long Offset);
 SQLRETURN MADB_StmtDataSeek   (MADB_Stmt *Stmt, my_ulonglong FetchOffset);
-SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt);
+SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle);
 SQLULEN   MADB_RowsToFetch(MADB_Cursor *Cursor, SQLULEN ArraySize, unsigned long long RowsInResultst);
 
  #endif /* _ma_result_h_ */

@@ -1,6 +1,6 @@
 ﻿/*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1280,7 +1280,7 @@ ODBC_TEST(t_17613161)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_17613161(col1 time)");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_17613161 "
     "(col1) VALUES (?)", SQL_NTS));
 
@@ -1372,6 +1372,7 @@ ODBC_TEST(t_bug67793)
   const SQLCHAR *query= "SELECT '123456789:45:07', '99999:42:09', CAST('-800:12:17' AS TIME)";
 
   /* check situations with sec and min overflow */
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
   OK_SIMPLE_STMT(Stmt, query);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1));
 

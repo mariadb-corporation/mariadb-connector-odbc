@@ -78,9 +78,9 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
   }
 }
 
-BOOL MADB_ServerSupports(MADB_Dbc *Dbc, char Capability)
+bool MADB_ServerSupports(MADB_Dbc *Dbc, char Capability)
 {
-  return test(Dbc->ServerCapabilities & Capability);
+  return (Dbc->ServerCapabilities & Capability);
 }
 
 const char* MADB_GetTxIsolationQuery(MADB_Dbc* Dbc)

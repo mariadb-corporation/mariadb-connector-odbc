@@ -59,20 +59,21 @@ BOOL VerifyOptionFields(MADB_Dsn *Dsn)
 
 /* Copy of the function from connector - required for (easier) linking. They are unlikely to be changed there. But one should be careful */
 /* {{{ ltrim */
-char* ltrim(char* Str)
+const char* ltrim(const char* Str)
 {
   while (Str && isspace(Str[0]))
     ++Str;
   return Str;
 }
 /* }}} */
+
 char *trim(char *Str)
 {
   char *end;
 
-  Str = ltrim(Str);
+  Str= (char*)ltrim(Str);
   end= Str + strlen(Str) - 1;
-  while (isspace(*end))
+  while (*end > 0 && isspace(*end))
     *end--= 0;
   return Str;
 }

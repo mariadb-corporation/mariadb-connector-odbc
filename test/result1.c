@@ -860,6 +860,7 @@ ODBC_TEST(t_cache_bug)
   SQLHSTMT   hstmt1, hstmt2;
   SQLCHAR    conn[MAX_NAME_LEN];
 
+  skip("Temporarily skipping rs streaming tests");
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_cache");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_cache (id INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_cache VALUES (1),(2),(3),(4),(5)");

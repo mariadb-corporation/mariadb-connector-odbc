@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,8 +19,10 @@
 #ifndef _ma_parse_h_
 #define _ma_parse_h_
 
+#include <vector>
+#include <array>
 #include <sqlext.h>
-
+#include "SQLString.h"
 
 enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the query types we are not interested in */ 
                             MADB_QUERY_INSERT,
@@ -48,48 +50,44 @@ typedef struct {
   MADB_DynArray ParamPos;
 } SINGLE_QUERY;
 
-typedef struct {
-  MADB_DynArray Tokens;
-  MADB_DynArray SubQuery; /* List of queries or batches of queries, that can be executed together at once */
-  char        * Original;
-  char        * allocated; /* Pointer to the allocated area. The refined query may go to the right */
-  char        * RefinedText;
-  size_t        RefinedLength;
-  enum enum_madb_query_type QueryType;
-  /* So far only falg whether we have any parameters */
-  my_bool       HasParameters;
-  /* This is more for multistatements for optimization - if none of queries returns result,
-     we can send them via text protocol */
-  my_bool       ReturnsResult;
-  my_bool       PoorManParsing;
+ struct MADB_QUERY
+ {
+  std::vector<std::size_t> Tokens;
+  SQLString     Original;
+  SQLString     RefinedText;
+  enum enum_madb_query_type QueryType= MADB_QUERY_NO_RESULT;
+  bool          MultiStatement= false;
+  /* Keeping it so far */
+  bool       ReturnsResult= false;
+  bool       PoorManParsing= false;
 
-  my_bool       BatchAllowed;
-  my_bool       AnsiQuotes;
-  my_bool       NoBackslashEscape;
+  bool       BatchAllowed= false;
+  bool       AnsiQuotes= false;
+  bool       NoBackslashEscape= false;
 
-} MADB_QUERY;
+  MADB_QUERY()
+    : Tokens()
+  {}
+  void reset();
+};
 
 #define PQUERY_UPDATE_LEN(PARSED_QUERY_PTR) (PARSED_QUERY_PTR)->RefinedLength= strlen((PARSED_QUERY_PTR)->RefinedLength)
-#define STMT_COUNT(PARSED_QUERY) ((PARSED_QUERY).SubQuery.elements/* + 1*/)
-#define QUERY_IS_MULTISTMT(PARSED_QUERY) (STMT_COUNT(PARSED_QUERY) > 1)
+#define QUERY_IS_MULTISTMT(PARSED_QUERY) (PARSED_QUERY.MultiStatement)
 
 int  MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLength);
-void MADB_DeleteSubqueries(MADB_QUERY *Query);
-void MADB_AddSubQuery(MADB_QUERY *Query, char *SubQueryText, enum enum_madb_query_type QueryType);
 
-void MADB_DeleteQuery(MADB_QUERY *Query);
 int  MADB_ParseQuery(MADB_QUERY *Query);
 
 #define QUERY_DOESNT_RETURN_RESULT(query_type) ((query_type) < MADB_QUERY_SELECT)
 
-char *       MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset);
+const char * MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset);
 unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare);
 
 enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Token2);
 
 const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt);
-char *       FixIsoFormat(char * StmtString, size_t *Length);
+SQLString &  FixIsoFormat(SQLString & StmtString);
 int          ParseQuery(MADB_QUERY *Query);
-char *       StripLeadingComments(char *s, size_t *Length, BOOL OverWrite);
+const char * StripLeadingComments(const char *s, std::size_t *Length, bool OverWrite= false);
 
 #endif /* _ma_parse_h_ */

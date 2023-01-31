@@ -160,7 +160,6 @@ cleanup:
 /* {{{ MADB_EnvSetAttr */
 SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength)
 {
-  MADB_CLEAR_ERROR(&Env->Error);
   switch (Attribute) {
    case SQL_ATTR_ODBC_VERSION:
     if (Env->Dbcs)

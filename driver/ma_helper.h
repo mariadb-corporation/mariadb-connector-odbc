@@ -20,10 +20,9 @@
 #define _ma_helper_h_
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
-MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt);
-BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query);
+void MADB_NewStmtHandle(MADB_Stmt *Stmt);
+bool QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
-unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount);
 MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
@@ -44,20 +43,20 @@ SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BO
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen);
 enum enum_field_types MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
-SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);
+SQLSMALLINT MapMariadDbToOdbcType(const MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 
-size_t  MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset);
-size_t  MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen);
-const char *  MADB_GetTypeName(MYSQL_FIELD *Field);
+size_t  MADB_GetDisplaySize(const MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset);
+size_t  MADB_GetOctetLength(const MYSQL_FIELD *Field, unsigned short MaxCharLen);
+const char *  MADB_GetTypeName(const MYSQL_FIELD *Field);
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
 void *  GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
 BOOL    MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);
 
 SQLRETURN     MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
-MYSQL_RES *   MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields);
+MYSQL_RES *   MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *fields);
 char *        MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column);
 
 /* SQL_NUMERIC stuff */
@@ -69,9 +68,6 @@ int           MADB_FindNextDaeParam     (MADB_Desc *Desc, int InitialParam, SQLS
 
 BOOL          MADB_IsNumericType(SQLSMALLINT ConciseType);
 BOOL          MADB_IsIntType    (SQLSMALLINT ConciseType);
-
-/* For multistatement picks stmt handler pointed by stored index, and sets it as "current" stmt handler */
-void          MADB_InstallStmt  (MADB_Stmt *Stmt, MYSQL_STMT *stmt);
 
 /* for dummy binding */
 extern my_bool DummyError;
@@ -94,27 +90,6 @@ extern my_bool DummyError;
 
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)
 
-#define MADB_FREE(a) do { \
-  free((void*)(a));\
-  (a)= NULL; \
-} while(0)
-
-#define MADB_ALLOC(a) malloc((a))
-#define MADB_CALLOC(a) calloc((a) > 0 ? (a) : 1, sizeof(char))
-#define MADB_REALLOC(a,b) realloc((a),(b))
-
-/* If required to free old memory pointed by current ptr, and set new value */
-#define MADB_RESET(ptr, newptr) do {\
-  const char *local_new_ptr= (newptr);\
-  if (local_new_ptr != ptr) {\
-    free((char*)(ptr));\
-    if (local_new_ptr != NULL)\
-      (ptr)= _strdup(local_new_ptr);\
-    else\
-      (ptr)= NULL;\
-  }\
-} while(0)
-
 #define MADB_SET_NUM_VAL(TYPE, PTR, VALUE, LENGTHPTR)\
 {\
   if((PTR))\
@@ -129,8 +104,6 @@ extern my_bool DummyError;
     *((INTTYPE *)PTR)= (VALUE); \
   LEN=sizeof(INTTYPE);\
 }
-
-#define MADB_IS_EMPTY(STR) ((STR)==NULL || *(STR)=='\0')
 
 #define MADB_FRACTIONAL_PART(_decimals) ((_decimals) > 0 ? (_decimals) + 1/*Decimal point*/ : 0)
 

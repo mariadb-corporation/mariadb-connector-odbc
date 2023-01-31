@@ -493,296 +493,296 @@ ODBC_TEST(t_array_relative_2)
 
   OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_array_relative_2(id INT)");
 
-    rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_array_relative_2 VALUES(?)",SQL_NTS);
+  rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_array_relative_2 VALUES(?)",SQL_NTS);
+  CHECK_STMT_RC(Stmt,rc);
+
+  rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
+                        SQL_INTEGER,0,0,&i,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
+
+  for ( i = 1; i <= max_rows; i++ )
+  {
+    rc = SQLExecute(Stmt);
     CHECK_STMT_RC(Stmt,rc);
+  }
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT, SQL_C_ULONG,
-                          SQL_INTEGER,0,0,&i,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
+  SQLFreeStmt(Stmt,SQL_CLOSE);
 
-    for ( i = 1; i <= max_rows; i++ )
-    {
-        rc = SQLExecute(Stmt);
-        CHECK_STMT_RC(Stmt,rc);
-    }
+  rc = SQLEndTran(SQL_HANDLE_DBC,Connection,SQL_COMMIT);
+  CHECK_DBC_RC(Connection,rc);
 
-    SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-    SQLFreeStmt(Stmt,SQL_CLOSE);
+  /* set row_size as 2 */
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)2,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLEndTran(SQL_HANDLE_DBC,Connection,SQL_COMMIT);
-    CHECK_DBC_RC(Connection,rc);
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    /* set row_size as 2 */
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)2,0);
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_2");
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_2");
-
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
-
-    /* row 1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 1 */
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  /* row 1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,0);/* 1 */
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
 
-    /* Before start */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* Before start */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* jump to last row */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* last row */
-    CHECK_STMT_RC(Stmt,rc);        
-    IS(nrows == 1);
-    IS(iarray[0]==max_rows);
+  /* jump to last row */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* last row */
+  CHECK_STMT_RC(Stmt,rc);        
+  IS(nrows == 1);
+  IS(iarray[0]==max_rows);
 
-    /* jump to last row+1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after last */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* jump to last row+1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after last */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* goto first row */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  /* goto first row */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
-    /* before start */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* before start */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* goto fifth  row */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* 5 */    
-    CHECK_STMT_RC(Stmt,rc);    
-    IS(nrows == 2);
-    IS(iarray[0]==5);
-    IS(iarray[1]==6);
+  /* goto fifth  row */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* 5 */    
+  CHECK_STMT_RC(Stmt,rc);    
+  IS(nrows == 2);
+  IS(iarray[0]==5);
+  IS(iarray[1]==6);
 
-    /* goto after end */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* after last */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* goto after end */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,max_rows);/* after last */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* 
-       the scenarios from ODBC spec     
-    */    
+  /* 
+      the scenarios from ODBC spec     
+  */    
 
-    /* CASE 1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  /* CASE 1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* BeforeStart AND FetchOffset <= 0 */    
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-20);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* BeforeStart AND FetchOffset <= 0 */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-20);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* case 1: Before start AND FetchOffset > 0 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  /* case 1: Before start AND FetchOffset > 0 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
-    /* CASE 2 */    
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_LAST,1);/* last row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==max_rows-1);    
-    IS(iarray[1]==max_rows);
+  /* CASE 2 */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_LAST,1);/* last row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==max_rows-1);    
+  IS(iarray[1]==max_rows);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* last row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 1);
-    IS(iarray[0]==max_rows);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* last row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 1);
+  IS(iarray[0]==max_rows);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after last row */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after last row */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* After end AND FetchOffset >= 0 */    
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,10);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* After end AND FetchOffset >= 0 */    
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,10);/* after end */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,20);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,20);/* after end */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,1);/* after end */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* after end */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* after end */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* After end AND FetchOffset < 0 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* last row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 1);
-    IS(iarray[0]==max_rows);    
+  /* After end AND FetchOffset < 0 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* last row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 1);
+  IS(iarray[0]==max_rows);    
 
 
-    /* CASE 3 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  /* CASE 3 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
-    /* CurrRowsetStart = 1 AND FetchOffset < 0 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  /* CurrRowsetStart = 1 AND FetchOffset < 0 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,0);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-1);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    /* CASE 4 */
-    /* CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
-       | FetchOffset | > RowsetSize
+  /* CASE 4 */
+  /* CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
+      | FetchOffset | > RowsetSize
+  */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==4);
+  IS(iarray[1]==5);
+
+  /* the following call satisfies 4 > 1 AND (3-4) < 1 AND |-4| > 1 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+
+  /* CASE 5 */
+  /* 1 <= CurrRowsetStart + FetchOffset <= LastResultRow */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
+
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* sixth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==6);
+  IS(iarray[1]==7);
+
+  /* 1 <= 6-2 <= 10 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-2);/* fourth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==4);
+  IS(iarray[1]==5);
+
+  /* CASE 6 */
+  /*  CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
+      | FetchOffset | <= RowsetSize
     */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==1);
+  IS(iarray[1]==2);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==4);
-    IS(iarray[1]==5);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == 2);
+  IS(iarray[0]==4);
+  IS(iarray[1]==5);
 
-    /* the following call satisfies 4 > 1 AND (3-4) < 1 AND |-4| > 1 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
-
-    /* CASE 5 */
-    /* 1 <= CurrRowsetStart + FetchOffset <= LastResultRow */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
-
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,5);/* sixth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==6);
-    IS(iarray[1]==7);
-
-    /* 1 <= 6-2 <= 10 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-2);/* fourth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==4);
-    IS(iarray[1]==5);
-
-    /* CASE 6 */
-    /*  CurrRowsetStart > 1 AND CurrRowsetStart + FetchOffset < 1 AND
-        | FetchOffset | <= RowsetSize
-     */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_FIRST,1);/* first row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==1);
-    IS(iarray[1]==2);
-
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,3);/* fourth row */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == 2);
-    IS(iarray[0]==4);
-    IS(iarray[1]==5);
-
-    /* 4 >1 AND 4-4 <1 AND |-4| <=10 */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+  /* 4 >1 AND 4-4 <1 AND |-4| <=10 */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-4);/* before start */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);    
-    SQLFreeStmt(Stmt,SQL_CLOSE); 
+  SQLFreeStmt(Stmt,SQL_UNBIND);    
+  SQLFreeStmt(Stmt,SQL_CLOSE); 
 
-    /***
-      for rowset_size > max_rows...
-    */
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)25,0);
-    CHECK_STMT_RC(Stmt,rc);
+  /***
+    for rowset_size > max_rows...
+  */
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)25,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROWS_FETCHED_PTR,&nrows,0);
+  CHECK_STMT_RC(Stmt,rc);
 
-    OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_2");
-    CHECK_STMT_RC(Stmt,rc);
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_array_relative_2");
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLBindCol(Stmt,1,SQL_C_LONG,iarray,0,NULL);
+  CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);/* 2 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == max_rows-1);
-    IS(iarray[0]==2);
-    IS(iarray[max_rows-2]==10);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);/* 2 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == max_rows-1);
+  IS(iarray[0]==2);
+  IS(iarray[max_rows-2]==10);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);/* 1 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == max_rows);
-    IS(iarray[0]==1);
-    IS(iarray[max_rows-1]==max_rows);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);/* 1 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == max_rows);
+  IS(iarray[0]==1);
+  IS(iarray[max_rows-1]==max_rows);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,5);/* 5 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == max_rows-4);
-    IS(iarray[0]==5);
-    IS(iarray[max_rows-5]==max_rows);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,5);/* 5 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == max_rows-4);
+  IS(iarray[0]==5);
+  IS(iarray[max_rows-5]==max_rows);
 
 
-    /* CurrRowsetStart > 1 AND 
-       CurrRowsetStart + FetchOffset < 1 AND
-       | FetchOffset | > RowsetSize
+  /* CurrRowsetStart > 1 AND 
+      CurrRowsetStart + FetchOffset < 1 AND
+      | FetchOffset | > RowsetSize
 
-      ==> before start
-    */
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-30);/* 1 */    
-     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
+    ==> before start
+  */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-30);/* 1 */    
+    FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data expected");
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);/* 2 */    
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == max_rows-1);
-    IS(iarray[0]==2);
-    IS(iarray[max_rows-2]==10);
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);/* 2 */    
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == max_rows-1);
+  IS(iarray[0]==2);
+  IS(iarray[max_rows-2]==10);
 
-    /* CurrRowsetStart > 1 AND 
-       CurrRowsetStart + FetchOffset < 1 AND
-       | FetchOffset | <= RowsetSize
+  /* CurrRowsetStart > 1 AND 
+      CurrRowsetStart + FetchOffset < 1 AND
+      | FetchOffset | <= RowsetSize
 
-      ==> 1
+    ==> 1
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-13);  
-    CHECK_STMT_RC(Stmt,rc);
-    IS(nrows == max_rows);
-    IS(iarray[0]==1);
-    IS(iarray[max_rows-1]==max_rows);
-    */
+  rc = SQLFetchScroll(Stmt,SQL_FETCH_RELATIVE,-13);  
+  CHECK_STMT_RC(Stmt,rc);
+  IS(nrows == max_rows);
+  IS(iarray[0]==1);
+  IS(iarray[max_rows-1]==max_rows);
+  */
 
-    SQLFreeStmt(Stmt,SQL_UNBIND);    
-    SQLFreeStmt(Stmt,SQL_CLOSE); 
+  SQLFreeStmt(Stmt,SQL_UNBIND);    
+  SQLFreeStmt(Stmt,SQL_CLOSE); 
 
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
-    CHECK_STMT_RC(Stmt,rc);
+  rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
+  CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_array_relative_2");
 

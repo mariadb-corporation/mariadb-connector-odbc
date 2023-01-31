@@ -43,7 +43,30 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           ma_server.cpp
                           ma_legacy_helpers.cpp
                           ma_typeconv.cpp
-                          ma_bulk.cpp)
+                          ma_bulk.cpp
+#                          class/SQLString.cpp
+                          class/Results.cpp
+                          class/TextRow.cpp
+                          class/BinRow.cpp
+                          class/ClientSidePreparedStatement.cpp
+                          class/ServerSidePreparedStatement.cpp
+                          class/ClientPrepareResult.cpp
+                          class/ServerPrepareResult.cpp
+                          class/CmdInformationSingle.cpp
+                          class/CmdInformationMultiple.cpp
+                          class/CmdInformationBatch.cpp
+                          class/ColumnDefinition.cpp
+                          class/ResultSetText.cpp
+                          class/ResultSetBin.cpp
+                          class/ResultSetMetadata.cpp
+                          class/Parameter.cpp
+                          interface/PreparedStatement.cpp
+                          interface/Row.cpp
+                          interface/ResultSet.cpp
+                          interface/PrepareResult.cpp
+                          interface/Exception.cpp
+                          template/CArray.cpp
+                          )
 
 IF(WIN32)
   SET(ODBC_LIBS odbc32)
@@ -72,13 +95,43 @@ IF(WIN32)
                           ma_legacy_helpers.h
                           ma_typeconv.h
                           ma_bulk.h
-                          ma_c_stuff.h)
+                          ma_c_stuff.h
+                          class/SQLString.h
+                          class/Results.h
+                          class/TextRow.h
+                          class/BinRow.h
+                          class/ClientSidePreparedStatement.h
+                          class/ServerSidePreparedStatement.h
+                          class/ClientPrepareResult.h
+                          class/ServerPrepareResult.h
+                          class/CmdInformationSingle.h
+                          class/CmdInformationMultiple.h
+                          class/CmdInformationBatch.h
+                          class/ColumnDefinition.h
+                          class/ResultSetText.h
+                          class/ResultSetBin.h
+                          class/ResultSetMetadata.h
+                          class/Parameter.h
+                          interface/PreparedStatement.h
+                          interface/PrepareResult.h
+                          interface/Row.h
+                          interface/ResultSet.h
+                          interface/CmdInformation.h
+                          interface/Exception.h
+                          template/CArray.h
+                          )
+
+  SOURCE_GROUP(Classes REGULAR_EXPRESSION "class/")
+  SOURCE_GROUP(Interfaces REGULAR_EXPRESSION "interface/")
+  SOURCE_GROUP(Templates REGULAR_EXPRESSION "template/")
 
 ELSE()
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
                         ma_platform_posix.cpp
                         ma_conv_charset.cpp)
 ENDIF()
+
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/interface ${CMAKE_CURRENT_SOURCE_DIR}/template ${CMAKE_CURRENT_SOURCE_DIR}/class)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/mariadb-odbc-driver.def.in
                ${CMAKE_BINARY_DIR}/driver/mariadb-odbc-driver-uni.def)

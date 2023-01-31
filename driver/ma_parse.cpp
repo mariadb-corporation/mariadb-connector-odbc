@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2018 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -22,9 +22,11 @@
 /* Minimal query length when we tried to avoid full parsing */
 #define QUERY_LEN_FOR_POOR_MAN_PARSING 32768
 
-char* SkipSpacesAndComments(char **CurPtr, size_t *Length, BOOL OverWrite)
+using namespace odbc::mariadb;
+
+ const char* SkipSpacesAndComments(const char **CurPtr, size_t *Length, bool OverWrite= false)
 {
-  char *End= *CurPtr + *Length, *Prev= NULL;
+  const char *End= *CurPtr + *Length, *Prev= nullptr, *NotTrimmed= nullptr;
 
   /* Making sure that we don't have leading whitespaces and/or comments,
   and the string begins from something meainingful */
@@ -32,15 +34,30 @@ char* SkipSpacesAndComments(char **CurPtr, size_t *Length, BOOL OverWrite)
   {
     Prev= *CurPtr;
     *CurPtr= StripLeadingComments(*CurPtr, Length, OverWrite);
-    *CurPtr= ltrim(*CurPtr);
-    *Length= strlen(*CurPtr);
+    NotTrimmed= *CurPtr;
+    *CurPtr= ::ltrim(*CurPtr);
+    *Length-= *CurPtr - NotTrimmed;
   }
 
   return *CurPtr;
 }
 
 
-char* SkipQuotedString(char **CurPtr, char *End, char Quote)
+std::size_t SkipSpacesAndComments(SQLString& str)
+{
+  const char* moved= str.data();
+  std::size_t offset, len= str.length();
+  SkipSpacesAndComments(&moved, &len);
+  offset= str.length() - len;
+  if (offset > 0)
+  {
+    str.erase(str.begin(), str.begin() + offset);
+  }
+  return offset;
+}
+
+
+const char* SkipQuotedString(const char **CurPtr, const char *End, char Quote)
 {
   while (*CurPtr < End && **CurPtr != Quote)
   {
@@ -61,7 +78,7 @@ char* SkipQuotedString(char **CurPtr, char *End, char Quote)
 }
 
 
-char* SkipQuotedString_Noescapes(char **CurPtr, char *End, char Quote)
+const char* SkipQuotedString_Noescapes(const char **CurPtr, const char *End, char Quote)
 {
   while (*CurPtr < End && **CurPtr != Quote)
   {
@@ -74,20 +91,19 @@ char* SkipQuotedString_Noescapes(char **CurPtr, char *End, char Quote)
 
 int MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLength)
 {
-  MADB_DeleteQuery(&Stmt->Query);
+  Stmt->Query.reset();
 
-  if (OriginalQuery != NULL)
+  if (OriginalQuery != nullptr)
   {
-    /* We can have here not NULL-terminated string as a source, thus we need to allocate, copy meaningful characters and
-    add NULL. strndup does that for us. StmtSopy may change, p points to the allocated memory */
-    Stmt->Query.allocated= Stmt->Query.RefinedText= strndup(OriginalQuery, OriginalLength);
-
-    if (Stmt->Query.allocated == NULL)
+    try
+    {
+      Stmt->Query.RefinedText.assign(OriginalQuery, OriginalLength);
+    }
+    catch (std::exception&)
     {
       return 1;
     }
 
-    Stmt->Query.RefinedLength=     OriginalLength;
     Stmt->Query.BatchAllowed=      DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS) ? '\1' : '\0';
     Stmt->Query.AnsiQuotes=        MADB_SqlMode(Stmt->Connection, MADB_ANSI_QUOTES);
     Stmt->Query.NoBackslashEscape= MADB_SqlMode(Stmt->Connection, MADB_NO_BACKSLASH_ESCAPES);
@@ -96,85 +112,50 @@ int MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLe
   return 0;
 }
 
-void MADB_DeleteSubqueries(MADB_QUERY * Query)
+
+void MADB_QUERY::reset()
 {
-  unsigned int i;
-  SINGLE_QUERY SubQuery;
-
-  for (i= 0; i < Query->SubQuery.elements; ++i)
-  {
-    MADB_GetDynamic(&Query->SubQuery, (char *)&SubQuery, i);
-    MADB_DeleteDynamic(&SubQuery.ParamPos);
-  }
-  MADB_DeleteDynamic(&Query->SubQuery);
-}
-
-void MADB_AddSubQuery(MADB_QUERY * Query, char * SubQueryText, enum enum_madb_query_type QueryType)
-{
-  SINGLE_QUERY SubQuery;
-
-  SubQuery.QueryText= SubQueryText;
-  SubQuery.QueryType= QueryType;
-  MADB_InitDynamicArray(&SubQuery.ParamPos, sizeof(unsigned int), 20, 20);
-
-  MADB_InsertDynamic(&Query->SubQuery, (char*)&SubQuery);
-}
-
-
-void MADB_DeleteQuery(MADB_QUERY *Query)
-{
-  MADB_FREE(Query->allocated);
-  MADB_FREE(Query->Original);
-  MADB_DeleteDynamic(&Query->Tokens);
-
-  MADB_DeleteSubqueries(Query);
-
-  memset(Query, 0, sizeof(MADB_QUERY));
+  Original.assign("");
+  RefinedText.assign("");
+  Tokens.clear();
+  PoorManParsing= ReturnsResult= false;
 }
 
 int MADB_ParseQuery(MADB_QUERY * Query)
 {
-  /* make sure we don't have trailing whitespace or semicolon */
-  Query->RefinedLength= SqlRtrim(Query->RefinedText, (int)Query->RefinedLength);
-  Query->RefinedText=  ltrim(Query->RefinedText);
-  Query->RefinedText=  FixIsoFormat(Query->RefinedText, &Query->RefinedLength);
-  Query->RefinedLength-= Query->RefinedText - Query->allocated;
+   /* make sure we don't have trailing whitespace or semicolon */
+  sqlRtrim(Query->RefinedText);
+  odbc::mariadb::ltrim(Query->RefinedText);
+  FixIsoFormat(Query->RefinedText);
 
   /* Making copy of "original" string, with minimal changes required to be able to execute */
-  Query->Original= strndup(Query->RefinedText, Query->RefinedLength);
-  SkipSpacesAndComments(&Query->RefinedText, &Query->RefinedLength, FALSE);
+  Query->Original.assign(Query->RefinedText);
+  SkipSpacesAndComments(Query->RefinedText);
 
   return ParseQuery(Query);
 }
 
 /*----------------- Tokens stuff ------------------*/
 
-char *MADB_Token(MADB_QUERY *Query, unsigned int Idx)
+const char *MADB_Token(MADB_QUERY *Query, std::size_t Idx)
 {
-  char *p;
-  unsigned int Offset= 0;
-  
-  p= Query->RefinedText;
-  if (!Query->Tokens.elements || !p)
-    return NULL;
-  if (Idx >= Query->Tokens.elements)
-    return NULL;
+  if (Query->Tokens.size() == 0 || Idx >= Query->Tokens.size())
+    return nullptr;
 
-  MADB_GetDynamic(&Query->Tokens, (char *)&Offset, Idx);
-  return Query->RefinedText + Offset;
+  return Query->RefinedText.data() + Query->Tokens[Idx];
 }
 
 
 my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, char *Compare, size_t Length, unsigned int *Offset)
 {
-  char *TokenString;
+  const char *TokenString;
   
   if (!(TokenString= MADB_Token(Query, Idx)))
     return FALSE;
   if (_strnicmp(TokenString, Compare, Length) == 0)
   {
     if (Offset)
-      *Offset= (unsigned int)(TokenString - Query->RefinedText);
+      *Offset= (unsigned int)(TokenString - Query->RefinedText.data());
     return TRUE;
   }
  
@@ -184,7 +165,8 @@ my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, char *Compare, si
 /* Not used atm, but may be useful */
 unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare)
 {
-  unsigned int i, TokenCount= Query->Tokens.elements;
+  unsigned int i;
+  std::size_t TokenCount = Query->Tokens.size();
   unsigned int Offset= 0;
 
   for (i=0; i < TokenCount; i++)
@@ -196,13 +178,14 @@ unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare)
 }
 
 
-static char * ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
+static const char * ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
 {
-  unsigned int i, TokenCount= Query->Tokens.elements;
+  unsigned int i;
+  std::size_t TokenCount= Query->Tokens.size();
 
   if (TokenCount < 4)
   {
-    return NULL;
+    return nullptr;
   }
   for (i=0; i < TokenCount - 3; i++)
   {
@@ -213,44 +196,41 @@ static char * ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
       return MADB_Token(Query, i + 3);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
-static char * PoorManCursorName(MADB_QUERY *Query, unsigned int *Offset)
+static const char * PoorManCursorName(MADB_QUERY *Query, unsigned int *Offset)
 {
   MADB_QUERY EndPiece;
-  char      *Res;
-
-  memset(&EndPiece, 0, sizeof(MADB_QUERY));
+  const char *Res, *str;
+  std::size_t initOffset;
 
   /* We do poor man on long queries only, thus there is no need to check length */
-  EndPiece.RefinedText= ltrim(Query->RefinedText + Query->RefinedLength - MADB_MAX_CURSOR_NAME - 32/* "WHERE CURRENT OF" + spaces */);
-  EndPiece.RefinedLength= strlen(EndPiece.RefinedText);
-
+  str= ::ltrim(Query->RefinedText.data() + Query->RefinedText.length() - MADB_MAX_CURSOR_NAME - 32/* "WHERE CURRENT OF" + spaces */);
+  initOffset = str - Query->RefinedText.data();
+  EndPiece.RefinedText.assign(str);
   /* As we did poor man parsing, we don't have full information about the query. Thus, parsing only this part at the end of the query -
      we need tockens, to check if we have WHERE CURRENT OF in usual way */
   if (ParseQuery(&EndPiece))
   {
-    return NULL;
+    return nullptr;
   }
 
   /* Now looking for cursor name in usual way */
   Res= ParseCursorName(&EndPiece, Offset);
 
   /* Incrementing Offset with the offset of our part of the query */
-  if (Res != NULL)
+  if (Res == nullptr)
   {
-    *Offset= (unsigned int)(*Offset + EndPiece.RefinedText - Query->RefinedText);
+    return nullptr;
   }
-
-  MADB_DeleteQuery(&EndPiece);
-
-  return Res;
+  *Offset= (unsigned int)(*Offset + initOffset);
+  return Query->RefinedText.data() + initOffset + (Res - EndPiece.RefinedText.data());
 }
 
 
-char * MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
+const char * MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset)
 {
   if (Query->PoorManParsing)
   {
@@ -348,61 +328,55 @@ enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Toke
 /* Not used - rather a placeholder in case we need it */
 const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt)
 {
-  return STMT_STRING(Stmt);
+  return nullptr;
 }
 
 /* Function assumes that query string has been trimmed */
-char* FixIsoFormat(char * StmtString, size_t *Length)
+SQLString& FixIsoFormat(SQLString& StmtString)
 {
-  if (*Length > 0 && StmtString[0] == '{' && StmtString[*Length -1] == '}')
+  if (StmtString.length() > 1 && StmtString.front() == '{' && StmtString.back() == '}')
   {
-    char *Res;
+    StmtString.erase(StmtString.begin());
+    StmtString.erase(--StmtString.end());
 
-    ++StmtString;
-    StmtString[*Length - 1]= '\0';
-
-    Res= trim(StmtString);
-    *Length= strlen(Res);
-
-    return Res;
+    trim(StmtString);
   }
 
   return StmtString;
 }
 
-#define SAVE_TOKEN(PTR2SAVE) do { Offset= (unsigned int)(PTR2SAVE - Query->RefinedText);\
-MADB_InsertDynamic(&Query->Tokens, (char*)&Offset); } while(0)
-
 static BOOL ShouldWeTryPoorManParsing(MADB_QUERY *Query)
 {
-  return (Query->RefinedLength > QUERY_LEN_FOR_POOR_MAN_PARSING) && (strchr(Query->RefinedText, ';')) == NULL && (strchr(Query->RefinedText, '?') == NULL);
+  return (Query->RefinedText.length() > QUERY_LEN_FOR_POOR_MAN_PARSING)
+    && Query->RefinedText.find_first_of(';') == SQLString::npos
+    && Query->RefinedText.find_first_of('?') == SQLString::npos;
 }
 
 int ParseQuery(MADB_QUERY *Query)
 {
-  char        *p= Query->RefinedText, Quote;
-  BOOL         ReadingToken= FALSE;
-  unsigned int Offset, StmtTokensCount= 0;
-  size_t       Length= Query->RefinedLength;
-  char        *end= p + Length, *CurQuery= NULL, *LastSemicolon= NULL;
+  const char* p = Query->RefinedText.data();
+  char Quote;
+  bool         ReadingToken= false;
+  unsigned int StmtTokensCount= 0;
+  std::size_t  Length= Query->RefinedText.length(), offset= 0;
+  const char  *end= p + Length, *CurQuery= nullptr, *LastSemicolon= nullptr;
   enum enum_madb_query_type StmtType;
 
-  MADB_InitDynamicArray(&Query->Tokens, (unsigned int)sizeof(unsigned int), (unsigned int)MAX(Length/32, 20), (unsigned int)MAX(Length/20, 40));
-  MADB_InitDynamicArray(&Query->SubQuery, (unsigned int)sizeof(SINGLE_QUERY), (unsigned int)MAX(Length/64, 20), (unsigned int)MAX(Length/64, 40));
+  Query->Tokens.reserve((unsigned int)MAX(Length / 32, 20));
 
   Query->PoorManParsing= ShouldWeTryPoorManParsing(Query);
 
   while (p < end)
   {
-    if (ReadingToken == FALSE)
+    if (!ReadingToken)
     {
       Length= end - p;
-      SkipSpacesAndComments(&p, &Length, TRUE);
-
-      SAVE_TOKEN(p);
+      SkipSpacesAndComments(&p, &Length, true);
+      offset = p - Query->RefinedText.data();
+      Query->Tokens.push_back(offset);
       
       ++StmtTokensCount;
-      ReadingToken= TRUE;
+      ReadingToken= true;
 
       /* On saving 1st statement's token, we are incrementing statements counter */
       if (StmtTokensCount == 1)
@@ -414,13 +388,12 @@ int ParseQuery(MADB_QUERY *Query)
       else if (StmtTokensCount == 2)
       {
         /* We are currently at 2nd token of statement, and getting previous token position from Tokens array*/
-        StmtType= MADB_GetQueryType(MADB_Token(Query, Query->Tokens.elements - 2), p);
+        StmtType= MADB_GetQueryType(MADB_Token(Query, Query->Tokens.size() - 2), p);
 
         Query->ReturnsResult= Query->ReturnsResult || !QUERY_DOESNT_RETURN_RESULT(StmtType);
-        MADB_AddSubQuery(Query, CurQuery, StmtType);
 
         /* If we on first statement, setting QueryType*/
-        if (Query->Tokens.elements == 2)
+        if (Query->Tokens.size() == 2)
         {
           Query->QueryType= StmtType;
           if (Query->PoorManParsing)
@@ -438,7 +411,7 @@ int ParseQuery(MADB_QUERY *Query)
       case '\'':
       case '`':
       {
-        char *SavePosition;
+        const char *SavePosition;
         Quote= *p++;
         SavePosition= p; /* In case we go past eos while looking for ending quote */
         if (Query->NoBackslashEscape || Quote == '`' || /* Backtick works with ANSI_QUOTES */
@@ -461,18 +434,13 @@ int ParseQuery(MADB_QUERY *Query)
       }
       case '?': /* This can break token(w/out space char), and be beginning of a token.
                    Thus we need it in both places */
-        Query->HasParameters= 1;
+        //Query->HasParameters= 1;
         /* Parameter placeholder is a complete token. And next one may begin right after it*/
         ReadingToken= FALSE;
         break;
       case ';':
         if (QueryIsPossiblyMultistmt(Query))
         {
-          /* If batches are not allowed, we only need the fact, that this is multi-statement */
-          if (Query->BatchAllowed)
-          {
-            *p= '\0';
-          }
           StmtTokensCount= 0;
         }
         ReadingToken= FALSE;
@@ -511,9 +479,9 @@ int ParseQuery(MADB_QUERY *Query)
 }
 
 
-char * StripLeadingComments(char *Str, size_t *Length, BOOL OverWrite)
+const char * StripLeadingComments(const char *Str, std::size_t *Length, bool OverWrite)
 {
-  char *Res= Str;
+  const char *Res= Str;
   int ClosingStrLen= 1;
 
   /* There is nothing to strip for sure */
@@ -538,7 +506,7 @@ char * StripLeadingComments(char *Str, size_t *Length, BOOL OverWrite)
 
   if (Res != Str)
   {
-    if (Res != NULL)
+    if (Res != nullptr)
     {
       Res+= ClosingStrLen;
       *Length-= Res - Str;
@@ -553,7 +521,7 @@ char * StripLeadingComments(char *Str, size_t *Length, BOOL OverWrite)
     /* On request - overwriting comment with white spaces */
     if (OverWrite)
     {
-      memset(Str, ' ', Res - Str);
+      //memset(Str, ' ', Res - Str);
     }
   }
 

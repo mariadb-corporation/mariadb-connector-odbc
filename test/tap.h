@@ -373,9 +373,9 @@ void diag(const char *fstr, ...)
 
 void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
-  SQLCHAR SQLState[6];
-  SQLINTEGER NativeError;
-  SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
+  SQLCHAR SQLState[6]= {'\0'};
+  SQLINTEGER NativeError= 0;
+  SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH]= {'\0'};
   SQLSMALLINT TextLengthPtr;
 
   SQLGetDiagRec(HandleType, Handle, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);

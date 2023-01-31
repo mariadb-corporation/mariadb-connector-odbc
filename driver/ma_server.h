@@ -27,7 +27,7 @@
 #define MADB_SESSION_TRACKING 16
 
 void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char* ServerName);
-BOOL MADB_ServerSupports (MADB_Dbc *Dbc, char Capability);
+bool MADB_ServerSupports (MADB_Dbc *Dbc, char Capability);
 const char* MADB_GetTxIsolationQuery(MADB_Dbc* Dbc);
 const char* MADB_GetTxIsolationVarName(MADB_Dbc* Dbc);
 

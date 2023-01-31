@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+#include "interface/ResultSet.h"
 
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";
@@ -151,11 +152,15 @@ int MADB_Dbc_CacheRestOfCurrentRsStream(MADB_Dbc* Dbc, MADB_Error *Error)
 {
   if (Dbc->Streamer != NULL)
   {
-    if (Dbc->Streamer->RsOps->CacheRestOfRs(Dbc->Streamer))
+    try
+    {
+      Dbc->Streamer->rs->fetchRemaining();
+    }
+    catch (SQLRETURN)
     {
       return MADB_Dbc_ErrorOnStreaming(Error);
     }
-    Dbc->Streamer= NULL;
+    Dbc->Streamer= nullptr;
     return 0;
   }
   return 0;
@@ -179,6 +184,55 @@ my_bool CheckConnection(MADB_Dbc *Dbc)
   return TRUE;
 }
 
+
+bool HasMoreResults(MADB_Dbc* Dbc)
+{
+  unsigned int ServerStatus;
+  mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
+  return (ServerStatus & SERVER_MORE_RESULTS_EXIST) != 0;
+}
+
+/* {{{ SQLDisconnect */
+SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
+{
+  SQLRETURN ret = SQL_ERROR;
+  MADB_Dbc* Connection = (MADB_Dbc*)ConnectionHandle;
+  MADB_List* Element, * NextElement;
+
+  MDBUG_C_ENTER(Connection, "SQLDisconnect");
+  MDBUG_C_DUMP(Connection, ConnectionHandle, 0x);
+
+  /* Close all statements */
+  for (Element = Connection->Stmts; Element; Element = NextElement)
+  {
+    MADB_Stmt* Stmt = (MADB_Stmt*)Element->data;
+    NextElement = Element->next;
+    Stmt->Methods->StmtFree(Stmt, SQL_DROP);
+  }
+
+  /* Close all explicitly allocated descriptors */
+  for (Element = Connection->Descrs; Element; Element = NextElement)
+  {
+    NextElement = Element->next;
+    MADB_DescFree((MADB_Desc*)Element->data, FALSE);
+  }
+
+  if (Connection->mariadb)
+  {
+    mysql_close(Connection->mariadb);
+    Connection->mariadb = NULL;
+    ret = SQL_SUCCESS;
+  }
+  else
+  {
+    MADB_SetError(&Connection->Error, MADB_ERR_08003, NULL, 0);
+    ret = Connection->Error.ReturnValue;
+  }
+  Connection->ConnOrSrcCharset = NULL;
+
+  MDBUG_C_RETURN(Connection, ret, &Connection->Error);
+}
+/* }}} */
 /* {{{ MADB_DbcSetAttr */
 SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength, my_bool isWChar)
 {
@@ -199,7 +253,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
     Dbc->AccessMode= SQL_MODE_READ_WRITE;
     break;
-#if (ODBCVER >= 0x0351)
+//#if (ODBCVER >= 0x0351)
   case SQL_ATTR_ANSI_APP:
     if (ValuePtr != NULL)
     {
@@ -212,7 +266,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       Dbc->IsAnsi= 0;
     }
     break;
-#endif
+//#endif
   case SQL_ATTR_ASYNC_ENABLE:
      if ((SQLPOINTER)SQL_ASYNC_ENABLE_OFF != ValuePtr)
       MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
@@ -270,11 +324,14 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_ODBC_CURSORS:
     {
+#pragma warning(disable: 4995)
+#pragma warning(push)
       SQLULEN ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
       MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
       if ((SQLULEN)ValuePtr != SQL_CUR_USE_ODBC)
         MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
       Dbc->OdbcCursors= SQL_CUR_USE_ODBC;
+#pragma warning(pop)
     }
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
@@ -405,7 +462,10 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
+#pragma warning(disable: 4995)
+#pragma warning(push)
     *(SQLULEN*)ValuePtr= SQL_CUR_USE_ODBC;
+#pragma warning(pop)
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
@@ -2206,18 +2266,34 @@ struct st_ma_connection_methods MADB_Dbc_Methods =
   MADB_Dbc_StreamingIsNotUsed /* and thus there is nothing to cache */
 };
 
+MADB_Dbc::MADB_Dbc(MADB_Env* Env)
+  : Environment(Env)
+{
+  std::memset(&Error, 0, sizeof(MADB_Error));
+  std::memset(&ListItem, 0, sizeof(MADB_List));
+}
+
 /* {{{ MADB_DbcInit() */
 MADB_Dbc* MADB_DbcInit(MADB_Env* Env)
 {
-  MADB_Dbc* Connection = NULL;
+  MADB_Dbc* Connection= nullptr;
 
   MADB_CLEAR_ERROR(&Env->Error);
 
-  if (!(Connection = (MADB_Dbc*)MADB_CALLOC(sizeof(MADB_Dbc))))
-    goto cleanup;
+  try
+  {
+    Connection= new MADB_Dbc(Env);
+  }
+  catch (std::exception &/*e*/)
+  {
+    /*if (Connection)
+      delete Connection;*/
+    MADB_SetError(&Env->Error, MADB_ERR_HY001, NULL, 0);
 
-  Connection->AutoCommit = 4;
-  Connection->Environment = Env;
+    return nullptr;
+  }
+  //goto cleanup;
+
   Connection->Methods = &MADB_Dbc_Methods;
   //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
   InitializeCriticalSection(&Connection->cs);
@@ -2235,12 +2311,5 @@ MADB_Dbc* MADB_DbcInit(MADB_Env* Env)
   MADB_PutErrorPrefix(NULL, &Connection->Error);
 
   return Connection;
-cleanup:
-  if (Connection)
-    free(Connection);
-  else
-    MADB_SetError(&Env->Error, MADB_ERR_HY001, NULL, 0);
-
-  return NULL;
 }
 /* }}} */

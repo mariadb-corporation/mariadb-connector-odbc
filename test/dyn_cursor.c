@@ -45,30 +45,30 @@ ODBC_TEST(my_dynamic_pos_cursor)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_dynamic_cursor VALUES(100,'venu')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_dynamic_cursor VALUES(200,'monty')");
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   /* create new statement handle */
-  rc = SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt_pos);
+  rc= SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt_pos);
   CHECK_DBC_RC(Connection, rc);
 
   /* set the cursor name as 'mysqlcur' on Stmt */
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"mysqlcur", SQL_NTS);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"mysqlcur", SQL_NTS);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,15,NULL);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,15,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
   CHECK_STMT_RC(Stmt, rc);
 
   /* Open the resultset of table 'my_demo_cursor' */
@@ -76,13 +76,13 @@ ODBC_TEST(my_dynamic_pos_cursor)
   CHECK_STMT_RC(Stmt,rc);
 
   /* goto the last row */
-  rc = SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1L);
+  rc= SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1L);
   CHECK_STMT_RC(Stmt,rc);
 
   /* now update the name field to 'update' using positioned cursor */
   OK_SIMPLE_STMT(hstmt_pos, "UPDATE my_dynamic_cursor SET id=300, name='updated' WHERE CURRENT OF mysqlcur");
 
-  rc = SQLRowCount(hstmt_pos, &nRowCount);
+  rc= SQLRowCount(hstmt_pos, &nRowCount);
   CHECK_STMT_RC(hstmt_pos, rc);
 
   diag(" total rows updated:%d\n",nRowCount);
@@ -92,54 +92,54 @@ ODBC_TEST(my_dynamic_pos_cursor)
   strcpy((char*)szData,"updated");
   nData = 300;
 
-  rc = SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_UNLOCK);
+  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_UNLOCK);
   FAIL_IF(rc!=SQL_ERROR,"Error expected");
 
-  rc = SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_EXCLUSIVE);
+  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_EXCLUSIVE);
   FAIL_IF(rc!=SQL_ERROR,"Error expected")
     
-  rc = SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt, &nRowCount);
+  rc= SQLRowCount(Stmt, &nRowCount);
   CHECK_STMT_RC(Stmt, rc);
 
   diag(" total rows deleted:%d\n",nRowCount);
   is_num(nRowCount, 1);
 
   /* Free statement cursor resorces */
-  rc = SQLFreeStmt(Stmt, SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt, SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(hstmt_pos, SQL_CLOSE);
+  rc= SQLFreeStmt(hstmt_pos, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   /* commit the transaction */
-  rc = SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT);
+  rc= SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   /* Free the statement 'hstmt_pos' */
-  rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt_pos);
+  rc= SQLFreeHandle(SQL_HANDLE_STMT, hstmt_pos);
   CHECK_STMT_RC(hstmt_pos,rc);
 
   /* Now fetch and verify the data */
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_dynamic_cursor");
 
-  rc = SQLFetch(Stmt);
+  rc= SQLFetch(Stmt);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+  rc= SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
   is_num(nData, 100);
 
-  rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
+  rc= SQLGetData(Stmt,2,SQL_C_CHAR,szData,50,NULL);
   CHECK_STMT_RC(Stmt,rc);
   IS_STR(szData,"venu", 5);
 
-  rc = SQLFetch(Stmt);
+  rc= SQLFetch(Stmt);
   FAIL_IF(rc!=SQL_NO_DATA_FOUND,"Eof expected");
 
   SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
@@ -183,7 +183,7 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     SQLFreeStmt(Stmt,SQL_CLOSE);
 
     /* create new statement handle */
-    rc = SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt_pos);
+    rc= SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt_pos);
     CHECK_DBC_RC(Connection, rc);
 
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -215,7 +215,7 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     /* Cursor is supposed to stay on the 1st row of the rowset */
     IS_STR(my_fetch_str(Stmt, buff, 2), "MySQL5", sizeof("MySQL5"));
 
-    /*rc = SQLSetPos(Stmt,SQL_POSITION,2,SQL_LOCK_NO_CHANGE);
+    /*rc= SQLSetPos(Stmt,SQL_POSITION,2,SQL_LOCK_NO_CHANGE);
     CHECK_STMT_RC(Stmt,rc); */
 
     /* now update the name field to 'update' using positioned cursor */
@@ -235,57 +235,57 @@ ODBC_TEST(my_dynamic_pos_cursor1)
     is_num(nRowCount, 1);
 
     /* Free statement cursor resorces */
-    rc = SQLFreeStmt(Stmt, SQL_UNBIND);
+    rc= SQLFreeStmt(Stmt, SQL_UNBIND);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
+    rc= SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+    rc= SQLFreeStmt(Stmt, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(hstmt_pos, SQL_CLOSE);
+    rc= SQLFreeStmt(hstmt_pos, SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
     /* commit the transaction */
-    rc = SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT);
+    rc= SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT);
     CHECK_DBC_RC(Connection,rc);
 
     /* Free the statement 'hstmt_pos' */
-    rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt_pos);
+    rc= SQLFreeHandle(SQL_HANDLE_STMT, hstmt_pos);
     CHECK_STMT_RC(hstmt_pos,rc);
 
     /* Now fetch and verify the data */
-    rc = SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
+    rc= SQLSetStmtAttr(Stmt,SQL_ATTR_ROW_ARRAY_SIZE,(SQLPOINTER)1,0);
     CHECK_STMT_RC(Stmt,rc);
 
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_dynamic_cursor");
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
+    rc= SQLBindCol(Stmt,1,SQL_C_LONG,&i,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR, data,20,NULL);
+    rc= SQLBindCol(Stmt,2,SQL_C_CHAR, data,20,NULL);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,4L);
+    rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,4L);
     CHECK_STMT_RC(Stmt,rc);
 
     is_num(i, 4);
     IS_STR(data,"MySQL4", 7);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1L);
+    rc= SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1L);
     CHECK_STMT_RC(Stmt,rc);
 
     is_num(i, 999);
     IS_STR(data, "updated", 8);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1L);
+    rc= SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1L);
     CHECK_STMT_RC(Stmt,rc);
 
     is_num(i, 7);
     IS_STR(data, "MySQL7", 7);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,10L);
+    rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,10L);
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"Eof expected");
 
     SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
@@ -320,48 +320,48 @@ ODBC_TEST(my_position)
     OK_SIMPLE_STMT(Stmt, "INSERT INTO my_position VALUES(300,'MySQL3')");
     OK_SIMPLE_STMT(Stmt, "INSERT INTO my_position VALUES(400,'MySQL4')");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+    rc= SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
     CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
     CHECK_STMT_RC(Stmt, rc);
 
-    rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
     CHECK_STMT_RC(Stmt, rc);
 
     OK_SIMPLE_STMT(Stmt,"SELECT * FROM my_position");
 
-    rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,&nrow);
+    rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,&nrow);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,10,&nlen);
+    rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,10,&nlen);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,3);
+    rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,3);
     CHECK_STMT_RC(Stmt,rc);
 
     nData = 999; nrow = SQL_COLUMN_IGNORE;
     strcpy(szData,"update");
 
-    rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+    rc= SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+    rc= SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLRowCount(Stmt,&nlen);
+    rc= SQLRowCount(Stmt,&nlen);
     CHECK_STMT_RC(Stmt,rc);
 
     diag(" rows affected:%d\n",nlen);
     is_num(nlen, 1);
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+    rc= SQLFreeStmt(Stmt,SQL_UNBIND);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+    rc= SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
     OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_position");
@@ -371,23 +371,23 @@ ODBC_TEST(my_position)
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-    rc = SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+    rc= SQLGetData(Stmt,1,SQL_C_LONG,&nData,0,NULL);
     CHECK_STMT_RC(Stmt,rc);
-    rc = SQLGetData(Stmt,2,SQL_C_CHAR,szData,10,NULL);
+    rc= SQLGetData(Stmt,2,SQL_C_CHAR,szData,10,NULL);
     CHECK_STMT_RC(Stmt,rc);
     is_num(nData, 300);
     IS_STR(szData, "update", 7);
 
-    rc = SQLFetch(Stmt);
+    rc= SQLFetch(Stmt);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFetch(Stmt);
+    rc= SQLFetch(Stmt);
     FAIL_IF(rc!=SQL_NO_DATA_FOUND,"No data found expected");
 
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+    rc= SQLFreeStmt(Stmt,SQL_UNBIND);
     CHECK_STMT_RC(Stmt,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+    rc= SQLFreeStmt(Stmt,SQL_CLOSE);
     CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_position");
@@ -511,28 +511,28 @@ ODBC_TEST(my_zero_irow_update)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_zero_irow VALUES(5,'MySQL5')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_zero_irow VALUES(6,'MySQL6')");
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)3 , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)3 , 0);
   CHECK_STMT_RC(Stmt, rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_zero_irow");
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,nrow);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,nrow);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData[0]),nlen);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData[0]),nlen);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
+  rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
   CHECK_STMT_RC(Stmt,rc);
 
   nData[0] = 888;
@@ -543,16 +543,16 @@ ODBC_TEST(my_zero_irow_update)
   strcpy(szData[1],"updatey"); nlen[1] = 15;
   strcpy(szData[2],"updatez"); nlen[2] = 15;
 
-  rc = SQLSetPos(Stmt,0,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,0,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_zero_irow");
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
+  rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
   CHECK_STMT_RC(Stmt,rc);
 
   is_num(nData[0], 888);
@@ -562,13 +562,13 @@ ODBC_TEST(my_zero_irow_update)
   is_num(nData[2], 1000);
   IS_STR(szData[2], "updatez", 8);
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
   CHECK_STMT_RC(Stmt, rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE my_zero_irow");
@@ -599,39 +599,38 @@ ODBC_TEST(my_zero_irow_delete)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_zero_irow VALUES(6,'MySQL6')");
 
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY ,(SQLPOINTER)SQL_CONCUR_ROWVER , 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)3 , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)3 , 0);
   CHECK_STMT_RC(Stmt, rc);
 
   OK_SIMPLE_STMT(Stmt,"SELECT * FROM my_zero_irow");
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,nrow);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,nrow);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData[0]),nlen);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData[0]),nlen);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
+  rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,2);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetPos(Stmt,0,SQL_DELETE,SQL_LOCK_NO_CHANGE);
-  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_zero_irow");
 
-  rc = SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);
+  rc= SQLFetchScroll(Stmt,SQL_FETCH_ABSOLUTE,1);
   CHECK_STMT_RC(Stmt,rc);
 
   is_num(nData[0], 1);
@@ -641,16 +640,16 @@ ODBC_TEST(my_zero_irow_delete)
   is_num(nData[2], 6);
   IS_STR(szData[2], "MySQL6", 7);
 
-  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
+  rc= SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
   FAIL_IF(rc!=SQL_NO_DATA_FOUND, "no data found expected");
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE  ,(SQLPOINTER)1 , 0);
   CHECK_STMT_RC(Stmt, rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE my_zero_irow");
@@ -678,76 +677,75 @@ ODBC_TEST(my_dynamic_cursor)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_dynamic_cursor VALUES(100,'venu')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_dynamic_cursor VALUES(200,'monty')");
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
   CHECK_STMT_RC(Stmt, rc);
 
-  rc = SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY , (SQLPOINTER)SQL_CONCUR_ROWVER , 0);
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY , (SQLPOINTER)SQL_CONCUR_ROWVER , 0);
   CHECK_STMT_RC(Stmt, rc);
 
   /* Now, add a row of data */
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_dynamic_cursor");
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,15,NULL);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,15,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
+  rc= SQLFetchScroll(Stmt,SQL_FETCH_NEXT,1);
   CHECK_STMT_RC(Stmt,rc);
 
-  nData = 300;
+  nData= 300;
   strcpy((char *)szData , "mysql");
 
-  rc = SQLSetPos(Stmt,3,SQL_ADD,SQL_LOCK_NO_CHANGE);
-  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt,SQLSetPos(Stmt, 3, SQL_ADD, SQL_LOCK_NO_CHANGE));
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
   strcpy((char *)szData , "insert-new2");
-  rc = SQLSetPos(Stmt,1,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
   strcpy((char *)szData , "insert-new3");
-  rc = SQLSetPos(Stmt,0,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,0,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
   strcpy((char *)szData , "insert-new4");
-  rc = SQLSetPos(Stmt,10,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,10,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_dynamic_cursor");
 
   is_num(myrowcount(Stmt), 6);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE my_dynamic_cursor");

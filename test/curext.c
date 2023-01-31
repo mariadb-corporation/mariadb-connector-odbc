@@ -97,7 +97,7 @@ ODBC_TEST(my_pcbvalue)
   pcbValue1=9;
   pcbValue2=SQL_NTS;
 
-  rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  rc = SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
   rc = SQLRowCount(Stmt, &nRowCount);

@@ -43,7 +43,6 @@ ODBC_TEST(t_use_result)
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
                                   SQL_INTEGER, 0, 0, &i, 0, NULL));
-
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR,
                                   SQL_CHAR, 0, 0, ch, sizeof(ch), NULL));
 
@@ -281,5 +280,6 @@ int main(int argc, char **argv)
   plan(tests);
   mark_all_tests_normal(my_tests);
   CHANGE_DEFAULT_OPTIONS(my_options | 1048576 | 2097152);
+  //return 0;
   return run_tests(my_tests);
 }

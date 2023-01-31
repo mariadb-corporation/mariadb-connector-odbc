@@ -16,7 +16,8 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include <ma_odbc.h>
+#include "ma_platform_win32.h"
+#include <mysql.h>
 
 BOOL __stdcall DllMain ( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved )
 {

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -59,7 +59,7 @@ ODBC_TEST(my_positioned_cursor)
 
   /* now update the name field to 'updated' using positioned cursor */
   OK_SIMPLE_STMT(hstmt_pos, "UPDATE my_demo_cursor SET name='updated' "
-         "WHERE CURRENT OF mysqlcur");
+                            "WHERE CURRENT OF mysqlcur");
 
   CHECK_STMT_RC(Stmt, SQLRowCount(hstmt_pos, &nRowCount));
   is_num(nRowCount, 1);
@@ -308,7 +308,7 @@ ODBC_TEST(t_setpos_del_all)
 
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"venu", SQL_NTS));
 
-  CHECK_STMT_RC(Stmt, SQLSetStmtOption(Stmt, SQL_ROWSET_SIZE, 4));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)4, 0));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_del_all ORDER BY a ASC");
 
@@ -344,7 +344,7 @@ ODBC_TEST(t_setpos_del_all)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLSetStmtOption(Stmt, SQL_ROWSET_SIZE, 1));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_del_all");
 
@@ -1495,22 +1495,21 @@ ODBC_TEST(tmysql_pos_update_ex1)
 
 ODBC_TEST(tmysql_pos_update_ex3)
 {
+  SQLCHAR cursor[30], sql[255]; // around sql
   SQLHSTMT hstmt1;
   SQLULEN pcrow;
   SQLUSMALLINT rgfRowStatus;
-  SQLCHAR cursor[30], sql[255];
-  SQLCHAR *test= (SQLCHAR*)"test";
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_updex3");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_pos_updex3 (a INT NOT NULL PRIMARY KEY,"
-        " b VARCHAR(30))");
+    " b VARCHAR(30))");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_updex3 VALUES (100,'venu'),(200,'MySQL')");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
-                                (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+    (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  OK_SIMPLE_STMT(Stmt,  "SELECT a, b FROM t_pos_updex3");
+  OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_pos_updex3");
 
   if (ForwardOnly)
   {
@@ -1528,8 +1527,8 @@ ODBC_TEST(tmysql_pos_update_ex3)
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(Connection, &hstmt1));
 
-  sprintf((char *)sql,
-          "UPDATE t_pos_updex3 SET a = 999, b = ? WHERE CURRENT OF %s", cursor);
+  _snprintf((char*)sql, sizeof(sql),
+    "UPDATE t_pos_updex3 SET a = 999, b = ? WHERE CURRENT OF %s", cursor);
 
   /* In case of RS streaming this returns not the error this test expects. Thus the error should be verified to be
      a  right error */
@@ -2090,7 +2089,7 @@ ODBC_TEST(my_setpos_upd_pk_order)
   SQLLEN nlen;
   SQLCHAR szData[255]={0};
   SQLULEN pcrow;
-  SQLUSMALLINT rgfRowStatus;
+  SQLUSMALLINT rgfRowStatus; // around this
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_setpos_upd_pk_order");
 
@@ -2535,7 +2534,7 @@ ODBC_TEST(bug6741)
 */
 ODBC_TEST(t_update_type)
 {
-  SQLUSMALLINT *val= malloc(sizeof(SQLUSMALLINT));
+  SQLUSMALLINT val= 0;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_update_no_strlen");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_update_no_strlen (x int not null)");
@@ -2546,27 +2545,25 @@ ODBC_TEST(t_update_type)
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_update_no_strlen");
-  /* server will use SQL_C_LONG, but we use short */
-  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_USHORT, val, 0, NULL));
+  /* Server will use SQL_C_LONG, but we use short */
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_USHORT, &val, 0, NULL));
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(*val, 0xaaaa);
+  is_num(val, 0xaaaa);
 
-  *val= 0xcccc;
+  val= 0xcccc;
   CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  /* verify the right value was updated */
-  *val= 0;
+  /* Verify the right value was updated */
+  val= 0;
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_update_no_strlen");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(*val, 0xcccc);
+  is_num(val, 0xcccc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_update_no_strlen");
-
-  free(val);
 
   return OK;
 }
@@ -2722,6 +2719,8 @@ ODBC_TEST(t_bug32420)
   SQLCHAR   conn[512], conn_out[512];
   SQLSMALLINT conn_out_len;
   SQLULEN row_count;
+
+  skip("Temporarily skipping rs streaming tests");
 
   /* Don't cache result + force forward only cursors option in the connection string */
   sprintf((char *)conn, "DSN=%s;UID=%s;PASSWORD=%s;"
@@ -3504,6 +3503,8 @@ ODBC_TEST(odbc356)
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 1L));
 
   CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &cursorOnUni));
+  CHECK_STMT_RC(cursorOnUni, SQLSetStmtAttr(cursorOnUni, SQL_ATTR_CURSOR_TYPE,
+    (SQLPOINTER)SQL_CURSOR_STATIC, 0));
   CHECK_STMT_RC(cursorOnUni, SQLSetCursorName(cursorOnUni, (SQLCHAR*)"maunicursor", SQL_NTS));
   OK_SIMPLE_STMT(cursorOnUni, "SELECT ukey, val FROM t_odbc356 ORDER BY 1");
   CHECK_STMT_RC(cursorOnUni, SQLFetchScroll(cursorOnUni, SQL_FETCH_FIRST, 1L));

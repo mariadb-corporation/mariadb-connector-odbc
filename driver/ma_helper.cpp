@@ -18,32 +18,17 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 #include <stdint.h>
+#include "class/ResultSetMetaData.h"
+#include "interface/PreparedStatement.h"
 
 #define MADB_FIELD_IS_BINARY(_field) ((_field)->charsetnr == BINARY_CHARSETNR)
 
-void CloseMultiStatements(MADB_Stmt *Stmt)
+void MADB_NewStmtHandle(MADB_Stmt *Stmt)
 {
-  unsigned int i;
+  // static const my_bool UpdateMaxLength= 1;
+  Stmt->stmt.reset();
 
-  for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
-  {
-    MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->MultiStmts[i]);
-    if (Stmt->MultiStmts[i] != NULL)
-    {
-      mysql_stmt_close(Stmt->MultiStmts[i]);
-    }
-  }
-  MADB_FREE(Stmt->MultiStmts);
-  Stmt->stmt= NULL;
-}
-
-
-MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt)
-{
-  static const my_bool UpdateMaxLength= 1;
-  MYSQL_STMT* stmt= mysql_stmt_init(Stmt->Connection->mariadb);
-
-  if (stmt != NULL)
+  /*if (stmt != NULL)
   {
     mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
   }
@@ -52,11 +37,11 @@ MYSQL_STMT* MADB_NewStmtHandle(MADB_Stmt *Stmt)
     MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
 
-  return stmt;
+  return stmt;*/
 }
 
 /* Required, but not sufficient condition */
-BOOL QueryIsPossiblyMultistmt(MADB_QUERY *Query)
+bool QueryIsPossiblyMultistmt(MADB_QUERY *Query)
 {
   return Query->QueryType != MADB_QUERY_CREATE_PROC && Query->QueryType != MADB_QUERY_CREATE_FUNC &&
          Query->QueryType != MADB_QUERY_CREATE_DEFINER && Query->QueryType != MADB_NOT_ATOMIC_BLOCK;
@@ -78,60 +63,6 @@ int SqlRtrim(char *StmtStr, int Length)
   }
 
   return Length;
-}
-
-/* Function assumes that the query is multistatement. And, e.g. STMT_COUNT(Stmt->Query) > 1 */
-unsigned int GetMultiStatements(MADB_Stmt *Stmt, BOOL ExecDirect)
-{
-  int          i= 0;
-  unsigned int MaxParams= 0;
-  char        *p= Stmt->Query.RefinedText;
-
-  Stmt->MultiStmtNr= 0;
-  Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * STMT_COUNT(Stmt->Query));
-
-  while (p < Stmt->Query.RefinedText + Stmt->Query.RefinedLength)
-  {
-    Stmt->MultiStmts[i]= i == 0 ? Stmt->stmt : MADB_NewStmtHandle(Stmt);
-    MDBUG_C_PRINT(Stmt->Connection, "-->inited&preparing %0x(%d,%s)", Stmt->MultiStmts[i], i, p);
-
-    if (mysql_stmt_prepare(Stmt->MultiStmts[i], p, (unsigned long)strlen(p)))
-    {
-      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->MultiStmts[i]);
-      CloseMultiStatements(Stmt);
-
-      /* Last paranoid attempt make sure that we did not have a parsing error.
-         More to preserve "backward-compatibility" - we did this before, but before trying to
-         prepare "multi-statement". */
-      if (i == 0 && Stmt->Error.NativeError !=1295 /*ER_UNSUPPORTED_PS*/)
-      {
-        Stmt->stmt= MADB_NewStmtHandle(Stmt);
-        if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
-        {
-          MADB_STMT_CLOSE_STMT(Stmt);
-        }
-        else
-        {
-          MADB_DeleteSubqueries(&Stmt->Query);
-          return 0;
-        }
-      }
-      return 1;
-    }
-    if (mysql_stmt_param_count(Stmt->MultiStmts[i]) > MaxParams)
-    {
-      MaxParams= mysql_stmt_param_count(Stmt->MultiStmts[i]);
-    }
-    p+= strlen(p) + 1;
-    ++i;
-  }
-
-  if (MaxParams)
-  {
-    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * MaxParams);
-  }
-
-  return 0;
 }
 
 
@@ -162,46 +93,41 @@ int  MADB_GetWCharType(int Type)
    TODO: if there are >1 of unique keys, this will go wrong */
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount)
 {
-  int          Count= -1;
-  int          i;
-  char         StmtStr[1024];
-  char         *p= StmtStr;
-  char         Database[65]= {'\0'};
-  MADB_Stmt    *Stmt= NULL;
-  MYSQL_FIELD  *Field;
-  
-  Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, 65, NULL, FALSE);
-  p+= _snprintf(p, 1024, "SELECT * FROM ");
+  int         Count = -1;
+  int         i;
+  char        StmtStr[512];
+  char* p = StmtStr;
+  char        Database[65] = { '\0' };
+  MYSQL_RES* Res;
+  MYSQL_FIELD* Field;
+
+  Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
+  p += _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(p), "`%s`.", Database);
+    p += _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
   }
-  p+= _snprintf(p, sizeof(StmtStr) - strlen(p), "%s LIMIT 0", TableName);
-  if (MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Connection, (SQLHANDLE*)&Stmt) == SQL_ERROR ||
-    Stmt->Methods->ExecDirect(Stmt, (char *)StmtStr, SQL_NTS) == SQL_ERROR ||
-    Stmt->Methods->Fetch(Stmt) == SQL_ERROR)
+  p += _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
+  LOCK_MARIADB(Connection);
+  if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (unsigned long)(p - StmtStr), &Connection->Error)) &&
+    (Res = mysql_store_result(Connection->mariadb)) != NULL)
   {
-    goto end;
-  }
-
-  Count= mysql_stmt_field_count(Stmt->stmt);
-  for (i=0; i < Count; ++i)
-  {
-    Field= mysql_fetch_field_direct(Stmt->metadata, i);
-    if (Field->flags & PRI_KEY_FLAG)
+    Count = mysql_field_count(Connection->mariadb);
+    for (i = 0; i < Count; ++i)
     {
-      ++*PrimaryKeysCount;
+      Field = mysql_fetch_field_direct(Res, i);
+      if (Field->flags & PRI_KEY_FLAG)
+      {
+        ++* PrimaryKeysCount;
+      }
+      if (Field->flags & UNIQUE_KEY_FLAG)
+      {
+        ++* UniqueKeysCount;
+      }
     }
-    if (Field->flags & UNIQUE_KEY_FLAG)
-    {
-      ++*UniqueKeysCount;
-    }
+    mysql_free_result(Res);
   }
-end:
-  if (Stmt)
-  {
-    Stmt->Methods->StmtFree(Stmt, SQL_DROP);
-  }
+  UNLOCK_MARIADB(Connection);
   return Count;
 }
 
@@ -276,7 +202,7 @@ SQLSMALLINT MADB_GetTypeFromConciseType(SQLSMALLINT ConciseType)
 /* }}} */
 
 /* {{{ MADB_GetTypeName */
-const char *MADB_GetTypeName(MYSQL_FIELD *Field)
+const char *MADB_GetTypeName(const MYSQL_FIELD *Field)
 {
   switch(Field->type) {
   case MYSQL_TYPE_DECIMAL:
@@ -337,22 +263,22 @@ const char *MADB_GetTypeName(MYSQL_FIELD *Field)
 }
 /* }}} */
 
-MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
+MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *fields)
 {
   MADB_DynString DynStr;
   unsigned int i;
-  MYSQL_RES *result= NULL;
-  
+  MYSQL_RES* result = NULL;
+
   MADB_InitDynamicString(&DynStr, "SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='", 512, 512);
   if (MADB_DynstrAppend(&DynStr, fields[0].db) ||
-      MADB_DYNAPPENDCONST(&DynStr, "' AND TABLE_NAME='") ||
-      MADB_DynstrAppend(&DynStr, fields[0].org_table) ||
-      MADB_DYNAPPENDCONST(&DynStr, "' AND COLUMN_NAME IN ("))
+    MADB_DYNAPPENDCONST(&DynStr, "' AND TABLE_NAME='") ||
+    MADB_DynstrAppend(&DynStr, fields[0].org_table) ||
+    MADB_DYNAPPENDCONST(&DynStr, "' AND COLUMN_NAME IN ("))
     goto error;
 
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i = 0; i < Stmt->metadata->getColumnCount(); i++)
   {
-    MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
+    MADB_DescRecord* Rec = MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
 
     if (!Rec->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == TRUE)
     {
@@ -369,15 +295,16 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
     goto error;
 
   LOCK_MARIADB(Stmt->Connection);
-  if (mysql_query(Stmt->Connection->mariadb, DynStr.str))
-    goto errorunderlock;
-  result= mysql_store_result(Stmt->Connection->mariadb);
+  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, DynStr.str, (SQLINTEGER)DynStr.length, &Stmt->Error)))
+  {
+    result = mysql_store_result(Stmt->Connection->mariadb);
+  }
 
-errorunderlock:
-    UNLOCK_MARIADB(Stmt->Connection);
+  UNLOCK_MARIADB(Stmt->Connection);
+
 error:
-    MADB_DynstrFree(&DynStr);
-    return result;
+  MADB_DynstrFree(&DynStr);
+  return result;
 }
 
 char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
@@ -444,7 +371,7 @@ SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BO
 }
 
 /* {{{ MADB_GetDisplaySize */
-size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
+size_t MADB_GetDisplaySize(const MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
 {
   /* Todo: check these values with output from mysql --with-columntype-info */
   switch (Field->type) {
@@ -513,7 +440,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
 /* }}} */
 
 /* {{{ MADB_GetOctetLength */
-size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
+size_t MADB_GetOctetLength(const MYSQL_FIELD *Field, unsigned short MaxCharLen)
 {
   size_t Length= MIN(MADB_INT_MAX32, Field->/*max_*/length);
 
@@ -627,7 +554,7 @@ int MADB_GetDefaultType(int SQLDataType)
 
 /* {{{ MapMariadDbToOdbcType */
        /* It's not quite right to mix here C and SQL types, even though constants are sort of equal */
-SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field)
+SQLSMALLINT MapMariadDbToOdbcType(const MYSQL_FIELD *field)
 {
   switch (field->type) {
     case MYSQL_TYPE_BIT:
@@ -1270,7 +1197,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   }
   
-  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS, FALSE)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Prepare(DynStmt.str, (SQLINTEGER)DynStmt.length, true)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
@@ -1341,22 +1268,4 @@ BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
     return TRUE;
   }
   return FALSE;
-}
-
-/* Now it's more like installing result */
-void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
-{
-  Stmt->stmt= stmt;
-
-  if (mysql_stmt_field_count(Stmt->stmt) == 0)
-  {
-    MADB_DescFree(Stmt->Ird, TRUE);
-    Stmt->AffectedRows= mysql_stmt_affected_rows(Stmt->stmt);
-  }
-  else
-  {
-    Stmt->AffectedRows= 0;
-    MADB_StmtResetResultStructures(Stmt);
-    MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
-  }
 }

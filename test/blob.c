@@ -67,22 +67,22 @@ ODBC_TEST(t_blob)
         {
             SDWORD s;
 
-            s = (SDWORD)blobbuf_size;
+            s= (SDWORD)blobbuf_size;
             if (s + j > blob_size)
             {
-                s -= (s + j) - blob_size;
+                s-= (s + j) - blob_size;
                 FAIL_IF(s + j != blob_size, "wrong size");
             }
-            rc = SQLPutData(Stmt, blobbuf, s);
+            rc= SQLPutData(Stmt, blobbuf, s);
             CHECK_STMT_RC(Stmt, rc);
             j += (SQLUINTEGER)s;
         }
-        rc = SQLParamData(Stmt, &token);
+        rc= SQLParamData(Stmt, &token);
         CHECK_STMT_RC(Stmt, rc);
     }
-    finish = clock();
+    finish= clock();
 
-    duration = (finish-start)/CLOCKS_PER_SEC;
+    duration= (finish-start)/CLOCKS_PER_SEC;
     diag("j: %d", j);
     FAIL_IF(j != blob_size, "assertion");
     diag("Wrote %ld bytes in %3.3lf seconds (%lg bytes/s)",
@@ -760,7 +760,7 @@ ODBC_TEST(t_bug10562)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug10562");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug10562");
   free(blob);
   free(blobcheck);
   return result;
@@ -982,7 +982,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug_11746572, "t_bug_11746572"},
   {t_odbc_26, "t_odbc_26"},
   {t_blob_reading_in_chunks, "t_blob_reading_in_chunks"},
-  { odbc359, "odbc359"},
+  {odbc359, "odbc359"},
   {NULL, NULL}
 };
 

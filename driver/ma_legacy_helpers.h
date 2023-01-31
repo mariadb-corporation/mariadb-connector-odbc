@@ -19,6 +19,7 @@
 #ifndef _MA_LEGACY_HELPERS_H
 #define _MA_LEGACY_HELPERS_H
 
+#include "mysql.h"
 /********
  *
  * Function definitions, types, macros for MADB_List, MADB_DynArray, and MADB_DynString copied from C/C

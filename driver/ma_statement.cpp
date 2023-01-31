@@ -16,152 +16,59 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include <ma_odbc.h>
+#include "ma_odbc.h"
+#include "ServerSidePreparedStatement.h"
+#include "ClientSidePreparedStatement.h"
+#include "interface/ResultSet.h"
+#include "ResultSetMetaData.h"
+#include "interface/Exception.h"
 
 #define MADB_MIN_QUERY_LEN 5
 
-/* defined at the end of file */
-//struct st_ma_stmt_methods MADB_StmtMethods;
-void MADB_FreeStreamedRs(MADB_Stmt* Stmt);
-
-void MADB_FreeStoredRs(MADB_Stmt* Stmt);
-
-/* {{{ MADB_CacheCurrentRow
- * We can store the rest of the resultset with mysql_stmt_store_result, but we are losing current(last fetched) row.
- * Currently we can't do that, and will only return error. In case of rowset, we will need to cache it anyway, and thus
- * probably this function won't be even needed once we can cache the row locally :)
- */
-int MADB_CacheCurrentRow(MADB_Stmt* Stmt)
-{
-  return 1;
-}
-
-/* {{{ MADB_CacheRs
- * Default RS caching method. It's also used for caching rest of the RS in the case of caching is disabled, and then streaming has been started, but
- * no row has been fetched yet - i.e. streaming is not actually started, stmt is only executed
- */
-int MADB_CacheRs(MADB_Stmt* Stmt)
-{
-  return mysql_stmt_store_result(Stmt->stmt);
-}
-
-/* {{{ MADB_CacheRsDoNothing - used if caching enabled to cache rest of RS */
-int MADB_CacheRsDoNothing(MADB_Stmt* Stmt)
-{
-  return 0;
-}
-
-/* {{{ MADB_CacheRsDoNothing - used if caching enabled to cache rest of RS */
-int MADB_StreamRs(MADB_Stmt* Stmt)
-{
-  /* We should not have other streamer by now */
-  Stmt->Connection->Streamer= Stmt;
-  return 0;
-}
-
-/* {{{ MADB_CacheRestOfRsStub - cache rest of RS method for the case of caching disabled.The stub returns error only */
-int MADB_CacheRestOfRsStub(MADB_Stmt* Stmt)
-{
-  return 1;
-}
-
-/* CacheRs method for the case of discabled cache - setting current Stremer*/
-int MADB_CacheRsNoCache(MADB_Stmt* Stmt)
-{
-  MADB_STMT_SET_CURRENT_STREAMER(Stmt);
-  return 0;
-}
-
-/* {{{ MADB_CacheRestOfRs */
-int MADB_CacheRestOfRs(MADB_Stmt* Stmt)
-{
-  if (Stmt->RsOps->CacheLocallyCurrentRow(Stmt))
-  {
-    return 1;
-  }
-
-  if (MADB_CacheRs(Stmt))
-  {
-    return 1;
-  }
-
-  MakeStmtCacher(Stmt);
-  /*if (mysql_stmt_more_results(Stmt->stmt))
-  {
-    return 1;
-  }*/
-  return 0;
-}
-
-
-struct st_ma_stmt_rsstore MADB_StmtCacher =
-{
-  MADB_CacheRs,
-  MADB_CacheRsDoNothing,
-  MADB_CacheRsDoNothing,
-  MADB_FreeStoredRs
-};
-
-struct st_ma_stmt_rsstore MADB_StmtStreamer =
-{
-  MADB_StreamRs,
-  MADB_CacheRsDoNothing,
-  MADB_CacheRestOfRs,
-  MADB_FreeStreamedRs
-};
-
-struct st_ma_stmt_rsstore MADB_StmtStreamerNotAbleCacheTheRest =
-{
-  MADB_StreamRs,
-  MADB_CacheCurrentRow,
-  MADB_CacheRestOfRs,
-  MADB_FreeStreamedRs
-};
-
-
-static void MakeStmtStreamer(MADB_Stmt* Stmt)
-{
-  Stmt->RsOps= &MADB_StmtStreamer;
-}
-
-void MakeStmtCacher(MADB_Stmt* Stmt)
-{
-  Stmt->RsOps= &MADB_StmtCacher;
-}
-
 /* {{{ MADB_ExecuteQuery */
-SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER TextLength)
+/* {{{ MADB_RealQuery - the caller is responsible for locking, as the caller may need to do some operations
+       before it's ok to unlock. e.g. read results */
+SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error* Error)
 {
-  SQLRETURN ret= SQL_ERROR;
-  
-  LOCK_MARIADB(Stmt->Connection);
+  SQLRETURN ret = SQL_ERROR;
+
   if (StatementText)
   {
-    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
+    if (MADB_GOT_STREAMER(Dbc) && Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, Error))
     {
-      UNLOCK_MARIADB(Stmt->Connection);
-      return Stmt->Error.ReturnValue;
+      return Error->ReturnValue;
     }
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_real_query(%0x,%s,%lu)", Stmt->Connection->mariadb, StatementText, TextLength);
-    if(!mysql_real_query(Stmt->Connection->mariadb, StatementText, TextLength))
+    MDBUG_C_PRINT(Dbc, "mysql_real_query(%0x,%s,%lu)", Dbc->mariadb, StatementText, TextLength);
+    if (!mysql_real_query(Dbc->mariadb, StatementText, TextLength))
     {
-      ret= SQL_SUCCESS;
-      MADB_CLEAR_ERROR(&Stmt->Error);
+      ret = SQL_SUCCESS;
+      MADB_CLEAR_ERROR(Error);
 
-      Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
-      Stmt->Connection->Methods->TrackSession(Stmt->Connection);
+      Dbc->Methods->TrackSession(Dbc);
     }
     else
     {
-      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_DBC, Stmt->Connection->mariadb);
+      MADB_SetNativeError(Error, SQL_HANDLE_DBC, Dbc->mariadb);
     }
   }
   else
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
-                            mysql_errno(Stmt->Connection->mariadb));
-  UNLOCK_MARIADB(Stmt->Connection);
+    MADB_SetError(Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb),
+      mysql_errno(Dbc->mariadb));
 
   return ret;
+}
+/* }}} */
+
+/* {{{ MADB_ExecuteQuery */
+SQLRETURN MADB_ExecuteQuery(MADB_Stmt* Stmt, char* StatementText, SQLINTEGER TextLength)
+{
+  LOCK_MARIADB(Stmt->Connection);
+  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, StatementText, TextLength, &Stmt->Error)))
+  {
+    Stmt->AffectedRows = mysql_affected_rows(Stmt->Connection->mariadb);
+  }
+  UNLOCK_MARIADB(Stmt->Connection);
+  return Stmt->Error.ReturnValue;
 }
 /* }}} */
 
@@ -204,18 +111,6 @@ void RemoveStmtRefFromDesc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
 }
 /* }}} */
 
-/* {{{ ResetMetadata */
-void ResetMetadata(MYSQL_RES** metadata, MYSQL_RES* new_metadata)
-{
-  if (*metadata != NULL)
-  {
-    mysql_free_result(*metadata);
-  }
-
-  *metadata= new_metadata;
-}
-/* }}} */
-
 /* {{{ MADB_StmtFree */
 SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 {
@@ -228,37 +123,17 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     {
       if (Stmt->Ird)
         MADB_DescFree(Stmt->Ird, TRUE);
-      if (Stmt->State > MADB_SS_PREPARED && !QUERY_IS_MULTISTMT(Stmt->Query))
+      if (Stmt->State > MADB_SS_PREPARED)
       {
-        MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt);
+        MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
         LOCK_MARIADB(Stmt->Connection);
-        Stmt->RsOps->FreeRs(Stmt);
-        MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
-        if (mysql_stmt_more_results(Stmt->stmt))
-        {
-          while (mysql_stmt_next_result(Stmt->stmt) == 0);
-        }
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-      if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
-      {
-        unsigned int i;
-        LOCK_MARIADB(Stmt->Connection);
-        for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
-        {
-          if (Stmt->MultiStmts[i] != NULL)
-          {
-            MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i], i);
-            if (mysql_stmt_more_results(Stmt->MultiStmts[i]))
-            {
-              while (mysql_stmt_next_result(Stmt->MultiStmts[i]) == 0);
-            }
-          }
-        }
+        Stmt->rs.reset();
+        while (Stmt->stmt->getMoreResults() || Stmt->stmt->getUpdateCount() != -1);
+
         UNLOCK_MARIADB(Stmt->Connection);
       }
 
-      ResetMetadata(&Stmt->metadata, NULL);
+      Stmt->metadata.reset();
      
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
@@ -266,21 +141,20 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 
       RESET_STMT_STATE(Stmt);
       RESET_DAE_STATUS(Stmt);
-      if (MADB_STMT_SHOULD_STREAM(Stmt))
-      {
-        MakeStmtStreamer(Stmt);
-      }
     }
     break;
+
   case SQL_UNBIND:
     MADB_FREE(Stmt->result);
     MADB_DescFree(Stmt->Ard, TRUE);
     break;
+
   case SQL_RESET_PARAMS:
     MADB_FREE(Stmt->params);
     MADB_DescFree(Stmt->Apd, TRUE);
     RESET_DAE_STATUS(Stmt);
     break;
+
   case SQL_DROP:
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
@@ -288,7 +162,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->CatalogName);
     MADB_FREE(Stmt->TableName);
     MADB_FREE(Stmt->UniqueIndex);
-    ResetMetadata(&Stmt->metadata, NULL);
+    //Stmt->metadata.reset();
 
     /* For explicit descriptors we only remove reference to the stmt*/
     if (Stmt->Apd->AppType)
@@ -318,7 +192,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
-    ResetMetadata(&Stmt->DefaultsResult, NULL);
+    //Stmt->DefaultsResult.reset();
 
     if (Stmt->DaeStmt != NULL)
     {
@@ -330,38 +204,19 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     {
       MADB_RESET_STREAMER(Stmt->Connection);
     }
-    /* TODO: if multistatement was prepared, but not executed, we would get here Stmt->stmt leaked. Unlikely that is very probable scenario,
-             thus leaving this for new version */
-    if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
+
+    if (Stmt->stmt != NULL)
     {
-      unsigned int i;
-      for (i= 0; i < STMT_COUNT(Stmt->Query); ++i)
-      {
-        /* This dirty hack allows to avoid crash in case stmt object was not allocated
-           TODO: The better place for this check would be where MultiStmts was not allocated
-           to avoid inconsistency(MultiStmtCount > 0 and MultiStmts is NULL */
-        if (Stmt->MultiStmts!= NULL && Stmt->MultiStmts[i] != NULL)
-        {
-          MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x(%u)", Stmt->MultiStmts[i], i);
-          mysql_stmt_close(Stmt->MultiStmts[i]);
-        }
-      }
-      MADB_FREE(Stmt->MultiStmts);
-      Stmt->MultiStmtNr= 0;
-    }
-    else if (Stmt->stmt != NULL)
-    {
-      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
+      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt.get());
       MADB_STMT_CLOSE_STMT(Stmt);
     }
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
-    MADB_DeleteQuery(&Stmt->Query);
     UNLOCK_MARIADB(Stmt->Connection);
     EnterCriticalSection(&Stmt->Connection->ListsCs);
     Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
     LeaveCriticalSection(&Stmt->Connection->ListsCs);
     
-    MADB_FREE(Stmt);
+    delete Stmt;
   } /* End of switch (Option) */
   return SQL_SUCCESS;
 }
@@ -379,15 +234,15 @@ BOOL MADB_CheckIfExecDirectPossible(MADB_Stmt *Stmt)
 
 /* {{{ MADB_BulkInsertPossible
        Checking if we can deploy mariadb_stmt_execute_direct */
-BOOL MADB_BulkInsertPossible(MADB_Stmt *Stmt)
+bool MADB_BulkInsertPossible(MADB_Stmt *Stmt)
 {
-  return MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS)
-      && (Stmt->Apd->Header.ArraySize > 1)
-      && (Stmt->Apd->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)        /* First we support column-wise binding */
+  return /* MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS)
+      && */(Stmt->Apd->Header.ArraySize > 1)
+      && (Stmt->Apd->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)       /* First we support column-wise binding */
       && (Stmt->Query.QueryType == MADB_QUERY_INSERT || Stmt->Query.QueryType == MADB_QUERY_UPDATE)
-      && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;        /* TODO: should be not very hard ot optimize to use bulk in this
-                                                                         case for chunks of the array, delimitered by param rows with DAE
-                                                                         In particular, MADB_FindNextDaeParam should consider Stmt->ArrayOffset */
+      && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;       /* TODO: should be not very hard ot optimize to use bulk in this
+                                                                        case for chunks of the array, delimitered by param rows with DAE
+                                                                        In particular, MADB_FindNextDaeParam should consider Stmt->ArrayOffset */
 }
 /* }}} */
 /* {{{ MADB_StmtExecDirect */
@@ -396,26 +251,16 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
   SQLRETURN ret;
   BOOL      ExecDirect= TRUE;
 
-  ret= Stmt->Methods->Prepare(Stmt, StatementText, TextLength, ExecDirect);
+  ret= Stmt->Prepare(StatementText, TextLength, false);
   /* In case statement is not supported, we use mysql_query instead */
   if (!SQL_SUCCEEDED(ret))
   {
-    /* This is not quite good - 1064 may simply mean that syntax is wrong. we are screwed then */
-    if ((Stmt->Error.NativeError == 1295/*ER_UNSUPPORTED_PS*/ ||
-         Stmt->Error.NativeError == 1064/*ER_PARSE_ERROR*/))
-    {
-      Stmt->State= MADB_SS_EMULATED;
-    }
-    else
-    {
-      return ret;
-    }
-  }
-
-  /* For multistmt we don't use mariadb_stmt_execute_direct so far */
-  if (QUERY_IS_MULTISTMT(Stmt->Query))
-  {
-    ExecDirect= FALSE;
+    /* Can't be really - we now run here CS prepare */
+    //if ((Stmt->Error.NativeError == 1295/*ER_UNSUPPORTED_PS*/ ||
+    //     Stmt->Error.NativeError == 1064/*ER_PARSE_ERROR*/))
+    //{}
+    //else
+    return ret;
   }
 
   return Stmt->Methods->Execute(Stmt, ExecDirect);
@@ -445,44 +290,33 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 /* }}} */
 
 /* {{{ FetchMetadata */
-MYSQL_RES* FetchMetadata(MADB_Stmt *Stmt)
+ResultSetMetaData* FetchMetadata(MADB_Stmt *Stmt, bool early)
 {
-  ResetMetadata(&Stmt->metadata, mysql_stmt_result_metadata(Stmt->stmt));
-  return Stmt->metadata;
+  /* TODO early probably is not needed here at all */
+  if (early)
+  {
+    Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
+  }
+  else
+  {
+    Stmt->metadata.reset(Stmt->rs->getMetaData());
+  }
+  return Stmt->metadata.get();
 }
 /* }}} */
 
 /* {{{ MADB_StmtReset - reseting Stmt handler for new use. Has to be called inside a lock */
 SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
 {
-  if (!QUERY_IS_MULTISTMT(Stmt->Query) || Stmt->MultiStmts == NULL)
+  if (Stmt->State > MADB_SS_PREPARED)
   {
-    if (Stmt->State > MADB_SS_PREPARED)
-    {
-      MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt);
-      Stmt->RsOps->FreeRs(Stmt);
-    }
-
-    if (Stmt->State >= MADB_SS_PREPARED)
-    {
-      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
-      if (MADB_GOT_STREAMER(Stmt->Connection) && !MADB_STMT_IS_STREAMING(Stmt) &&
-        Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
-      {
-        return Stmt->Error.ReturnValue;
-      }
-      MADB_STMT_CLOSE_STMT(Stmt);
-      Stmt->stmt= MADB_NewStmtHandle(Stmt);
-
-      MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
-    }
+    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt.get());
+    Stmt->rs.reset();
   }
-  else
-  {
-    CloseMultiStatements(Stmt);
-    Stmt->stmt= MADB_NewStmtHandle(Stmt);
 
-    MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
+  if (Stmt->State >= MADB_SS_PREPARED)
+  {
+    MADB_NewStmtHandle(Stmt);
   }
 
   switch (Stmt->State)
@@ -494,28 +328,13 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
     RESET_DAE_STATUS(Stmt);
-    if (MADB_STMT_SHOULD_STREAM(Stmt))
-    {
-      MakeStmtStreamer(Stmt);
-    }
+
   case MADB_SS_PREPARED:
-    ResetMetadata(&Stmt->metadata, NULL);
+    Stmt->metadata.reset();
 
     Stmt->PositionedCursor= NULL;
     Stmt->Ird->Header.Count= 0;
 
-  case MADB_SS_EMULATED:
-  /* We can have the case, then query did not succeed, and in case of direct execution we wouldn't
-     have ane state set, but some of stuff still needs to be cleaned. Perhaps we could introduce a state
-     for such case, smth like DIREXEC_PREPARED. Would be more proper, but yet overkill */
-
-    if (QUERY_IS_MULTISTMT(Stmt->Query))
-    {
-      while (mysql_more_results(Stmt->Connection->mariadb))
-      {
-        mysql_next_result(Stmt->Connection->mariadb);
-      }
-    }
   default:
     Stmt->PositionedCommand= 0;
     Stmt->State= MADB_SS_INITED;
@@ -527,12 +346,12 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
 }
 /* }}} */
 
-/* {{{ MADB_EDPrepare - Method called from SQLPrepare in case it is SQLExecDirect and if server >= 10.2
-      (i.e. we gonna do mariadb_stmt_exec_direct) */
-SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
+/* {{{ MADB_CsPrepare - Method called if we do client side prepare */
+SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 {
-  /* TODO: In case of positioned command it shouldn't be always */
-  if ((Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)) != 0)
+  Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt), Stmt->Options.CursorType
+    , Stmt->Query.NoBackslashEscape));
+  if ((Stmt->ParamCount= static_cast<SQLSMALLINT>(Stmt->stmt->getParamCount())/* + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)*/) != 0)
   {
     if (Stmt->params)
     {
@@ -551,37 +370,51 @@ SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
  */
 SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
-  MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt, STMT_STRING(Stmt));
+  MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt.get(), STMT_STRING(Stmt));
 
   if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
   {
     return Stmt->Error.ReturnValue;
   }
-  if (mysql_stmt_prepare(Stmt->stmt, STMT_STRING(Stmt), (unsigned long)strlen(STMT_STRING(Stmt))))
+
+  try
   {
-    /* Need to save error first */
-    MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-    /* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
-    MADB_STMT_CLOSE_STMT(Stmt);
-    Stmt->stmt= MADB_NewStmtHandle(Stmt);
-
-    UNLOCK_MARIADB(Stmt->Connection);
-
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_init(%0x)->%0x", Stmt->Connection->mariadb, Stmt->stmt);
-
-    return Stmt->Error.ReturnValue;
+    Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+      Stmt->Options.CursorType));
+  }
+  catch (SQLException& e)
+  {
+    if (e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed)
+    {
+      Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+        Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
+    }
+    else
+    {
+      ///* Need to save error first */
+      MADB_FromException(Stmt->Error, e);
+      ///* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
+      MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt.get());
+      UNLOCK_MARIADB(Stmt->Connection);
+      return Stmt->Error.ReturnValue;
+    }
+  }
+  catch (int)
+  {
+    Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+        Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
   }
 
   Stmt->State= MADB_SS_PREPARED;
 
+  Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
   /* If we have result returning query - fill descriptor records with metadata */
-  if (mysql_stmt_field_count(Stmt->stmt) > 0)
+  if (Stmt->metadata && Stmt->metadata->getColumnCount() > 0)
   {
-    MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
+    MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
   }
 
-  if ((Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt)))
+  if ((Stmt->ParamCount= (SQLSMALLINT)Stmt->stmt->getParamCount()) > 0)
   {
     if (Stmt->params)
     {
@@ -595,62 +428,61 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 /* }}} */
 
 /* {{{ MADB_StmtPrepare */
-SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect)
+SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool ServerSide)
 {
-  char          *CursorName= NULL;
+  const char   *CursorName= NULL;
   unsigned int  WhereOffset;
   BOOL          HasParameters= 0;
 
-  MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtPrepare", "\t->");
+  MDBUG_C_PRINT(Connection, "%sMADB_StmtPrepare", "\t->");
 
   /* After this point we can't have SQL_NTS*/
   ADJUST_INTLENGTH(StatementText, TextLength);
   /* There is no need to send anything to the server to find out there is syntax error here */
   if (TextLength < MADB_MIN_QUERY_LEN)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_42000, NULL, 0);
+    return MADB_SetError(&Error, MADB_ERR_42000, NULL, 0);
   }
 
-  LOCK_MARIADB(Stmt->Connection);
+  LOCK_MARIADB(Connection);
 
-  if (MADB_StmtReset(Stmt) != SQL_SUCCESS)
+  if (MADB_StmtReset(this) != SQL_SUCCESS)
   {
-    UNLOCK_MARIADB(Stmt->Connection);
-    return Stmt->Error.ReturnValue;
+    UNLOCK_MARIADB(Connection);
+    return Error.ReturnValue;
   }
 
-  MADB_ResetParser(Stmt, StatementText, TextLength);
-  MADB_ParseQuery(&Stmt->Query);
+  MADB_ResetParser(this, StatementText, TextLength);
+  MADB_ParseQuery(&Query);
 
-  if ((Stmt->Query.QueryType == MADB_QUERY_INSERT || Stmt->Query.QueryType == MADB_QUERY_UPDATE || Stmt->Query.QueryType == MADB_QUERY_DELETE)
-    && MADB_FindToken(&Stmt->Query, "RETURNING"))
+  if ((Query.QueryType == MADB_QUERY_INSERT || Query.QueryType == MADB_QUERY_UPDATE || Query.QueryType == MADB_QUERY_DELETE)
+    && MADB_FindToken(&Query, "RETURNING"))
   {
-    Stmt->Query.ReturnsResult= '\1';
+    Query.ReturnsResult= '\1';
   }
 
-  /* if we have multiple statements we save single statements in Stmt->StrMultiStmt
-     and store the number in Stmt->MultiStmts */
-  if (QueryIsPossiblyMultistmt(&Stmt->Query) && QUERY_IS_MULTISTMT(Stmt->Query) &&
-    (Stmt->Query.ReturnsResult || Stmt->Query.HasParameters) && Stmt->Query.BatchAllowed) /* If neither of statements returns result,
-                                                                          and does not have parameters, we will run them
-                                                                          using text protocol */
+  if (Query.QueryType == MADB_QUERY_CALL)
   {
-    if (ExecDirect != FALSE)
+    ServerSide= true;
+  }
+  /* if we have multiple statements we only prepare them on the client side */
+  if (QueryIsPossiblyMultistmt(&Query) && QUERY_IS_MULTISTMT(Query))
+  {
+    if (Query.BatchAllowed)
     {
-      MADB_EDPrepare(Stmt);
+      MADB_CsPrepare(this);
+      goto cleanandexit;
     }
-    /* We had error preparing any of statements */
     else
     {
-      GetMultiStatements(Stmt, ExecDirect);
+      // If we think it's a multistatement, and they are not allowed, then the easiest way to return error is to prepare the query on server
+      ServerSide= true;
     }
-    /* If there was an error - it is set and will be returned */
-    goto cleanandexit;
   }
 
-  if (!MADB_ValidateStmt(&Stmt->Query))
+  if (!MADB_ValidateStmt(&Query))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "SQL command SET NAMES is not allowed", 0);
+    MADB_SetError(&Error, MADB_ERR_HY000, "SQL command SET NAMES is not allowed", 0);
     goto cleanandexit;
   }
 
@@ -659,7 +491,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
      In StmtExecute we will call SQLSetPos with update or delete:
      */
 
-  if ((CursorName = MADB_ParseCursorName(&Stmt->Query, &WhereOffset)))
+  if ((CursorName= MADB_ParseCursorName(&Query, &WhereOffset)))
   {
     MADB_DynString StmtStr;
     char *TableName;
@@ -667,75 +499,62 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     /* Make sure we have a delete or update statement
        MADB_QUERY_DELETE and MADB_QUERY_UPDATE defined in the enum to have the same value
        as SQL_UPDATE and SQL_DELETE, respectively */
-    if (Stmt->Query.QueryType == MADB_QUERY_DELETE || Stmt->Query.QueryType == MADB_QUERY_UPDATE)
+    if (Query.QueryType == MADB_QUERY_DELETE || Query.QueryType == MADB_QUERY_UPDATE)
     {
-      Stmt->PositionedCommand= 1;
+      PositionedCommand= 1;
     }
     else
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_42000, "Invalid SQL Syntax: DELETE or UPDATE expected for positioned update", 0);
+      MADB_SetError(&Error, MADB_ERR_42000, "Invalid SQL Syntax: DELETE or UPDATE expected for positioned update", 0);
       goto cleanandexit;
     }
 
-    if (!(Stmt->PositionedCursor= MADB_FindCursor(Stmt, CursorName)))
+    if (!(PositionedCursor= MADB_FindCursor(this, CursorName)))
     {
-      Stmt->PositionedCommand= 0;
+      PositionedCommand= 0;
       goto cleanandexit;
     }
 
     /* If we don't cache RS of the referenced cursor now, we will still need to do this later, and if we can't now, we won't be able later.
        If there is other streamer - we can check later */
-    if (MADB_STMT_IS_STREAMING(Stmt->PositionedCursor) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
+    if (MADB_STMT_IS_STREAMING(PositionedCursor) && Connection->Methods->CacheRestOfCurrentRsStream(Connection, &Error))
     {
-      Stmt->PositionedCommand= 0;
-      Stmt->PositionedCursor=  NULL;
+      PositionedCommand= 0;
+      PositionedCursor=  NULL;
       /* CacheRestOfCurrentRsStream methods sets Stmt's error*/
       goto cleanandexit;
     }
 
-    TableName= MADB_GetTableName(Stmt->PositionedCursor);
+    TableName= MADB_GetTableName(PositionedCursor);
     MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
-    MADB_DynstrAppendMem(&StmtStr, Stmt->Query.RefinedText, WhereOffset);
-    MADB_DynStrGetWhere(Stmt->PositionedCursor, &StmtStr, TableName, TRUE);
+    MADB_DynstrAppendMem(&StmtStr, Query.RefinedText.c_str(), WhereOffset);
+    MADB_DynStrGetWhere(PositionedCursor, &StmtStr, TableName, TRUE);
     
-    MADB_RESET(STMT_STRING(Stmt), StmtStr.str);
+    STMT_STRING(this).assign(StmtStr.str, StmtStr.length);
     /* Constructed query we've copied for execution has parameters */
-    Stmt->Query.HasParameters= 1;
     MADB_DynstrFree(&StmtStr);
   }
 
-  if (Stmt->Options.MaxRows)
+  if (Options.MaxRows)
   {
     /* TODO: LIMIT is not always the last clause. And not applicable to each query type.
        Thus we need to check query type and last tokens, and possibly put limit before them */
-    char *p;
-    STMT_STRING(Stmt)= static_cast<char*>(realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40));
-    p= STMT_STRING(Stmt) + strlen(STMT_STRING(Stmt));
-    _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
+    STMT_STRING(this).reserve(STMT_STRING(this).length() + 32);
+    STMT_STRING(this).append(" LIMIT ").append(std::to_string(Options.MaxRows));
   }
 
-  if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
-    /* If have multistatement query, and this is not allowed, we want to do normal prepare.
-       To give it last chance. And to return correct error otherwise */
-    ! (QUERY_IS_MULTISTMT(Stmt->Query) && !Stmt->Query.BatchAllowed))
+  if (ServerSide)
   {
-    Stmt->State= MADB_SS_EMULATED;
-    Stmt->Error.ReturnValue= SQL_SUCCESS;
-    goto cleanandexit;
-  }
-
-  if (ExecDirect && MADB_CheckIfExecDirectPossible(Stmt))
-  {
-    MADB_EDPrepare(Stmt);
+    MADB_RegularPrepare(this);
   }
   else
   {
-    MADB_RegularPrepare(Stmt);
+    MADB_CsPrepare(this);
   }
 
 cleanandexit:
-  UNLOCK_MARIADB(Stmt->Connection);
-  return Stmt->Error.ReturnValue;
+  UNLOCK_MARIADB(Connection);
+  return Error.ReturnValue;
 }
 /* }}} */
 
@@ -845,7 +664,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   if (StrLen_or_Ind == SQL_NULL_DATA)
   {
     /* Check if we've already sent any data */
-    if (MyStmt->stmt->params[Stmt->PutParam].long_data_used)
+    if (false)// we should have some own flags for that, other than MyStmt->stmt->params[Stmt->PutParam].long_data_used)
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY011, NULL, 0);
       return Stmt->Error.ReturnValue;
@@ -895,9 +714,9 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   /* To make sure that we will not consume the doble amount of memory, we need to send
      data via mysql_send_long_data directly to the server instead of allocating a separate
      buffer. This means we need to process Update and Insert statements row by row. */
-  if (mysql_stmt_send_long_data(MyStmt->stmt, Stmt->PutParam, static_cast<const char*>(ConvertedDataPtr ? ConvertedDataPtr : DataPtr), (unsigned long)Length))
+  if (MyStmt->stmt->sendLongData(Stmt->PutParam, static_cast<const char*>(ConvertedDataPtr ? ConvertedDataPtr : DataPtr), Length))
   {
-    MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
+    MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt.get());
   }
   else
   {
@@ -940,18 +759,20 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx] + 1))
     {
       SQLLEN Length;
-      MADB_DescRecord* Rec = MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
+      MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
       SQLUSMALLINT ParamNumber= 0;
 
-      Length = Rec->OctetLength;
+      Length= Rec->OctetLength;
       if (Stmt->PositionedCursor->UniqueIndex != NULL)
       {
-        ParamNumber= /* Param ordnum in pos.cursor condition */IndexIdx + /* Num of params in main stmt */(Stmt->ParamCount - Stmt->PositionedCursor->UniqueIndex[0]);
+        ParamNumber= /* Param ordnum in pos.cursor condition */IndexIdx +
+                     /* Num of params in main stmt */(Stmt->ParamCount - Stmt->PositionedCursor->UniqueIndex[0]);
         ++IndexIdx;
       }
       else
       {
-        ParamNumber = /* Param ordnum in pos.cursor condition */ j + /* Num of params in main stmt */(Stmt->ParamCount - MADB_POS_COMM_IDX_FIELD_COUNT(Stmt));
+        ParamNumber = /* Param ordnum in pos.cursor condition */ j +
+                      /* Num of params in main stmt */(Stmt->ParamCount - MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor));
       }
       /* if (Rec->inUse)
            MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
@@ -1009,45 +830,50 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
 /* }}} */
 
 /* {{{ MADB_GetOutParams */
-SQLRETURN MADB_GetOutParams(MADB_Stmt *Stmt, int CurrentOffset)
+SQLRETURN MADB_Stmt::GetOutParams(int CurrentOffset)
 {
-  MYSQL_BIND *Bind;
-  unsigned int i=0, ParameterNr= 0;
-
-  /* Since Outparams are only one row, we use store result */
-  if (mysql_stmt_store_result(Stmt->stmt))
+  unsigned int i=0, ParameterNr= 0, columnCount= 0;
+  
+  try
   {
-    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt);
+    metadata.reset(rs->getMetaData());
+    columnCount= metadata->getColumnCount();
+  }
+  catch(int)
+  {
+    return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
   }
 
-  Bind= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt));
+  MADB_FREE(result);
+  result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * columnCount);
   
-  for (i=0; i < (unsigned int)Stmt->ParamCount && ParameterNr < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i=0; i < (unsigned int)ParamCount && ParameterNr < columnCount; ++i)
   {
     MADB_DescRecord *IpdRecord, *ApdRecord;
-    if ((IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ))!= NULL)
+    if ((IpdRecord= MADB_DescGetInternalRecord(Ipd, i, MADB_DESC_READ))!= NULL)
     {
       if (IpdRecord->ParameterType == SQL_PARAM_INPUT_OUTPUT ||
           IpdRecord->ParameterType == SQL_PARAM_OUTPUT)
       {
-        ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ);
-        Bind[ParameterNr].buffer= GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->DataPtr, CurrentOffset, ApdRecord->OctetLength);
+        ApdRecord= MADB_DescGetInternalRecord(Apd, i, MADB_DESC_READ);
+        result[ParameterNr].buffer= GetBindOffset(Apd, ApdRecord, ApdRecord->DataPtr, CurrentOffset, ApdRecord->OctetLength);
         if (ApdRecord->OctetLengthPtr)
         {
-          Bind[ParameterNr].length= (unsigned long *)GetBindOffset(Stmt->Apd, ApdRecord, ApdRecord->OctetLengthPtr,
+          result[ParameterNr].length= (unsigned long *)GetBindOffset(Apd, ApdRecord, ApdRecord->OctetLengthPtr,
                                                         CurrentOffset, sizeof(SQLLEN));
         }
-        Bind[ParameterNr].buffer_length= (unsigned long)ApdRecord->OctetLength;
-        Bind[ParameterNr].buffer_type= Stmt->stmt->params[i].buffer_type;
-        ParameterNr++;
+
+        result[ParameterNr].buffer_type = MADB_GetMaDBTypeAndLength(ApdRecord->ConciseType, &result[ParameterNr].is_unsigned,
+          &result[ParameterNr].buffer_length);
+        result[ParameterNr].buffer_length= (unsigned long)ApdRecord->OctetLength;
+        ++ParameterNr;
       }
     }
   }
-  mysql_stmt_bind_result(Stmt->stmt, Bind);
-  mysql_stmt_fetch(Stmt->stmt);
-   
-  mysql_stmt_data_seek(Stmt->stmt, 0);
-  MADB_FREE(Bind);
+  rs->bind(result);
+  rs->first();
+  rs->get();
+  rs->beforeFirst();
 
   return SQL_SUCCESS;
 }
@@ -1071,48 +897,74 @@ static void ResetInternalLength(MADB_Stmt *Stmt, unsigned int ParamOffset)
 
 /* {{{ MADB_DoExecute */
 /* Actually executing on the server, doing required actions with C API, and processing execution result */
-SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
+SQLRETURN MADB_Stmt::DoExecuteBatch()
+{
+  SQLRETURN ret = SQL_SUCCESS;
+
+  stmt->setBatchSize(Bulk.ArraySize);
+
+  if (ParamCount)
+  {
+    stmt->bind(params);
+  }
+  try
+  {
+    const odbc::Longs &batchRes= stmt->executeBatch();
+    rs.reset();
+    AffectedRows+= stmt->getUpdateCount();
+  }
+  catch (int32_t /*rc*/)
+  {
+    MDBUG_C_PRINT(Connection, "execute:ERROR%s", "");
+    return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
+  }
+  State = MADB_SS_EXECUTED;
+  Connection->Methods->TrackSession(Connection);
+
+  return ret;
+}
+/* }}} */
+
+/* {{{ MADB_DoExecute */
+/* Actually executing on the server, doing required actions with C API, and processing execution result */
+SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt)
 {
   SQLRETURN ret= SQL_SUCCESS;
 
-  /**************************** mysql_stmt_bind_param **********************************/
-  if (ExecDirect)
-  {
-    /* Use datatype same as MYSQL_STMT->prebind_param */ 
-    unsigned int pCount = (unsigned int)Stmt->ParamCount;
-    mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_PREBIND_PARAMS, &pCount);
-  }
-
-  mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_ARRAY_SIZE, (void*)&Stmt->Bulk.ArraySize);
+  Stmt->stmt->setBatchSize(Stmt->Bulk.ArraySize);
 
   if (Stmt->ParamCount)
   {
-    mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
+    Stmt->stmt->bind(Stmt->params);
   }
-
-  /**************************** mysql_stmt_execute *************************************/
-  MDBUG_C_PRINT(Stmt->Connection, ExecDirect ? "mariadb_stmt_execute_direct(%0x,%s)"
-    : "mariadb_stmt_execute(%0x)(%s)", Stmt->stmt, STMT_STRING(Stmt));
-
-  if ((ExecDirect && mariadb_stmt_execute_direct(Stmt->stmt, STMT_STRING(Stmt), strlen(STMT_STRING(Stmt))))
-    || (!ExecDirect && mysql_stmt_execute(Stmt->stmt)))
+  try
   {
-    ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_execute:ERROR%s", "");
-  }
-  else
-  {
-    unsigned int ServerStatus;
-
-    Stmt->State= MADB_SS_EXECUTED;
-    Stmt->Connection->Methods->TrackSession(Stmt->Connection);
-
-    mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
-    if (ServerStatus & SERVER_PS_OUT_PARAMS)
+    if (Stmt->stmt->execute())
     {
-      Stmt->State= MADB_SS_OUTPARAMSFETCHED;
-      ret= Stmt->Methods->GetOutParams(Stmt, 0);
+      Stmt->rs.reset(Stmt->stmt->getResultSet());
     }
+    else
+    {
+      Stmt->rs.reset();
+      Stmt->AffectedRows+= Stmt->stmt->getUpdateCount();
+    }
+  }
+  catch (int32_t /*rc*/)
+  {
+    MDBUG_C_PRINT(Stmt->Connection, "execute:ERROR%s", "");
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+  }
+
+  unsigned int ServerStatus;
+
+  Stmt->State= MADB_SS_EXECUTED;
+  Stmt->Connection->Methods->TrackSession(Stmt->Connection);
+
+  mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
+  if (ServerStatus & SERVER_PS_OUT_PARAMS)
+  {
+    Stmt->State= MADB_SS_OUTPARAMSFETCHED;
+    ret= Stmt->GetOutParams(0);
   }
   return ret;
 }
@@ -1151,22 +1003,14 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   MYSQL_RES   *DefaultResult= NULL;
   SQLRETURN    ret= SQL_SUCCESS, IntegralRc= SQL_SUCCESS;
   unsigned int ErrorCount=    0;
-  unsigned int StatementNr;
   unsigned int ParamOffset=   0; /* for multi statements */
                /* Will use it for STMT_ATTR_ARRAY_SIZE and as indicator if we are deploying MariaDB bulk insert feature */
-  unsigned int MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? (unsigned int)Stmt->Apd->Header.ArraySize : 0;
+  unsigned int MariadbArrSize= MADB_BulkInsertPossible(Stmt) ? (unsigned int)Stmt->Apd->Header.ArraySize : 0;
   SQLULEN      j, Start= Stmt->ArrayOffset;
-  /* For multistatement direct execution */
-  char        *CurQuery= Stmt->Query.RefinedText, *QueriesEnd= Stmt->Query.RefinedText + Stmt->Query.RefinedLength;
 
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-
-  if (Stmt->State == MADB_SS_EMULATED)
-  {
-    return MADB_ExecuteQuery(Stmt, STMT_STRING(Stmt), (SQLINTEGER)strlen(STMT_STRING(Stmt)));
-  }
 
   if (MADB_POSITIONED_COMMAND(Stmt))
   {
@@ -1212,226 +1056,152 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     Stmt->Bulk.HasRowsToSkip= 0;
   }
 
-  for (StatementNr= 0; StatementNr < STMT_COUNT(Stmt->Query); ++StatementNr)
+  if (MADB_DOING_BULK_OPER(Stmt))
   {
-    if (QUERY_IS_MULTISTMT(Stmt->Query))
+    if (!SQL_SUCCEEDED(MADB_ExecuteBulk(Stmt, ParamOffset)))
     {
-      if (Stmt->MultiStmts && Stmt->MultiStmts[StatementNr] != NULL)
+      /* Doing just the same thing as we would do in general case */
+      MADB_CleanBulkOperData(Stmt, ParamOffset);
+      ErrorCount= (unsigned int)Stmt->Apd->Header.ArraySize;
+      MADB_SetStatusArray(Stmt, SQL_PARAM_DIAG_UNAVAILABLE);
+      goto end;
+    }
+    else if (!Stmt->rs)
+    {
+      Stmt->AffectedRows+= Stmt->stmt->getUpdateCount();
+    }
+    /* Suboptimal, but more reliable and simple */
+    MADB_CleanBulkOperData(Stmt, ParamOffset);
+    Stmt->ArrayOffset+= (int)Stmt->Apd->Header.ArraySize;
+    if (Stmt->Ipd->Header.RowsProcessedPtr)
+    {
+      *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + Stmt->Apd->Header.ArraySize;
+    }
+    MADB_SetStatusArray(Stmt, SQL_PARAM_SUCCESS);
+  }
+  else
+  {
+    /* Convert and bind parameters */
+    for (j= Start; j < Start + Stmt->Apd->Header.ArraySize; ++j)
+    {
+      /* "... In an IPD, this SQLUINTEGER * header field points to a buffer containing the number
+          of sets of parameters that have been processed, including error sets. ..." */
+      if (Stmt->Ipd->Header.RowsProcessedPtr)
       {
-        Stmt->stmt= Stmt->MultiStmts[StatementNr];
+        *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + 1;
+      }
+
+      if (Stmt->Apd->Header.ArrayStatusPtr &&
+        Stmt->Apd->Header.ArrayStatusPtr[j - Start] == SQL_PARAM_IGNORE)
+      {
+        if (Stmt->Ipd->Header.ArrayStatusPtr)
+        {
+          Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= SQL_PARAM_UNUSED;
+        }
+        continue;
+      }
+
+      for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
+      {
+        MADB_DescRecord *ApdRecord, *IpdRecord;
+
+        if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
+          (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
+        {
+          /* check if parameter was bound */
+          if (!ApdRecord->inUse)
+          {
+            IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
+            goto end;
+          }
+
+          if (MADB_ConversionSupported(ApdRecord, IpdRecord) == FALSE)
+          {
+            IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
+            goto end;
+          }
+
+          Stmt->params[i-ParamOffset].length= NULL;
+
+          ret= MADB_C2SQL(Stmt, ApdRecord, IpdRecord, j - Start, &Stmt->params[i-ParamOffset]);
+          if (!SQL_SUCCEEDED(ret))
+          {
+            if (ret == SQL_NEED_DATA)
+            {
+              IntegralRc= ret;
+              ErrorCount= 0;
+            }
+            else
+            {
+              ++ErrorCount;
+            }
+            goto end;
+          }
+          CALC_ALL_ROWS_RC(IntegralRc, ret, j - Start);
+        }
+      }                 /* End of for() on parameters */
+
+      if (Stmt->RebindParams && MADB_STMT_PARAM_COUNT(Stmt))
+      {
+        // TODO: was it really needed
+        //Stmt->stmt->bind_param_done= 1;
+        Stmt->RebindParams= FALSE;
+      }
+
+      ret= MADB_DoExecute(Stmt);
+
+      ++Stmt->ArrayOffset;
+      /* We need to unset InternalLength, i.e. reset dae length counters for next stmt.
+  However that length is not used anywhere, and is not clear what is it needed for */
+      ResetInternalLength(Stmt, ParamOffset);
+
+      if (!SQL_SUCCEEDED(ret))
+      {
+        ++ErrorCount;
+        if (Stmt->Ipd->Header.ArrayStatusPtr)
+        {
+          Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= 
+            (j == Start + Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
+        }
+        if (j == Start + Stmt->Apd->Header.ArraySize - 1)
+        {
+          goto end;
+        }
       }
       else
       {
-        /* We have direct execution, since otherwise it'd already prepared, and thus Stmt->MultiStmts would be set */
-        if (CurQuery >= QueriesEnd)
+        /* We had result from type conversions, thus here we put row as 1(!=0, i.e. not first) */
+        CALC_ALL_ROWS_RC(IntegralRc, ret, 1);
+        if (Stmt->Ipd->Header.ArrayStatusPtr)
         {
-          /* Something went wrong(with parsing). But we've got here, and everything worked. Giving it chance to fail later.
-             This shouldn't really happen */
-          MDBUG_C_PRINT(Stmt->Connection, "Got past end of query direct-executing %s on stmt #%u", Stmt->Query.RefinedText, StatementNr);
-          continue;
+          Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= SQL_PARAM_SUCCESS;
         }
-        if (StatementNr > 0)
-        {
-          Stmt->stmt= MADB_NewStmtHandle(Stmt);
-        }
-        else
-        {
-          Stmt->MultiStmts= (MYSQL_STMT **)MADB_CALLOC(sizeof(MYSQL_STMT) * STMT_COUNT(Stmt->Query));
-        }
-
-        Stmt->MultiStmts[StatementNr]= Stmt->stmt;
-
-        if (mysql_stmt_prepare(Stmt->stmt, CurQuery, (unsigned long)strlen(CurQuery)))
-        {
-          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-        }
-        CurQuery+= strlen(CurQuery) + 1;
       }
-      
-      Stmt->RebindParams= TRUE;
-
-      if (Stmt->ParamCount != mysql_stmt_param_count(Stmt->stmt))
-      {
-        Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
-        Stmt->params= (MYSQL_BIND*)MADB_REALLOC(Stmt->params, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
-      }
-
-      memset(Stmt->params, 0, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
-    }
-
-    if (MADB_DOING_BULK_OPER(Stmt))
-    {
-      if (!SQL_SUCCEEDED(MADB_ExecuteBulk(Stmt, ParamOffset)))
-      {
-        /* Doing just the same thing as we would do in general case */
-        MADB_CleanBulkOperData(Stmt, ParamOffset);
-        ErrorCount= (unsigned int)Stmt->Apd->Header.ArraySize;
-        MADB_SetStatusArray(Stmt, SQL_PARAM_DIAG_UNAVAILABLE);
-        goto end;
-      }
-      else if (!mysql_stmt_field_count(Stmt->stmt) && !Stmt->MultiStmts)
-      {
-        Stmt->AffectedRows+= mysql_stmt_affected_rows(Stmt->stmt);
-      }
-      /* Suboptimal, but more reliable and simple */
-      MADB_CleanBulkOperData(Stmt, ParamOffset);
-      Stmt->ArrayOffset+= (int)Stmt->Apd->Header.ArraySize;
-      if (Stmt->Ipd->Header.RowsProcessedPtr)
-      {
-        *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + Stmt->Apd->Header.ArraySize;
-      }
-      MADB_SetStatusArray(Stmt, SQL_PARAM_SUCCESS);
-    }
-    else
-    {
-      /* Convert and bind parameters */
-      for (j= Start; j < Start + Stmt->Apd->Header.ArraySize; ++j)
-      {
-        /* "... In an IPD, this SQLUINTEGER * header field points to a buffer containing the number
-           of sets of parameters that have been processed, including error sets. ..." */
-        if (Stmt->Ipd->Header.RowsProcessedPtr)
-        {
-          *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + 1;
-        }
-
-        if (Stmt->Apd->Header.ArrayStatusPtr &&
-          Stmt->Apd->Header.ArrayStatusPtr[j - Start] == SQL_PARAM_IGNORE)
-        {
-          if (Stmt->Ipd->Header.ArrayStatusPtr)
-          {
-            Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= SQL_PARAM_UNUSED;
-          }
-          continue;
-        }
-
-        for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
-        {
-          MADB_DescRecord *ApdRecord, *IpdRecord;
-
-          if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
-            (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
-          {
-            /* check if parameter was bound */
-            if (!ApdRecord->inUse)
-            {
-              IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
-              goto end;
-            }
-
-            if (MADB_ConversionSupported(ApdRecord, IpdRecord) == FALSE)
-            {
-              IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
-              goto end;
-            }
-
-            Stmt->params[i-ParamOffset].length= NULL;
-
-            ret= MADB_C2SQL(Stmt, ApdRecord, IpdRecord, j - Start, &Stmt->params[i-ParamOffset]);
-            if (!SQL_SUCCEEDED(ret))
-            {
-              if (ret == SQL_NEED_DATA)
-              {
-                IntegralRc= ret;
-                ErrorCount= 0;
-              }
-              else
-              {
-                ++ErrorCount;
-              }
-              goto end;
-            }
-            CALC_ALL_ROWS_RC(IntegralRc, ret, j - Start);
-          }
-        }                 /* End of for() on parameters */
-
-        if (Stmt->RebindParams && MADB_STMT_PARAM_COUNT(Stmt))
-        {
-          Stmt->stmt->bind_param_done= 1;
-          Stmt->RebindParams= FALSE;
-        }
-
-        ret= MADB_DoExecute(Stmt, ExecDirect && MADB_CheckIfExecDirectPossible(Stmt));
-
-        ++Stmt->ArrayOffset;
-        /* We need to unset InternalLength, i.e. reset dae length counters for next stmt.
-   However that length is not used anywhere, and is not clear what is it needed for */
-        ResetInternalLength(Stmt, ParamOffset);
-
-        if (!SQL_SUCCEEDED(ret))
-        {
-          ++ErrorCount;
-          if (Stmt->Ipd->Header.ArrayStatusPtr)
-          {
-            Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= 
-              (j == Start + Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
-          }
-          if (j == Start + Stmt->Apd->Header.ArraySize - 1)
-          {
-            goto end;
-          }
-        }
-        else
-        {
-          /* We had result from type conversions, thus here we put row as 1(!=0, i.e. not first) */
-          CALC_ALL_ROWS_RC(IntegralRc, ret, 1);
-          if (!mysql_stmt_field_count(Stmt->stmt) && !Stmt->MultiStmts)
-          {
-            Stmt->AffectedRows += mysql_stmt_affected_rows(Stmt->stmt);
-          }
-          if (Stmt->Ipd->Header.ArrayStatusPtr)
-          {
-            Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= SQL_PARAM_SUCCESS;
-          }
-        }
-      }     /* End of for() thru paramsets(parameters array) */
-    }       /* End of if (bulk/not bulk) execution */
-
-    if (QUERY_IS_MULTISTMT(Stmt->Query))
-    {
-      /* If we optimize memory allocation, then we will need to free bulk operation data here(among other places) */
-      /* MADB_CleanBulkOperData(Stmt, ParamOffset); */
-      ParamOffset+= MADB_STMT_PARAM_COUNT(Stmt);
-
-      if (mysql_stmt_field_count(Stmt->stmt))
-      {
-        /* We don't stream multistatement queries. */
-        mysql_stmt_store_result(Stmt->stmt);
-      }
-    }
-  }       /* End of for() on statements(Multistatmt) */
+    }     /* End of for() thru paramsets(parameters array) */
+  }       /* End of if (bulk/not bulk) execution */
   
   /* All rows processed, so we can unset ArrayOffset */
   Stmt->ArrayOffset= 0;
 
-  if (Stmt->MultiStmts)
+  if (Stmt->rs)
   {
-    Stmt->MultiStmtNr= 0;
-    MADB_InstallStmt(Stmt, Stmt->MultiStmts[Stmt->MultiStmtNr]);
-  }
-  else if (mysql_stmt_field_count(Stmt->stmt) > 0)
-  {
-    MADB_StmtResetResultStructures(Stmt);
-
     /*************************** mysql_stmt_store_result ******************************/
     /*If we did OUT params already, we should not store */
     if (Stmt->State == MADB_SS_EXECUTED)
     {
-      if (Stmt->RsOps->CacheRs(Stmt) != 0)
+     /* This should go somewhere in the catch of exception on rs object creation
+      if (DefaultResult)
       {
-        UNLOCK_MARIADB(Stmt->Connection);
-        if (DefaultResult)
-        {
-          mysql_free_result(DefaultResult);
-        }
-
-        return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+        mysql_free_result(DefaultResult);
       }
+      return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());*/
     }
     
     /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
     FetchMetadata(Stmt);
-    MADB_DescSetIrdMetadata(Stmt, mariadb_stmt_fetch_fields(Stmt->stmt), mysql_stmt_field_count(Stmt->stmt));
+    MADB_StmtResetResultStructures(Stmt);
+    MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
 
     Stmt->AffectedRows= -1;
   }
@@ -1450,6 +1220,18 @@ end:
       IntegralRc= SQL_ERROR;
   }
 
+  if (IntegralRc == SQL_NEED_DATA && !Stmt->stmt->isServerSide()) {
+    
+    try {
+      ServerSidePreparedStatement* ssps = new ServerSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+        Stmt->Options.CursorType);
+      Stmt->stmt.reset(ssps);
+    }
+    catch (int32_t) {
+      // going further with csps
+    }
+  }
+
   return IntegralRc;
 }
 /* }}} */
@@ -1462,9 +1244,8 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
   MADB_DescRecord *Record;
 
   if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || 
-      (mysql_stmt_field_count(Stmt->stmt) &&
-       Stmt->stmt->state > MYSQL_STMT_PREPARED && 
-       ColumnNumber > mysql_stmt_field_count(Stmt->stmt)))
+       Stmt->rs && STMT_WAS_PREPARED(Stmt) &&
+       ColumnNumber > Stmt->metadata->getColumnCount())
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
     return SQL_ERROR;
@@ -1660,6 +1441,11 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
   {
     SQLSMALLINT ConciseType;
     ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
+
+    /* We can't use application's buffer directly, as it has/can have different size, than C/C needs */
+    Stmt->result[i].length = &Stmt->result[i].length_value;
+    Stmt->result[i].is_null = &Stmt->result[i].is_null_value;
+
     if (ArdRec == NULL || !ArdRec->inUse)
     {      
       Stmt->result[i].flags|= MADB_BIND_DUMMY;
@@ -1681,9 +1467,6 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
 
     IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
     /* assert(IrdRec != NULL) */
-
-    /* We can't use application's buffer directly, as it has/can have different size, than C/C needs */
-    Stmt->result[i].length= &Stmt->result[i].length_value;
 
     ConciseType= ArdRec->ConciseType;
     if (ConciseType == SQL_C_DEFAULT)
@@ -1722,8 +1505,9 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       MADB_FREE(ArdRec->InternalBuffer);
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        Stmt->result[i].buffer_length= (Stmt->stmt->fields[i].max_length != 0 ?
-          Stmt->stmt->fields[i].max_length : Stmt->stmt->fields[i].length) + 1;
+        const MYSQL_FIELD *field= Stmt->metadata->getField(i);
+        Stmt->result[i].buffer_length= (field->max_length != 0 ?
+          field->max_length : field->length) + 1;
         ArdRec->InternalBuffer= (char *)MADB_CALLOC(Stmt->result[i].buffer_length);
         if (ArdRec->InternalBuffer == NULL)
         {
@@ -1743,12 +1527,12 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
     case SQL_C_INTERVAL_HOUR_TO_MINUTE:
     case SQL_C_INTERVAL_HOUR_TO_SECOND:
       {
-        MYSQL_FIELD *Field= mysql_fetch_field_direct(Stmt->metadata, i);
+        const MYSQL_FIELD *Field= Stmt->metadata->getField(i);
         MADB_FREE(ArdRec->InternalBuffer);
         if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
         {
-          Stmt->result[i].buffer_length = (Stmt->stmt->fields[i].max_length != 0 ?
-            Stmt->stmt->fields[i].max_length : Stmt->stmt->fields[i].length) + 1;
+          Stmt->result[i].buffer_length = (Field->max_length != 0 ?
+            Field->max_length : Field->length) + 1;
           ArdRec->InternalBuffer= (char *)MADB_CALLOC(Stmt->result[i].buffer_length);
           if (ArdRec->InternalBuffer == NULL)
           {
@@ -1766,15 +1550,16 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
         }
       }
       break;
-    case SQL_C_TINYINT:
     case SQL_C_UTINYINT:
+    case SQL_C_USHORT:
+    case SQL_C_ULONG:
+      Stmt->result[i].is_unsigned= '\1';
+    case SQL_C_TINYINT:
     case SQL_C_STINYINT:
     case SQL_C_SHORT:
     case SQL_C_SSHORT:
-    case SQL_C_USHORT:
     case SQL_C_FLOAT:
     case SQL_C_LONG:
-    case SQL_C_ULONG:
     case SQL_C_SLONG:
     case SQL_C_DOUBLE:
       if (MADB_BinaryFieldType(IrdRec->ConciseType))
@@ -1832,7 +1617,7 @@ void SwitchEndianness(char *Src, SQLLEN SrcBytes, char *Dst, SQLLEN DstBytes)
 
 /* {{{ MADB_FixFetchedValues 
        Converting and/or fixing fetched values if needed */
-SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET SaveCursor)
+SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, int64_t SaveCursor)
 {
   MADB_DescRecord *IrdRec, *ArdRec;
   int             i;
@@ -1862,7 +1647,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
       IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
       /* assert(IrdRec != NULL) */
 
-      if (*Stmt->stmt->bind[i].is_null)
+      if (*Stmt->result[i].is_null)
       {
         if (IndicatorPtr)
         {
@@ -1870,9 +1655,9 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         }
         else
         {
-          if (SaveCursor)
+          if (SaveCursor > 0)
           {
-            mysql_stmt_row_seek(Stmt->stmt, SaveCursor);
+            Stmt->rs->absolute(SaveCursor);
           }
           rc= MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
           continue;
@@ -1904,7 +1689,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             {
               BOOL isTime;
 
-              FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->stmt->bind[i].length, &tm, FALSE, &Stmt->Error, &isTime);
+              FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->result[i].length, &tm, FALSE, &Stmt->Error, &isTime);
               if (SQL_SUCCEEDED(FieldRc))
               {
                 Intermidiate= &tm;
@@ -1934,7 +1719,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
           {
             BOOL isTime;
 
-            FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->stmt->bind[i].length, &ForConversion, FALSE, &Stmt->Error, &isTime);
+            FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->result[i].length, &ForConversion, FALSE, &Stmt->Error, &isTime);
             if (SQL_SUCCEEDED(FieldRc))
             {
               tm= &ForConversion;
@@ -2008,19 +1793,19 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         case SQL_C_WCHAR:
         {
           SQLLEN CharLen= MADB_SetString(&Stmt->Connection->Charset, DataPtr, ArdRec->OctetLength/sizeof(SQLWCHAR), (char *)Stmt->result[i].buffer,
-            *Stmt->stmt->bind[i].length, &Stmt->Error);
+            *Stmt->result[i].length, &Stmt->Error);
 
           /* If returned len is 0 while source len is not - taking it as error occurred */
           if ((CharLen == 0 ||
-            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer != NULL &&
+            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->result[i].length != 0 && Stmt->result[i].buffer != NULL &&
             *(char*)Stmt->result[i].buffer != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
           {
             CALC_ALL_FLDS_RC(rc, Stmt->Error.ReturnValue);
           }
           /* If application didn't give data buffer and only want to know the length of data to fetch */
-          if (CharLen == 0 && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer == NULL)
+          if (CharLen == 0 && *Stmt->result[i].length != 0 && Stmt->result[i].buffer == NULL)
           {
-            CharLen= *Stmt->stmt->bind[i].length;
+            CharLen= *Stmt->result[i].length;
           }
           /* Not quite right */
           *LengthPtr = CharLen * sizeof(SQLWCHAR);
@@ -2074,7 +1859,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
                     Stmt->result[i].buffer, Stmt->result[i].buffer_length);
                 }
               }
-              *LengthPtr= *Stmt->stmt->bind[i].length;
+              *LengthPtr= *Stmt->result[i].length;
             }
             break;
           }
@@ -2093,7 +1878,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
                 Stmt->result[i].buffer = (char *)ArdRec->DataPtr + (RowNumber + 1) * ArdRec->OctetLength;
               }
             }
-            *LengthPtr= *Stmt->stmt->bind[i].length;
+            *LengthPtr= *Stmt->result[i].length;
           }
           break;
         }
@@ -2136,14 +1921,46 @@ void ResetDescIntBuffers(MADB_Desc *Desc)
   }
 }
 
+/* Processes truncation errors occurred while row fetch */
+SQLRETURN MADB_ProcessTruncation(MADB_Stmt *Stmt)
+{
+  /* We will not report truncation if a dummy buffer was bound */
+  int     col;
+  for (col = 0; col < MADB_STMT_COLUMN_COUNT(Stmt); ++col)
+  {
+    if (Stmt->result[col].error && *Stmt->result[col].error > 0 &&
+      !(Stmt->result[col].flags & MADB_BIND_DUMMY))
+    {
+      MADB_DescRecord* ArdRec = MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
+        * IrdRec = MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
+      /* If (numeric) field value and buffer are of the same size - ignoring truncation.
+      In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
+      some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
+      signed, or vice versa, why we should prevent that. */
+      if (ArdRec->OctetLength == IrdRec->OctetLength
+        && MADB_IsIntType(IrdRec->ConciseType) && (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType)))
+      {
+        continue;
+      }
+      /* For numeric types we return either 22003 or 01S07, 01004 for the rest.
+         if ird type is not fractional - we return 22003. But as a matter of fact, it's possible that we have 22003 if converting
+         from fractional types */
+      return MADB_SetError(&Stmt->Error, ArdRec != NULL && MADB_IsNumericType(ArdRec->ConciseType) ?
+        (MADB_IsIntType(IrdRec->ConciseType) ? MADB_ERR_22003 : MADB_ERR_01S07) : MADB_ERR_01004, NULL, 0);
+      /* One found such column is enough */
+    }
+  }
+  return SQL_SUCCESS;
+}
+
 /* {{{ MADB_StmtFetch */
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
-  unsigned int     RowNum, j, rc;
+  unsigned int     RowNum, j;
   SQLULEN          Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
-  MYSQL_ROW_OFFSET SaveCursor= NULL;
+  int64_t          SaveCursor= -1;
   SQLRETURN        Result= SQL_SUCCESS, RowResult;
-  BOOL             Streaming= FALSE; /* Also means the lock has been obtained */
+  bool             Streaming= false; /* Also means the lock has been obtained */
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
@@ -2167,11 +1984,11 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 
   Stmt->LastRowFetched= 0;
   Rows2Fetch= MADB_RowsToFetch(&Stmt->Cursor, Stmt->Ard->Header.ArraySize,
-    MADB_STMT_SHOULD_STREAM(Stmt) ? (unsigned long long)-1 : mysql_stmt_num_rows(Stmt->stmt));
+    MADB_STMT_SHOULD_STREAM(Stmt) ? (unsigned long long)-1 : Stmt->rs->rowsCount());
 
   if (Stmt->result == NULL)
   {
-    if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * mysql_stmt_field_count(Stmt->stmt))))
+    if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->metadata->getColumnCount())))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
       return Stmt->Error.ReturnValue;
@@ -2179,7 +1996,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     if (Rows2Fetch > 1)
     {
       // We need something to be bound after executing for MoveNext function
-      mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
+      Stmt->rs->bind(Stmt->result);
     }
   }
 
@@ -2207,7 +2024,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   /* We need to return to 1st row in the rowset only if there are >1 rows in it. Otherwise we stay on it anyway */
   if (Rows2Fetch > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
   {
-    SaveCursor= mysql_stmt_row_tell(Stmt->stmt);
+    SaveCursor= Stmt->rs->getRow();
     /* Skipping current row for for reading now, it will be read when the Cursor is returned to it */
     MoveNext(Stmt, 1LL);
   }
@@ -2231,21 +2048,21 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     LOCK_MARIADB(Stmt->Connection);
     /* We need this local flag while MADB_STMT_IS_STREAMING(Stmt) value may change due to item 2 from above, or even this function can change it, if fetch
        returns no */
-    Streaming= TRUE;
+    Streaming= true;
   }
 
   for (j= 0; j < Rows2Fetch; ++j)
   {
     RowResult= SQL_SUCCESS;
     /* If we need to return the cursor to 1st row in the rowset, we start to read it from 2nd, and 1st row we read the last */
-    if (SaveCursor != NULL)
+    if (SaveCursor != -1)
     {
       RowNum= j + 1;
       if (RowNum == Rows2Fetch)
       {
         RowNum= 0;
-        Stmt->Cursor.Next= mysql_stmt_row_tell(Stmt->stmt);
-        mysql_stmt_row_seek(Stmt->stmt, SaveCursor);
+        Stmt->Cursor.Next= Stmt->rs->getRow();
+        Stmt->rs->absolute(SaveCursor);
       }
     }
     else
@@ -2258,7 +2075,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     RETURN_ERROR_OR_CONTINUE(MADB_PrepareBind(Stmt, RowNum));
 
     /************************ Bind! ********************************/  
-    mysql_stmt_bind_result(Stmt->stmt, Stmt->result);
+    Stmt->rs->bind(Stmt->result);
 
     if (Stmt->Options.UseBookmarks && Stmt->Options.BookmarkPtr != NULL)
     {
@@ -2268,89 +2085,76 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       *p= (long)Stmt->Cursor.Position;
     }
     /************************ Fetch! ********************************/
-    if (MADB_STMT_IS_STREAMING(Stmt))
+    try
     {
-      Stmt->RsOps= &MADB_StmtStreamerNotAbleCacheTheRest;
-    }
-    rc= mysql_stmt_fetch(Stmt->stmt);
-    *ProcessedPtr += 1;
-
-    if (Stmt->Cursor.Position < 0)
-    {
-      Stmt->Cursor.Position= 0;
-    }
-
-    switch(rc) {
-    case 1:
-      RowResult= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
-      /* If mysql_stmt_fetch returned error, there is no sense to continue */
-      if (Stmt->Ird->Header.ArrayStatusPtr)
+      /* Something, that we need to do even if fetch fails */
+      *ProcessedPtr += 1;
+      if (Stmt->Cursor.Position <= 0)
       {
-        Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
+        Stmt->Cursor.Position= 1;
       }
-      CALC_ALL_ROWS_RC(Result, RowResult, RowNum);
-      if (Streaming != FALSE)
-      {
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-      return Result;
 
-    case MYSQL_DATA_TRUNCATED:
-    {
-      /* We will not report truncation if a dummy buffer was bound */
-      int     col;
-
-      for (col = 0; col < MADB_STMT_COLUMN_COUNT(Stmt); ++col)
-      {
-        if (Stmt->stmt->bind[col].error && *Stmt->stmt->bind[col].error > 0 &&
-          !(Stmt->stmt->bind[col].flags & MADB_BIND_DUMMY))
+      if (!Stmt->rs->next()) {
+        
+        /* We have already incremented this counter, since there was no more rows, need to decrement */
+        --*ProcessedPtr;
+        /* Here we prefer to use not the local, but global flag */
+        if (MADB_STMT_IS_STREAMING(Stmt))
         {
-          MADB_DescRecord* ArdRec = MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
-            * IrdRec = MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
-          /* If (numeric) field value and buffer are of the same size - ignoring truncation.
-          In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
-          some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
-          signed, or vice versa, why we should prevent that. */
-          if (ArdRec->OctetLength == IrdRec->OctetLength
-            && MADB_IsIntType(IrdRec->ConciseType) && (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType)))
+          if (!HasMoreResults(Stmt->Connection))
           {
-            continue;
+            MADB_RESET_STREAMER(Stmt->Connection);
           }
-          /* For numeric types we return either 22003 or 01S07, 01004 for the rest.
-             if ird type is not fractional - we return 22003. But as a matter of fact, it's possible that we have 22003 if converting
-             from fractional types */
-          RowResult= MADB_SetError(&Stmt->Error, ArdRec != NULL && MADB_IsNumericType(ArdRec->ConciseType) ?
-                    (MADB_IsIntType(IrdRec->ConciseType) ? MADB_ERR_22003 : MADB_ERR_01S07) : MADB_ERR_01004, NULL, 0);
-          /* One found such column is enough */
-          break;
         }
-      }
-      break;
-    }
-    case MYSQL_NO_DATA:
-      /* We have already incremented this counter, since there was no more rows, need to decrement */
-      --*ProcessedPtr;
-      /* Here we prefer to use not the local, but global flag */
-      if (MADB_STMT_IS_STREAMING(Stmt))
-      {
-        if (!mysql_stmt_more_results(Stmt->stmt))
+        /* SQL_NO_DATA should be only returned if first fetched row is already beyond end of the resultset */
+        if (RowNum > 0)
         {
-          MADB_RESET_STREAMER(Stmt->Connection);
+          continue;
         }
-        MakeStmtStreamer(Stmt);
+        if (Streaming != FALSE)
+        {
+          UNLOCK_MARIADB(Stmt->Connection);
+        }
+        return SQL_NO_DATA;
       }
-      /* SQL_NO_DATA should be only returned if first fetched row is already beyond end of the resultset */
-      if (RowNum > 0)
+      if (Stmt->rs->get())
       {
-        continue;
+        RowResult= MADB_ProcessTruncation(Stmt);
       }
-      if (Streaming != FALSE)
-      {
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-      return SQL_NO_DATA;
-    }  /* End of switch on fetch result */
+    }
+    catch (int rc)
+    {
+      switch (rc) {
+      case 1:
+        RowResult= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+        /* If mysql_stmt_fetch returned error, there is no sense to continue */
+        if (Stmt->Ird->Header.ArrayStatusPtr)
+        {
+          Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
+        }
+        CALC_ALL_ROWS_RC(Result, RowResult, RowNum);
+        if (Streaming != FALSE)
+        {
+          UNLOCK_MARIADB(Stmt->Connection);
+        }
+        return Result;
 
+      case MYSQL_DATA_TRUNCATED:
+      {
+        RowResult= MADB_ProcessTruncation(Stmt);
+        break;
+      }
+      }  /* End of switch on fetch result */
+    }
+    catch (SQLException& e) {
+      RowResult= MADB_FromException(Stmt->Error, e);
+    }
+    catch (std::invalid_argument &ia) {
+      RowResult= MADB_SetError(&Stmt->Error, MADB_ERR_22018, ia.what(), 0);
+    }
+    catch (std::out_of_range &oor) {
+      RowResult= MADB_SetError(&Stmt->Error, MADB_ERR_22003, oor.what(), 0);
+    } /* end of catch block */
     ++Stmt->LastRowFetched;
     ++Stmt->PositionedCursor;
 
@@ -2372,12 +2176,12 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
     }
   }
-  if (Streaming != FALSE)
+  if (Streaming)
   {
     UNLOCK_MARIADB(Stmt->Connection);
   }
-  memset(Stmt->CharOffset, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
-  memset(Stmt->Lengths, 0, sizeof(long) * mysql_stmt_field_count(Stmt->stmt));
+  memset(Stmt->CharOffset, 0, sizeof(long) * Stmt->metadata->getColumnCount());
+  memset(Stmt->Lengths, 0, sizeof(long) * Stmt->metadata->getColumnCount());
 
   ResetDescIntBuffers(Stmt->Ird);
 
@@ -2648,17 +2452,6 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
         return Stmt->Error.ReturnValue;
       }
       Stmt->Options.CursorType= (SQLUINTEGER)(SQLULEN)ValuePtr;
-      if (DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_NO_CACHE))
-      {
-        if (Stmt->Options.CursorType == SQL_CURSOR_FORWARD_ONLY)
-        {
-          MakeStmtStreamer(Stmt);
-        }
-        else
-        {
-          MakeStmtCacher(Stmt);
-        }
-      }
     }
     /* only FORWARD or Static is allowed */
     else
@@ -2783,20 +2576,20 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   my_bool         ZeroTerminated= 0;
   unsigned long   CurrentOffset= InternalUse == TRUE ? 0 : Stmt->CharOffset[Offset]; /* We are supposed not get bookmark column here */
   my_bool         Error;
-  MADB_DescRecord *IrdRec= NULL;
-  MYSQL_FIELD     *Field= mysql_fetch_field_direct(Stmt->metadata, Offset);
+  MADB_DescRecord *IrdRec= nullptr;
+  const MYSQL_FIELD *Field= Stmt->metadata->getField(Offset);
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   /* Should not really happen, and is evidence of that something wrong happened in some previous call(SQLFetch?)
-   * But do we really need this paranoid here, plus it accesses C/C internal structure beyond public API
+   * But do we really need this paranoid here?
    */
-  if (Stmt->stmt->bind == NULL)
+  if (Stmt->result == nullptr)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
   }
-
-  if (Stmt->stmt->bind[Offset].is_null != NULL && *Stmt->stmt->bind[Offset].is_null != '\0')
+  /* Will it be set with all dummies? */
+  if (Stmt->result[Offset].is_null != NULL && *Stmt->result[Offset].is_null != '\0')
   {
     if (!StrLen_or_IndPtr)
     {
@@ -2849,86 +2642,85 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   Bind.length=  &Bind.length_value;
   Bind.is_null= &IsNull;
 
-  switch(OdbcType)
+  try
   {
-  case SQL_DATE:
-  case SQL_C_TYPE_DATE:
-  case SQL_TIMESTAMP:
-  case SQL_C_TYPE_TIMESTAMP:
-  case SQL_TIME:
-  case SQL_C_TYPE_TIME:
+    switch (OdbcType)
+    {
+    case SQL_DATE:
+    case SQL_C_TYPE_DATE:
+    case SQL_TIMESTAMP:
+    case SQL_C_TYPE_TIMESTAMP:
+    case SQL_TIME:
+    case SQL_C_TYPE_TIME:
     {
       MYSQL_TIME tm;
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char  *ClientValue= NULL;
+        char* ClientValue = NULL;
         BOOL isTime;
+        Bind.buffer_length = (Field->max_length != 0 ?
+          Field->max_length : Field->length) + 1;
 
-        Bind.buffer_length = (Stmt->stmt->fields[Offset].max_length != 0 ?
-          Stmt->stmt->fields[Offset].max_length : Stmt->stmt->fields[Offset].length) + 1;
-
-        if (!(ClientValue = (char *)MADB_CALLOC(Bind.buffer_length)))
+        if (!(ClientValue = (char*)MADB_CALLOC(Bind.buffer_length)))
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer=        ClientValue;
-        Bind.buffer_type=   MYSQL_TYPE_STRING;
-        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        Bind.buffer = ClientValue;
+        Bind.buffer_type = MYSQL_TYPE_STRING;
+        Stmt->rs->get(&Bind, Offset, 0);
         RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, FALSE, &Stmt->Error, &isTime));
       }
       else
       {
-
-
-        Bind.buffer_length= sizeof(MYSQL_TIME);
-        Bind.buffer= (void *)&tm;
+        Bind.buffer_length = sizeof(MYSQL_TIME);
+        Bind.buffer = (void*)&tm;
         /* c/c is too smart to convert hours to days and days to hours, we don't need that */
         if ((OdbcType == SQL_C_TIME || OdbcType == SQL_C_TYPE_TIME)
           && (IrdRec->ConciseType == SQL_TIME || IrdRec->ConciseType == SQL_TYPE_TIME))
         {
-          Bind.buffer_type= MYSQL_TYPE_TIME;
+          Bind.buffer_type = MYSQL_TYPE_TIME;
         }
         else
         {
-          Bind.buffer_type= MYSQL_TYPE_TIMESTAMP;
-          
+          Bind.buffer_type = MYSQL_TYPE_TIMESTAMP;
+
         }
-        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        Stmt->rs->get(&Bind, Offset, 0);
       }
       RETURN_ERROR_OR_CONTINUE(MADB_CopyMadbTimestamp(Stmt, &tm, TargetValuePtr, StrLen_or_IndPtr, StrLen_or_IndPtr, OdbcType, IrdRec->ConciseType));
       break;
     }
-  case SQL_C_INTERVAL_HOUR_TO_MINUTE:
-  case SQL_C_INTERVAL_HOUR_TO_SECOND:
+    case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+    case SQL_C_INTERVAL_HOUR_TO_SECOND:
     {
       MYSQL_TIME tm;
-      SQL_INTERVAL_STRUCT *ts= (SQL_INTERVAL_STRUCT *)TargetValuePtr;
+      SQL_INTERVAL_STRUCT* ts = (SQL_INTERVAL_STRUCT*)TargetValuePtr;
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char *ClientValue= NULL;
+        char* ClientValue = NULL;
         BOOL isTime;
 
-        Bind.buffer_length= (Stmt->stmt->fields[Offset].max_length != 0 ? Stmt->stmt->fields[Offset].max_length :
-          Stmt->stmt->fields[Offset].length) + 1;
+        Bind.buffer_length = (Field->max_length != 0 ? Field->max_length :
+          Field->length) + 1;
 
-        if (!(ClientValue = (char *)MADB_CALLOC(Bind.buffer_length)))
+        if (!(ClientValue = (char*)MADB_CALLOC(Bind.buffer_length)))
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer=        ClientValue;
-        Bind.buffer_type=   MYSQL_TYPE_STRING;
-        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        Bind.buffer = ClientValue;
+        Bind.buffer_type = MYSQL_TYPE_STRING;
+        Stmt->rs->get(&Bind, Offset, 0);
         RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, TRUE, &Stmt->Error, &isTime));
       }
       else
       {
-        Bind.buffer_length= sizeof(MYSQL_TIME);
-        Bind.buffer= (void *)&tm;
+        Bind.buffer_length = sizeof(MYSQL_TIME);
+        Bind.buffer = (void*)&tm;
         /* c/c is too smart to convert hours to days and days to hours, we don't need that */
-        Bind.buffer_type= Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
-        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
+        Bind.buffer_type = Field && Field->type == MYSQL_TYPE_TIME ? MYSQL_TYPE_TIME : MYSQL_TYPE_TIMESTAMP;
+        Stmt->rs->get(&Bind, Offset, 0);
       }
 
       if (tm.hour > 99999)
@@ -2936,14 +2728,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         return MADB_SetError(&Stmt->Error, MADB_ERR_22015, NULL, 0);
       }
 
-      ts->intval.day_second.hour= tm.hour;
-      ts->intval.day_second.minute= tm.minute;
-      ts->interval_sign= tm.neg ? SQL_TRUE : SQL_FALSE;
+      ts->intval.day_second.hour = tm.hour;
+      ts->intval.day_second.minute = tm.minute;
+      ts->interval_sign = tm.neg ? SQL_TRUE : SQL_FALSE;
 
       if (TargetType == SQL_C_INTERVAL_HOUR_TO_MINUTE)
       {
-        ts->intval.day_second.second= 0;
-        ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_MINUTE;
+        ts->intval.day_second.second = 0;
+        ts->interval_type = /*SQLINTERVAL::*/SQL_IS_HOUR_TO_MINUTE;
         if (tm.second)
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
@@ -2951,21 +2743,21 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       else
       {
-        ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_SECOND;
-        ts->intval.day_second.second= tm.second;
+        ts->interval_type = /*SQLINTERVAL::*/SQL_IS_HOUR_TO_SECOND;
+        ts->intval.day_second.second = tm.second;
       }
       if (StrLen_or_IndPtr)
       {
-        *StrLen_or_IndPtr= sizeof(SQL_INTERVAL_STRUCT);
+        *StrLen_or_IndPtr = sizeof(SQL_INTERVAL_STRUCT);
       }
     }
     break;
-  case SQL_WCHAR:
-  case SQL_WVARCHAR:
-  case SQL_WLONGVARCHAR:
+    case SQL_WCHAR:
+    case SQL_WVARCHAR:
+    case SQL_WLONGVARCHAR:
     {
-      char  *ClientValue= NULL;
-      size_t CharLength= 0;
+      char* ClientValue = NULL;
+      size_t CharLength = 0;
 
       /* Kinda this it not 1st call for this value, and we have it nice and recoded */
       if (IrdRec->InternalBuffer == NULL/* && Stmt->Lengths[Offset] == 0*/)
@@ -2974,23 +2766,23 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         Bind.length = &FieldBufferLen;
         Bind.buffer_type = MYSQL_TYPE_STRING;
         /* Getting value's length to allocate the buffer */
-        if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
+        if (Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]))
         {
-          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
         }
         /* Adding byte for terminating null */
         ++FieldBufferLen;
-        if (!(ClientValue = (char *)MADB_CALLOC(FieldBufferLen)))
+        if (!(ClientValue = (char*)MADB_CALLOC(FieldBufferLen)))
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer=        ClientValue;
-        Bind.buffer_length= FieldBufferLen;
-        Bind.length=       &Bind.length_value;
+        Bind.buffer = ClientValue;
+        Bind.buffer_length = FieldBufferLen;
+        Bind.length = &Bind.length_value;
 
-        if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
+        if (Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]))
         {
-          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+          return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
         }
 
         /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
@@ -2998,12 +2790,12 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         {
           size_t ReqBuffOctetLen;
           /* Size in chars */
-          CharLength= MbstrCharLen(ClientValue, Bind.length_value - Stmt->CharOffset[Offset],
+          CharLength = MbstrCharLen(ClientValue, Bind.length_value - Stmt->CharOffset[Offset],
             Stmt->Connection->Charset.cs_info);
           /* MbstrCharLen gave us length in characters. For encoding of each character we might need
              2 SQLWCHARs in case of UTF16, or 1 SQLWCHAR in case of UTF32 = 4 bytes in each case. Probably we need calcualate better
              number of required SQLWCHARs */
-          ReqBuffOctetLen= (CharLength + 1)*4;
+          ReqBuffOctetLen = (CharLength + 1) * 4;
 
           if (BufferLength)
           {
@@ -3012,7 +2804,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
                and then copied its part to the application's buffer */
             if (ReqBuffOctetLen > (size_t)BufferLength)
             {
-              IrdRec->InternalBuffer= (char*)MADB_CALLOC(ReqBuffOctetLen);
+              IrdRec->InternalBuffer = (char*)MADB_CALLOC(ReqBuffOctetLen);
 
               if (IrdRec->InternalBuffer == 0)
               {
@@ -3020,13 +2812,13 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
                 return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
               }
 
-              CharLength= MADB_SetString(&Stmt->Connection->Charset, IrdRec->InternalBuffer, (SQLINTEGER)ReqBuffOctetLen / sizeof(SQLWCHAR),
+              CharLength = MADB_SetString(&Stmt->Connection->Charset, IrdRec->InternalBuffer, (SQLINTEGER)ReqBuffOctetLen / sizeof(SQLWCHAR),
                 ClientValue, Bind.length_value - Stmt->CharOffset[Offset], &Stmt->Error);
             }
             else
             {
               /* Application's buffer is big enough - writing directly there */
-              CharLength= MADB_SetString(&Stmt->Connection->Charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
+              CharLength = MADB_SetString(&Stmt->Connection->Charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
                 ClientValue, Bind.length_value - Stmt->CharOffset[Offset], &Stmt->Error);
             }
 
@@ -3041,22 +2833,22 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
           if (!Stmt->CharOffset[Offset])
           {
-            Stmt->Lengths[Offset]= (unsigned long)(CharLength*sizeof(SQLWCHAR));
+            Stmt->Lengths[Offset] = (unsigned long)(CharLength * sizeof(SQLWCHAR));
           }
         }
         else if (BufferLength >= sizeof(SQLWCHAR))
         {
-          *(SQLWCHAR*)TargetValuePtr= 0;
+          *(SQLWCHAR*)TargetValuePtr = 0;
         }
       }
       else  /* IrdRec->InternalBuffer == NULL && Stmt->Lengths[Offset] == 0 */
       {
-        CharLength= SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]), -1);
+        CharLength = SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]), -1);
       }
 
       if (StrLen_or_IndPtr)
       {
-        *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
+        *StrLen_or_IndPtr = CharLength * sizeof(SQLWCHAR);
       }
 
       if (!BufferLength)
@@ -3072,101 +2864,100 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         if (BufferLength > sizeof(SQLWCHAR))
         {
           memcpy(TargetValuePtr, (char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset],
-            MIN(BufferLength - sizeof(SQLWCHAR), CharLength*sizeof(SQLWCHAR)));
+            MIN(BufferLength - sizeof(SQLWCHAR), CharLength * sizeof(SQLWCHAR)));
         }
         /* Terminating Null */
-        *(SQLWCHAR*)((char*)TargetValuePtr + MIN(BufferLength - sizeof(SQLWCHAR), CharLength*sizeof(SQLWCHAR)))= 0;
+        *(SQLWCHAR*)((char*)TargetValuePtr + MIN(BufferLength - sizeof(SQLWCHAR), CharLength * sizeof(SQLWCHAR))) = 0;
       }
 
       if (CharLength >= BufferLength / sizeof(SQLWCHAR))
       {
         /* Calculate new offset and substract 1 byte for null termination */
-        Stmt->CharOffset[Offset]+= (unsigned long)BufferLength - sizeof(SQLWCHAR);
+        Stmt->CharOffset[Offset] += (unsigned long)BufferLength - sizeof(SQLWCHAR);
         MADB_FREE(ClientValue);
 
         return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
       }
       else
       {
-        Stmt->CharOffset[Offset]= Stmt->Lengths[Offset];
+        Stmt->CharOffset[Offset] = Stmt->Lengths[Offset];
         MADB_FREE(IrdRec->InternalBuffer);
       }
 
       MADB_FREE(ClientValue);
     }
     break;
-  case SQL_CHAR:
-  case SQL_VARCHAR:
-    if (Stmt->stmt->fields[Offset].type == MYSQL_TYPE_BLOB &&
-        Stmt->stmt->fields[Offset].charsetnr == 63)
-    {
-      if (!BufferLength && StrLen_or_IndPtr)
+    case SQL_CHAR:
+    case SQL_VARCHAR:
+      if (Field->type == MYSQL_TYPE_BLOB && Field->charsetnr == 63)
       {
-        Bind.buffer= NULL;
-        Bind.buffer_length= 0;
-        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-        *StrLen_or_IndPtr= Bind.length_value * 2;
-        return SQL_SUCCESS_WITH_INFO;
-      }
-     
-#ifdef CONVERSION_TO_HEX_IMPLEMENTED
-      {
-        /*TODO: */
-        char *TmpBuffer;
-        if (!(TmpBuffer= (char *)MADB_CALLOC(BufferLength)))
+        if (!BufferLength && StrLen_or_IndPtr)
         {
-
+          Bind.buffer = NULL;
+          Bind.buffer_length = 0;
+          Stmt->rs->get(&Bind, Offset, 0);
+          *StrLen_or_IndPtr = Bind.length_value * 2;
+          return SQL_SUCCESS_WITH_INFO;
         }
-      }
-#endif
-    }
-    ZeroTerminated= 1;
 
-  case SQL_LONGVARCHAR:
-  case SQL_BINARY:
-  case SQL_VARBINARY:
-  case SQL_LONGVARBINARY:
+#ifdef CONVERSION_TO_HEX_IMPLEMENTED
+        {
+          /*TODO: */
+          char* TmpBuffer;
+          if (!(TmpBuffer = (char*)MADB_CALLOC(BufferLength)))
+          {
+
+          }
+        }
+#endif
+      }
+      ZeroTerminated = 1;
+
+    case SQL_LONGVARCHAR:
+    case SQL_BINARY:
+    case SQL_VARBINARY:
+    case SQL_LONGVARBINARY:
     {
-      Bind.buffer=        TargetValuePtr;
-      Bind.buffer_length= (unsigned long)BufferLength;
-      Bind.buffer_type=   MadbType;
+      Bind.buffer = TargetValuePtr;
+      Bind.buffer_length = (unsigned long)BufferLength;
+      Bind.buffer_type = MadbType;
 
       if (!(BufferLength) && StrLen_or_IndPtr)
       {
         /* Paranoid - before StrLen_or_IndPtr was used as length directly. so leaving same value in Bind.length. Unlikely needed */
-        Bind.length_value= (unsigned long)*StrLen_or_IndPtr;
-        Bind.length=       &Bind.length_value;
+        Bind.length_value = (unsigned long)*StrLen_or_IndPtr;
+        Bind.length = &Bind.length_value;
 
-        mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]);
-        
-        if (InternalUse) 
+        Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]);
+
+        if (InternalUse)
         {
-          *StrLen_or_IndPtr= *Bind.length;//MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+          *StrLen_or_IndPtr = *Bind.length;//MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
         }
         else
         {
           if (!Stmt->CharOffset[Offset])
           {
-            Stmt->Lengths[Offset]= *Bind.length;//MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
+            Stmt->Lengths[Offset] = *Bind.length;//MIN(*Bind.length, Stmt->stmt->fields[Offset].max_length);
           }
-          *StrLen_or_IndPtr= Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
+          *StrLen_or_IndPtr = Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
         }
-        
+
         MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
 
         return SQL_SUCCESS_WITH_INFO;
       }
-      
-      if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, CurrentOffset))
+
+      if (Stmt->rs->get(&Bind, Offset, CurrentOffset))
       {
-        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
         return Stmt->Error.ReturnValue;
       }
       /* Dirty temporary hack before we know what is going on. Yes, there is nothing more eternal, than temporary
          It's not that bad, after all */
       if ((long)*Bind.length == -1)
       {
-        *Bind.length= 0;
+        *Bind.length = 0;
       }
       /* end of dirty hack */
 
@@ -3176,25 +2967,25 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       if (ZeroTerminated)
       {
-        char *p= (char *)Bind.buffer;
+        char* p = (char*)Bind.buffer;
         if (BufferLength > (SQLLEN)*Bind.length)
         {
-          p[*Bind.length]= 0;
+          p[*Bind.length] = 0;
         }
         else
         {
-          p[BufferLength-1]= 0;
+          p[BufferLength - 1] = 0;
         }
       }
-      
+
       if (StrLen_or_IndPtr)
       {
-        *StrLen_or_IndPtr= *Bind.length - CurrentOffset;
+        *StrLen_or_IndPtr = *Bind.length - CurrentOffset;
       }
       if (InternalUse == FALSE)
       {
         /* Recording new offset only if that is API call, and not getting data for internal use */
-        Stmt->CharOffset[Offset]+= MIN((unsigned long)BufferLength - ZeroTerminated, *Bind.length);
+        Stmt->CharOffset[Offset] += MIN((unsigned long)BufferLength - ZeroTerminated, *Bind.length);
         if ((BufferLength - ZeroTerminated) && Stmt->Lengths[Offset] > Stmt->CharOffset[Offset])
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
@@ -3207,70 +2998,70 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
     }
     break;
-  case SQL_NUMERIC:
-  {
-    SQLRETURN rc;
-    char *tmp;
-    MADB_DescRecord *Ard= MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
-
-    Bind.buffer_length= MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
-    tmp=                (char *)MADB_CALLOC(Bind.buffer_length);
-    Bind.buffer=        tmp;
-
-    Bind.buffer_type=   MadbType;
-
-    mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
-
-    MADB_CLEAR_ERROR(&Stmt->Error);
-
-    if (Bind.buffer_length < *Bind.length)
+    case SQL_NUMERIC:
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
-      MADB_FREE(tmp);
-      return Stmt->Error.ReturnValue;
-    }
+      SQLRETURN rc;
+      char* tmp;
+      MADB_DescRecord* Ard = MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
 
-    rc= MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, static_cast<SQL_NUMERIC_STRUCT*>(TargetValuePtr), 0);
+      Bind.buffer_length = MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
+      tmp = (char*)MADB_CALLOC(Bind.buffer_length);
+      Bind.buffer = tmp;
 
-    /* Ugly */
-    if (rc != SQL_SUCCESS)
-    {
-      MADB_SetError(&Stmt->Error, rc, NULL, 0);
-      if (rc == SQL_ERROR)
+      Bind.buffer_type = MadbType;
+
+      Stmt->rs->get(&Bind, Offset, 0);
+
+      MADB_CLEAR_ERROR(&Stmt->Error);
+
+      if (Bind.buffer_length < *Bind.length)
       {
-        return SQL_ERROR;
+        MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
+        MADB_FREE(tmp);
+        return Stmt->Error.ReturnValue;
       }
-    }
 
-    if (StrLen_or_IndPtr != NULL)
-    {
-      *StrLen_or_IndPtr= sizeof(SQL_NUMERIC_STRUCT);
-    }
-    break;
-  }
-  default:
-    {
-       /* Set the conversion function */
-      Bind.buffer_type= MadbType;
-      Bind.buffer= TargetValuePtr;
-      if (Bind.buffer_length == 0 && BufferLength > 0)
+      rc = MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, static_cast<SQL_NUMERIC_STRUCT*>(TargetValuePtr), 0);
+
+      /* Ugly */
+      if (rc != SQL_SUCCESS)
       {
-        Bind.buffer_length= (unsigned long)BufferLength;
+        MADB_SetError(&Stmt->Error, rc, NULL, 0);
+        if (rc == SQL_ERROR)
+        {
+          return SQL_ERROR;
+        }
       }
-      mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, 0);
 
       if (StrLen_or_IndPtr != NULL)
       {
-        /* We get here only for fixed data types. Thus, according to the specs 
+        *StrLen_or_IndPtr = sizeof(SQL_NUMERIC_STRUCT);
+      }
+      break;
+    }
+    default:
+    {
+      /* Set the conversion function */
+      Bind.buffer_type = MadbType;
+      Bind.buffer = TargetValuePtr;
+      if (Bind.buffer_length == 0 && BufferLength > 0)
+      {
+        Bind.buffer_length = (unsigned long)BufferLength;
+      }
+      Stmt->rs->get(&Bind, Offset, 0);
+
+      if (StrLen_or_IndPtr != NULL)
+      {
+        /* We get here only for fixed data types. Thus, according to the specs
            "this is the length of the data after conversion; that is, it is the size of the type to which the data was converted".
            For us that is the size of the buffer in bind structure. Not the size of the field */
 
-        *StrLen_or_IndPtr= Bind.buffer_length;
+        *StrLen_or_IndPtr = Bind.buffer_length;
 
         /* Paranoid - it was here, so leaving it in place */
         if ((long)Bind.length_value == -1)
         {
-          Bind.length_value= 0;
+          Bind.length_value = 0;
         }
         /* We do this for catalog functions and MS Access in first turn. The thing is that for some columns in catalog functions result,
            we fix column type manually, since we can't make field of desired type in the query to I_S. Mostly that is for SQLSMALLINT
@@ -3278,13 +3069,26 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
            throws error if the length is not what it expected (ODBC-131)
            Probably it makes sense to do this only for SQL_C_DEFAULT type, which MS Access uses. But atm it looks like this should
            not hurt if done for other types, too */
-        if (*StrLen_or_IndPtr == 0 || (Bind.length_value > (unsigned long)IrdRec->OctetLength && *StrLen_or_IndPtr > IrdRec->OctetLength))
+        if (*StrLen_or_IndPtr == 0 || (TargetType == SQL_C_DEFAULT && Bind.length_value > (unsigned long)IrdRec->OctetLength && *StrLen_or_IndPtr > IrdRec->OctetLength))
         {
-          *StrLen_or_IndPtr= IrdRec->OctetLength;
+          *StrLen_or_IndPtr = IrdRec->OctetLength;
         }
       }
     }
-  }             /* End of switch(OdbcType) */
+    }             /* End of switch(OdbcType) */
+  }
+  catch (SQLException& e) {
+    return MADB_FromException(Stmt->Error, e);
+  }
+  catch (int32_t /*rc*/) {
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+  }
+  catch (std::invalid_argument &ia) {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_22018, ia.what(), 0);
+  }
+  catch (std::out_of_range &oor) {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_22003, oor.what(), 0);
+  }
 
   /* Marking fixed length fields to be able to return SQL_NO_DATA on subsequent calls, as standard prescribes
      "SQLGetData cannot be used to return fixed-length data in parts. If SQLGetData is called more than one time
@@ -3313,18 +3117,19 @@ SQLRETURN MADB_StmtRowCount(MADB_Stmt *Stmt, SQLLEN *RowCountPtr)
 {
   if (Stmt->AffectedRows != -1)
     *RowCountPtr= (SQLLEN)Stmt->AffectedRows;
-  else if (Stmt->stmt && mysql_stmt_field_count(Stmt->stmt))
+  else if (Stmt->rs)
   {
     if (MADB_STMT_IS_STREAMING(Stmt))
     {
       LOCK_MARIADB(Stmt->Connection);
       if (MADB_STMT_IS_STREAMING(Stmt))
       {
+        // TODO: return value has to be checked?
         Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error);
       }
       UNLOCK_MARIADB(Stmt->Connection);
     }
-    *RowCountPtr = (SQLLEN)mysql_stmt_num_rows(Stmt->stmt);
+    *RowCountPtr = (SQLLEN)(Stmt->rs->rowsCount());
   }
   else
     *RowCountPtr= 0;
@@ -3357,7 +3162,7 @@ SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier)
 /* {{{ MADB_StmtRowCount */
 SQLRETURN MADB_StmtParamCount(MADB_Stmt *Stmt, SQLSMALLINT *ParamCountPtr)
 {
-  *ParamCountPtr= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
+  *ParamCountPtr= static_cast<SQLSMALLINT>(Stmt->stmt->getParamCount());
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -3388,13 +3193,13 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
   if (StringLengthPtr)
     *StringLengthPtr= 0;
 
-  if (!Stmt->stmt || !mysql_stmt_field_count(Stmt->stmt))
+  if (!Stmt->rs)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07005, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
 
-  if (ColumnNumber < 1 || ColumnNumber > mysql_stmt_field_count(Stmt->stmt))
+  if (ColumnNumber < 1 || ColumnNumber > Stmt->metadata->getColumnCount())
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
     return Stmt->Error.ReturnValue;
@@ -3527,7 +3332,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= Record->Type;
     break;
   case SQL_COLUMN_COUNT:
-    NumericAttribute= mysql_stmt_field_count(Stmt->stmt);
+    NumericAttribute= Stmt->metadata->getColumnCount();
     break;
   default:
     MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
@@ -3561,13 +3366,13 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
-  if (!mysql_stmt_field_count(Stmt->stmt))
+  if (!Stmt->metadata || Stmt->metadata->getColumnCount() == 0)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07005, NULL, 0);
     return Stmt->Error.ReturnValue;
   }
 
-  if (ColumnNumber < 1 || ColumnNumber > mysql_stmt_field_count(Stmt->stmt))
+  if (ColumnNumber < 1 || ColumnNumber > Stmt->metadata->getColumnCount())
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
     return SQL_ERROR;
@@ -3680,7 +3485,7 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
 /* {{{ MADB_RefreshRowPtrs */
 SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
 {
-  return MoveNext(Stmt, 1LL);
+  return SQL_SUCCESS;// MoveNext(Stmt, 1LL);
 }
 
 /* {{{ MADB_RefreshDynamicCursor */
@@ -3694,17 +3499,17 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
   ret= Stmt->Methods->Execute(Stmt, FALSE);
 
   Stmt->Cursor.Position= CurrentRow;
-  if (Stmt->Cursor.Position > 0 && (my_ulonglong)Stmt->Cursor.Position >= mysql_stmt_num_rows(Stmt->stmt))
+  if (Stmt->Cursor.Position > 0 && (my_ulonglong)Stmt->Cursor.Position > Stmt->rs->rowsCount())
   {
-    Stmt->Cursor.Position= (long)mysql_stmt_num_rows(Stmt->stmt) - 1;
+    Stmt->Cursor.Position= (long)Stmt->rs->rowsCount();
   }
 
   Stmt->LastRowFetched= LastRowFetched;
   Stmt->AffectedRows=   AffectedRows;
 
-  if (Stmt->Cursor.Position < 0)
+  if (Stmt->Cursor.Position <= 0)
   {
-    Stmt->Cursor.Position= 0;
+    Stmt->Cursor.Position= 1;
   }
   return ret;
 }
@@ -3719,7 +3524,7 @@ SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
 SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT Operation,
   SQLUSMALLINT LockType, int ArrayOffset)
 {
-  if (!Stmt->result && !Stmt->stmt->fields)
+  if (!Stmt->result && !Stmt->rs)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
   }
@@ -3753,7 +3558,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   switch(Operation) {
   case SQL_POSITION:
     {
-      if (RowNumber < 1 || RowNumber > mysql_stmt_num_rows(Stmt->stmt))
+      if (RowNumber < 1 || RowNumber > Stmt->rs->rowsCount())
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
         return Stmt->Error.ReturnValue;
@@ -3794,10 +3599,10 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           return Stmt->Error.ReturnValue;
         }
 
-        ResetMetadata(&Stmt->DaeStmt->DefaultsResult, MADB_GetDefaultColumnValues(Stmt, Stmt->stmt->fields));
+        Stmt->DaeStmt->DefaultsResult.reset(MADB_GetDefaultColumnValues(Stmt, Stmt->metadata->getFields()));
 
         Stmt->DataExecutionType= MADB_DAE_ADD;
-        ret= Stmt->Methods->Prepare(Stmt->DaeStmt, DynStmt.str, SQL_NTS, FALSE);
+        ret= Stmt->DaeStmt->Prepare(DynStmt.str, SQL_NTS, false);
 
         MADB_DynstrFree(&DynStmt);
 
@@ -3828,8 +3633,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         }
         
         ApdRec= MADB_DescGetInternalRecord(Stmt->DaeStmt->Apd, param, MADB_DESC_READ);
-        ApdRec->DefaultValue= MADB_GetDefaultColumnValue(Stmt->DaeStmt->DefaultsResult,
-          Stmt->stmt->fields[column].org_name);
+        ApdRec->DefaultValue= MADB_GetDefaultColumnValue(Stmt->DaeStmt->DefaultsResult.get(),
+          Stmt->rs->getMetaData()->getFields()[column].org_name);
 
         ++param;
       }
@@ -3858,7 +3663,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     {
       char        *TableName= MADB_GetTableName(Stmt);
       my_ulonglong Start=     0, 
-                   End=       mysql_stmt_num_rows(Stmt->stmt);
+                   End=       Stmt->rs->rowsCount();
       SQLRETURN    result=    SQL_INVALID_HANDLE; /* Just smth we cannot normally get */   
 
       if (!TableName)
@@ -3889,16 +3694,16 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       
       /* Cursor is open, but no row was fetched, so we simulate
          that first row was fetched */
-      if (Stmt->Cursor.Position < 0)
+      if (Stmt->Cursor.Position <= 0)
         Stmt->Cursor.Position= 1;
 
       if (RowNumber)
-        Start= End= Stmt->Cursor.Position + RowNumber -1;
+        Start= End= Stmt->Cursor.Position + RowNumber - 1;
       else
       {
         Start= Stmt->Cursor.Position;
         /* TODO: if num_rows returns 1, End is 0? Start would be 1, no */
-        End= MIN(mysql_stmt_num_rows(Stmt->stmt)-1, Start + Stmt->Ard->Header.ArraySize - 1);
+        End= MIN(Stmt->rs->rowsCount(), Start + Stmt->Ard->Header.ArraySize - 1);
       }
       /* Stmt->ArrayOffset will be incremented in StmtExecute() */
       Start+= Stmt->ArrayOffset;
@@ -3999,14 +3804,14 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
 
       /* Making sure we do not return initial value */
-      return result ==  SQL_INVALID_HANDLE ? SQL_SUCCESS :result;
+      return result ==  SQL_INVALID_HANDLE ? SQL_SUCCESS : result;
     }
   case SQL_DELETE:
     {
       MADB_DynString DynamicStmt;
       SQLULEN        SaveArraySize= Stmt->Ard->Header.ArraySize;
       my_ulonglong   Start=         0,
-                     End=           mysql_stmt_num_rows(Stmt->stmt);
+                     End=           Stmt->rs->rowsCount();
       char           *TableName=    MADB_GetTableName(Stmt);
 
       if (!TableName)
@@ -4088,11 +3893,13 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
                                SQLLEN FetchOffset)
 {
   SQLRETURN ret= SQL_SUCCESS;
-  SQLLEN    Position;
-  SQLLEN    RowsProcessed;
-
-  RowsProcessed= Stmt->LastRowFetched;
+  SQLLEN    Position= 0;
+  SQLLEN    RowsProcessed= Stmt->LastRowFetched;
   
+  if (!Stmt->rs)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
+  }
   if (Stmt->Options.CursorType == SQL_CURSOR_FORWARD_ONLY &&
       FetchOrientation != SQL_FETCH_NEXT)
   {
@@ -4117,34 +3924,36 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
 
   switch(FetchOrientation) {
   case SQL_FETCH_NEXT:
-    Position= Stmt->Cursor.Position < 0 ? 0 : Stmt->Cursor.Position + RowsProcessed;
+    Position= Stmt->Cursor.Position <= 0 ? 1 : Stmt->Cursor.Position + RowsProcessed;
     break;
   case SQL_FETCH_PRIOR:
-    Position= Stmt->Cursor.Position < 0 ? - 1: Stmt->Cursor.Position - MAX(1, Stmt->Ard->Header.ArraySize);
+    Position= Stmt->Cursor.Position <= 0 ? 0 : Stmt->Cursor.Position - MAX(1, Stmt->Ard->Header.ArraySize);
     break;
   case SQL_FETCH_RELATIVE:
     Position= Stmt->Cursor.Position + FetchOffset;
-    if (Position < 0 && Stmt->Cursor.Position > 0 &&
-        -FetchOffset <= (SQLINTEGER)Stmt->Ard->Header.ArraySize)
-      Position= 0;
+    if (Position <= 0 && Stmt->Cursor.Position > 1 &&
+        -FetchOffset < (SQLINTEGER)Stmt->Ard->Header.ArraySize)
+      Position= 1;
     break;
   case SQL_FETCH_ABSOLUTE:
     if (FetchOffset < 0)
     {
-      if ((long long)mysql_stmt_num_rows(Stmt->stmt) - 1 + FetchOffset < 0 &&
+      if ((long long)Stmt->rs->rowsCount() + FetchOffset <= 0 &&
           ((SQLULEN)-FetchOffset <= Stmt->Ard->Header.ArraySize))
-        Position= 0;
+        Position= 1;
       else
-        Position= (SQLLEN)mysql_stmt_num_rows(Stmt->stmt) + FetchOffset;
+        Position= (SQLLEN)Stmt->rs->rowsCount() + FetchOffset + 1;
     }
     else
-      Position= FetchOffset - 1;
+    {
+      Position = FetchOffset;
+    }
     break;
   case SQL_FETCH_FIRST:
-    Position= 0;
+    Position= 1;
     break;
   case SQL_FETCH_LAST:
-    Position= (SQLLEN)mysql_stmt_num_rows(Stmt->stmt) - MAX(1, Stmt->Ard->Header.ArraySize);
+    Position= (SQLLEN)Stmt->rs->rowsCount() - MAX(0, Stmt->Ard->Header.ArraySize - 1);
  /*   if (Stmt->Ard->Header.ArraySize > 1)
       Position= MAX(0, Position - Stmt->Ard->Header.ArraySize + 1); */
     break;
@@ -4162,7 +3971,9 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
 
     Position= *((long *)Stmt->Options.BookmarkPtr);
     if (Stmt->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3)
+    {
       Position+= FetchOffset;
+    }
    break;
   default:
     MADB_SetError(&Stmt->Error, MADB_ERR_HY106, NULL, 0);
@@ -4170,38 +3981,39 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
     break;
   }
 
-  if (Position < 0)
+  if (Position <= 0)
   {
     MADB_STMT_RESET_CURSOR(Stmt);
   }
   else
   {
-    Stmt->Cursor.Position= (SQLLEN)MIN((my_ulonglong)Position, mysql_stmt_num_rows(Stmt->stmt));
+    Stmt->Cursor.Position= (SQLLEN)MIN((my_ulonglong)Position, Stmt->rs->rowsCount() + 1);
   }
-  if (Position < 0 || !MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > mysql_stmt_num_rows(Stmt->stmt) - 1)
+  if (Position <= 0 || !MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > Stmt->rs->rowsCount())
   {
     /* We need to put cursor before RS start, not only return error */
-    if (Position < 0)
+    if (Position <= 0)
     {
       MADB_StmtDataSeek(Stmt, 0);
     }
     return SQL_NO_DATA;
   }
 
-  /* For dynamic cursor we "refresh" resultset eachtime(basically re-executing), and thus the (c/c)cursor is before 1st row at this point,
-     and thux we need to restore the last position. For array fetch with not forward_only cursor, the (c/c)cursor is at 1st row of the last
+  /* For dynamic cursor we "refresh" resultset each time(basically re-executing), and thus the (c/c)cursor is before 1st row at this point,
+     and thus we need to restore the last position. For array fetch with not forward_only cursor, the (c/c)cursor is at 1st row of the last
      fetched rowset */
   if (FetchOrientation != SQL_FETCH_NEXT || (RowsProcessed > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY) ||
       Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
   {
     if (Stmt->Cursor.Next != NULL)
     {
-      mysql_stmt_row_seek(Stmt->stmt, Stmt->Cursor.Next);
+      Stmt->rs->absolute(Stmt->Cursor.Next);
       ret= SQL_SUCCESS;
     }
     else
     {
-      ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+      // We need - 1 since Fetch calls next. And Fetch calls next since it has in case of array of rows fetching
+      ret= MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position - 1);
     }
   }
   
@@ -4217,27 +4029,8 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   return ret;
 }
 
-
-void MADB_FreeStoredRs(MADB_Stmt* Stmt)
-{
-  mysql_stmt_free_result(Stmt->stmt);
-}
-
-
-void MADB_FreeStreamedRs(MADB_Stmt* Stmt)
-{
-  if (mysql_stmt_field_count(Stmt->stmt) > 0)
-  {
-    while (mysql_stmt_fetch(Stmt->stmt) != MYSQL_NO_DATA) {}
-    //if (MADB_STMT_IS_STREAMING(Stmt))
-    MADB_RESET_STREAMER(Stmt->Connection);
-  }
-}
-
-
 struct st_ma_stmt_methods MADB_StmtMethods=
 {
-  MADB_StmtPrepare,
   MADB_StmtExecute,
   MADB_StmtFetch,
   MADB_StmtBindCol,
@@ -4270,26 +4063,32 @@ struct st_ma_stmt_methods MADB_StmtMethods=
   MADB_StmtPutData,
   MADB_StmtBulkOperations,
   MADB_RefreshDynamicCursor,
-  MADB_RefreshRowPtrs,
-  MADB_GetOutParams
+  MADB_RefreshRowPtrs
 };
+
+MADB_Stmt::MADB_Stmt(MADB_Dbc * Dbc)
+  : Connection(Dbc),
+  DefaultsResult(nullptr, &mysql_free_result)
+{
+  std::memset(&Error, 0, sizeof(MADB_Error));
+  std::memset(&Bulk, 0, sizeof(MADB_BulkOperationInfo));
+  std::memset(&Options, 0, sizeof(MADB_StmtOptions));
+  std::memset(&Cursor, 0, sizeof(MADB_Cursor));
+  std::memset(&ListItem, 0, sizeof(MADB_List));
+}
 
 /* {{{ MADB_StmtInit */
 SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 {
-  MADB_Stmt *Stmt= NULL;
-
-  if (!(Stmt = (MADB_Stmt *)MADB_CALLOC(sizeof(MADB_Stmt))))
-    goto error;
+  MADB_Stmt *Stmt= new MADB_Stmt(Connection);
  
   MADB_PutErrorPrefix(Connection, &Stmt->Error);
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
  
   LOCK_MARIADB(Connection);
-
-  if (!(Stmt->stmt= MADB_NewStmtHandle(Stmt)) ||
-    !(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
+  Stmt->stmt.reset();
+  if (!(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
     !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
     !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
     !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
@@ -4298,24 +4097,13 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
     goto error;
   }
 
-  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
+  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt.get());
   UNLOCK_MARIADB(Connection);
-  Stmt->PutParam= -1;
+
   Stmt->Methods= &MADB_StmtMethods;
-  MakeStmtCacher(Stmt);
-  /* default behaviour is SQL_CURSOR_STATIC. But should be SQL_CURSOR_FORWARD_ONLY according to specs(see bug ODBC-290) */
-  if (MA_ODBC_CURSOR_FORWARD_ONLY(Connection))
-  {
-    Stmt->Options.CursorType= SQL_CURSOR_FORWARD_ONLY;
-    if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_CACHE))
-    {
-      MakeStmtStreamer(Stmt);
-    }
-  }
-  else
-  {
-    Stmt->Options.CursorType = SQL_CURSOR_STATIC;
-  }
+
+  Stmt->Options.CursorType= SQL_CURSOR_FORWARD_ONLY;
+
   Stmt->Options.UseBookmarks= SQL_UB_OFF;
   Stmt->Options.MetadataId= Connection->MetadataId;
 
@@ -4342,7 +4130,9 @@ error:
   MADB_DescFree(Stmt->IArd, TRUE);
   MADB_DescFree(Stmt->IIpd, TRUE);
   MADB_DescFree(Stmt->IIrd, TRUE);
-  MADB_FREE(Stmt);
+
+  delete Stmt;
+
   return SQL_ERROR;
 }
 /* }}} */

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -79,18 +79,15 @@ ODBC_TEST(test_multi_on_off)
 
 ODBC_TEST(test_params)
 {
-  int       i, j;
+  int i, j;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)");
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
 
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t1 VALUES (?), (?)", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
-
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, 0, NULL));
-
 
   for (i=0; i < 100; i++)
   {
@@ -99,7 +96,6 @@ ODBC_TEST(test_params)
 
     while (SQLMoreResults(Stmt) == SQL_SUCCESS);
   }
-
   return OK;
 }
 
@@ -108,15 +104,12 @@ ODBC_TEST(test_params_last_count_smaller)
   int       i, j, k;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int, b int)");
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t2; CREATE TABLE t2(a int)");
 
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t1 VALUES (?,?); INSERT INTO t2 VALUES (?)", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &i, 0, NULL));
-
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &j, 0, NULL));
-
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 10, 0, &k, 0, NULL));
 
   for (i=0; i < 100; i++)
@@ -283,7 +276,10 @@ ODBC_TEST(t_odbc74)
 
 ODBC_TEST(t_odbc95)
 {
-  EXPECT_STMT(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT 1;INSERT INTO non_existing VALUES(2)", SQL_NTS), SQL_ERROR);
+  // In 3.2.x multistatement preparing uses CS prepate, and thus no error can occur on prepare stage
+  // EXPECT_STMT(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT 1;INSERT INTO non_existing VALUES(2)", SQL_NTS), SQL_ERROR); //<-- Before 3.2 version
+  OK_SIMPLE_STMT(Stmt, "SELECT 1;INSERT INTO non_existing VALUES(2);SELECT 2");
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   Stmt= NULL;
 
@@ -408,7 +404,7 @@ ODBC_TEST(diff_column_binding)
 ODBC_TEST(t_odbc159)
 {
   unsigned int j= 0, ExpectedRows[]= {0, 0, 5};
-  SQLLEN Rows, ExpRowCount[]= {0, 0, 0};
+  SQLLEN Rows, ExpRowCount[]= {0, 0, 5};
   SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
   SQLRETURN rc;
 
@@ -546,8 +542,8 @@ ODBC_TEST(t_odbc177)
 
 ODBC_TEST(t_odbc169)
 {
-  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * from t_odbc169", "SELECT * FROM t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 from t_odbc169",
-                        "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * from t_odbc169"};
+  SQLCHAR Query[][80]= {"SELECT 1 Col1; SELECT * FROM t_odbc169", "SELECT * FROM t_odbc169 ORDER BY col1 DESC; SELECT col3, col2 FROM t_odbc169",
+                        "INSERT INTO t_odbc169 VALUES(8, 7, 'Row #4');SELECT * FROM t_odbc169"};
   char Expected[][3][7]={ {"1", "", "" },       /* RS 1*/
                           {"1", "2", "Row 1"},  /* RS 2*/
                           {"3", "4", "Row 2"},
@@ -566,16 +562,15 @@ ODBC_TEST(t_odbc169)
                           {"8", "7", "Row #4"}
                         };
   unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4};
-  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0};
+  /* From 3.2.0 we return rows count for RS returnign queries in multistatement */
+  SQLLEN Rows, ExpRowCount[]= {1, 3, 3, 3, 1, 4}; /*{0, 0, 0, 0, 1, 0} <-- Expected results before 3.2.0 */;
   SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3};
-  SQLRETURN rc;
+  SQLRETURN rc= SQL_SUCCESS;
   SQLSMALLINT Column, Row= 0;
   SQLCHAR     ColumnData[MAX_ROW_DATA_LEN]={ 0 };
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc169");
-
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc169(col1 INT, col2 INT, col3 varchar(32) not null)");
-  
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc169 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')");
 
   for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
@@ -667,12 +662,12 @@ ODBC_TEST(test_autocommit)
   SQLCHAR tracked[256];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Dbc));
-  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+  CHECK_DBC_RC(Dbc, SQLSetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0));
   /* First testing with multistatements off */
   Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, &noMsOptions, NULL, "INITSTMT={SELECT 1}");
   FAIL_IF(Stmt == NULL, "Connection error");
 
-  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, sizeof(SQLUINTEGER), NULL));
   is_num(ac, SQL_AUTOCOMMIT_ON);
   OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -681,12 +676,12 @@ ODBC_TEST(test_autocommit)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
 
-  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF));
+  CHECK_DBC_RC(Dbc, SQLSetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0));
 
   Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
   FAIL_IF(Stmt == NULL, "Connection error");
 
-  CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+  CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, 0, NULL));
   is_num(ac, SQL_AUTOCOMMIT_OFF);
   OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -700,18 +695,21 @@ ODBC_TEST(test_autocommit)
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     OK_SIMPLE_STMT(Stmt, "SET autocommit=1;");
-    CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+    CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, 0, NULL));
     is_num(ac, SQL_AUTOCOMMIT_ON);
   }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
-
+// Leaving couple of deprecated function calls to test them
+#pragma warning(disable: 4996)
+#pragma warning(push)
   CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
 
   Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
   FAIL_IF(Stmt == NULL, "Connection error");
 
   CHECK_DBC_RC(Dbc, SQLGetConnectOption(Dbc, SQL_AUTOCOMMIT, (SQLPOINTER)&ac));
+#pragma warning(pop)
   is_num(ac, SQL_AUTOCOMMIT_ON);
   OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));

@@ -508,7 +508,6 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
     tm= static_cast<MYSQL_TIME*>(*Buffer);
   }
   
-
   /* Default types. Not quite clear if time_type has any effect */
   tm->time_type=       MYSQL_TIMESTAMP_DATETIME;
   MaBind->buffer_type= MYSQL_TYPE_DATETIME;//MYSQL_TYPE_TIMESTAMP;

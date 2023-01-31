@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -706,7 +706,7 @@ ODBC_TEST(t_odbc94)
   return OK;
 }
 
-
+/* Wrong sqlestate/message for truncation errors */
 ODBC_TEST(t_odbc115)
 {
   SQLINTEGER Big= 0;
@@ -749,6 +749,7 @@ ODBC_TEST(t_odbc115)
    about such case */
 ODBC_TEST(t_odbc123)
 {
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_USE_BOOKMARKS, (SQLPOINTER)SQL_UB_VARIABLE, 0));
   OK_SIMPLE_STMT(Stmt, "SELECT 1");
   /* We used to return error on this, and then crash. Not sure if SQL_FETCH_FIRST was importand for this test, but
@@ -808,16 +809,17 @@ ODBC_TEST(t_odbc43)
   return OK;
 }
 
-
+/* If 2nd query in the batch is erroneous, SQLMoreResults did not reutrn error */
 ODBC_TEST(t_odbc226)
 {
   /* The testcase relies on the fact, that default connection provided to tests, allows multistatement */
-  EXPECT_STMT(Stmt, SQLExecDirect( Stmt, "drop temporary table if exists test.odbc226;"
-    "create temporary table test.odbc226 as select 1 from nonexistend_table.field", SQL_NTS), SQL_SUCCESS);
+  EXPECT_STMT(Stmt, SQLExecDirect( Stmt, "DROP TEMPORARY TABLE IF EXISTS test.odbc226;"
+    "CREATE TEMPORARY TABLE test.odbc226 as SELECT 1 FROM nonexistend_table.field", SQL_NTS), SQL_SUCCESS);
   
   EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
   odbc_print_error(SQL_HANDLE_STMT, Stmt);
-  CHECK_SQLSTATE(Stmt, "HY000");
+  /* Before 3.2 here was HY000, but we actually may set sqlstate specific for the error */
+  CHECK_SQLSTATE(Stmt, "42S02");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

@@ -1510,16 +1510,14 @@ ODBC_TEST(t_odbc203)
                             {L"8", L"7", L"Row #4"}
                            };
   unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4, 1};
-  SQLLEN Rows, ExpRowCount[]= {0, 0, 0, 0, 1, 0, 0};
+  SQLLEN Rows, ExpRowCount[]= {1, 3, 3, 3, 1, 4, 0}; /*{0, 0, 0, 0, 1, 0, 0} <-- before 3.2.0 */
   SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3, 1};
   SQLRETURN rc;
   SQLSMALLINT Column, Row= 0;
   SQLWCHAR    ColumnData[MAX_ROW_DATA_LEN]= {0};
 
   OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE IF EXISTS t_odbc203"));
-
   OK_SIMPLE_STMTW(wStmt, WW("CREATE TABLE t_odbc203(col1 INT, col2 INT, col3 varchar(32) not null)"));
-
   OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc203 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')"));
 
   for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)

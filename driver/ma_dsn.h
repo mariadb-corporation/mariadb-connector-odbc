@@ -19,7 +19,16 @@
 #ifndef _ma_dsn_h_
 #define _ma_dsn_h_
 
+#ifdef _WIN32
+# include "ma_platform_win32.h"
+#else
+# include "ma_platform_posix.h"
+#endif
 #include <odbcinst.h>
+#include <sql.h>
+#include <mysql.h>
+
+#include "ma_c_stuff.h"
 
 /* MySQL ODBC compatibility options */
 #define MADB_OPT_FLAG_FIELD_LENGTH                      1

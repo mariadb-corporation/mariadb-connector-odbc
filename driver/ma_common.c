@@ -20,12 +20,21 @@
 /* Common functions used in both connector and setup library.
  * Moved to avoid redundant dependencies */
 
-#include <ma_odbc.h>
 #include <wctype.h>
+#include <string.h>
+#include <stdio.h>
+#ifdef _WIN32
+# include "ma_platform_win32.h"
+#else
+# include "ma_platform_posix.h"
+#endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
 /* {{{ ltrim */
-char* ltrim(char *Str)
+const char* ltrim(const char *Str)
 {
   if (Str)
   {
@@ -41,10 +50,10 @@ char* trim(char *Str)
 {
   char *end;
   
-  Str= ltrim(Str);
+  Str= (char*)ltrim(Str);
 
   end= Str + strlen(Str) - 1;
-  while (isspace(*end))
+  while (*end > 0 && isspace(*end))
     *end--= 0;
   return Str;
 }
@@ -59,5 +68,8 @@ char* strcasestr(const char* HayStack, const char* Needle)
   return StrStrIA(HayStack, Needle);
 }
 /* }}} */
+#endif
 
+#ifdef __cplusplus
+} /* End of "extern C" */
 #endif

@@ -51,7 +51,8 @@ struct st_ma_connection_methods
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);
-
+bool HasMoreResults(MADB_Dbc *Dbc);
+SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle);
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
 MADB_Dbc * MADB_DbcInit(MADB_Env *Env);
 BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);

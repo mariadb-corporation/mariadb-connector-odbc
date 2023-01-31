@@ -39,17 +39,17 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
                             SQLPOINTER ValuePtr,
                             SQLINTEGER BufferLength,
                             SQLINTEGER *StringLengthPtr,
-                            my_bool isWChar);
+                            int isWChar);
 SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
                             SQLSMALLINT RecNumber,
                             SQLSMALLINT FieldIdentifier,
                             SQLPOINTER ValuePtr,
                             SQLINTEGER BufferLength,
-                            my_bool isWChar);
+                            int isWChar);
 
-my_bool MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFields);
-SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc);
-SQLRETURN MADB_DescGetRec(MADB_Desc *Desc,
+my_bool MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, const MYSQL_FIELD *Fields, unsigned int NumFields);
+SQLRETURN MADB_DescCopyDesc(SQLHDESC SrcDesc, SQLHDESC DestDesc);
+SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
     SQLSMALLINT RecNumber,
     SQLCHAR *Name,
     SQLSMALLINT BufferLength,
@@ -60,7 +60,7 @@ SQLRETURN MADB_DescGetRec(MADB_Desc *Desc,
     SQLSMALLINT *PrecisionPtr,
     SQLSMALLINT *ScalePtr,
     SQLSMALLINT *NullablePtr,
-    BOOL isWChar);
+    int isWChar);
 
 my_bool MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr);
 

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2022 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -17,6 +17,8 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+#include "PreparedStatement.h"
+#include "ResultSet.h"
 
 extern Client_Charset utf8;
 
@@ -168,20 +170,23 @@ char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
 
 SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
 {
-  char *Sqlstate= NULL, *Errormsg= NULL;
+  const char *Sqlstate= NULL, *Errormsg= NULL;
   int NativeError= 0;
 
   switch (HandleType) {
   case SQL_HANDLE_DBC:
-    Sqlstate= (char *)mysql_sqlstate((MYSQL *)Ptr);
-    Errormsg= (char *)mysql_error((MYSQL *)Ptr);
+    Sqlstate= mysql_sqlstate((MYSQL *)Ptr);
+    Errormsg= mysql_error((MYSQL *)Ptr);
     NativeError= mysql_errno((MYSQL *)Ptr);
     break;
   case SQL_HANDLE_STMT:
-    Sqlstate= (char *)mysql_stmt_sqlstate((MYSQL_STMT *)Ptr);
-    Errormsg= (char *)mysql_stmt_error((MYSQL_STMT *)Ptr);
-    NativeError= mysql_stmt_errno((MYSQL_STMT *)Ptr);
+  {
+    PreparedStatement* ps = static_cast<PreparedStatement*>(Ptr);
+    Sqlstate= ps->getSqlState();
+    Errormsg= ps->getError();
+    NativeError= ps->getErrno();
     break;
+  }
   }
   /* work-around of probalby a bug in mariadb_stmt_execute_direct, that returns 1160 in case of lost connection */
   if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160 || NativeError == 5014) && (strcmp(Sqlstate, "HY000") == 0 || strcmp(Sqlstate, "00000") == 0))
@@ -300,7 +305,7 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
 SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
                             SQLSMALLINT RecNumber, SQLSMALLINT DiagIdentifier, SQLPOINTER
                             DiagInfoPtr, SQLSMALLINT BufferLength,
-                            SQLSMALLINT *StringLengthPtr, my_bool isWChar)
+                            SQLSMALLINT *StringLengthPtr, int isWChar)
 {
   MADB_Error *Err=  NULL;
   MADB_Stmt  *Stmt= NULL;
@@ -344,7 +349,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
   case SQL_DIAG_CURSOR_ROW_COUNT:
     if (!Stmt)
       return SQL_ERROR;
-    *(SQLLEN *)DiagInfoPtr= (Stmt->result) ?(SQLLEN)mysql_stmt_num_rows(Stmt->stmt) : 0;
+    *(SQLLEN *)DiagInfoPtr= (Stmt->rs) ? (SQLLEN)(Stmt->rs->rowsCount()) : 0;
     break;
   case SQL_DIAG_DYNAMIC_FUNCTION:
     if (!Stmt)
@@ -366,7 +371,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     if (HandleType != SQL_HANDLE_STMT ||
         !Stmt)
       return SQL_ERROR;
-    *(SQLLEN *)DiagInfoPtr= (Stmt->stmt) ? (SQLLEN)mysql_stmt_affected_rows(Stmt->stmt) : 0;
+    *(SQLLEN *)DiagInfoPtr= (Stmt->stmt) ? (SQLLEN)Stmt->stmt->getUpdateCount() : 0;
     break;
   case SQL_DIAG_CLASS_ORIGIN:
     Length= MADB_SetString(isWChar ?  &utf8 : 0, DiagInfoPtr,  isWChar ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
@@ -403,7 +408,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
       char *ServerName= "";
       if (Stmt && Stmt->stmt)
       {
-        mariadb_get_infov(Stmt->stmt->mysql, MARIADB_CONNECTION_HOST, (void*)&ServerName);
+        mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_HOST, (void*)&ServerName);
       }
       else if (Dbc && Dbc->mariadb)
       {
@@ -435,4 +440,28 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
   if (isWChar && StringLengthPtr)
     *StringLengthPtr*= sizeof(SQLWCHAR);
   return Error.ReturnValue;
+}
+
+
+SQLRETURN MADB_FromException(MADB_Error &Err, SQLException& e)
+{
+  const char* SqlState= e.getSQLStateCStr();
+  int NativeError= e.getErrorCode();
+
+  /* work-around of probalby a bug in mariadb_stmt_execute_direct, that returns 1160 in case of lost connection */
+  if ((NativeError == 2013 || NativeError == 2006 || NativeError == 1160 || NativeError == 5014) && (strcmp(SqlState, "HY000") == 0 || strcmp(SqlState, "00000") == 0))
+  {
+    SqlState= "08S01";
+  }
+
+  Err.ReturnValue = SQL_ERROR;
+  strcpy_s(Err.SqlErrorMsg + Err.PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Err.PrefixLen, e.what());
+
+  strcpy_s(Err.SqlState, SQLSTATE_LENGTH + 1, SqlState);
+  Err.NativeError= NativeError;
+  if (Err.SqlState[0] == '0')
+    Err.ReturnValue= (Err.SqlState[1] == '0') ? SQL_SUCCESS :
+    (Err.SqlState[1] == '1') ? SQL_SUCCESS_WITH_INFO : SQL_ERROR;
+
+  return Err.ReturnValue;
 }

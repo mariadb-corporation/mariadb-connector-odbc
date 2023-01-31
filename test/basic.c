@@ -299,7 +299,7 @@ ODBC_TEST(t_disconnect)
   SQLHSTMT hstmt;
 
   rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
-    CHECK_ENV_RC(Env, rc);
+  CHECK_ENV_RC(Env, rc);
   rc= SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS, wpwd, SQL_NTS);
   CHECK_DBC_RC(hdbc1, rc);
 
@@ -917,7 +917,6 @@ ODBC_TEST(t_describe_nulti)
   my_options= 67108866;
 
   ODBC_Connect(&henv1, &hdbc1, &hstmt1);
-
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t1");
   OK_SIMPLE_STMT(hstmt1, "CREATE TABLE t1 (columnX VARCHAR(255))");
@@ -1641,6 +1640,7 @@ ODBC_TEST(t_odbc139)
   CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"test", 4));
   Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, &Compression, NULL, NULL);
 
+  FAIL_IF(Hstmt == NULL, "Connection with compression failed");
 
   Thread= CreateThread(NULL, 0, FireQueryInThread, Hstmt, 0, NULL);
   WaitRc= WaitForSingleObject(Thread, 1500);

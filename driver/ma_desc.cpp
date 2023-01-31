@@ -172,7 +172,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
 
 /* {{{ MADB_SetIrdRecord */
 my_bool
-MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
+MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *Field)
 {
   MY_CHARSET_INFO cs;
   MARIADB_CHARSET_INFO *FieldCs;
@@ -321,7 +321,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
 
 /* {{{ MADB_DescSetIrdMetadata */
 my_bool 
-MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, MYSQL_FIELD *Fields, unsigned int NumFields)
+MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, const MYSQL_FIELD *Fields, unsigned int NumFields)
 {
   SQLSMALLINT i;
 
@@ -674,7 +674,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
                             SQLPOINTER ValuePtr,
                             SQLINTEGER BufferLength,
                             SQLINTEGER *StringLengthPtr,
-                            my_bool isWChar)
+                            int isWChar)
 {
   MADB_Desc *Desc= (MADB_Desc *)DescriptorHandle;
   MADB_DescRecord *DescRecord= NULL;
@@ -840,7 +840,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
                             SQLSMALLINT FieldIdentifier,
                             SQLPOINTER ValuePtr,
                             SQLINTEGER BufferLength,
-                            my_bool isWChar)
+                            int isWChar)
 {
   MADB_Desc *Desc= (MADB_Desc *)DescriptorHandle;
   MADB_DescRecord *DescRecord= NULL;
@@ -966,11 +966,10 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
 /* }}} */
 
 /* {{{ MADB_DescCopyDesc */
-SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
+SQLRETURN MADB_DescCopyDesc(SQLHDESC Src, SQLHDESC Dest)
 {
-  if (!SrcDesc)
-    return SQL_INVALID_HANDLE;
-    
+  MADB_Desc *SrcDesc= (MADB_Desc*)Src, *DestDesc= (MADB_Desc*)Dest;
+  /*TODO: clear error */
   if (DestDesc->DescType == MADB_DESC_IRD)
   {
     MADB_SetError(&DestDesc->Error, MADB_ERR_HY016, NULL, 0);
@@ -1021,7 +1020,7 @@ SQLRETURN MADB_DescCopyDesc(MADB_Desc *SrcDesc, MADB_Desc *DestDesc)
 }
 /* }}} */
 
-SQLRETURN MADB_DescGetRec(MADB_Desc *Desc,
+SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
     SQLSMALLINT RecNumber,
     SQLCHAR *Name,
     SQLSMALLINT BufferLength,
@@ -1032,8 +1031,9 @@ SQLRETURN MADB_DescGetRec(MADB_Desc *Desc,
     SQLSMALLINT *PrecisionPtr,
     SQLSMALLINT *ScalePtr,
     SQLSMALLINT *NullablePtr,
-    BOOL isWChar)
+    int isWChar)
 {
+  MADB_Desc* Desc= (MADB_Desc*)Handle;
   MADB_DescRecord *Record;
   SQLLEN Length;
 
