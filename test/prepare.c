@@ -1222,9 +1222,9 @@ ODBC_TEST(t_odbc141)
     skip("Test user doesn't have enough privileges to run this test");
   }
   FAIL_IF(NativeError!=29 && NativeError != 13, "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc141");
   return OK;
 }
 
@@ -1287,6 +1287,51 @@ ODBC_TEST(t_mdev16708)
 }
 
 
+ODBC_TEST(t_odbc378)
+{
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc378");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc378(id int not null)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc378 VALUES(1)");
+
+  OK_SIMPLE_STMT(Stmt, "OPTIMIZE TABLE t_odbc378");
+  IS(my_print_non_format_result_ex(Stmt, FALSE) == 2);
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Making sure protocol is not broken */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "OPTIMIZE LOCAL TABLE t_odbc378", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Making sure protocol is not broken */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "OPTIMIZE NO_WRITE_TO_BINLOG  TABLE t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Making sure protocol is not broken */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc378");
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_prep_basic, "t_prep_basic"},
@@ -1309,6 +1354,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc141, "odbc-141-load_data_infile"},
   {t_odbc269, "odbc-269-begin_not_atomic"},
   {t_mdev16708, "t_mdev16708-new_supported_statements"},
+  {t_odbc378, "t_odbc378-optimize_table"},
   {NULL, NULL}
 };
 
