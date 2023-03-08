@@ -72,7 +72,7 @@ char *trim(char *Str)
 
   Str = ltrim(Str);
   end= Str + strlen(Str) - 1;
-  while (isspace(*end))
+  while (*end > 0 && isspace(*end))
     *end--= 0;
   return Str;
 }

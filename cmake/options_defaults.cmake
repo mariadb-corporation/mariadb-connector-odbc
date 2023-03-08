@@ -15,6 +15,9 @@ IF(WIN32)
 
   OPTION(MARIADB_LINK_DYNAMIC "Link Connector/C library dynamically" OFF)
   OPTION(ALL_PLUGINS_STATIC "Compile all plugins in, i.e. make them static" ON)
+  SET(CLIENT_PLUGIN_PVIO_NPIPE "STATIC")
+  # We don't provide its support in ODBC yet, thus there is no need to bloat the library size
+  #SET(CLIENT_PLUGIN_PVIO_SHMEM "STATIC")
 ELSE()
   OPTION(WITH_MSI "Build MSI installation package" OFF)
   IF(APPLE)

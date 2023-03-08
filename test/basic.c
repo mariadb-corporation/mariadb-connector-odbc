@@ -1783,6 +1783,33 @@ ODBC_TEST(t_local_data_infile)
   return OK;
 }
 
+#ifdef _WIN32
+// The testcase is for Windows only. It verifies if named pipe plugin could be founded & loaded
+ODBC_TEST(t_odbc384)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+  SQLINTEGER NativeError;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  /* Connection with *disabled* LOAD DATA LOCAL INFILE */
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NAMEDPIPE=1;SOCKET=NotConfiguredPipeName");
+  if (Hstmt != NULL)
+  {
+    CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+    CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+    FAIL_IF(1,"This should not happen - the connection apparently was done some other that named pipe way");
+  }
+  SQLGetDiagRec(SQL_HANDLE_DBC, Hdbc, 1, NULL, &NativeError, NULL, 0, NULL);
+  FAIL_IF(NativeError == 2059, "Named Pipe plugin could not be loaded");
+  FAIL_IF(NativeError != 2017, "Looks like connector did not connect to named pipe");
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
+#endif
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1824,13 +1851,16 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc69,      "odbc69_ci_connstring",     NORMAL},
   {t_odbc91,      "odbc91_hdbc_reuse",        NORMAL},
   {t_odbc137,     "odbc137_ansi",             NORMAL},
-#ifdef _WIN32
-  {t_odbc139,     "odbc139_compression",      NORMAL},
-#endif
   {t_odbc162,     "t_odbc162_CTE_query",      NORMAL },
   {t_replace,     "t_replace",      NORMAL },
   {t_odbc181,     "t_odbc181",      NORMAL },
   {t_local_data_infile, "odbc347_local_data_infile", NORMAL },
+#ifdef _WIN32
+  {t_odbc139,     "odbc139_compression",      NORMAL},
+  {t_odbc384,     "odbc384_namedpipe_plugin", NORMAL },
+#endif
+
+  
   {NULL, NULL, 0}
 };
 

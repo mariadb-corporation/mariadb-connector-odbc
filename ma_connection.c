@@ -272,11 +272,14 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     break;
   case SQL_ATTR_ODBC_CURSORS:
     {
+#pragma warning(disable:4995)
+#pragma warning(push)
       SQLULEN ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
       MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
       if ((SQLULEN)ValuePtr != SQL_CUR_USE_ODBC)
         MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
       Dbc->OdbcCursors= SQL_CUR_USE_ODBC;
+#pragma warning(pop)
     }
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
@@ -838,18 +841,23 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* enable truncation reporting */
   mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
 
-  if (Dsn->Socket)
+  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
   {
-    protocol= MYSQL_PROTOCOL_SOCKET;
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, NULL);
+    protocol= MYSQL_PROTOCOL_PIPE;
   }
-  else if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
+  else if (Dsn->Socket)
   {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void*)Dsn->ServerName);
-    protocol = MYSQL_PROTOCOL_PIPE;
+#ifdef _WIN32
+    /* Technically this could break existing application, that has SOCKET in connstring on Windows, and it resulted in TCP connection */
+    /*protocol= MYSQL_PROTOCOL_PIPE;*/
+#else
+    protocol= MYSQL_PROTOCOL_SOCKET;
+#endif
   }
   else if (Dsn->Port > 0 || Dsn->IsTcpIp)
   {
-    protocol = MYSQL_PROTOCOL_TCP;
+    protocol= MYSQL_PROTOCOL_TCP;
     if (Dsn->Port == 0)
     {
       Dsn->Port= 3306;
