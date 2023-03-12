@@ -1689,7 +1689,7 @@ ODBC_TEST(t_odbc162)
   return OK;
 }
 
-
+/* This testcase is incompelete. and its idea is lost and forgotten. Keeping it just to have REPLACE statement. */
 ODBC_TEST(t_replace)
 {
   if (!ServerNotOlderThan(Connection, 10, 2, 0))
@@ -1701,32 +1701,6 @@ ODBC_TEST(t_replace)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc_replace` (`uuid` VARCHAR(64), PRIMARY KEY (`uuid`)) ENGINE=InnoDB");
   OK_SIMPLE_STMT(Stmt, "REPLACE INTO `t_odbc_replace` (`uuid`) VALUES(\"5b7fe80c-7de1-4744-ab33-3f65f26726f6\"),\
 (\"3ce73838-72f2-4aed-9f45-b7cf15f1279b\"),\
-(\"babf4138-cdde-4c3f-8b28-cc7c8ef7033f\"),\
-(\"80abd3ca-37d3-4478-8de3-137f14b0aa69\"),\
-(\"4cc6c8c4-dfdc-47ec-923c-2d60b6a34053\"),\
-(\"1e802c01-4849-499c-b707-839f327d2a6e\"),\
-(\"5b7cc14e-0339-49a9-abee-cb80afa438ee\"),\
-(\"ad3be64a-5cfa-4f79-84fb-e41433cca31b\"),\
-(\"44ce8320-5100-4a2e-b078-18a855c31398\"),\
-(\"95e7985e-c2a1-4f70-840e-23b73d9fa933\"),\
-(\"5b08812f-4750-484d-8041-b304536b836f\"),\
-(\"890651bb-fadb-445d-8142-339219c73b53\"),\
-(\"70967597-5585-447b-a91d-5b59226a374b\"),\
-(\"cb6bf816-ff91-47e2-8f84-785c8132e8a5\"),\
-(\"3ef7caf9-84e4-4922-a7be-8fa611ef3fba\"),\
-(\"0f7faaf6-aff2-4198-81e3-896496afbb2b\"),\
-(\"c4d6a9de-f355-4b61-a773-f9b00a9f12c9\"),\
-(\"88c02aa5-0c13-4da1-bcf9-a1e05a8260ad\"),\
-(\"8d1bbec0-ece1-42a6-be30-d05a2c650e69\"),\
-(\"8efd401a-6308-40e3-9e15-0a8f92cbdbea\"),\
-(\"e179182d-82ee-4a76-a34f-c1a414213b1c\"),\
-(\"748308ce-5d45-448f-9ee0-597811d7e587\"),\
-(\"bfaaf614-e815-4706-83b4-044fa60fb80e\"),\
-(\"3c8d7733-fca8-40b6-8bce-f68ba8c74c55\"),\
-(\"f118c366-fdda-4063-bd4a-da447325c5c5\"),\
-(\"af56d425-46d0-4c75-ac02-6f74fa8362e2\"),\
-(\"541937b0-bf92-40c3-a430-c92e2b073114\"),\
-(\"d192dd73-b2c8-4348-9b58-e01554f76679\"),\
 (\"d56b1182-a077-47bd-9954-e6d62a75a05a\"),\
 (\"bded059e-b770-4211-ad73-bfb66ed53dca\")");
 
@@ -1735,7 +1709,7 @@ ODBC_TEST(t_replace)
   return OK;
 }
 
-/* Parsing error causing driver to think this is musltistatement */
+/* Parsing error caused driver to think this is musltistatement */
 ODBC_TEST(t_odbc181)
 {
   char buffer[128];
@@ -1810,6 +1784,47 @@ ODBC_TEST(t_odbc384)
 }
 #endif
 
+/* ODBC-377 Timeout attributes have no effect. We don't support CONNECT_TIMEOUT(our C/C CONNECT_TIMEOUT is ODBC LOGINE_TIMEOUT attr) */
+ODBC_TEST(t_odbc377)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)2, 0));
+  EXPECT_DBC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CONNECTION_TIMEOUT, (SQLPOINTER)2, 0), SQL_SUCCESS_WITH_INFO);
+  /* Connection with *disabled* LOAD DATA LOCAL INFILE */
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(3)}");
+  if (Hstmt != NULL)
+  {
+    CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+    CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+    FAIL_IF(1, "Login Timeout did not work");
+  }
+  /* The sqlstate has to be HYT00 */
+  CHECK_SQLSTATE_EX(Hdbc, SQL_HANDLE_DBC, "HYT00");
+  /* Login timeout from connstring(CONN_TIMEOUT) takes precedence over the one set as attribute */
+  CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)1, 0));
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(2)};CONN_TIMEOUT=4");
+  FAIL_IF(Hstmt == NULL, "Timeout shouldn't have occurred");
+
+  CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "SELECT SLEEP(2)", SQL_NTS), SQL_ERROR);
+  CHECK_SQLSTATE_EX(Hstmt, SQL_HANDLE_STMT, "70100");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Verifying the same(i.e. query timeout works) for the case of prepare + execute */
+  CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT SLEEP(2)", SQL_NTS));
+  EXPECT_STMT(Hstmt, SQLExecute(Hstmt), SQL_ERROR);
+  CHECK_SQLSTATE_EX(Hstmt, SQL_HANDLE_STMT, "70100");
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1857,10 +1872,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_local_data_infile, "odbc347_local_data_infile", NORMAL },
 #ifdef _WIN32
   {t_odbc139,     "odbc139_compression",      NORMAL},
-  {t_odbc384,     "odbc384_namedpipe_plugin", NORMAL },
+  {t_odbc384,     "odbc384_namedpipe_plugin", NORMAL},
 #endif
-
-  
+  {t_odbc377,     "odbc377_timeout_attrs",    NORMAL},
   {NULL, NULL, 0}
 };
 

@@ -265,11 +265,20 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     }
     break;
   case SQL_ATTR_LOGIN_TIMEOUT:
-    Dbc->LoginTimeout= (SQLUINTEGER)(SQLULEN)ValuePtr;
+  {
+    long long value= (SQLUINTEGER)(SQLULEN)ValuePtr;
+    if (value > UINT_MAX) {
+      MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
+      value= UINT_MAX;
+    }
+    Dbc->LoginTimeout= (SQLUINTEGER)value;
     break;
+  }
   case SQL_ATTR_METADATA_ID:
     Dbc->MetadataId= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
+  case SQL_ATTR_CONNECTION_TIMEOUT:
+    return MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
   case SQL_ATTR_ODBC_CURSORS:
     {
 #pragma warning(disable:4995)
@@ -678,7 +687,7 @@ static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned
        Mind that this function is used for establishing connection from the setup lib
 */
 SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
-    MADB_Dsn *Dsn)
+  MADB_Dsn *Dsn)
 {
   char StmtStr[128];
   my_bool ReportDataTruncation= 1;
@@ -688,7 +697,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   int protocol = MYSQL_PROTOCOL_TCP;
   MADB_DynString InitCmd;
   const char* defaultSchema= NULL;
-  
+
   if (!Connection || !Dsn)
     return SQL_ERROR;
 
@@ -703,7 +712,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     }
   }
 
-  if( !MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
+  if (!MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
   {
     mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
@@ -732,7 +741,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       {
         cs_name= utf8mb3;
       }
-     cs_name= Dsn->CharacterSet;
+      cs_name= Dsn->CharacterSet;
     }
     else if (Connection->IsAnsi)
     {
@@ -811,14 +820,26 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     MADB_DynstrFree(&InitCmd);
   }
 
+  /* Connstring's option value takes precedence*/
   if (Dsn->ConnectionTimeout)
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Dsn->ConnectionTimeout);
+  }
+  else if (Connection->LoginTimeout > 0)
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Connection->LoginTimeout);
+  }
 
   if (Dsn->ReadTimeout)
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const char *)&Dsn->ReadTimeout);
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const void *)&Dsn->ReadTimeout);
+  }
+  //else if (Connection->)
 
   if (Dsn->WriteTimeout)
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const char *)&Dsn->WriteTimeout);
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const void *)&Dsn->WriteTimeout);
+  }
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
@@ -1056,7 +1077,10 @@ sessionTrackinErr:
 
 err:
   MADB_SetNativeError(&Connection->Error, SQL_HANDLE_DBC, Connection->mariadb);
-      
+  if ((Connection->LoginTimeout > 0 || Dsn->ConnectionTimeout > 0) && strcmp(Connection->Error.SqlState, "08S01") == 0)
+  {
+    strcpy_s(Connection->Error.SqlState, SQLSTATE_LENGTH + 1, "HYT00");
+  }
 end:
   if (Connection->Error.ReturnValue == SQL_ERROR && Connection->mariadb)
   {

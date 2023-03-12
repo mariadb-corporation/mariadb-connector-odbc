@@ -231,14 +231,15 @@ typedef struct
  	SQLLEN MaxRows;
 	SQLLEN MaxLength;
 	SQLLEN KeysetSize;
+  void* BookmarkPtr;
+  SQLLEN BookmarkLength;
+  SQLULEN	MetadataId;
+  SQLULEN SimulateCursor;
+  SQLULEN Timeout;
   SQLUINTEGER CursorType;
 	SQLUINTEGER	ScrollConcurrency;
   SQLUINTEGER RetrieveData;
 	SQLUINTEGER UseBookmarks;
-	void* BookmarkPtr;
-  SQLLEN BookmarkLength;
-  SQLULEN	MetadataId;
-  SQLULEN SimulateCursor;
   SQLSMALLINT BookmarkType;
 } MADB_StmtOptions;
 
@@ -401,14 +402,14 @@ struct st_ma_odbc_connection
   SQLUINTEGER AutoIpd;
   SQLUINTEGER AutoCommit;
   SQLUINTEGER ConnectionDead;
-  SQLUINTEGER ConnectionTimeout;
   SQLUINTEGER ReadTimeout;
   SQLUINTEGER WriteTimeout;
   SQLUINTEGER PacketSize;
   SQLINTEGER  AccessMode;
   SQLINTEGER  IsolationLevel;     /* tx_isolation */
   SQLUINTEGER Trace;
-  SQLUINTEGER LoginTimeout;
+  unsigned int LoginTimeout; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
+                                (not sure how does other DM define it) But C/C option is unsigned int */
   SQLUINTEGER MetadataId;
   SQLINTEGER  TxnIsolation;
   SQLINTEGER  CursorCount;

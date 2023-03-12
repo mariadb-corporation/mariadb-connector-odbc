@@ -654,6 +654,17 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
+{
+  /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
+  size_t NewSize= Query->Length + 38 + 20/* max SQLULEN*/ + 1;
+  char *NewStr= MADB_ALLOC(NewSize);
+
+  Query->Length= _snprintf(NewStr, NewSize, "SET STATEMENT max_statement_time=%llu FOR %s", Timeout, Query->Original);
+
+  MADB_RESET(Query->Original, NewStr);
+}
+
 /* {{{ MADB_StmtPrepare */
 SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect)
 {
@@ -773,6 +784,11 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     STMT_STRING(Stmt)= realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40);
     p= STMT_STRING(Stmt) + STMT_LENGTH(Stmt);
     STMT_LENGTH(Stmt)+= _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
+  }
+
+  if (Stmt->Options.Timeout > 0)
+  {
+    MADB_AddQueryTime(&Stmt->Query, Stmt->Options.Timeout);
   }
 
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
@@ -2559,7 +2575,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLULEN *)ValuePtr= SQL_NOSCAN_ON;
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
-    *(SQLULEN *)ValuePtr= 0;
+    *(SQLULEN *)ValuePtr= Stmt->Options.Timeout;
     break;
   case SQL_ATTR_RETRIEVE_DATA:
     *(SQLULEN *)ValuePtr= SQL_RD_ON;
@@ -2770,11 +2786,11 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
-    if ((SQLULEN)ValuePtr != 0)
+    if (Stmt->Connection->IsMySQL)
     {
-       MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (no timeout)", 0);
-       ret= SQL_SUCCESS_WITH_INFO;
+      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL servers, value changed to default (0)", 0);
     }
+    Stmt->Options.Timeout= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_RETRIEVE_DATA:
     if ((SQLULEN)ValuePtr != SQL_RD_ON)
