@@ -1241,6 +1241,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                      StringLengthPtr);
     break;
   case SQL_BOOKMARK_PERSISTENCE:
+    /* We probably can have SQL_BP_UPDATE. Not sure about SQL_BP_DELETE */
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_CATALOG_LOCATION:
@@ -1563,7 +1564,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_GETDATA_EXTENSIONS:
   {
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_GD_ANY_COLUMN | SQL_GD_ANY_ORDER |
-                                                SQL_GD_BLOCK | SQL_GD_BOUND, StringLengthPtr);
+                                                SQL_GD_BLOCK | SQL_GD_BOUND/* | SQL_GD_OUTPUT_PARAMS*/, StringLengthPtr);
     break;
   }
   case SQL_GROUP_BY:
@@ -1972,6 +1973,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                      StringLengthPtr);
     break;
   case SQL_STATIC_SENSITIVITY:
+    /* TODO: Can we also have SQL_SS_ADDITIONS */
     MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SS_DELETIONS | SQL_SS_UPDATES, StringLengthPtr);
     break;
   case SQL_LOCK_TYPES:

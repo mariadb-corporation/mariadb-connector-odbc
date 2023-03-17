@@ -332,8 +332,26 @@ SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt,
 	SQLSMALLINT * pcbDesc,
 	SQLLEN * pfDesc)
 {
-  /* TODO: use internal function, not api */
-  return SQLColAttributeW(hstmt, icol, MapColAttributeDescType(fDescType), rgbDesc, cbDescMax, pcbDesc, pfDesc);
+  MADB_Stmt *Stmt= (MADB_Stmt *)hstmt;
+  SQLRETURN ret;
+  if (!Stmt)
+    return SQL_INVALID_HANDLE;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+
+  MDBUG_C_ENTER(Stmt->Connection, "SQLColAttributeW");
+  MDBUG_C_DUMP(Stmt->Connection, hstmt, 0x);
+  MDBUG_C_DUMP(Stmt->Connection, icol, u);
+  MDBUG_C_DUMP(Stmt->Connection, fDescType, u);
+  MDBUG_C_DUMP(Stmt->Connection, rgbDesc, 0x);
+  MDBUG_C_DUMP(Stmt->Connection, cbDescMax, d);
+  MDBUG_C_DUMP(Stmt->Connection, pcbDesc, 0x);
+  MDBUG_C_DUMP(Stmt->Connection, pfDesc, 0x);
+
+  ret= Stmt->Methods->ColAttribute(Stmt, icol, MapColAttributeDescType(fDescType), rgbDesc,
+    cbDescMax, pcbDesc, pfDesc, TRUE);
+
+  MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
 
