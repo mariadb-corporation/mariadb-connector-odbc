@@ -761,7 +761,7 @@ ODBC_TEST(odbc143)
 
 /**
   Test of connect attributes that used to be treated as wrong data type.
-  SQL_ATTR_TXN_ISOLATION aslo had issue, but it is already cared of by other test
+  SQL_ATTR_TXN_ISOLATION also had issue, but it is already cared of by other test
 */
 ODBC_TEST(odbc317)
 {
@@ -775,13 +775,15 @@ ODBC_TEST(odbc317)
   /* We ourselves kinda return ODBC(TODO: need to check why), but all other DM's return DRIVER. iODBC 3.52.12 used to do that toTODO: need to check why. The test is anyway about using correct data type for the attribute */
   if (iOdbc() && DmMinVersion(3, 52, 13))
   {
+#pragma warning(disable:4995)
+#pragma warning(push)
     is_num(lenAttr, SQL_CUR_USE_ODBC);
+#pragma warning(pop)
   }
   else
   {
     is_num(lenAttr, SQL_CUR_USE_DRIVER);
   }
-
   return OK;
 }
 
@@ -830,6 +832,28 @@ ODBC_TEST(odbc326)
   return OK;
 }
 
+/* Some apps use 1212 attribute  */
+ODBC_TEST(odbc313)
+{
+  SQLLEN attr1212= 0;
+  SQLRETURN rc= SQL_SUCCESS;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc313");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc313 ( id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, a INT NOT NULL)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, a FROM t_odbc313");
+  rc= SQLColAttribute(Stmt, 1, 1212, NULL, 0, NULL, &attr1212);
+  FAIL_IF(rc != SQL_SUCCESS, "Only SQL_SUCCESS is expected");
+  is_num(attr1212, SQL_TRUE);
+  rc= SQLColAttribute(Stmt, 2, 1212, NULL, 0, NULL, &attr1212);
+  FAIL_IF(rc != SQL_SUCCESS, "Only SQL_SUCCESS is expected");
+  is_num(attr1212, SQL_FALSE);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc313");
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -855,6 +879,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc143, "odbc143_odbc160_ANSI_QUOTES", NORMAL },
   { odbc317, "odbc317_conattributes", NORMAL },
   { odbc326, "odbc326", NORMAL },
+  { odbc313, "odbc313", NORMAL },
   { NULL, NULL }
 };
 

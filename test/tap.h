@@ -45,6 +45,7 @@ char* strcasestr(const char* HayStack, const char* Needle)
 # include <string.h>
 # include <errno.h>
 # include <wchar.h>
+# include <unistd.h>
 # include "ma_conv_charset.h"
 
 /* Mimicking of VS' _snprintf */
@@ -645,10 +646,10 @@ do {\
 
 #define FAIL_IF(expr,message)\
   if (expr)\
-    {\
+  {\
     fprintf(stdout, "%s (File: %s Line: %d)\n", message, __FILE__, __LINE__);\
     return FAIL;\
-    }
+  }
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
 #define IS_STR_EX(A,B,C,D) do {const char *loc_a=(const char *)(A), *loc_b=(const char *)(B);\

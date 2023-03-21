@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <ma_odbc.h>
+#include <limits.h>
 
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";

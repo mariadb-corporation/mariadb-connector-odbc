@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2017 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -299,7 +299,7 @@ ODBC_TEST(t_disconnect)
   SQLHSTMT hstmt;
 
   rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
-    CHECK_ENV_RC(Env, rc);
+  CHECK_ENV_RC(Env, rc);
   rc= SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS, wpwd, SQL_NTS);
   CHECK_DBC_RC(hdbc1, rc);
 
@@ -918,7 +918,6 @@ ODBC_TEST(t_describe_nulti)
   my_options= 67108866;
 
   ODBC_Connect(&henv1, &hdbc1, &hstmt1);
-
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t1");
   OK_SIMPLE_STMT(hstmt1, "CREATE TABLE t1 (columnX VARCHAR(255))");
@@ -1642,6 +1641,7 @@ ODBC_TEST(t_odbc139)
   CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"test", 4));
   Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, &Compression, NULL, NULL);
 
+  FAIL_IF(Hstmt == NULL, "Connection with compression failed");
 
   Thread= CreateThread(NULL, 0, FireQueryInThread, Hstmt, 0, NULL);
   WaitRc= WaitForSingleObject(Thread, 1500);
@@ -1789,6 +1789,7 @@ ODBC_TEST(t_odbc377)
 {
   SQLHDBC  Hdbc;
   SQLHSTMT Hstmt;
+  SQLCHAR  Sqlstate[6];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
@@ -1811,13 +1812,21 @@ ODBC_TEST(t_odbc377)
 
   CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
   EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "SELECT SLEEP(2)", SQL_NTS), SQL_ERROR);
-  CHECK_SQLSTATE_EX(Hstmt, SQL_HANDLE_STMT, "70100");
+  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, NULL, 0, NULL));
+  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
+  {
+    FAIL_IF(1, "Unexpected SQL State");
+  }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Verifying the same(i.e. query timeout works) for the case of prepare + execute */
   CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT SLEEP(2)", SQL_NTS));
   EXPECT_STMT(Hstmt, SQLExecute(Hstmt), SQL_ERROR);
-  CHECK_SQLSTATE_EX(Hstmt, SQL_HANDLE_STMT, "70100");
+  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, NULL, 0, NULL));
+  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
+  {
+    FAIL_IF(1, "Unexpected SQL State");
+  }
 
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));

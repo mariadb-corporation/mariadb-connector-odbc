@@ -308,7 +308,7 @@ ODBC_TEST(t_setpos_del_all)
 
   CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR *)"venu", SQL_NTS));
 
-  CHECK_STMT_RC(Stmt, SQLSetStmtOption(Stmt, SQL_ROWSET_SIZE, 4));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)4, 0));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_del_all ORDER BY a ASC");
 
@@ -344,7 +344,7 @@ ODBC_TEST(t_setpos_del_all)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLSetStmtOption(Stmt, SQL_ROWSET_SIZE, 1));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_del_all");
 
@@ -719,11 +719,11 @@ ODBC_TEST(t_pos_datetime_delete1)
 
   SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
   SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
-  SQLSetStmtOption(Stmt,SQL_SIMULATE_CURSOR,SQL_SC_NON_UNIQUE);
+  SQLSetStmtAttr(Stmt, SQL_SIMULATE_CURSOR, (SQLPOINTER) SQL_SC_NON_UNIQUE, 0);
 
   SQLSetStmtAttr(hstmt1, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
   SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
-  SQLSetStmtOption(hstmt1,SQL_SIMULATE_CURSOR,SQL_SC_NON_UNIQUE);
+  SQLSetStmtAttr(hstmt1, SQL_SIMULATE_CURSOR, (SQLPOINTER) SQL_SC_NON_UNIQUE, 0);
 
   rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu_cur",8);
   CHECK_STMT_RC(Stmt,rc);
@@ -897,7 +897,7 @@ ODBC_TEST(t_acc_crash)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
-  CHECK_STMT_RC(Stmt, SQLSetStmtOption(Stmt, SQL_ROWSET_SIZE, 1));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_acc_crash ORDER BY a ASC");
 
@@ -2030,8 +2030,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,0,NULL,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetStmtOption(Stmt,SQL_QUERY_TIMEOUT,30);
-  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_QUERY_TIMEOUT, (SQLPOINTER)30, 0));
 
   strcpy((char *)fname , "updated");
   strcpy((char *)lname , "updated01234567890");
@@ -2754,7 +2753,7 @@ ODBC_TEST(t_bug32420)
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
-  CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_ROWSET_SIZE, 4));
+  CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)4, 0));
 
   OK_SIMPLE_STMT(hstmt1, "SELECT * FROM bug32420");
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_LONG, nData, 0, NULL));
@@ -2841,7 +2840,7 @@ ODBC_TEST(t_bug32420)
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
-  CHECK_STMT_RC(hstmt1, SQLSetStmtOption(hstmt1, SQL_ROWSET_SIZE, 4));
+  CHECK_STMT_RC(hstmt1, SQLSetStmtAttr(hstmt1, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)4, 0));
 
   OK_SIMPLE_STMT(hstmt1, "SELECT * FROM bug32420");
   CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_LONG, nData, 0, NULL));

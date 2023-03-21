@@ -1011,9 +1011,7 @@ ODBC_TEST(t_acc_update)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);
 
-
-    rc = SQLSetConnectOption(Connection,SQL_AUTOCOMMIT,0L);
-    CHECK_DBC_RC(Connection,rc);
+    CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0));
 
     rc = SQLAllocStmt(Connection,&hstmt1);
     CHECK_DBC_RC(Connection,rc);
@@ -1039,8 +1037,7 @@ ODBC_TEST(t_acc_update)
     rc = SQLTransact(NULL,Connection,0);
     CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLSetConnectOption(Connection,SQL_AUTOCOMMIT,1L);
-    CHECK_DBC_RC(Connection,rc);
+    CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_acc_update");
 
@@ -1059,11 +1056,14 @@ ODBC_TEST(t_bug29871)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug29871 (a INT)");
 
   /* The bug is related to calling deprecated SQLSetParam */
+#pragma warning(disable:4996)
+#pragma warning(push)
   CHECK_STMT_RC(Stmt, SQLSetParam(Stmt, 1, SQL_C_CHAR, SQL_INTEGER, 10, 0,
                              param, 0));
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug29871 VALUES (?)");
   CHECK_STMT_RC(Stmt, SQLSetParam(Stmt, 1, SQL_C_CHAR, SQL_INTEGER, 10, 0,
                              param, 0));
+#pragma warning(pop)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug29871 WHERE a=?");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 1);
