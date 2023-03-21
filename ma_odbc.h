@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,7 +19,7 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
-#include <ma_odbc_version.h>
+#include "ma_odbc_version.h"
 
 #ifdef _WIN32
 # include "ma_platform_win32.h"
@@ -71,29 +71,6 @@ typedef struct
 
 typedef struct
 {
-  SQLPOINTER TargetValuePtr;
-  SQLLEN BufferLength;
-  SQLLEN Utf8BufferLength;
-  SQLLEN *StrLen_or_Ind;
-  void *InternalBuffer; /* used for conversion */
-  SQLUINTEGER TargetType;
-} MADB_ColBind;
-
-typedef struct
-{
-  SQLSMALLINT InputOutputType;
-  SQLSMALLINT ValueType;
-  SQLSMALLINT ParameterType;
-  SQLULEN ColumnSize;
-  SQLSMALLINT DecimalDigits; 
-  SQLPOINTER ParameterValuePtr;
-  SQLLEN BufferLength;
-  SQLLEN *StrLen_or_IndPtr;
-  void *InternalBuffer; /* used for conversion */
-} MADB_ParmBind;
-
-typedef struct
-{
   /* Header */
   SQLUSMALLINT *ArrayStatusPtr;
   SQLULEN      *BindOffsetPtr;
@@ -108,34 +85,32 @@ typedef struct
 
 typedef struct
 {
-	SQLUSMALLINT *RowOperationPtr;
-	SQLULEN		   *RowOffsetPtr;
-  /*MADB_ColBind *ColumnBind;*/
-	MYSQL_BIND   *Bind;
-  SQLLEN      dummy;
-  SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
-	SQLSMALLINT	Allocated;
+  SQLUSMALLINT *RowOperationPtr;
+  SQLULEN      *RowOffsetPtr;
+  MYSQL_BIND   *Bind;
+  SQLLEN       dummy;
+  SQLUINTEGER  BindSize;	/* size of each structure if using * Row-wise Binding */
+  SQLSMALLINT  Allocated;
 } MADB_Ard;
 
 typedef struct
 {
-	SQLUSMALLINT  *ParamOperationPtr;
-	SQLULEN       *ParamOffsetPtr;
-	/*MADB_ParmBind *ParamBind;*/
-	MYSQL_BIND    *Bind;
-  SQLLEN      ParamsetSize;
-  SQLUINTEGER	ParamBindType;
-	SQLSMALLINT	Allocated;
+  SQLUSMALLINT *ParamOperationPtr;
+  SQLULEN      *ParamOffsetPtr;
+  MYSQL_BIND   *Bind;
+  SQLLEN       ParamsetSize;
+  SQLUINTEGER  ParamBindType;
+  SQLSMALLINT  Allocated;
 } MADB_Apd;
 
 typedef struct
 {
   MADB_Stmt* stmt;
-	SQLULEN* RowsFetched;
-	SQLUSMALLINT* RowStatusArray;
+  SQLULEN* RowsFetched;
+  SQLUSMALLINT* RowStatusArray;
   MYSQL_FIELD* Fields;
-	SQLUINTEGER FieldCount;
-	SQLSMALLINT	Allocated;
+  SQLUINTEGER FieldCount;
+  SQLSMALLINT	Allocated;
 } MADB_Ird;
 
 typedef struct
@@ -147,7 +122,6 @@ typedef struct
 	SQLULEN *ParamProcessedPtr; /* SQLParamOptions */
 #endif /* ODBCVER */
 	SQLUSMALLINT *ParamStatusPtr;
-  /*MADB_ParmBind* Parameters;*/
 	SQLSMALLINT Allocated;
 } MADB_Ipd;
 
@@ -464,7 +438,7 @@ void  CloseClientCharset(Client_Charset *cc);
 #include <ma_debug.h>
 #include <ma_desc.h>
 #include <ma_statement.h>
-#include <ma_string.h>
+#include "ma_string.h"
 #include <ma_result.h>
 #include <ma_driver.h>
 #include <ma_helper.h>

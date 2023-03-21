@@ -110,7 +110,7 @@ ODBC_TEST(t_tran)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_tran");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_tran (a INT, b VARCHAR(30)) ENGINE=InnoDB");
 
-  CHECK_DBC_RC(Connection, SQLSetConnectOption(Connection, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0));
 
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_tran VALUES (10, 'venu')");
   CHECK_STMT_RC(Stmt, SQLTransact(NULL, Connection, SQL_COMMIT));
@@ -127,7 +127,7 @@ ODBC_TEST(t_tran)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_DBC_RC(Connection, SQLSetConnectOption(Connection, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_tran");
 
