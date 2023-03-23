@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -320,6 +320,12 @@ enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Toke
   {
     return MADB_NOT_ATOMIC_BLOCK;
   }
+  if (_strnicmp(Token1, "OPTIMIZE", 8) == 0
+    /*&& (_strnicmp(Token2, "LOCAL", 5) || _strnicmp(Token2, "NO_WRITE_TO_BINLOG ", 5) || _strnicmp(Token2, "TABLE", 5)) == 0*/)
+  {
+    return MADB_QUERY_OPTIMIZE;
+  }
+
   return MADB_QUERY_NO_RESULT;
 }
 

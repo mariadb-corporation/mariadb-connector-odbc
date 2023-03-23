@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2022 MariaDB Corporation AB
+   Copyright (C) 2013, 2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -93,36 +93,36 @@ int  MADB_GetWCharType(int Type)
    TODO: if there are >1 of unique keys, this will go wrong */
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount)
 {
-  int         Count = -1;
+  int         Count= -1;
   int         i;
   char        StmtStr[512];
-  char* p = StmtStr;
-  char        Database[65] = { '\0' };
-  MYSQL_RES* Res;
-  MYSQL_FIELD* Field;
-
+  char        *p= StmtStr;
+  char        Database[68]= {'\0'};
+  MYSQL_RES   *Res;
+  MYSQL_FIELD *Field;
+  
   Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
-  p += _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
+  p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
   {
-    p += _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
   }
-  p += _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
+  p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
   LOCK_MARIADB(Connection);
   if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (unsigned long)(p - StmtStr), &Connection->Error)) &&
-    (Res = mysql_store_result(Connection->mariadb)) != NULL)
+     (Res= mysql_store_result(Connection->mariadb)) != NULL)
   {
-    Count = mysql_field_count(Connection->mariadb);
-    for (i = 0; i < Count; ++i)
+    Count= mysql_field_count(Connection->mariadb);
+    for (i= 0; i < Count; ++i)
     {
-      Field = mysql_fetch_field_direct(Res, i);
+      Field= mysql_fetch_field_direct(Res, i);
       if (Field->flags & PRI_KEY_FLAG)
       {
-        ++* PrimaryKeysCount;
+        ++*PrimaryKeysCount;
       }
       if (Field->flags & UNIQUE_KEY_FLAG)
       {
-        ++* UniqueKeysCount;
+        ++*UniqueKeysCount;
       }
     }
     mysql_free_result(Res);
@@ -263,6 +263,7 @@ const char *MADB_GetTypeName(const MYSQL_FIELD *Field)
 }
 /* }}} */
 
+
 MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *fields)
 {
   MADB_DynString DynStr;
@@ -297,7 +298,7 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *field
   LOCK_MARIADB(Stmt->Connection);
   if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, DynStr.str, (SQLINTEGER)DynStr.length, &Stmt->Error)))
   {
-    result = mysql_store_result(Stmt->Connection->mariadb);
+    result= mysql_store_result(Stmt->Connection->mariadb);
   }
 
   UNLOCK_MARIADB(Stmt->Connection);
@@ -306,6 +307,7 @@ error:
   MADB_DynstrFree(&DynStr);
   return result;
 }
+
 
 char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
 {
@@ -321,6 +323,7 @@ char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
   }
   return NULL;
 }
+
 
 SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BOOL Unsigned,
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen)
@@ -517,7 +520,7 @@ int MADB_GetDefaultType(int SQLDataType)
   case SQL_DOUBLE:
     return SQL_C_DOUBLE; 
   case SQL_FLOAT:
-    return SQL_C_FLOAT;
+    return SQL_C_DOUBLE;
   case SQL_INTEGER:
     return SQL_C_LONG;
   case SQL_LONGVARBINARY:
@@ -632,7 +635,7 @@ size_t MADB_GetTypeLength(SQLINTEGER SqlDataType, size_t Length)
   case SQL_C_DOUBLE:
     return sizeof(SQLDOUBLE);
   case SQL_C_FLOAT:
-    return sizeof(SQLFLOAT);
+    return sizeof(SQLREAL);
   case SQL_C_NUMERIC:
     return sizeof(SQL_NUMERIC_STRUCT);
   case SQL_C_TYPE_TIME:
@@ -688,7 +691,7 @@ enum enum_field_types MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool 
     *Length= sizeof(SQLDOUBLE);
     return MYSQL_TYPE_DOUBLE;
   case SQL_C_FLOAT:
-    *Length =sizeof(SQLFLOAT);
+    *Length= sizeof(SQLREAL);
     return MYSQL_TYPE_FLOAT;
   case SQL_C_NUMERIC:
     /**Length= sizeof(SQL_NUMERIC_STRUCT);*/

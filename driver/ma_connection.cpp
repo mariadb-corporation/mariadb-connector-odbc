@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2021 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,8 +16,10 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
+
 #include <ma_odbc.h>
 #include "interface/ResultSet.h"
+#include <limits.h>
 
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";
@@ -317,14 +319,23 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     }
     break;
   case SQL_ATTR_LOGIN_TIMEOUT:
-    Dbc->LoginTimeout= (SQLUINTEGER)(SQLULEN)ValuePtr;
+  {
+    long long value= (SQLUINTEGER)(SQLULEN)ValuePtr;
+    if (value > UINT_MAX) {
+      MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
+      value= UINT_MAX;
+    }
+    Dbc->LoginTimeout= (SQLUINTEGER)value;
     break;
+  }
   case SQL_ATTR_METADATA_ID:
     Dbc->MetadataId= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
+  case SQL_ATTR_CONNECTION_TIMEOUT:
+    return MADB_SetError(&Dbc->Error, MADB_ERR_01S02, NULL, 0);
   case SQL_ATTR_ODBC_CURSORS:
     {
-#pragma warning(disable: 4995)
+#pragma warning(disable:4995)
 #pragma warning(push)
       SQLULEN ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
       MADB_CHECK_ATTRIBUTE(Dbc, ValuePtr, ValidAttrs);
@@ -693,7 +704,7 @@ static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned
        Mind that this function is used for establishing connection from the setup lib
 */
 SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
-    MADB_Dsn *Dsn)
+  MADB_Dsn *Dsn)
 {
   char StmtStr[128];
   my_bool ReportDataTruncation= 1;
@@ -703,7 +714,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   int protocol = MYSQL_PROTOCOL_TCP;
   MADB_DynString InitCmd;
   const char* defaultSchema= NULL;
-  
+
   if (!Connection || !Dsn)
     return SQL_ERROR;
 
@@ -718,7 +729,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     }
   }
 
-  if( !MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
+  if (!MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
   {
     mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
@@ -747,7 +758,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       {
         cs_name= utf8mb3;
       }
-     cs_name= Dsn->CharacterSet;
+      cs_name= Dsn->CharacterSet;
     }
     else if (Connection->IsAnsi)
     {
@@ -823,16 +834,29 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
   {
     mysql_optionsv(Connection->mariadb, MYSQL_INIT_COMMAND, InitCmd.str);
+    MADB_DynstrFree(&InitCmd);
   }
 
+  /* Connstring's option value takes precedence*/
   if (Dsn->ConnectionTimeout)
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&Dsn->ConnectionTimeout);
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Dsn->ConnectionTimeout);
+  }
+  else if (Connection->LoginTimeout > 0)
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Connection->LoginTimeout);
+  }
 
   if (Dsn->ReadTimeout)
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const char *)&Dsn->ReadTimeout);
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const void *)&Dsn->ReadTimeout);
+  }
+  //else if (Connection->)
 
   if (Dsn->WriteTimeout)
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const char *)&Dsn->WriteTimeout);
+  {
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const void *)&Dsn->WriteTimeout);
+  }
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
@@ -855,18 +879,23 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* enable truncation reporting */
   mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
 
-  if (Dsn->Socket)
+  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
   {
-    protocol= MYSQL_PROTOCOL_SOCKET;
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, NULL);
+    protocol= MYSQL_PROTOCOL_PIPE;
   }
-  else if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
+  else if (Dsn->Socket)
   {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, (void*)Dsn->ServerName);
-    protocol = MYSQL_PROTOCOL_PIPE;
+#ifdef _WIN32
+    /* Technically this could break existing application, that has SOCKET in connstring on Windows, and it resulted in TCP connection */
+    /*protocol= MYSQL_PROTOCOL_PIPE;*/
+#else
+    protocol= MYSQL_PROTOCOL_SOCKET;
+#endif
   }
   else if (Dsn->Port > 0 || Dsn->IsTcpIp)
   {
-    protocol = MYSQL_PROTOCOL_TCP;
+    protocol= MYSQL_PROTOCOL_TCP;
     if (Dsn->Port == 0)
     {
       Dsn->Port= 3306;
@@ -1065,7 +1094,10 @@ sessionTrackinErr:
 
 err:
   MADB_SetNativeError(&Connection->Error, SQL_HANDLE_DBC, Connection->mariadb);
-      
+  if ((Connection->LoginTimeout > 0 || Dsn->ConnectionTimeout > 0) && strcmp(Connection->Error.SqlState, "08S01") == 0)
+  {
+    strcpy_s(Connection->Error.SqlState, SQLSTATE_LENGTH + 1, "HYT00");
+  }
 end:
   if (Connection->Error.ReturnValue == SQL_ERROR && Connection->mariadb)
   {
@@ -1226,6 +1258,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                      StringLengthPtr);
     break;
   case SQL_BOOKMARK_PERSISTENCE:
+    /* We probably can have SQL_BP_UPDATE. Not sure about SQL_BP_DELETE */
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_CATALOG_LOCATION:
@@ -1548,7 +1581,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_GETDATA_EXTENSIONS:
   {
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_GD_ANY_COLUMN | SQL_GD_ANY_ORDER |
-                                                SQL_GD_BLOCK | SQL_GD_BOUND, StringLengthPtr);
+                                                SQL_GD_BLOCK | SQL_GD_BOUND/* | SQL_GD_OUTPUT_PARAMS*/, StringLengthPtr);
     break;
   }
   case SQL_GROUP_BY:
@@ -1957,6 +1990,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
                      StringLengthPtr);
     break;
   case SQL_STATIC_SENSITIVITY:
+    /* TODO: Can we also have SQL_SS_ADDITIONS */
     MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SS_DELETIONS | SQL_SS_UPDATES, StringLengthPtr);
     break;
   case SQL_LOCK_TYPES:

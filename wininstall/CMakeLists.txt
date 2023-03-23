@@ -131,7 +131,7 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
   IF(ALL_PLUGINS_STATIC)
     ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs)
   ELSE()
-    ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password)
+    ADD_DEPENDENCIES(ODBC_WIX maodbc maodbcs dialog caching_sha2_password sha256_password mysql_clear_password)
   ENDIF()
 ENDIF()
 

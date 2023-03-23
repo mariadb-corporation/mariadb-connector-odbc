@@ -115,7 +115,7 @@ void ma_print_value(SQLSMALLINT OdbcType, SQLPOINTER Value, SQLLEN octets)
       ma_debug_print(1, "%f", 0.0 + *((SQLDOUBLE*)Value));
       break;
     case SQL_C_FLOAT:
-      ma_debug_print(1, "%f", 0.0 + *((SQLFLOAT*)Value));
+      ma_debug_print(1, "%f", 0.0 + *((SQLREAL*)Value));
       break;
     case SQL_C_NUMERIC:
       ma_debug_print(1, "%s", "[numeric struct]");

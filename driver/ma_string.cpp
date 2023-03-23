@@ -259,9 +259,13 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     {
       const MYSQL_FIELD* field = FetchMetadata(Stmt)->getField(i);
       if (field->flags & PRI_KEY_FLAG)
-        PrimaryCount++;
+      {
+        ++PrimaryCount;
+      }
       if (field->flags & UNIQUE_KEY_FLAG)
-        UniqueCount++;
+      {
+        ++UniqueCount;
+      }
     }
 
     TotalTableFieldCount = MADB_KeyTypeCount(Stmt->Connection, TableName, &TotalPrimaryCount, &TotalUniqueCount);
@@ -274,11 +278,11 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     /* We need to use all columns, otherwise it will be difficult to map fields for Positioned Update */
     if (PrimaryCount != TotalPrimaryCount)
     {
-      PrimaryCount = 0;
+      PrimaryCount= 0;
     }
     if (UniqueCount != TotalUniqueCount)
     {
-      UniqueCount = 0;
+      UniqueCount= 0;
     }
 
     /* if no primary or unique key is in the cursor, the cursor must contain all
@@ -286,13 +290,13 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
        /* We use unique index if we do not have primary. TODO: If there are more than one unique index - we are in trouble */
     if (PrimaryCount != 0)
     {
-      Flag = PRI_KEY_FLAG;
+      Flag= PRI_KEY_FLAG;
       /* Changing meaning of TotalUniqueCount from field count in unique index to field count in *best* unique index(that can be primary as well) */
       TotalUniqueCount= PrimaryCount;
     }
     else if (UniqueCount != 0)
     {
-      Flag = UNIQUE_KEY_FLAG;
+      Flag= UNIQUE_KEY_FLAG;
       /* TotalUniqueCount is equal UniqueCount */
     }
     else if (TotalTableFieldCount != MADB_STMT_COLUMN_COUNT(Stmt))

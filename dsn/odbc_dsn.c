@@ -73,6 +73,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[5],  1, rbPipe,               0, 0},
   {&DsnKeys[6],  1, rbTCP,                0, 0},
   {&DsnKeys[7],  1, txtServerName,      128, 0},
+  {&DsnKeys[29], 1, txtSocket,          128, 0},
   {&DsnKeys[8],  1, txtUserName,         64, 0},
   {&DsnKeys[9],  1, txtPassword,         64, 0},
   {&DsnKeys[10], 1, cbDatabase,           0, 0},
@@ -199,6 +200,8 @@ my_bool SetDialogFields()
     if (Val && OptionsMap[i].Item == rbPipe)
     {
       SendMessage(GetDlgItem(hwndTab[OptionsMap[i].Page], lblServerName), WM_SETTEXT, 0, (LPARAM)"Named pipe:");
+      ShowWindow(GetDlgItem(hwndTab[OptionsMap[i].Page], txtServerName), SW_HIDE);
+      ShowWindow(GetDlgItem(hwndTab[OptionsMap[i].Page], txtSocket), SW_SHOW);
 		  ShowWindow(GetDlgItem(hwndTab[OptionsMap[i].Page], lblPort), SW_HIDE);
       ShowWindow(GetDlgItem(hwndTab[OptionsMap[i].Page], txtPort), SW_HIDE);
     }
@@ -776,9 +779,12 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			    (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
 		    ShowWindow(GetDlgItem(hwndTab[CurrentPage], txtPort),
 			    (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwndTab[CurrentPage], txtServerName),
+          (LOWORD(wParam) == rbTCP) ? SW_SHOW : SW_HIDE);
+        ShowWindow(GetDlgItem(hwndTab[CurrentPage], txtSocket),
+          (LOWORD(wParam) == rbTCP) ? SW_HIDE : SW_SHOW);
 		  }
 		  return TRUE;
-
       }
     break;
 	}

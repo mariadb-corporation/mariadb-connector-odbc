@@ -677,15 +677,17 @@ ODBC_TEST(t_odbc94)
   SQLHANDLE   henv1;
   SQLHANDLE   Connection1;
   SQLHANDLE   Stmt1;
-  SQLCHAR     conn[512];
+  SQLCHAR     conn[512], *Query= (SQLCHAR*)"GRANT ALL PRIVILEGES on odbc94 to public";
   SQLCHAR     message[SQL_MAX_MESSAGE_LENGTH + 1];
   SQLCHAR     sqlstate[SQL_SQLSTATE_SIZE + 1];
   SQLINTEGER  error;
   SQLSMALLINT len;
 
-  if (ServerNotOlderThan(Connection, 5, 7, 0) == FALSE)
+  /* Looking at the patch, I'd say any error would be good for the testcase, but leaving original query used in the testcase by default */
+  if (ServerNotOlderThan(Connection, 5, 7, 0) == FALSE || ServerNotOlderThan(Connection, 10, 11, 2))
   {
-    skip("The test doesn't make sense in pre-10.0 servers, as the target query won't cause in 5.5(or pre-MySQL-5.7 the error it tests");
+    /*skip("The test doesn't make sense in pre-10.0 servers, as the target query won't cause in 5.5(or pre-MySQL-5.7 the error it tests");*/
+    Query= (SQLCHAR*)"INSERT INTO non_existent_odbc94 values(1)";
   }
   sprintf((char *)conn, "DRIVER=%s;SERVER=%s;UID=%s;PASSWORD=%s;DATABASE=%s;%s;%s",
     my_drivername, my_servername, my_uid, my_pwd, my_schema, ma_strport, add_connstr);
@@ -698,8 +700,7 @@ ODBC_TEST(t_odbc94)
     NULL, SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(Connection1, SQLAllocHandle(SQL_HANDLE_STMT, Connection1, &Stmt1));
 
-  EXPECT_STMT(Stmt1, SQLExecDirect(Stmt1, (SQLCHAR*)"GRANT ALL PRIVILEGES on odbc94 to public", SQL_NTS), SQL_ERROR);
-
+  EXPECT_STMT(Stmt1, SQLExecDirect(Stmt1, Query, SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLGetDiagRec(SQL_HANDLE_STMT, Stmt1, 1, sqlstate, &error,
     message, sizeof(message), &len));
 

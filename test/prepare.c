@@ -1011,9 +1011,7 @@ ODBC_TEST(t_acc_update)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
     mystmt(Stmt,rc);
 
-
-    rc = SQLSetConnectOption(Connection,SQL_AUTOCOMMIT,0L);
-    CHECK_DBC_RC(Connection,rc);
+    CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0));
 
     rc = SQLAllocStmt(Connection,&hstmt1);
     CHECK_DBC_RC(Connection,rc);
@@ -1039,8 +1037,7 @@ ODBC_TEST(t_acc_update)
     rc = SQLTransact(NULL,Connection,0);
     CHECK_DBC_RC(Connection,rc);
 
-    rc = SQLSetConnectOption(Connection,SQL_AUTOCOMMIT,1L);
-    CHECK_DBC_RC(Connection,rc);
+    CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_acc_update");
 
@@ -1059,11 +1056,14 @@ ODBC_TEST(t_bug29871)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug29871 (a INT)");
 
   /* The bug is related to calling deprecated SQLSetParam */
+#pragma warning(disable:4996)
+#pragma warning(push)
   CHECK_STMT_RC(Stmt, SQLSetParam(Stmt, 1, SQL_C_CHAR, SQL_INTEGER, 10, 0,
                              param, 0));
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug29871 VALUES (?)");
   CHECK_STMT_RC(Stmt, SQLSetParam(Stmt, 1, SQL_C_CHAR, SQL_INTEGER, 10, 0,
                              param, 0));
+#pragma warning(pop)
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_bug29871 WHERE a=?");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 1);
@@ -1222,9 +1222,9 @@ ODBC_TEST(t_odbc141)
     skip("Test user doesn't have enough privileges to run this test");
   }
   FAIL_IF(NativeError!=29 && NativeError != 13, "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc141");
   return OK;
 }
 
@@ -1287,6 +1287,51 @@ ODBC_TEST(t_mdev16708)
 }
 
 
+ODBC_TEST(t_odbc378)
+{
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc378");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc378(id int not null)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc378 VALUES(1)");
+
+  OK_SIMPLE_STMT(Stmt, "OPTIMIZE TABLE t_odbc378");
+  IS(my_print_non_format_result_ex(Stmt, FALSE) == 2);
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Making sure protocol is not broken */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "OPTIMIZE LOCAL TABLE t_odbc378", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Making sure protocol is not broken */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "OPTIMIZE NO_WRITE_TO_BINLOG  TABLE t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Making sure protocol is not broken */
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc378");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc378");
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_prep_basic, "t_prep_basic"},
@@ -1309,6 +1354,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc141, "odbc-141-load_data_infile"},
   {t_odbc269, "odbc-269-begin_not_atomic"},
   {t_mdev16708, "t_mdev16708-new_supported_statements"},
+  {t_odbc378, "t_odbc378-optimize_table"},
   {NULL, NULL}
 };
 

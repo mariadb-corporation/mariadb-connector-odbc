@@ -31,13 +31,13 @@
 #define rbPipe                          1020
 #define IDC_CHECK4                      1021
 #define txtServerName                   1022
+#define txtSocket                       1031
 #define IDC_CHECK5                      1023
 #define lblServerName                   1024
 #define txtPort                         1026
 #define lblPort                         1028
 #define IDC_CHECK8                      1029
 #define IDC_CHECK9                      1030
-#define txtServer                       1031
 #define txtUserName                     1032
 #define IDC_EDIT4                       1033
 #define txtPassword                     1034

@@ -88,7 +88,7 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
           switch (CRec->ConciseType)
           {
           case DATETIME_TYPES:
-            if (CanUseStructArrForDatetime(Stmt) == FALSE)
+            if (CanUseStructArrForDatetime(Stmt) == TRUE)
             {
               MADB_FREE(MaBind->buffer);
               break;

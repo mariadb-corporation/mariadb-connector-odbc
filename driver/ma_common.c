@@ -38,8 +38,10 @@ const char* ltrim(const char *Str)
 {
   if (Str)
   {
-    while (*Str && (*Str > 0 && isspace(*Str)))
+    while (*Str > 0 && isspace(*Str))
+    {
       ++Str;
+    }
   }
   return Str;
 }

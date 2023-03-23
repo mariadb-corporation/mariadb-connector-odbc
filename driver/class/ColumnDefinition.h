@@ -71,6 +71,8 @@ class ColumnDefinition
   uint32_t length= 0;
   //SQLString db;
 
+  void refreshPointers();
+
 public:
   static ColumnDefinition ColumnDefinition::create(const SQLString& name, const MYSQL_FIELD* _type);
 

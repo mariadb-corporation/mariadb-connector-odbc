@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -214,14 +214,15 @@ typedef struct
  	SQLLEN MaxRows;
 	SQLLEN MaxLength;
 	SQLLEN KeysetSize;
+  void* BookmarkPtr;
+  SQLLEN BookmarkLength;
+  SQLULEN	MetadataId;
+  SQLULEN SimulateCursor;
+  SQLULEN Timeout;
   SQLUINTEGER CursorType;
 	SQLUINTEGER	ScrollConcurrency;
   SQLUINTEGER RetrieveData;
 	SQLUINTEGER UseBookmarks;
-	void* BookmarkPtr;
-  SQLLEN BookmarkLength;
-  SQLULEN	MetadataId;
-  SQLULEN SimulateCursor;
   SQLSMALLINT BookmarkType;
 } MADB_StmtOptions;
 
@@ -313,17 +314,17 @@ struct MADB_Dbc
   SQLUINTEGER AutoIpd= 0;
   SQLUINTEGER AutoCommit= 4;
   SQLUINTEGER ConnectionDead= 0;
-  SQLUINTEGER ConnectionTimeout= 0;
   SQLUINTEGER ReadTimeout= 0;
   SQLUINTEGER WriteTimeout= 0;
   SQLUINTEGER PacketSize= 0;
   SQLINTEGER  AccessMode= 0;
   SQLINTEGER  IsolationLevel= 0;     /* tx_isolation */
   SQLUINTEGER Trace= 0;
-  SQLUINTEGER LoginTimeout= 0;
   SQLUINTEGER MetadataId= 0;
   SQLINTEGER  TxnIsolation= 0;
   SQLINTEGER  CursorCount= 0;
+  unsigned int LoginTimeout= 0; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
+                                (not sure how does other DM define it) But C/C option is unsigned int */
   char    ServerCapabilities= '\0';
   bool IsAnsi= false;
   bool IsMySQL=false;

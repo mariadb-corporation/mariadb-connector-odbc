@@ -187,6 +187,22 @@ namespace mariadb
     return result;
   }
 
+  /* Refreshing pointers in FIELD structure to local names */
+  void ColumnDefinition::refreshPointers()
+  {
+    metadata->name= const_cast<char*>(name.data());
+    metadata->name_length= static_cast<unsigned int>(name.length());
+    metadata->org_name= const_cast<char*>(org_name.data());//metadata->name;
+    metadata->org_name_length= static_cast<unsigned int>(org_name.length());
+    metadata->table= const_cast<char*>(table.data());
+    metadata->table_length= static_cast<unsigned int>(table.length());
+    metadata->org_table= const_cast<char*>(org_table.data());
+    metadata->org_table_length= static_cast<unsigned int>(org_table.length());
+    metadata->db= const_cast<char*>(db.data());
+    metadata->db_length= static_cast<unsigned int>(db.length());
+  }
+
+
   ColumnDefinition::~ColumnDefinition()
   {
     if (owned) {
@@ -210,8 +226,7 @@ namespace mariadb
     owned(other.owned)
   {
     if (owned) {
-      (const_cast<MYSQL_FIELD*>(metadata))->name= const_cast<char*>(name.c_str());
-      (const_cast<MYSQL_FIELD*>(metadata))->org_name= metadata->name;
+      refreshPointers();
     }
   }
 
@@ -236,11 +251,7 @@ namespace mariadb
   {
     if (owned) {
       //std::memcpy(metadata, field, sizeof(MYSQL_FIELD));
-      metadata->name=     const_cast<char*>(name.c_str());
-      metadata->org_name= const_cast<char*>(org_name.c_str());
-      metadata->table=    const_cast<char*>(table.c_str());
-      metadata->org_table=const_cast<char*>(org_table.c_str());
-      metadata->db=       const_cast<char*>(db.c_str());
+      refreshPointers();
     }
   }
 
@@ -256,11 +267,7 @@ namespace mariadb
     if (other.owned) {
       metadata= new MYSQL_FIELD(*other.metadata);
 
-      metadata->name= const_cast<char*>(name.c_str());
-      metadata->org_name= const_cast<char*>(org_name.c_str());
-      metadata->table= const_cast<char*>(table.c_str());
-      metadata->org_table= const_cast<char*>(org_table.c_str());
-      metadata->db= const_cast<char*>(db.c_str());
+      refreshPointers();
     }
     else {
       metadata= other.metadata;

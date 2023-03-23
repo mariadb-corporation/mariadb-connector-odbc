@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -25,7 +25,6 @@
 
 #define MADB_MIN_QUERY_LEN 5
 
-/* {{{ MADB_ExecuteQuery */
 /* {{{ MADB_RealQuery - the caller is responsible for locking, as the caller may need to do some operations
        before it's ok to unlock. e.g. read results */
 SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error* Error)
@@ -66,6 +65,11 @@ SQLRETURN MADB_ExecuteQuery(MADB_Stmt* Stmt, char* StatementText, SQLINTEGER Tex
   if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, StatementText, TextLength, &Stmt->Error)))
   {
     Stmt->AffectedRows = mysql_affected_rows(Stmt->Connection->mariadb);
+    /*if (MADB_GOT_STREAMER(Dbc) && Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, Error))
+    {
+      return Error->ReturnValue;
+    }
+    Dbc->Methods->TrackSession(Dbc);*/
   }
   UNLOCK_MARIADB(Stmt->Connection);
   return Stmt->Error.ReturnValue;
@@ -427,6 +431,16 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
+{
+  /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
+  size_t NewSize= Query->Original.length() + 38 + 20/* max SQLULEN*/ + 1;
+  SQLString query(Query->Original);
+  Query->Original.reserve(NewSize);
+  Query->Original.assign("SET STATEMENT max_statement_time=", sizeof("SET STATEMENT max_statement_time=") - 1);
+  Query->Original.append(std::to_string(Timeout)).append(" FOR ").append(query);
+}
+
 /* {{{ MADB_StmtPrepare */
 SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool ServerSide)
 {
@@ -541,6 +555,11 @@ SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool Se
        Thus we need to check query type and last tokens, and possibly put limit before them */
     STMT_STRING(this).reserve(STMT_STRING(this).length() + 32);
     STMT_STRING(this).append(" LIMIT ").append(std::to_string(Options.MaxRows));
+  }
+
+  if (Options.Timeout > 0)
+  {
+    MADB_AddQueryTime(&Query, Options.Timeout);
   }
 
   if (ServerSide)
@@ -895,7 +914,7 @@ static void ResetInternalLength(MADB_Stmt *Stmt, unsigned int ParamOffset)
 }
 /* }}} */
 
-/* {{{ MADB_DoExecute */
+/* {{{ MADB_DoExecuteBatch */
 /* Actually executing on the server, doing required actions with C API, and processing execution result */
 SQLRETURN MADB_Stmt::DoExecuteBatch()
 {
@@ -2032,24 +2051,27 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   /* In case or streaming we need to guard fetch as well. It's actually can be that keeping mutex locked all the time the RS being fetched */
   /* But we don't want to lock here each time, even when streaming is not an option.
      What basically can happen if  we read current streamer not under the lock
-     1) We read NULL or other Stmt, and do not lock. Even if this Stmt was a streamer, and other thread has changed that - means it has insitiated caching of
+     1) We read NULL or other Stmt, and do not lock. Even if this Stmt was a streamer, and other thread has changed that - means it has initiated caching of
         this Stmt data, and lock is not needed
      2) We read this Stmt is a streamer, while it's been changed by other thread - basically this is like 1), but due to race condition, it's not finished, and
         this thread thinks this Stmt is still the streamer. It tries to lock, and maybe will have to wait till its release. By the time of obtaining the lock,
-        cahing is finished, and we are safe to read our row(s). One unnecessary locking
+        caching is finished, and we are safe to read our row(s). One unnecessary locking
      3) We read, we are not the streamer, and do not lock, and other thread changes that - up to releasing the handle. Uh... oh... so, threads share Stmt, other
-        thread finishe reading, issue another query, that makes this a streamer, or this fetch was started even before other stream finished execution of the
+        thread finishes reading, issue another query, that makes this a streamer, or this fetch was started even before other stream finished execution of the
         query. Hmm... Well, does not look possible/probable. If happens - syncing is on application. And third - don't share statement handle between threads :)
      Looks like reading Streamer before locking is safe. While we can have MADB_STMT_SHOULD_STREAM true after the result has been cached, and no lock is needed.
+     4) TODO: Do we really need to LOCK if this Stmt is a streamer? Ok,it can save the day, if that is the last fetch for the RS, otherwise if other Stmt wants
+     the lock, it will break the protocol after this row fetched and lock released. Letting along the fact, that it shouldn't even supposed to get to the point
+     of lock requesting. Once we have caching of the rest of the streamed RS in place, maybe this syncing will be needed.
    */
     
-  if (MADB_STMT_IS_STREAMING(Stmt))
+  /*if (MADB_STMT_IS_STREAMING(Stmt))
   {
-    LOCK_MARIADB(Stmt->Connection);
+    LOCK_MARIADB(Stmt->Connection);*/
     /* We need this local flag while MADB_STMT_IS_STREAMING(Stmt) value may change due to item 2 from above, or even this function can change it, if fetch
        returns no */
-    Streaming= true;
-  }
+    /*Streaming= TRUE;
+  }*/
 
   for (j= 0; j < Rows2Fetch; ++j)
   {
@@ -2093,7 +2115,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       {
         Stmt->Cursor.Position= 1;
       }
-
       if (!Stmt->rs->next()) {
         
         /* We have already incremented this counter, since there was no more rows, need to decrement */
@@ -2111,10 +2132,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
         {
           continue;
         }
-        if (Streaming != FALSE)
+        /*if (Streaming != FALSE)
         {
           UNLOCK_MARIADB(Stmt->Connection);
-        }
+        }*/
         return SQL_NO_DATA;
       }
       if (Stmt->rs->get())
@@ -2133,10 +2154,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
           Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
         }
         CALC_ALL_ROWS_RC(Result, RowResult, RowNum);
-        if (Streaming != FALSE)
+        /*if (Streaming != FALSE)
         {
           UNLOCK_MARIADB(Stmt->Connection);
-        }
+        }*/
         return Result;
 
       case MYSQL_DATA_TRUNCATED:
@@ -2176,10 +2197,10 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
     }
   }
-  if (Streaming)
+  /*if (Streaming != FALSE)
   {
     UNLOCK_MARIADB(Stmt->Connection);
-  }
+  }*/
   memset(Stmt->CharOffset, 0, sizeof(long) * Stmt->metadata->getColumnCount());
   memset(Stmt->Lengths, 0, sizeof(long) * Stmt->metadata->getColumnCount());
 
@@ -2295,7 +2316,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLULEN *)ValuePtr= SQL_NOSCAN_ON;
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
-    *(SQLULEN *)ValuePtr= 0;
+    *(SQLULEN *)ValuePtr= Stmt->Options.Timeout;
     break;
   case SQL_ATTR_RETRIEVE_DATA:
     *(SQLULEN *)ValuePtr= SQL_RD_ON;
@@ -2495,11 +2516,11 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
-    if ((SQLULEN)ValuePtr != 0)
+    if (Stmt->Connection->IsMySQL)
     {
-       MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option value changed to default (no timeout)", 0);
-       ret= SQL_SUCCESS_WITH_INFO;
+      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL servers, value changed to default (0)", 0);
     }
+    Stmt->Options.Timeout= (SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_RETRIEVE_DATA:
     if ((SQLULEN)ValuePtr != SQL_RD_ON)
@@ -2552,7 +2573,6 @@ SQLRETURN MADB_GetBookmark(MADB_Stmt  *Stmt,
     }
     return SQL_SUCCESS;
   }
-
   /* Keeping compiler happy */
   return SQL_SUCCESS;
 }
@@ -2657,24 +2677,32 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char* ClientValue = NULL;
+        char  *ClientValue= NULL;
         BOOL isTime;
-        Bind.buffer_length = (Field->max_length != 0 ?
-          Field->max_length : Field->length) + 1;
+        Bind.buffer_length= (Field->max_length != 0 ? Field->max_length : Field->length) + 1;
 
-        if (!(ClientValue = (char*)MADB_CALLOC(Bind.buffer_length)))
+        if (IrdRec->InternalBuffer != NULL)
+        {
+          IrdRec->InternalBuffer = (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
+        }
+        else
+        {
+          IrdRec->InternalBuffer= (char*)MADB_ALLOC(Bind.buffer_length);
+        }
+          
+        if (IrdRec->InternalBuffer == NULL)
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer = ClientValue;
-        Bind.buffer_type = MYSQL_TYPE_STRING;
+        Bind.buffer=        IrdRec->InternalBuffer;
+        Bind.buffer_type=   MYSQL_TYPE_STRING;
         Stmt->rs->get(&Bind, Offset, 0);
-        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, FALSE, &Stmt->Error, &isTime));
+        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(IrdRec->InternalBuffer, Bind.length_value, &tm, FALSE, &Stmt->Error, &isTime));
       }
       else
       {
-        Bind.buffer_length = sizeof(MYSQL_TIME);
-        Bind.buffer = (void*)&tm;
+        Bind.buffer_length= sizeof(MYSQL_TIME);
+        Bind.buffer= (void *)&tm;
         /* c/c is too smart to convert hours to days and days to hours, we don't need that */
         if ((OdbcType == SQL_C_TIME || OdbcType == SQL_C_TYPE_TIME)
           && (IrdRec->ConciseType == SQL_TIME || IrdRec->ConciseType == SQL_TYPE_TIME))
@@ -2699,20 +2727,28 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char* ClientValue = NULL;
         BOOL isTime;
 
         Bind.buffer_length = (Field->max_length != 0 ? Field->max_length :
           Field->length) + 1;
 
-        if (!(ClientValue = (char*)MADB_CALLOC(Bind.buffer_length)))
+        if (IrdRec->InternalBuffer != NULL)
+        {
+          IrdRec->InternalBuffer = (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
+        }
+        else
+        {
+          IrdRec->InternalBuffer = (char*)MADB_ALLOC(Bind.buffer_length);
+        }
+
+        if (IrdRec->InternalBuffer == NULL)
         {
           return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
         }
-        Bind.buffer = ClientValue;
-        Bind.buffer_type = MYSQL_TYPE_STRING;
+        Bind.buffer=        IrdRec->InternalBuffer;
+        Bind.buffer_type=   MYSQL_TYPE_STRING;
         Stmt->rs->get(&Bind, Offset, 0);
-        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(ClientValue, Bind.length_value, &tm, TRUE, &Stmt->Error, &isTime));
+        RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(IrdRec->InternalBuffer, Bind.length_value, &tm, TRUE, &Stmt->Error, &isTime));
       }
       else
       {
@@ -3001,14 +3037,29 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     case SQL_NUMERIC:
     {
       SQLRETURN rc;
-      char* tmp;
-      MADB_DescRecord* Ard = MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
+      char *tmp= NULL;
+      MADB_DescRecord *Ard= MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
 
-      Bind.buffer_length = MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
-      tmp = (char*)MADB_CALLOC(Bind.buffer_length);
-      Bind.buffer = tmp;
+      Bind.buffer_length= MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
+      if (IrdRec->InternalBuffer != NULL)
+      {
+        tmp= (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
+      }
+      else
+      {
+        tmp= (char*)MADB_ALLOC(Bind.buffer_length);
+      }
 
-      Bind.buffer_type = MadbType;
+      if (tmp == NULL)
+      {
+        return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      }
+      else
+      {
+        IrdRec->InternalBuffer= tmp;
+      }
+      Bind.buffer=        IrdRec->InternalBuffer;
+      Bind.buffer_type=   MadbType;
 
       Stmt->rs->get(&Bind, Offset, 0);
 
@@ -3017,11 +3068,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if (Bind.buffer_length < *Bind.length)
       {
         MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
-        MADB_FREE(tmp);
         return Stmt->Error.ReturnValue;
       }
 
-      rc = MADB_CharToSQLNumeric(tmp, Stmt->Ard, Ard, static_cast<SQL_NUMERIC_STRUCT*>(TargetValuePtr), 0);
+      rc= MADB_CharToSQLNumeric(IrdRec->InternalBuffer, Stmt->Ard, Ard, static_cast<SQL_NUMERIC_STRUCT*>(TargetValuePtr), 0);
 
       /* Ugly */
       if (rc != SQL_SUCCESS)
@@ -3223,8 +3273,10 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
   FieldIdentifier= MapColAttributeDescType(FieldIdentifier);
 
   switch(FieldIdentifier) {
+  case 1212/* SQL_COLUMN_AUTO_INCREMENT - not part of ODBC specs, but used by many systems. In particular can be seen in Access
+              traces(so must be MS thing) and in Embarcadero generated code */:
   case SQL_DESC_AUTO_UNIQUE_VALUE:
-    NumericAttribute= (SQLLEN)Record->AutoUniqueValue;
+    NumericAttribute= (SQLLEN)Record->AutoUniqueValue != 0 ? SQL_TRUE : SQL_FALSE;
     break;
   case SQL_DESC_BASE_COLUMN_NAME:
     StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->Charset : NULL,
