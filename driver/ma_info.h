@@ -21,19 +21,19 @@
 
 typedef struct
 {
-  char *TypeName;
+  const char *TypeName;
   SQLSMALLINT DataType;
   SQLINTEGER ColumnSize;
-  char *LiteralPrefix;
-  char *LiteralSuffix;
-  char *CreateParams;
+  const char *LiteralPrefix;
+  const char *LiteralSuffix;
+  const char *CreateParams;
   SQLSMALLINT Nullable;
   SQLSMALLINT CaseSensitive;
   SQLSMALLINT Searchable;
   SQLSMALLINT Unsigned;
   SQLSMALLINT FixedPrecScale;
   SQLSMALLINT AutoUniqueValue;
-  char *LocalTypeName;
+  const char *LocalTypeName;
   SQLSMALLINT MinimumScale;
   SQLSMALLINT MaximumScale;
   SQLSMALLINT SqlDataType1;

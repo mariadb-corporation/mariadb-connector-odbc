@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2019,2022 MariaDB Corporation AB
+   Copyright (C) 2019,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,6 +19,29 @@
 #ifndef _ma_c_stuff_h_
 #define _ma_c_stuff_h_
 
+#include "ma_odbc_version.h"
+
+#ifdef _WIN32
+# include "ma_platform_win32.h"
+#else
+# include "ma_platform_posix.h"
+#endif
+
+#include <stdlib.h>
+
+#include <ma_legacy_helpers.h>
+
+#include <sql.h>
+#include <sqlext.h>
+#include <odbcinst.h>
+
+#include <errmsg.h>
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+#include <stddef.h>
+#include <assert.h>
+#include <time.h>
 #include <sqlext.h>
 #include <mysql.h>
 #define MADB_FREE(a) do { \

@@ -19,32 +19,6 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
-#include "ma_odbc_version.h"
-
-#ifdef _WIN32
-# include "ma_platform_win32.h"
-#else
-# include "ma_platform_posix.h"
-#endif
-
-#include <stdlib.h>
-
-#include <mysql.h>
-
-#include <ma_legacy_helpers.h>
-
-#include <sql.h>
-#include <sqlext.h>
-#include <odbcinst.h>
-
-#include <errmsg.h>
-#include <string.h>
-#include <stdio.h>
-#include <math.h>
-#include <stddef.h>
-#include <assert.h>
-#include <time.h>
-
 #include "class/SQLString.h"
 #include "template/CArray.h"
 
@@ -146,8 +120,8 @@ typedef struct {
   char* Label;
   char* SchemaName;
   char* TableName;
-  char* LiteralPrefix;
-  char* LiteralSuffix;
+  const char* LiteralPrefix;
+  const char* LiteralSuffix;
   char* LocalTypeName;
   char* TypeName;
   char* InternalBuffer;  /* used for internal conversion */
@@ -272,6 +246,11 @@ typedef struct
 
 #define STMT_STRING(STMT) (STMT)->Query.Original
 
+enum MADB_AppType {
+  ATypeGeneral= 0,
+  ATypeMSAccess= 1
+};
+
 typedef struct st_ma_odbc_environment {
   MADB_Error Error;
   CRITICAL_SECTION cs;
@@ -391,11 +370,6 @@ struct MADB_Stmt
 
 private:
   MADB_Stmt()= delete;
-};
-
-enum MADB_AppType{
-  ATypeGeneral= 0,
-  ATypeMSAccess= 1
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);

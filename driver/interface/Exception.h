@@ -22,7 +22,7 @@
 #define _EXCEPTION_H_
 
 #include <stdexcept>
-#include "SQLString.h"
+#include "class/SQLString.h"
 
 namespace odbc
 {

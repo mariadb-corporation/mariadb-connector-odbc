@@ -19,6 +19,7 @@
 #define _GNU_SOURCE
 #include "ma_dsn.h"
 #include "stdio.h"
+#include "stddef.h"
 
 #define DSNKEY_OPTIONS_INDEX   3
 #define DSNKEY_OPTION_INDEX    4

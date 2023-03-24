@@ -162,10 +162,10 @@ public:
   bool getBoolean(int32_t index) const;
   int8_t getByte(int32_t index) const;
   int16_t getShort(int32_t index) const;
-  long double ResultSetText::getDouble(int32_t columnIndex) const;
+  long double getDouble(int32_t columnIndex) const;
 
   ResultSetMetaData* getMetaData() const;
-  PreparedStatement* ResultSetText::getStatement();
+  PreparedStatement* getStatement();
    /*Blob* getBlob(int32_t columnIndex) const;*/
 
   std::size_t rowsCount() const;

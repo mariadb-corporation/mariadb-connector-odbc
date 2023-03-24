@@ -22,7 +22,8 @@
 #include <vector>
 #include <array>
 #include <sqlext.h>
-#include "SQLString.h"
+
+#include "class/SQLString.h"
 
 enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the query types we are not interested in */ 
                             MADB_QUERY_INSERT,

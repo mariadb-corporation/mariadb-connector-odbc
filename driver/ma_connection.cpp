@@ -1487,7 +1487,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_DRIVER_ODBC_VER:
     {
-      char *OdbcVersion = "03.51";
+      const char *OdbcVersion = "03.51";
       /* DM requests this info before Dbc->Charset initialized. Thus checking if it is, and use utf8 by default
          The other way would be to use utf8 when Dbc initialized */
       SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Dbc->Charset.cs_info ? &Dbc->Charset : &utf8 ): NULL,

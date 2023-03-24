@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022,2023 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -102,7 +102,7 @@ namespace mariadb
      if (date.empty() || date.compare(nullDate) == 0) {
        if ((lastValueNull & BIT_LAST_ZERO_DATE) != 0) {
          lastValueNull^= BIT_LAST_ZERO_DATE;
-         return SQLString(fieldBuf, length);
+         return SQLString(fieldBuf.arr, length);
        }
        return emptyStr;
      }
@@ -115,7 +115,7 @@ namespace mariadb
      if (timestamp.length() == 0) {
        if ((lastValueNull & BIT_LAST_ZERO_DATE) != 0) {
          lastValueNull^= BIT_LAST_ZERO_DATE;
-         return SQLString(fieldBuf, length);
+         return SQLString(fieldBuf.arr, length);
        }
        return emptyStr;
      }
@@ -132,7 +132,7 @@ namespace mariadb
      break;
    }
 
-   return SQLString(fieldBuf, getLengthMaxFieldSize());
+   return SQLString(fieldBuf.arr, getLengthMaxFieldSize());
  }
 
 
@@ -709,8 +709,8 @@ namespace mariadb
  int32_t TextRow::fetchNext()
  {
    //Assuming it is called only for the case of the data from server, and not constructed text results
-   rowData= mysql_fetch_row(capiResults.get());
-   lengthArr= mysql_fetch_lengths(capiResults.get());
+   rowData= mysql_fetch_row(this->capiResults.get());
+   lengthArr= mysql_fetch_lengths(this->capiResults.get());
 
    return 1;
  }

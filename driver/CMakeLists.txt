@@ -58,7 +58,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           class/ColumnDefinition.cpp
                           class/ResultSetText.cpp
                           class/ResultSetBin.cpp
-                          class/ResultSetMetadata.cpp
+                          class/ResultSetMetaData.cpp
                           class/Parameter.cpp
                           interface/PreparedStatement.cpp
                           interface/Row.cpp
@@ -110,7 +110,7 @@ IF(WIN32)
                           class/ColumnDefinition.h
                           class/ResultSetText.h
                           class/ResultSetBin.h
-                          class/ResultSetMetadata.h
+                          class/ResultSetMetaData.h
                           class/Parameter.h
                           interface/PreparedStatement.h
                           interface/PrepareResult.h

@@ -17,6 +17,8 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
+#include <cstring>
+
 #include "Parameter.h"
 #include "ColumnDefinition.h"
 

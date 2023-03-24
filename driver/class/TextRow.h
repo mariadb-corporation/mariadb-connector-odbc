@@ -21,6 +21,8 @@
 #ifndef _TEXTROW_H_
 #define _TEXTROW_H_
 
+#include <memory>
+
 #include "Row.h"
 #include "mysql.h"
 

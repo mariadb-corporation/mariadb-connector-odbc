@@ -405,7 +405,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     break;
   case SQL_DIAG_SERVER_NAME:
     {
-      char *ServerName= "";
+      const char *ServerName= "";
       if (Stmt && Stmt->stmt)
       {
         mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_HOST, (void*)&ServerName);

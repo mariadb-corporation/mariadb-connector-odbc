@@ -74,11 +74,11 @@ class ColumnDefinition
   void refreshPointers();
 
 public:
-  static ColumnDefinition ColumnDefinition::create(const SQLString& name, const MYSQL_FIELD* _type);
+  static ColumnDefinition create(const SQLString& name, const MYSQL_FIELD* _type);
 
   ~ColumnDefinition();
   ColumnDefinition(const ColumnDefinition& other);
-  ColumnDefinition::ColumnDefinition(const ColumnDefinition&& other);
+  ColumnDefinition(const ColumnDefinition&& other);
   ColumnDefinition(const SQLString name, const MYSQL_FIELD* metadata, bool ownshipPassed= false);
   ColumnDefinition(const MYSQL_FIELD* field, bool ownshipPassed= true);
   ColumnDefinition& operator=(const ColumnDefinition& other);

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,14 +19,15 @@
 
 #include <Windows.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <CommCtrl.h>
 #include <tchar.h>
 #include <windowsx.h>
 #include <winuser.h>
 #include <shobjidl.h>
 #include "resource.h"
-#include <ma_odbc.h>
-#include <ma_odbc_setup.h>
+#include "ma_dsn.h"
+#include "ma_odbc_setup.h"
 
 #pragma comment(lib, "ComCtl32.lib")
 
@@ -403,7 +404,7 @@ void GetDialogFields()
 
 void DSN_Set_Database(SQLHANDLE Connection)
 {
-  MADB_Stmt *Stmt= NULL;
+  SQLHANDLE Stmt= NULL;
   SQLRETURN ret= SQL_ERROR;
   char Database[65];
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
@@ -415,10 +416,10 @@ void DSN_Set_Database(SQLHANDLE Connection)
 
   GetDialogFields();
   
-  if (SQLAllocHandle(SQL_HANDLE_STMT, Connection, (SQLHANDLE *)&Stmt) != SQL_SUCCESS)
+  if (SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt) != SQL_SUCCESS)
     goto end;
 
-  if (SQLExecDirect((SQLHSTMT)Stmt, (SQLCHAR *)"SHOW DATABASES", SQL_NTS) != SQL_SUCCESS)
+  if (SQLExecDirect(Stmt, (SQLCHAR *)"SHOW DATABASES", SQL_NTS) != SQL_SUCCESS)
     goto end;
 
   SQLBindCol(Stmt, 1, SQL_C_CHAR, Database, 65, 0);
@@ -437,12 +438,12 @@ void DSN_Set_Database(SQLHANDLE Connection)
 
 end:
   if (Stmt)
-	  SQLFreeHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt);
+	  SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 }
 
 void DSN_Set_CharacterSets(SQLHANDLE Connection)
 {
-  MADB_Stmt *Stmt= NULL;
+  SQLHANDLE Stmt= NULL;
   SQLRETURN ret= SQL_ERROR;
   char Charset[65];
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
@@ -452,7 +453,7 @@ void DSN_Set_CharacterSets(SQLHANDLE Connection)
 
   GetDialogFields();
   
-  if (SQLAllocHandle(SQL_HANDLE_STMT, Connection, (SQLHANDLE *)&Stmt) != SQL_SUCCESS)
+  if (SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt) != SQL_SUCCESS)
     goto end;
 
   if (SQLExecDirect((SQLHSTMT)Stmt, 
@@ -479,7 +480,7 @@ void DSN_Set_CharacterSets(SQLHANDLE Connection)
 
 end:
   if (Stmt)
-	  SQLFreeHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt);
+	  SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 }
 
 
@@ -508,7 +509,10 @@ static SQLRETURN TestDSN(MADB_Dsn *Dsn, SQLHANDLE *Conn, SQLCHAR *ConnStrBuffer)
   MADB_DsnToString(Dsn, ConnStr, CONNSTR_BUFFER_SIZE);
 
   SQLAllocHandle(SQL_HANDLE_DBC, Environment, (SQLHANDLE *)&Connection);
-  assert(Connection != NULL);
+  if (Connection == NULL)
+  {
+    return SQL_ERROR;
+  }
   Result= SQLDriverConnect(Connection, NULL, ConnStr, CONNSTR_BUFFER_SIZE, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
 
   Dsn->InitCommand= InitCommand;
@@ -540,7 +544,7 @@ char* HidePwd(char *ConnStr)
     char *KeyValBorder= strchr(Ptr, '=');
     char StopChr=        ';';
 
-    Ptr= ltrim(Ptr);
+    Ptr= (char*)ltrim(Ptr);
 
     if (_strnicmp(Ptr, "PWD", 3) == 0 || _strnicmp(Ptr, "PASSWORD", 8) == 0)
     {
@@ -548,7 +552,7 @@ char* HidePwd(char *ConnStr)
     }
     if (KeyValBorder != NULL)
     {
-      Ptr= ltrim(KeyValBorder + 1);
+      Ptr= (char*)ltrim(KeyValBorder + 1);
     }
     if (*Ptr == '{')
     {
@@ -598,12 +602,16 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
       _snprintf(Info, sizeof(Info), "Connection successfully established\n\nServer Information: %s %s\n\nConnection String:\n\n%s", DbmsName, DbmsVer, ConnStr);
       MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
     }
-    else
+    else if (Connection != NULL)
     {
       SQLCHAR SqlState[6], ErrMsg[SQL_MAX_MESSAGE_LENGTH];
       SQLGetDiagRec(SQL_HANDLE_DBC,   Connection, 1, SqlState, NULL, ErrMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
       _snprintf(Info, sizeof(Info), "Connection failed: [%s] %s\n\nConnection String:\n\n%s", SqlState, ErrMsg, ConnStr);
       MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
+    }
+    else
+    {
+      MessageBox(hwndTab[CurrentPage], "Could not allocate connection handle", "Connection test", MB_ICONINFORMATION | MB_OK);
     }
   }
 

@@ -428,13 +428,15 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
   char *TableName;
   uint32_t i, colCount;
 
+  if (!(TableName= MADB_GetTableName(Stmt)))
+  {
+    return nullptr;
+  }
   if (!(StmtStr= static_cast<char*>(MADB_CALLOC(1024))))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
     return nullptr;
   }
-  if (!(TableName= MADB_GetTableName(Stmt)))
-    goto error;
   p= StmtStr;
   p+= _snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
 
@@ -474,8 +476,7 @@ char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
   return StmtStr;
 
 error:
-  if (StmtStr)
-    MADB_FREE(StmtStr);
+  MADB_FREE(StmtStr);
   return nullptr;
 }
 
