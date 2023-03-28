@@ -18,14 +18,8 @@
 *************************************************************************************/
 #undef MA_ODBC_DEBUG_ALL
 
-#ifdef _WIN32
-# include "ma_platform_win32.h"
-#else
-# include "ma_platform_posix.h"
-#endif
-#include <sql.h>
-#include "ma_api_internal.h"
 #include "ma_c_stuff.h"
+#include "ma_api_internal.h"
 #include "ma_debug.h"
 
 extern "C" {

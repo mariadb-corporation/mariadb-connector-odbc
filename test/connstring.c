@@ -23,8 +23,8 @@
   51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "tap.h"
 #include "ma_dsn.h"
+#include "tap.h"
 
 MADB_Dsn   *Dsn;
 char        CreatedDSN[4][32];

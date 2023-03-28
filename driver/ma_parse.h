@@ -83,7 +83,7 @@ int  MADB_ParseQuery(MADB_QUERY *Query);
 #define QUERY_DOESNT_RETURN_RESULT(query_type) ((query_type) < MADB_QUERY_SELECT)
 
 const char * MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset);
-unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare);
+unsigned int MADB_FindToken(MADB_QUERY *Query, const char *Compare);
 
 enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Token2);
 

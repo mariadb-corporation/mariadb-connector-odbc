@@ -146,7 +146,7 @@ const char *MADB_Token(MADB_QUERY *Query, std::size_t Idx)
 }
 
 
-my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, char *Compare, size_t Length, unsigned int *Offset)
+my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, const char *Compare, size_t Length, unsigned int *Offset)
 {
   const char *TokenString;
   
@@ -163,7 +163,7 @@ my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, char *Compare, si
 }
 
 /* Not used atm, but may be useful */
-unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare)
+unsigned int MADB_FindToken(MADB_QUERY *Query, const char *Compare)
 {
   unsigned int i;
   std::size_t TokenCount = Query->Tokens.size();

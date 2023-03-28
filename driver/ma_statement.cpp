@@ -4057,7 +4057,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   if (FetchOrientation != SQL_FETCH_NEXT || (RowsProcessed > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY) ||
       Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
   {
-    if (Stmt->Cursor.Next != NULL)
+    if (Stmt->Cursor.Next != -1)
     {
       Stmt->rs->absolute(Stmt->Cursor.Next);
       ret= SQL_SUCCESS;

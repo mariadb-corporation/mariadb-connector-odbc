@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -204,3 +204,4 @@ BOOL        MADB_DSN_PossibleConnect    (MADB_Dsn *Dsn);
   }
 
 #endif /* _ma_dsn_h_ */
+

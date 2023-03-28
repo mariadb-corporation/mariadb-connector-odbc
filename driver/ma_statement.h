@@ -117,7 +117,7 @@ SQLRETURN    MADB_RealQuery         (MADB_Dbc* Dbc, char* StatementText, SQLINTE
 #define MADB_POSITIONED_COMMAND(aStmt) ((aStmt)->PositionedCommand && (aStmt)->PositionedCursor)
 #define MADB_STMT_HAS_UNIQUE_IDX(aStmt) (aStmt->UniqueIndex != NULL && aStmt->UniqueIndex[0] > 0)
 #define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) (MADB_STMT_HAS_UNIQUE_IDX((aStmt)->PositionedCursor)?(aStmt)->PositionedCursor->UniqueIndex[0]:MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor))
-#define MADB_STMT_FORGET_NEXT_POS(aStmt) (aStmt)->Cursor.Next= NULL
+#define MADB_STMT_FORGET_NEXT_POS(aStmt) (aStmt)->Cursor.Next= -1
 #define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= 0; MADB_STMT_FORGET_NEXT_POS(aStmt)
 #define MADB_STMT_CLOSE_STMT(aStmt)  (aStmt)->stmt.reset()
 #define MADB_STMT_SHOULD_STREAM(_a) (DSN_OPTION((_a)->Connection, MADB_OPT_FLAG_NO_CACHE) &&\

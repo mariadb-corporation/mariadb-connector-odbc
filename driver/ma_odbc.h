@@ -113,7 +113,7 @@ typedef struct {
   char        *BaseColumnName;
   char        *BaseTableName;
   char        *CatalogName;
-  char        *ColumnName;
+  const char  *ColumnName;
   SQLPOINTER  DataPtr;
   SQLLEN* OctetLengthPtr;
   SQLLEN* IndicatorPtr;
@@ -122,7 +122,7 @@ typedef struct {
   char* TableName;
   const char* LiteralPrefix;
   const char* LiteralSuffix;
-  char* LocalTypeName;
+  const char* LocalTypeName;
   char* TypeName;
   char* InternalBuffer;  /* used for internal conversion */
   char* DefaultValue;

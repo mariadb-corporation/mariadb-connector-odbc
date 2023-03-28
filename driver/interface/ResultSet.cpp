@@ -106,6 +106,7 @@ namespace mariadb
       std::vector<odbc::bytes> row;
       if (rowData != 0) {
         idAsStr= std::to_string(rowData);
+        row.emplace_back();
         BYTES_ASSIGN_STR(row[0], idAsStr);
         rows.push_back(row);
       }

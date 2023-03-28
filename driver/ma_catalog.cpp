@@ -348,7 +348,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
     if (TableType && TableTypeLength && strcmp(TableType, SQL_ALL_TABLE_TYPES) != 0)
     {
       unsigned int i;
-      char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};
+      const char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};
       MADB_DYNAPPENDCONST(&StmtStr, " AND TABLE_TYPE IN (''");
       for (i= 0; i < 3; i++)
       {
