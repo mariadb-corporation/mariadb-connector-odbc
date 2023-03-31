@@ -1789,7 +1789,7 @@ ODBC_TEST(t_odbc377)
 {
   SQLHDBC  Hdbc;
   SQLHSTMT Hstmt;
-  SQLCHAR  Sqlstate[6];
+  SQLCHAR  Sqlstate[6], ErrMsg[SQL_MAX_MESSAGE_LENGTH];
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
@@ -1812,20 +1812,24 @@ ODBC_TEST(t_odbc377)
 
   CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
   EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "SELECT SLEEP(2)", SQL_NTS), SQL_ERROR);
-  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, NULL, 0, NULL));
+  Sqlstate[0]= '\0';
+  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
   if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
   {
-    FAIL_IF(1, "Unexpected SQL State");
+    diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
+    return FAIL;
   }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Verifying the same(i.e. query timeout works) for the case of prepare + execute */
   CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT SLEEP(2)", SQL_NTS));
   EXPECT_STMT(Hstmt, SQLExecute(Hstmt), SQL_ERROR);
-  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, NULL, 0, NULL));
+  Sqlstate[0]= '\0';
+  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
   if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
   {
-    FAIL_IF(1, "Unexpected SQL State");
+    diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
+    return FAIL;
   }
 
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
