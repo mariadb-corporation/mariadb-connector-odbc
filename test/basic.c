@@ -1834,6 +1834,107 @@ ODBC_TEST(t_odbc377)
   return OK;
 }
 
+
+/* ODBC-388 Support of application attributes for performance schema. */
+ODBC_TEST(t_odbc388)
+{
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+  SQLCHAR  buffer[64];
+
+  if (PerfSchema == FALSE)
+  {
+    skip("Test requires perf_schema to be on");
+  }
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
+                                       "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_name2", sizeof("_client_name2"), NULL));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR("maodbc", my_fetch_str(Stmt, buffer, 1), sizeof("maodbc"));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_version2", sizeof("_client_version2"), NULL));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  IS_STR(DriverVersion, my_fetch_str(Stmt, buffer, 1), strlen(DriverVersion));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+
+  /* Connection with *disabled* LOAD DATA LOCAL INFILE */
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr1 = attr1_value , _client_attr2= attr2_value}");
+  FAIL_IF(Hstmt == NULL, "Connection error");
+
+  CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
+                                         "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?", SQL_NTS));
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr1", sizeof("_client_attr1"), NULL));
+  CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  IS_STR("attr1_value", my_fetch_str(Hstmt, buffer, 1), sizeof("attr1_value"));
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr2", sizeof("_client_attr2"), NULL));
+  CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  IS_STR("attr2_value", my_fetch_str(Hstmt, buffer, 1), sizeof("attr2_value"));
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr12, _client_attr22= attr2_value2}");
+  FAIL_IF(Hstmt == NULL, "Connection error");
+  CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
+                                         "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?", SQL_NTS));
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr22", sizeof("_client_attr22"), NULL));
+  CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  IS_STR("attr2_value2", my_fetch_str(Hstmt, buffer, 1), sizeof("attr2_value2"));
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr12", sizeof("_client_attr12"), NULL));
+  CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
+  //EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  /* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute */
+  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr13 =attr1_value3,_client_attr23}");
+  FAIL_IF(Hstmt == NULL, "Connection error");
+  CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
+                                         "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?", SQL_NTS));
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr13", sizeof("_client_attr13"), NULL));
+  CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  IS_STR("attr1_value3", my_fetch_str(Hstmt, buffer, 1), sizeof("attr1_value3"));
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr23", sizeof("_client_attr23"), NULL));
+  CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  /* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute */
+  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR=_client_attr14");
+  FAIL_IF(Hstmt == NULL, "Connection error");
+  
+  CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr14", sizeof("_client_attr14"), NULL));
+  OK_SIMPLE_STMT(Hstmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
+                        "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?");
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  /* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute */
+  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+  
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1884,6 +1985,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc384,     "odbc384_namedpipe_plugin", NORMAL},
 #endif
   {t_odbc377,     "odbc377_timeout_attrs",    NORMAL},
+  {t_odbc388,     "odbc388_perfschema_attrs",    NORMAL},
   {NULL, NULL, 0}
 };
 

@@ -128,6 +128,7 @@ typedef struct st_madb_dsn
   char *TlsKeyPwd;
   char* ServerKey;
   char* SaveFile;
+  char* Attributes;
   /* --- Internal --- */
   MADB_DsnKey* Keys;
   /* Callbacke required for prompt to keep all memory de/allocation operations

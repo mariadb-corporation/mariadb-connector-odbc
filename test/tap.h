@@ -147,9 +147,9 @@ static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port=        3306;
 char                 ma_strport[12]= "PORT=3306";
-char                 my_host[256];
+char                 my_host[256], DriverVersion[12];
 static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -972,6 +972,86 @@ int reset_changed_server_variables(void)
   return error;
 }
 
+/* Things to read once and not each time the connection is made*/
+int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
+{
+  SQLRETURN rc;
+  SQLCHAR val[20];
+  SQLSMALLINT len;
+  SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
+
+  if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
+  {
+    sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
+  }
+
+  CHECK_STMT_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_VER, DriverVersion, sizeof(DriverVersion), &len));
+  OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM dual where @@performance_schema=1");
+  if (SQL_SUCCEEDED(SQLFetch(Stmt)))
+  {
+    PerfSchema= TRUE;
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+
+  if (rc == SQL_SUCCESS_WITH_INFO)
+  {
+    SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&SetCursorType, 0, NULL);
+
+    /* Other cases are not interesting for us. If it's static - means dynamic is not allowed, but DynamicAllowed is FALSE by default.
+     * If it was dynamic, then SQLGetStmtAttr would not return SQL_SUCCESS_WITH_INFO, but SQL_SUCCESS
+     */
+    if (SetCursorType == SQL_CURSOR_FORWARD_ONLY)
+    {
+      SQLHANDLE Stmt2;
+
+      ForwardOnly=  TRUE;
+      OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS codbc_checkcaching");
+      OK_SIMPLE_STMT(Stmt, "CREATE TABLE codbc_checkcaching (id INT NOT NULL)");
+      OK_SIMPLE_STMT(Stmt, "INSERT INTO codbc_checkcaching VALUES(1),(2)");
+      OK_SIMPLE_STMT(Stmt, "SELECT * FROM codbc_checkcaching");
+      CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+      CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2));
+      /* Currently if "NO CACHE" aka streaming is endabled, any query will error */
+      rc= SQLExecDirect(Stmt2, "INSERT INTO codbc_checkcaching VALUES(3)", SQL_NTS);
+
+      if (!SQL_SUCCEEDED(rc))
+      {
+        SQLCHAR SQLState[6];
+        SQLINTEGER NativeError;
+        SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
+        SQLSMALLINT TextLengthPtr;
+
+        SQLGetDiagRec(SQL_HANDLE_STMT, Stmt2, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
+        if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "The requested operation is blocked by another streaming operation") != NULL)
+        {
+          NoCache= TRUE;
+        }
+      }
+      CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+      CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+    }
+  }
+  else
+  {
+    DynamicAllowed= TRUE;
+  }
+  if (SetCursorType != CurCursorType)
+  {
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)CurCursorType, 0));
+  }
+
+  return OK;
+}
 
 int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
 {
@@ -1029,72 +1109,10 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     return 1;
   }
 
+  if (ReadInfoOneTime(Connection, Stmt) == FAIL )
   {
-    SQLCHAR val[20];
-    SQLSMALLINT len;
-    SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
-
-    if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
-    {
-      sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
-    }
-
-    OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
-    /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
-    CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
-    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
-
-    if (rc == SQL_SUCCESS_WITH_INFO)
-    {
-      SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&SetCursorType, 0, NULL);
-
-      /* Other cases are not interesting for us. If it's static - means dynamic is not allowed, but DynamicAllowed is FALSE by default.
-       * If it was dynamic, then SQLGetStmtAttr would not return SQL_SUCCESS_WITH_INFO, but SQL_SUCCESS
-       */
-      if (SetCursorType == SQL_CURSOR_FORWARD_ONLY)
-      {
-        SQLHANDLE Stmt2;
-
-        ForwardOnly=  TRUE;
-        OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS codbc_checkcaching");
-        OK_SIMPLE_STMT(Stmt, "CREATE TABLE codbc_checkcaching (id INT NOT NULL)");
-        OK_SIMPLE_STMT(Stmt, "INSERT INTO codbc_checkcaching VALUES(1),(2)");
-        OK_SIMPLE_STMT(Stmt, "SELECT * FROM codbc_checkcaching");
-        CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-
-        CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2));
-        /* Currently if "NO CACHE" aka streaming is endabled, any query will error */
-        rc= SQLExecDirect(Stmt2, "INSERT INTO codbc_checkcaching VALUES(3)", SQL_NTS);
-
-        if (!SQL_SUCCEEDED(rc))
-        {
-          SQLCHAR SQLState[6];
-          SQLINTEGER NativeError;
-          SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
-          SQLSMALLINT TextLengthPtr;
-
-          SQLGetDiagRec(SQL_HANDLE_STMT, Stmt2, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
-          if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "The requested operation is blocked by another streaming operation") != NULL)
-          {
-            NoCache= TRUE;
-          }
-        }
-        CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-        CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
-      }
-    }
-    else
-    {
-      DynamicAllowed= TRUE;
-    }
-    if (SetCursorType != CurCursorType)
-    {
-      CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)CurCursorType, 0));
-    }
+    fprintf(stdout, "HALT! An error occurred while reading some information from the driver\n");
+    return 1;
   }
 
   fprintf(stdout, "1..%d\n", tests_planned);

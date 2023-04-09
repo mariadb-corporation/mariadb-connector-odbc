@@ -24,6 +24,7 @@
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";
 static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
+const char * AttrPairSeparators= ",";
 
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
@@ -698,6 +699,61 @@ static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned
     return MADB_DynstrAppend(InitCmd, StmtToAdd);
   }
 }
+
+/* {{{ MADB_Tokenize
+*/
+std::size_t MADB_Tokenize(std::vector<odbc::bytes>& tokens, const char* cstring, const char *separator)
+{
+  const char *current= cstring, *next= nullptr, *end= cstring + strlen(cstring);
+  while (next= std::strpbrk(current, separator))
+  {
+    tokens.emplace_back(current, next - current);
+    current= next + 1;
+  }
+  if (current < end)
+  {
+    tokens.emplace_back(current, end - current);
+  }
+  return tokens.size();
+}
+/* }}} */
+
+/* {{{ MADB_SetAttributes
+*/
+bool MADB_SetAttributes(MYSQL* mariadb, const char* Attributes)
+{
+  bool result= false;
+  /* If we have attributes - we rename C/C's attributes */
+  //mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_DELETE, (void *)"_client_name");
+  mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)"_client_name2", (void *)"maodbc");
+  //mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_DELETE, (void *)"_client_version");
+  mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)"_client_version2", (void *)MARIADB_ODBC_VERSION);
+
+  if (Attributes != nullptr && Attributes[0] != '\0')
+  {
+    std::vector<odbc::bytes> token;
+    std::size_t pairs= MADB_Tokenize(token, Attributes, AttrPairSeparators);
+
+    for (auto i= 0; i < pairs; ++i)
+    {
+      const char *key= ltrim(token[i].arr), *value= std::strchr(key, '=');
+      if (value == nullptr || static_cast<std::size_t>(value - token[i].arr) > token[i].size())
+      {
+        SQLString keyCopy(key, token[i].size() - (key - token[i].arr));
+        rtrim(keyCopy);
+        mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)keyCopy.data());
+      }
+      else
+      {
+        SQLString keyCopy(key, value - key), valueCopy(value + 1, token[i].size() - (value - token[i].arr) - 1);
+        rtrim(keyCopy);
+        trim(valueCopy);
+        mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)keyCopy.data(), (void *)valueCopy.data());
+      }
+    }
+  }
+  return result;
+}
 /* }}} */
 
 /* {{{ MADB_Dbc_ConnectDB
@@ -872,6 +928,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     client_flags|= CLIENT_COMPRESS;
   
 
+  if (MADB_SetAttributes(Connection->mariadb, Dsn->Attributes))
+  {
+    MADB_SetError(&Connection->Error, MADB_ERR_01S00, "Perfschema connection attributes(ATTR) could not be parsed", 0);
+  }
   if (Dsn->InteractiveClient)
   {
     mysql_optionsv(Connection->mariadb, MARIADB_OPT_INTERACTIVE, 1);
@@ -1102,7 +1162,7 @@ end:
   if (Connection->Error.ReturnValue == SQL_ERROR && Connection->mariadb)
   {
     mysql_close(Connection->mariadb);
-    Connection->mariadb= NULL;
+    Connection->mariadb= nullptr;
   }
 
   return Connection->Error.ReturnValue;

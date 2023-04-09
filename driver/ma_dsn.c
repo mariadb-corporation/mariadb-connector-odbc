@@ -91,6 +91,7 @@ MADB_DsnKey DsnKeys[]=
   {"NOLOCALINFILE",  offsetof(MADB_Dsn, DisableLocalInfile),DSN_TYPE_BOOL,   0, 0},
   {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent),DSN_TYPE_BOOL, 0, 0},
   {"STREAMRS",       offsetof(MADB_Dsn, StreamResult),      DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_CACHE, 0},
+  {"ATTR",           offsetof(MADB_Dsn, Attributes),        DSN_TYPE_STRING, 0, 0}, /* 44 */
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
