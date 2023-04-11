@@ -240,9 +240,7 @@ namespace mariadb
      if (!parseTime(raw, matcher)) {
        throw SQLException("Time format \"" + raw + "\" incorrect, must be [-]HH+:[0-59]:[0-59]");
      }
-     bool negate= !matcher[1].empty();
 
-     
      SQLString &parts= matcher.back();
      int32_t microseconds= 0;
 
@@ -259,6 +257,7 @@ namespace mariadb
        dest->hour= std::stoi(matcher[2]);
        dest->minute= std::stoi(matcher[3]);
        dest->second= std::stoi(matcher[4]);
+       dest->neg= matcher[1].empty() ? '\0' : '\1';
        dest->second_part= microseconds;
      }
      return matcher[0];

@@ -803,7 +803,7 @@ SQLRETURN MA_SQLError(SQLHENV Env, SQLHDBC Dbc, SQLHSTMT Stmt,
 
   if (isWchar)
   {
-    MA_SQLGetDiagRecW(HandleType, Handle, ++error->ErrorNum, (SQLWCHAR*)Sqlstate, NativeError, (SQLWCHAR*)Message, MessageMax, MessageLen);
+    return MA_SQLGetDiagRecW(HandleType, Handle, ++error->ErrorNum, (SQLWCHAR*)Sqlstate, NativeError, (SQLWCHAR*)Message, MessageMax, MessageLen);
   }
   return MA_SQLGetDiagRec(HandleType, Handle, ++error->ErrorNum, (SQLCHAR*)Sqlstate, NativeError, (SQLCHAR*)Message, MessageMax, MessageLen);
 }
