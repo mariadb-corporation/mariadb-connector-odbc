@@ -739,9 +739,11 @@ bool MADB_SetAttributes(MYSQL* mariadb, const char* Attributes)
       const char *key= ltrim(token[i].arr), *value= std::strchr(key, '=');
       if (value == nullptr || static_cast<std::size_t>(value - token[i].arr) > token[i].size())
       {
-        SQLString keyCopy(key, token[i].size() - (key - token[i].arr));
+        result= true;
+        continue;
+        /*SQLString keyCopy(key, token[i].size() - (key - token[i].arr));
         rtrim(keyCopy);
-        mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)keyCopy.data());
+        mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)keyCopy.data());*/
       }
       else
       {

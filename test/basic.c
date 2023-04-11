@@ -1893,10 +1893,10 @@ ODBC_TEST(t_odbc388)
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
   CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr12", sizeof("_client_attr12"), NULL));
   CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
-  //EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
-  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
-  /* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute */
-  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+  EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
+  //CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  ///* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute(with Windows client) */
+  //IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
   CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
@@ -1913,9 +1913,9 @@ ODBC_TEST(t_odbc388)
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
   CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr23", sizeof("_client_attr23"), NULL));
   CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
-  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
-  /* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute */
-  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+  EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
+  /*CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);*/
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
   Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR=_client_attr14");
@@ -1924,9 +1924,9 @@ ODBC_TEST(t_odbc388)
   CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr14", sizeof("_client_attr14"), NULL));
   OK_SIMPLE_STMT(Hstmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
                         "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?");
-  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
-  /* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute */
-  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+  EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
+  /*CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);*/
   
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
