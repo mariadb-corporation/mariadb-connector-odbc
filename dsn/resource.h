@@ -84,6 +84,8 @@
 #define ckNoLocalInfile                 1310
 #define ckNullSchemaMeansCurrent        1222
 #define txtAttr                         1311
+#define ckServerDirectExec              1312
+#define ckClientPrepare                 1313
 #define txtSslKey                       1117
 #define txtSslCert                      1118
 #define txtSslCertAuth                  1119

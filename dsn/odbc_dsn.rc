@@ -160,22 +160,24 @@ BEGIN
     PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
 END
 
-Page_3 DIALOGEX 0, 0, 299, 182
+Page_3 DIALOGEX -10, -9, 320, 188
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    GROUPBOX        "Miscellanous Options",IDC_STATIC,7,7,277,124,0,WS_EX_TRANSPARENT
+    GROUPBOX        "Miscellanous Options",IDC_STATIC,1,-2,303,151,0,WS_EX_TRANSPARENT
     CONTROL         "Ignore schema in column specification",ckIgnoreSchema,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,22,136,10,WS_EX_TRANSPARENT
-    CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,36,97,10,WS_EX_TRANSPARENT
-    CONTROL         "No error on schema parameters in catalog functions",ckSchParamNoError,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,50,177,10,WS_EX_TRANSPARENT
-    LTEXT           "Plugins Directory",IDC_STATIC,15,64,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtPluginDir,72,64,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbPlugindirBrowse,183,62,30,14
-    CONTROL         "Disable LOAD DATA LOCAL INFILE statements",ckNoLocalInfile,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,78,170,10,WS_EX_TRANSPARENT
-    CONTROL         "SQLTables: NULL Catalog means 'current'(default - 'any DB')",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,92,210,10,WS_EX_TRANSPARENT
-    LTEXT           "Performance schema attributes(format: name=val,name1=val1)",IDC_STATIC,15,104,210,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtAttr,15,112,210,11,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,10,136,10,WS_EX_TRANSPARENT
+    CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,24,97,10,WS_EX_TRANSPARENT
+    CONTROL         "No error on schema parameters in catalog functions",ckSchParamNoError,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,38,177,10,WS_EX_TRANSPARENT
+    LTEXT           "Plugins Directory",IDC_STATIC,15,52,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtPluginDir,72,52,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbPlugindirBrowse,183,50,30,14
+    CONTROL         "Disable LOAD DATA LOCAL INFILE statements",ckNoLocalInfile,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,66,170,10,WS_EX_TRANSPARENT
+    CONTROL         "SQLTables: NULL Catalog means 'current'(default - 'any DB')",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,80,210,10,WS_EX_TRANSPARENT
+    LTEXT           "Performance schema attributes(format: name=val,name1=val1)",IDC_STATIC,15,92,210,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtAttr,15,100,210,11,ES_AUTOHSCROLL
+//    CONTROL         "Prepare by default on server for direct execution",ckServerDirectExec,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,114,177,10,WS_EX_TRANSPARENT
+    CONTROL         "Prepare by default on client in SQLPrepare",ckClientPrepare,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,128,177,10,WS_EX_TRANSPARENT
 //    CONTROL         "Disable catalog support",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,91,10,WS_EX_TRANSPARENT
 //    CONTROL         "Ignore space after function names",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,53,127,10,WS_EX_TRANSPARENT
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14

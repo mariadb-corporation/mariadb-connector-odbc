@@ -62,6 +62,7 @@ ODBC_TEST(test_multi_on_off)
   ODBC_Connect(&myEnv, &myDbc, &myStmt);
 
   rc= SQLPrepare(myStmt, (SQLCHAR*)"DROP TABLE IF EXISTS t1; CREATE TABLE t1(a int)", SQL_NTS);
+  // With client side as default this may fail
   FAIL_IF(SQL_SUCCEEDED(rc), "Error expected"); 
 
   ODBC_Disconnect(myEnv, myDbc, myStmt);

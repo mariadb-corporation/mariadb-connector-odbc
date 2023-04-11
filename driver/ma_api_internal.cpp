@@ -1532,7 +1532,7 @@ SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, StatementText, s);
   MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
 
-  return Stmt->Prepare((char*)StatementText, TextLength);
+  return Stmt->Prepare((char*)StatementText, TextLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
 }
 /* }}} */
 
@@ -1561,7 +1561,9 @@ SQLRETURN MA_SQLPrepareW(SQLHSTMT StatementHandle,
     ret = Stmt->Error.ReturnValue;
   }
   else
-    ret = Stmt->Prepare(StmtStr, (SQLINTEGER)StmtLength);
+  {
+    ret = Stmt->Prepare(StmtStr, (SQLINTEGER)StmtLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+  }
   MADB_FREE(StmtStr);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);

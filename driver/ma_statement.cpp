@@ -25,6 +25,7 @@
 
 #define MADB_MIN_QUERY_LEN 5
 
+
 /* {{{ MADB_RealQuery - the caller is responsible for locking, as the caller may need to do some operations
        before it's ok to unlock. e.g. read results */
 SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error* Error)
@@ -431,6 +432,31 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+/* {{{ MSwitchToSsIfNeeded - prepares on the server when application requests some metadata from
+ * cliet side prepared statement
+ */
+void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
+{
+  /* Query was prepared on client, and now application requested metadata */
+  if (!Stmt->metadata && Stmt->State < MADB_SS_EXECUTED && Stmt->Connection->Dsn->PrepareOnClient && !Stmt->stmt->isServerSide())
+  {
+    LOCK_MARIADB(Stmt->Connection);
+    // We need it for the case server side prepare fails, but MADB_RegularPrepare falls back to CS on its own, if SS goes wrong.
+    PreparedStatement *currenCs= Stmt->stmt.release();
+    if (MADB_RegularPrepare(Stmt) == SQL_ERROR)
+    {
+      Stmt->stmt.reset(currenCs);
+    }
+    else
+    {
+      delete currenCs;
+    }
+    UNLOCK_MARIADB(Stmt->Connection);
+  }
+}
+/* }}} */
+
+/* {{{ MADB_AddQueryTime */
 void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
 {
   /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
@@ -440,8 +466,9 @@ void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
   Query->Original.assign("SET STATEMENT max_statement_time=", sizeof("SET STATEMENT max_statement_time=") - 1);
   Query->Original.append(std::to_string(Timeout)).append(" FOR ").append(query);
 }
+/* }}} */
 
-/* {{{ MADB_StmtPrepare */
+/* {{{ MADB_Stmt::Prepare */
 SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool ServerSide)
 {
   const char   *CursorName= NULL;
@@ -937,7 +964,7 @@ SQLRETURN MADB_Stmt::DoExecuteBatch()
     MDBUG_C_PRINT(Connection, "execute:ERROR%s", "");
     return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
   }
-  State = MADB_SS_EXECUTED;
+  State= MADB_SS_EXECUTED;
   Connection->Methods->TrackSession(Connection);
 
   return ret;
@@ -3221,6 +3248,7 @@ SQLRETURN MADB_StmtParamCount(MADB_Stmt *Stmt, SQLSMALLINT *ParamCountPtr)
 SQLRETURN MADB_StmtColumnCount(MADB_Stmt *Stmt, SQLSMALLINT *ColumnCountPtr)
 {
   /* We supposed to have that data in the descriptor by now. No sense to ask C/C API one more time for that */
+  SwitchToSsIfNeeded(Stmt);
   *ColumnCountPtr= (SQLSMALLINT)MADB_STMT_COLUMN_COUNT(Stmt);
   return SQL_SUCCESS;
 }
@@ -3243,7 +3271,8 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
   if (StringLengthPtr)
     *StringLengthPtr= 0;
 
-  if (!Stmt->rs)
+  SwitchToSsIfNeeded(Stmt);
+  if (!Stmt->metadata || Stmt->metadata->getColumnCount() == 0)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07005, NULL, 0);
     return Stmt->Error.ReturnValue;
@@ -3418,6 +3447,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
 
   MADB_CLEAR_ERROR(&Stmt->Error);
 
+  SwitchToSsIfNeeded(Stmt);
   if (!Stmt->metadata || Stmt->metadata->getColumnCount() == 0)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07005, NULL, 0);

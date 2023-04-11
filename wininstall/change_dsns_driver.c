@@ -67,12 +67,10 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
 /* Globals */
 BOOL Interactive= TRUE;
 
-
-#include <odbcinst.h>
-#include <sqlext.h>
-
 typedef char my_bool;
 #include "ma_dsn.h"
+#include <odbcinst.h>
+#include <sqlext.h>
 
 /*----------------------------------------------------------------------------------------------------*/
 /* Stub to shut up the linker. That is easier than to add source with the real function, as that would pull other problems in.

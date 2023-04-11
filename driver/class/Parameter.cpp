@@ -47,11 +47,14 @@ namespace mariadb
 
   void* Parameter::getBuffer(MYSQL_BIND& param, std::size_t row)
   {
-    if (param.buffer_type > MYSQL_TYPE_TIME2 || typeLen[param.buffer_type] < 0) {
+    /* For bulk we have array of pointers. Need to change MYSQL_TIME part to be less dirtyhacky */
+    if (param.buffer_type > MYSQL_TYPE_TIME2 ||
+      typeLen[param.buffer_type] < 0 ||
+      typeLen[param.buffer_type] == sizeof(MYSQL_TIME)) {
       return (static_cast<void**>(param.buffer))[row];
     }
     else {
-      return static_cast<char*>(param.buffer) + typeLen[param.buffer_type]*row;
+      return static_cast<char*>(param.buffer) + typeLen[param.buffer_type] * row;
     }
   }
 
@@ -185,7 +188,10 @@ namespace mariadb
       {
         const char* asString = static_cast<const char*>(value);
         query.append(1, QUOTE);
-        escapeData(asString, length > 0 ? length : std::strlen(asString), noBackslashEscapes, query);
+        //escapeData(asString, length > 0 ? length : std::strlen(asString), noBackslashEscapes, query);
+        if (length > 0) {
+          escapeData(asString, length, noBackslashEscapes, query);
+        }
         query.append(1, QUOTE);
       }
       }

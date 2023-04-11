@@ -98,11 +98,11 @@ ODBC_TEST(t_prep_buffer_length)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_prep_buffer_length");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_prep_buffer_length(a varchar(20))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_prep_buffer_length(a VARCHAR(20))");
 
   CHECK_STMT_RC(Stmt,
           SQLPrepare(Stmt,
-                     (SQLCHAR *)"insert into t_prep_buffer_length values(?)",
+                     (SQLCHAR *)"INSERT INTO t_prep_buffer_length VALUES(?)",
                      SQL_NTS));
 
   length= 0;
@@ -137,7 +137,7 @@ ODBC_TEST(t_prep_buffer_length)
   SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
   SQLFreeStmt(Stmt,SQL_CLOSE);
 
-  OK_SIMPLE_STMT(Stmt, "select * from t_prep_buffer_length");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_prep_buffer_length");
 
   rc = SQLBindCol(Stmt, 1, SQL_C_CHAR, buffer, 15, &length);
   mystmt(Stmt,rc);
@@ -705,17 +705,17 @@ ODBC_TEST(t_prepare)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_prepare");
 
-    rc = SQLExecDirect(Stmt,"create table t_prepare(col1 int primary key, col2 varchar(30), col3 set('one', 'two'))", SQL_NTS);
+    rc = SQLExecDirect(Stmt,"CREATE TABLE t_prepare(col1 INT PRIMARY KEY, col2 VARCHAR(30), col3 SET('one', 'two'))", SQL_NTS);
     mystmt(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_prepare values(100,'venu','one')", SQL_NTS);
+    rc = SQLExecDirect(Stmt,"INSERT INTO t_prepare VALUES(100,'venu','one')", SQL_NTS);
     mystmt(Stmt,rc);
 
-    rc = SQLExecDirect(Stmt,"insert into t_prepare values(200,'MySQL','two')", SQL_NTS);
+    rc = SQLExecDirect(Stmt,"INSERT INTO t_prepare VALUES(200,'MySQL','two')", SQL_NTS);
     mystmt(Stmt,rc);
 
-    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select * from t_prepare "
-                              "where col2 = ? AND col1 = ?",SQL_NTS));
+    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"SELECT * FROM t_prepare "
+                                                    "WHERE col2 = ? AND col1 = ?", SQL_NTS));
 
     rc = SQLNumResultCols(Stmt,&pccol);
     mystmt(Stmt,rc);

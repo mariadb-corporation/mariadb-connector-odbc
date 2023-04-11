@@ -925,7 +925,6 @@ ODBC_TEST(t_describe_nulti)
   OK_SIMPLE_STMT(hstmt1, "INSERT INTO t1 VALUES ('test')");
   CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"SELECT * FROM t1", SQL_NTS));
  
-
   CHECK_STMT_RC(hstmt1, SQLDescribeCol(hstmt1, 1, ColumnName, 64, NULL, 0, 0, 0, 0));
 
   ODBC_Disconnect(henv1, hdbc1, hstmt1);
