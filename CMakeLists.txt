@@ -252,8 +252,17 @@ SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
 
 # We need to determine the last parameter for SQLColAttribute:
 # Older UnixODBC version expect SQLPOINTER while Windows expects SQLLEN *
-TRY_COMPILE(COMPILE_OK ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/cmake/sqlcolattribute.c)
+# Windows DM uses SQLPOINTER form 32b, but SQLLEN* for 64b, which is... nice :-\
+TRY_COMPILE(COMPILE_OK ${CMAKE_BINARY_DIR} SOURCES ${CMAKE_SOURCE_DIR}/cmake/sqlcolattribute.c OUTPUT_VARIABLE TRYCOMPILEOUTPUT)
+
+IF (WIN32)
+  STRING(FIND "${TRYCOMPILEOUTPUT}" "warning C4028: formal parameter 7 different from declaration" WARNINGFOUND)
+  IF (NOT WARNINGFOUND EQUAL -1)
+    SET(COMPILE_OK FALSE)
+  ENDIF()
+ENDIF()
 MESSAGE(STATUS "Checking if SQLColAttribute expects SQLPOINTER ${COMPILE_OK}")
+#MESSAGE(STATUS "${TRYCOMPILEOUTPUT} ${WARNINGFOUND}")
 IF(COMPILE_OK)
   ADD_DEFINITIONS(-DSQLCOLATTRIB_SQLPOINTER)
 ELSE()

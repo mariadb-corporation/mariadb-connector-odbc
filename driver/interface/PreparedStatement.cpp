@@ -19,7 +19,6 @@
 
 
 #include "PreparedStatement.h"
-#include "ma_odbc.h"
 //#include "Results.h"
 //#include "Parameters.h"
 
@@ -192,8 +191,7 @@ namespace mariadb
   //  hasLongData= false;
   //}
 
-
-  SQLLEN PreparedStatement::executeUpdate()
+  int64_t PreparedStatement::executeUpdate()
   {
     if (execute()) {
       return 0;

@@ -185,7 +185,7 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ MA_SQLBrowseConnect */
-SQLRETURN SQL_API MA_SQLBrowseConnect(SQLHDBC ConnectionHandle,
+SQLRETURN MA_SQLBrowseConnect(SQLHDBC ConnectionHandle,
   SQLCHAR* InConnectionString,
   SQLSMALLINT StringLength1,
   SQLCHAR* OutConnectionString,
@@ -284,7 +284,7 @@ SQLRETURN MA_SQLCancelDbc(SQLHANDLE Handle)
 /* }}} */
 
 /* {{{ MA_SQLCloseCursor */
-SQLRETURN SQL_API MA_SQLCloseCursor(SQLHSTMT StatementHandle)
+SQLRETURN MA_SQLCloseCursor(SQLHSTMT StatementHandle)
 {
   MADB_Stmt* Stmt = (MADB_Stmt*)StatementHandle;
   SQLRETURN ret;
@@ -338,7 +338,7 @@ SQLRETURN MA_SQLColAttribute(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, NumericAttributePtr, 0x);
 
   ret = Stmt->Methods->ColAttribute(Stmt, ColumnNumber, FieldIdentifier, CharacterAttributePtr,
-    BufferLength, StringLengthPtr, NumericAttributePtr, isWchar);
+    BufferLength, StringLengthPtr, static_cast<SQLLEN*>(NumericAttributePtr), isWchar);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
@@ -1200,7 +1200,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
 /* }}} */
 
 /* {{{ MA_SQLGetDiagRecW */
-SQLRETURN SQL_API MA_SQLGetDiagRecW(SQLSMALLINT HandleType,
+SQLRETURN MA_SQLGetDiagRecW(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT RecNumber,
     SQLWCHAR *SQLState,

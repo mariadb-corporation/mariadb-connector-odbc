@@ -56,7 +56,7 @@ public:
 
 protected:
   bool executeInternal(int32_t fetchSize);
-  void executeBatchInternal(int32_t queryParameterSize);
+  void executeBatchInternal(uint32_t queryParameterSize);
   PrepareResult* getPrepareResult();
   uint32_t fieldCount() const;
 

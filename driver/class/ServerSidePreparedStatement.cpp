@@ -166,7 +166,8 @@ namespace mariadb
     return metadata.release(); // or get() ?
   }
 
-  void ServerSidePreparedStatement::executeBatchInternal(int32_t queryParameterSize)
+
+  void ServerSidePreparedStatement::executeBatchInternal(uint32_t queryParameterSize)
   {
     executeQueryPrologue(serverPrepareResult.get());
 
@@ -201,6 +202,7 @@ namespace mariadb
     }
     clearBatch();
   }
+
 
   void ServerSidePreparedStatement::executeQueryPrologue(ServerPrepareResult* serverPrepareResult)
   {

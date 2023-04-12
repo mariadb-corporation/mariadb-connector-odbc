@@ -734,7 +734,7 @@ bool MADB_SetAttributes(MYSQL* mariadb, const char* Attributes)
     std::vector<odbc::bytes> token;
     std::size_t pairs= MADB_Tokenize(token, Attributes, AttrPairSeparators);
 
-    for (auto i= 0; i < pairs; ++i)
+    for (std::size_t i= 0; i < pairs; ++i)
     {
       const char *key= ltrim(token[i].arr), *value= std::strchr(key, '=');
       if (value == nullptr || static_cast<std::size_t>(value - token[i].arr) > token[i].size())

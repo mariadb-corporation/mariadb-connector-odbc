@@ -375,7 +375,7 @@ SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
  */
 SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
-  MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt.get(), STMT_STRING(Stmt));
+  MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt.get(), STMT_STRING(Stmt).c_str());
 
   if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
   {

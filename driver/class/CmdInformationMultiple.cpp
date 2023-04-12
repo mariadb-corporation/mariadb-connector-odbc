@@ -97,7 +97,7 @@ namespace mariadb
     batchRes.reserve(std::max(updateCounts.size(), expectedSize));
 
     auto iterator= updateCounts.begin();
-    int32_t pos= 0;
+    std::size_t pos= 0;
     while (iterator!= updateCounts.end()) {
       batchRes[pos]= static_cast<int64_t>(*iterator);
       ++pos;

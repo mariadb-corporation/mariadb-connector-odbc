@@ -900,7 +900,7 @@ namespace mariadb
     ++index;
     estimatedLength = pos.length() * (arraySize - currentIndex);
     if (estimatedLength > capacity) {
-      pos.reserve(((std::min<int64_t>(MAX_PACKET_LENGTH, static_cast<int64_t>(estimatedLength)) + 7) / 8) * 8);
+      pos.reserve(((std::min<std::size_t>(MAX_PACKET_LENGTH, estimatedLength) + 7) / 8) * 8);
     }
 
     while (index < arraySize) {

@@ -397,10 +397,10 @@ namespace mariadb
     std::size_t curSize= data.size();
 
     if (data.capacity() < curSize + 1) {
-      uint64_t newCapacity= static_cast<uint64_t>(curSize + (curSize >> 1));
+      std::size_t newCapacity= static_cast<std::size_t>(curSize + (curSize >> 1));
 
       if (newCapacity > MAX_ARRAY_SIZE) {
-        newCapacity = MAX_ARRAY_SIZE;
+        newCapacity= static_cast<std::size_t>(MAX_ARRAY_SIZE);
       }
 
       data.reserve(newCapacity);

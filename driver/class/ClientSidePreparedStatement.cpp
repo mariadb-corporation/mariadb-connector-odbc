@@ -180,7 +180,7 @@ namespace mariadb
     * @param size parameters number
     * @throws SQLException if any error occur
     */
-  void ClientSidePreparedStatement::executeBatchInternal(int32_t size)
+  void ClientSidePreparedStatement::executeBatchInternal(uint32_t size)
   {
     executeQueryPrologue(true);
     results.reset(

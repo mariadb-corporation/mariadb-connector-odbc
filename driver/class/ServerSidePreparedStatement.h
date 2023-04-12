@@ -56,7 +56,7 @@ public:
   ResultSetMetaData* getMetaData();
 
 private:
-  void executeBatchInternal(int32_t queryParameterSize);
+  void executeBatchInternal(uint32_t queryParameterSize);
   void executeQueryPrologue(ServerPrepareResult* serverPrepareResult);
   void getResult();
 

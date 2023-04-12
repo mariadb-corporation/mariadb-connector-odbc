@@ -73,7 +73,7 @@ public:
 protected:
   virtual bool executeInternal(int32_t fetchSize)=0;
   virtual PrepareResult* getPrepareResult()=0;
-  virtual void executeBatchInternal(int32_t queryParameterSize)=0;
+  virtual void executeBatchInternal(uint32_t queryParameterSize)=0;
   // For internal use - app should use metadata object
   virtual uint32_t fieldCount() const=0;
 ;
