@@ -211,7 +211,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
   case MYSQL_TYPE_NEWDECIMAL:
     Record->NumPrecRadix= 10;
     Record->Scale= Field->decimals;
-    Record->Precision= (SQLSMALLINT)Field->length - test(Record->Unsigned == SQL_FALSE) - test(Record->Scale > 0);
+    Record->Precision= (SQLSMALLINT)Field->length - MADBTEST(Record->Unsigned == SQL_FALSE) - MADBTEST(Record->Scale > 0);
     if (Record->Precision == 0)
     {
       Record->Precision= Record->Scale;
@@ -381,13 +381,13 @@ void MADB_FixDisplaySize(MADB_DescRecord *Record, const MY_CHARSET_INFO *charset
     Record->DisplaySize= 1;
     break;
   case SQL_TINYINT:
-    Record->DisplaySize= 4 - test(Record->Unsigned == SQL_TRUE);
+    Record->DisplaySize= 4 - MADBTEST(Record->Unsigned == SQL_TRUE);
     break;
   case SQL_SMALLINT:
-    Record->DisplaySize= 6 - test(Record->Unsigned == SQL_TRUE);
+    Record->DisplaySize= 6 - MADBTEST(Record->Unsigned == SQL_TRUE);
     break;
   case SQL_INTEGER:
-    Record->DisplaySize= 11 - test(Record->Unsigned == SQL_TRUE);
+    Record->DisplaySize= 11 - MADBTEST(Record->Unsigned == SQL_TRUE);
     break;
   case SQL_REAL:
     Record->DisplaySize= 14;

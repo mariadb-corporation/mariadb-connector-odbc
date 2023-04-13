@@ -341,7 +341,7 @@ SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BO
   case SQL_INTEGER:
     return 10;
   case SQL_BIGINT:
-    return 20 - test(Unsigned != FALSE);
+    return 20 - MADBTEST(Unsigned != FALSE);
   case SQL_REAL:
     return 7;
   case SQL_DOUBLE:
@@ -383,14 +383,14 @@ size_t MADB_GetDisplaySize(const MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *chars
   case MYSQL_TYPE_BIT:
     return (Field->length == 1) ? 1 : (Field->length + 7) / 8 * 2;
   case MYSQL_TYPE_TINY:
-    return 4 - test(Field->flags & UNSIGNED_FLAG);
+    return 4 - MADBTEST(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_YEAR:
-    return 6 - test(Field->flags & UNSIGNED_FLAG);
+    return 6 - MADBTEST(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_INT24:
-    return 9 - test(Field->flags & UNSIGNED_FLAG);
+    return 9 - MADBTEST(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_LONG:
-    return 11 - test(Field->flags & UNSIGNED_FLAG);
+    return 11 - MADBTEST(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_LONGLONG:
     return 20;
   case MYSQL_TYPE_DOUBLE:
@@ -401,8 +401,8 @@ size_t MADB_GetDisplaySize(const MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *chars
   case MYSQL_TYPE_NEWDECIMAL:
   {
     /* The edge case like decimal(1,1)*/
-    size_t Precision= Field->length - test((Field->flags & UNSIGNED_FLAG) == 0) - test(Field->decimals != 0);
-    return Field->length + test(Precision == Field->decimals);
+    size_t Precision= Field->length - MADBTEST((Field->flags & UNSIGNED_FLAG) == 0) - MADBTEST(Field->decimals != 0);
+    return Field->length + MADBTEST(Precision == Field->decimals);
   }
   case MYSQL_TYPE_DATE:
     return SQL_DATE_LEN; /* YYYY-MM-DD */
@@ -470,8 +470,8 @@ size_t MADB_GetOctetLength(const MYSQL_FIELD *Field, unsigned short MaxCharLen)
   case MYSQL_TYPE_NEWDECIMAL:
   {
     /* The edge case like decimal(1,1)*/
-    size_t Precision= Field->length - test((Field->flags & UNSIGNED_FLAG) == 0) - test(Field->decimals != 0);
-    return Field->length + test(Precision == Field->decimals);
+    size_t Precision= Field->length - MADBTEST((Field->flags & UNSIGNED_FLAG) == 0) - MADBTEST(Field->decimals != 0);
+    return Field->length + MADBTEST(Precision == Field->decimals);
   }
   case MYSQL_TYPE_DATE:
     return sizeof(SQL_DATE_STRUCT);

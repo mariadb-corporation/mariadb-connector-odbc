@@ -313,7 +313,7 @@ SQLLEN MADB_CalculateLength(MADB_Stmt *Stmt, SQLLEN *OctetLengthPtr, MADB_DescRe
     case SQL_C_WCHAR:
       /* CRec->OctetLength eq 0 means not 0-length buffer, but that this value is not specified. Thus -1, for SqlwcsLen
           and SafeStrlen that means buffer len is not specified */
-      return SqlwcsLen((SQLWCHAR *)DataPtr, BufferLen/sizeof(SQLWCHAR) - test(BufferLen == 0)) * sizeof(SQLWCHAR);
+      return SqlwcsLen((SQLWCHAR *)DataPtr, BufferLen/sizeof(SQLWCHAR) - MADBTEST(BufferLen == 0)) * sizeof(SQLWCHAR);
       break;
     case SQL_C_BINARY:
     case SQL_VARBINARY:

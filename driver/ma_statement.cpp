@@ -16,12 +16,14 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include "ma_odbc.h"
+
 #include "ServerSidePreparedStatement.h"
 #include "ClientSidePreparedStatement.h"
 #include "interface/ResultSet.h"
 #include "ResultSetMetaData.h"
 #include "interface/Exception.h"
+
+#include "ma_odbc.h"
 
 #define MADB_MIN_QUERY_LEN 5
 
@@ -1718,7 +1720,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, int64_t SaveCurs
           char *p= (char *)Stmt->result[i].buffer;
           if (p)
           {
-            *p= test(*p != '\0');
+            *p= MADBTEST(*p != '\0');
           }
         }
         break;

@@ -52,8 +52,6 @@
 
 #define _i64toa(a,b,c) longlong2str((a),(b),(c))
 
-/* Mimicking of VS' _snprintf */
-int _snprintf(char *buffer, size_t count, const char *format, ...);
 
 /* Error codes fo strcpy_s */
 #ifndef EINVAL
@@ -62,7 +60,19 @@ int _snprintf(char *buffer, size_t count, const char *format, ...);
 #ifndef ERANGE
 # define ERANGE 34
 #endif
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
+/* Mimicking of VS' _snprintf */
+int _snprintf(char *buffer, size_t count, const char *format, ...);
 int strcpy_s(char *dest, size_t buffer_size, const char *src);
+
+#ifdef __cplusplus
+}
+#endif 
 
 #define strncpy_s(a,b,c,d) strncpy((a),(c),(b))
 

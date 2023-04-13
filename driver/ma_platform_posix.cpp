@@ -33,27 +33,9 @@ extern Client_Charset utf8;
 char LogFile[256];
 
 
-void InitializeCriticalSection(CRITICAL_SECTION *cs)
-{
-  pthread_mutexattr_t attr;
-
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(cs, &attr);
-}
-
-int DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
-{
-  return MADB_PROMPT_NOT_SUPPORTED;
-}
-
-
-int DSNPrompt_Free  (MADB_Prompt *prompt)
-{
-  prompt->LibraryHandle= NULL;
-
-  return 0;
-}
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
 /* Mimicking of VS' _snprintf */
 int _snprintf(char *buffer, size_t count, const char *format, ...)
@@ -97,6 +79,32 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
   }
 
   memcpy((void*)dest, (void*)src, src_len + 1);
+
+  return 0;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+void InitializeCriticalSection(CRITICAL_SECTION *cs)
+{
+  pthread_mutexattr_t attr;
+
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(cs, &attr);
+}
+
+int DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
+{
+  return MADB_PROMPT_NOT_SUPPORTED;
+}
+
+
+int DSNPrompt_Free  (MADB_Prompt *prompt)
+{
+  prompt->LibraryHandle= NULL;
 
   return 0;
 }

@@ -84,8 +84,8 @@ extern my_bool DummyError;
 #ifndef MAX
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
-#ifndef test
-#define test(a)		((a) ? 1 : 0)
+#ifndef MADBTEST
+#define MADBTEST(a)		((a) ? 1 : 0)
 #endif
 
 #define BUFFER_CHAR_LEN(blen,wchar) (wchar) ? (blen) / sizeof(SQLWCHAR) : (blen)

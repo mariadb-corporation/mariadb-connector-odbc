@@ -624,7 +624,7 @@ SQLRETURN MADB_DbcGetTrackedCurrentDB(MADB_Dbc* Dbc, SQLPOINTER CurrentDB, SQLIN
 }
 /* }}} */
 
-BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
+bool MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
 {
   unsigned int ServerStatus;
 
@@ -632,11 +632,11 @@ BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
   switch (SqlMode)
   {
   case MADB_NO_BACKSLASH_ESCAPES:
-    return test(ServerStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
+    return ServerStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   case MADB_ANSI_QUOTES:
-    return test(ServerStatus & SERVER_STATUS_ANSI_QUOTES);
+    return ServerStatus & SERVER_STATUS_ANSI_QUOTES;
   }
-  return FALSE;
+  return false;
 }
 /* }}} */
 
@@ -2281,7 +2281,7 @@ SQLRETURN MADB_DbcTrackSession(MADB_Dbc* Dbc)
       if (strncmp(key, "autocommit", keyLength) == 0)
       {
         /* Seemingly it's ON or OFF, but checking also lowercase and '0' or '1' */
-        Dbc->AutoCommit= test(length > 1 && (value[1] == 'N' || value[1] == 'n') || length == 1 && *value == '1');
+        Dbc->AutoCommit= MADBTEST(length > 1 && (value[1] == 'N' || value[1] == 'n') || length == 1 && *value == '1');
       }
       else if (strncmp(key, MADB_GetTxIsolationVarName(Dbc), keyLength) == 0)
       {
