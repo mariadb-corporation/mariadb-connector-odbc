@@ -34,7 +34,7 @@ const char *DsnConnStr=       "DSN=madb_connstring_test";
 const char *Description=      "MariaDB C/ODBC test DSN for automatic testing";
 
 /****************************** Helpers ****************************/
-#define RESET_DSN(dsn) MADB_DSN_Free(dsn);dsn= MADB_DSN_Init();memset(dsn, 0, sizeof(MADB_Dsn))
+#define RESET_DSN(dsn) MADB_DSN_Free(dsn);dsn= MADB_DSN_Init(NULL);memset(dsn, 0, sizeof(MADB_Dsn))
 
 BOOL VerifyOptionFields(MADB_Dsn *Dsn)
 {
@@ -93,7 +93,7 @@ int CreateTestDsn(MADB_Dsn *dsn)
     ++CreatedDsnCount;
     return OK;
   }
-  diag("An error occured while saving DSN %s", dsn->DSNName);
+  diag("An error '%s' occured while saving DSN %s", dsn->ErrorMsg, dsn->DSNName);
   return FAIL;
 }
 
@@ -762,7 +762,7 @@ int main(int argc, char **argv)
     my_tests[2].test_type= UNSTABLE;
   }
   plan(tests);
-  Dsn= MADB_DSN_Init();
+  Dsn= MADB_DSN_Init(NULL);
 
   ret= run_tests(my_tests);
 

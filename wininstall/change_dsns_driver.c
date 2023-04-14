@@ -312,7 +312,7 @@ void DoOdbcWay(const char *NewDriverName, BOOL AlsoSystem)
   {
     if (DriverToChange(DriverName))
     {
-      MADB_Dsn *Dsn= MADB_DSN_Init();
+      MADB_Dsn *Dsn= MADB_DSN_Init(NULL);
 
       if (Dsn == NULL)
       {

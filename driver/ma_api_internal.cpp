@@ -534,7 +534,7 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
     return SQL_ERROR;
   }
 
-  if (!(Dsn = MADB_DSN_Init()))
+  if (!(Dsn = MADB_DSN_Init(NULL)))
   {
     MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
     return SQL_ERROR;

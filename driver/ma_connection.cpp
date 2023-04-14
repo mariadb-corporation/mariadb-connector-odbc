@@ -2112,7 +2112,7 @@ SQLRETURN MADB_DriverConnect(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InCon
 
   MADB_CLEAR_ERROR(&Dbc->Error);
 
-  Dsn= MADB_DSN_Init();
+  Dsn= MADB_DSN_Init(NULL);
 
   if (!MADB_ReadConnString(Dsn, (char *)InConnectionString, StringLength1, ';'))
   {

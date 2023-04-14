@@ -136,14 +136,21 @@ void MADB_DSN_SetDefaults(MADB_Dsn *Dsn)
 /* }}} */
 
 /* {{{ MADB_Dsn_Init() */
-MADB_Dsn *MADB_DSN_Init()
+MADB_Dsn *MADB_DSN_Init(MADB_Dsn *Dsn2init)
 {
-  MADB_Dsn *Dsn;
+  MADB_Dsn *Dsn= Dsn2init;
 
-  if ((Dsn= (MADB_Dsn *)MADB_CALLOC(sizeof(MADB_Dsn))))
+  if (Dsn2init == NULL)
+  {
+    Dsn= (MADB_Dsn *)MADB_CALLOC(sizeof(MADB_Dsn));
+  }
+  if (Dsn != NULL)
   {
     Dsn->Keys= (MADB_DsnKey *)&DsnKeys;
-    /*Dsn->NullSchemaMeansCurrent = '\1';*/
+    /* Should this go to MADB_DSN_SetDefaults? The problem is that only used in dialog till the moment, not sure if
+     * Dsn->IsTcpIp= 1 is appropriate default in driver.
+     */
+    Dsn->NullSchemaMeansCurrent= '\1';
   }
   return Dsn;
 }
@@ -648,7 +655,7 @@ BOOL MADB_ReadConnString(MADB_Dsn *Dsn, const char *String, size_t Length, char 
      from the system information." https://msdn.microsoft.com/en-us/library/ms715433%28v=vs.85%29.aspx */
   if (Dsn->DSNName && MADB_IS_EMPTY(Dsn->Driver))
   {
-    MADB_ReadDSN(Dsn, NULL, FALSE);
+    MADB_ReadDSN(Dsn, NULL, TRUE);
     /* This redundancy is needed to be able to reset options set in the DSN, e.g. if DSN has Reconnect option selected, and
        connection string has AUTO_RECONNECT=0. Connection string should have precedence */
     MADB_ParseConnString(Dsn, String, Length, Delimiter);

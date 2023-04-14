@@ -947,7 +947,10 @@ BOOL DSNDialog(HWND     hwndParent,
         }
       }
       
+      /* These are defaults that driver appy */
       MADB_DSN_SetDefaults(Dsn);
+      /* These are defaults of the dialog */
+      DsnApplyDefaults(Dsn);
       MADB_ParseConnString(Dsn, (char *)lpszAttributes, SQL_NTS, Delimiter);
 
       /* Need to set driver after connstring parsing, and before saving */
@@ -1066,6 +1069,7 @@ BOOL INSTAPI ConfigDSN(
   case ODBC_ADD_DSN:
   case ODBC_CONFIG_DSN:
     memset(&Dsn, 0, sizeof(MADB_Dsn));
+    MADB_DSN_Init(&Dsn);
     return DSNDialog(hwndParent, fRequest, lpszDriver, lpszAttributes, &Dsn);
   case ODBC_REMOVE_DSN:
   {

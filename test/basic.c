@@ -1814,6 +1814,7 @@ ODBC_TEST(t_odbc377)
   CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, NULL, 0, NULL));
   if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
   {
+    diag("SQL state was %s", Sqlstate);
     FAIL_IF(1, "Unexpected SQL State");
   }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

@@ -170,7 +170,7 @@ extern MADB_DsnKey DsnKeys[];
 
 
 /*** Function prototypes ***/
-MADB_Dsn *  MADB_DSN_Init       (void);
+MADB_Dsn *  MADB_DSN_Init       (MADB_Dsn *Dsn2init);
 void        MADB_DSN_SetDefaults(MADB_Dsn *Dsn);
 void        MADB_DSN_Free       (MADB_Dsn *Dsn);
 my_bool     MADB_ReadDSN        (MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite);

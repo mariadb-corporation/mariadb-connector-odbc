@@ -173,7 +173,7 @@ BEGIN
     EDITTEXT        txtPluginDir,72,52,110,10,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",pbPlugindirBrowse,183,50,30,14
     CONTROL         "Disable LOAD DATA LOCAL INFILE statements",ckNoLocalInfile,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,66,170,10,WS_EX_TRANSPARENT
-    CONTROL         "SQLTables: NULL Catalog means 'current'(default - 'any DB')",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,80,210,10,WS_EX_TRANSPARENT
+    CONTROL         "SQLTables: NULL Catalog means 'current'(default), otherwise 'any'",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,80,232,10,WS_EX_TRANSPARENT
     LTEXT           "Performance schema attributes(format: name=val,name1=val1)",IDC_STATIC,15,92,210,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtAttr,15,100,210,11,ES_AUTOHSCROLL
 //    CONTROL         "Prepare by default on server for direct execution",ckServerDirectExec,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,114,177,10,WS_EX_TRANSPARENT
