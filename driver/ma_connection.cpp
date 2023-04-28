@@ -560,7 +560,7 @@ SQLRETURN MADB_DbcFree(MADB_Dbc *Connection)
   MADB_DSN_Free(Connection->Dsn);
   DeleteCriticalSection(&Connection->cs);
 
-  free(Connection);
+  delete Connection;
   return SQL_SUCCESS;
 }
 /* }}} */
