@@ -75,7 +75,6 @@ struct MADB_Apd
 {
 	SQLUSMALLINT  *ParamOperationPtr;
 	SQLULEN       *ParamOffsetPtr;
-	/*MADB_ParmBind *ParamBind;*/
 	MYSQL_BIND    *Bind;
   SQLLEN      ParamsetSize;
   SQLUINTEGER	ParamBindType;
@@ -88,8 +87,8 @@ struct MADB_Dbc;
 struct MADB_Ird
 {
   MADB_Stmt* stmt;
-	SQLULEN* RowsFetched;
-	SQLUSMALLINT* RowStatusArray;
+  SQLULEN* RowsFetched;
+  SQLUSMALLINT* RowStatusArray;
   MYSQL_FIELD* Fields;
 	SQLUINTEGER FieldCount;
 	SQLSMALLINT	Allocated;
@@ -104,7 +103,6 @@ struct MADB_Ipd
 	SQLULEN *ParamProcessedPtr; /* SQLParamOptions */
 #endif /* ODBCVER */
 	SQLUSMALLINT *ParamStatusPtr;
-  /*MADB_ParmBind* Parameters;*/
 	SQLSMALLINT Allocated;
 };
 
