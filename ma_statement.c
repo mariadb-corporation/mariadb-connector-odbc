@@ -662,7 +662,8 @@ void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
 
   Query->Length= _snprintf(NewStr, NewSize, "SET STATEMENT max_statement_time=%llu FOR %s", Timeout, Query->Original);
 
-  MADB_RESET(Query->Original, NewStr);
+  MADB_FREE(Query->Original);
+  Query->Original= NewStr;
 }
 
 /* {{{ MADB_StmtPrepare */
