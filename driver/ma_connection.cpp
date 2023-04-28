@@ -24,7 +24,7 @@
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";
 static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
-const char * AttrPairSeparators= ",";
+const char *AttrPairSeparators= ",", *AttrKeyValueSeparators= "=:";
 
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
@@ -736,14 +736,14 @@ bool MADB_SetAttributes(MYSQL* mariadb, const char* Attributes)
 
     for (std::size_t i= 0; i < pairs; ++i)
     {
-      const char *key= ltrim(token[i].arr), *value= std::strchr(key, '=');
+      const char *key= ltrim(token[i].arr), *value= std::strpbrk(key, AttrKeyValueSeparators);
       if (value == nullptr || static_cast<std::size_t>(value - token[i].arr) > token[i].size())
       {
         result= true;
         continue;
         /*SQLString keyCopy(key, token[i].size() - (key - token[i].arr));
         rtrim(keyCopy);
-        mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)keyCopy.data());*/
+        mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_ATTR_ADD, (void *)keyCopy.data(), nullptr);*/
       }
       else
       {

@@ -1861,7 +1861,6 @@ ODBC_TEST(t_odbc388)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
-  /* Connection with *disabled* LOAD DATA LOCAL INFILE */
   Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr1 = attr1_value , _client_attr2= attr2_value}");
   FAIL_IF(Hstmt == NULL, "Connection error");
 
@@ -1895,15 +1894,15 @@ ODBC_TEST(t_odbc388)
   CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr12", sizeof("_client_attr12"), NULL));
   CHECK_STMT_RC(Hstmt, SQLExecute(Hstmt));
   EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
-  //CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
-  ///* Not sure why, but setting attribute with name, but without value results in blank space value of the attribute(with Windows client) */
-  //IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);
+  /*CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  // Not sure why, but setting attribute with name, but without value results in blank space value of the attribute(with Windows client)
+  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);*/
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
   CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr13 =attr1_value3,_client_attr23}");
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr13 :attr1_value3,_client_attr23}");
   FAIL_IF(Hstmt == NULL, "Connection error");
   CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT ATTR_VALUE FROM performance_schema.session_connect_attrs "
                                          "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?", SQL_NTS));
@@ -1919,7 +1918,7 @@ ODBC_TEST(t_odbc388)
   IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);*/
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR=_client_attr14");
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "ATTR={_client_attr14}");
   FAIL_IF(Hstmt == NULL, "Connection error");
   
   CHECK_STMT_RC(Hstmt, SQLBindParameter(Hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, (SQLPOINTER)"_client_attr14", sizeof("_client_attr14"), NULL));
@@ -1927,7 +1926,7 @@ ODBC_TEST(t_odbc388)
                         "WHERE processlist_id=CONNECTION_ID() AND ATTR_NAME=?");
   EXPECT_STMT(Hstmt, SQLFetch(Hstmt), SQL_NO_DATA);
   /*CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
-  IS_STR(" ", my_fetch_str(Hstmt, buffer, 1), 2);*/
+  IS_STR("", my_fetch_str(Hstmt, buffer, 1), 2);*/
   
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
