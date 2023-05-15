@@ -1,5 +1,5 @@
 #
-#  Copyright (C) 2021 MariaDB Corporation AB
+#  Copyright (C) 2021,2023 MariaDB Corporation AB
 #
 #  Redistribution and use is allowed according to the terms of the New
 #  BSD license.
@@ -8,9 +8,14 @@
 
 OPTION(BUILD_INTERACTIVE_TESTS "Build test(s) requiring user interaction" OFF)
 OPTION(USE_INTERACTIVE_TESTS "Run interactive test(s) with ctest" OFF)
+OPTION(CONC_WITH_UNIT_TESTS "Build C/C unit tests" OFF)
+OPTION(WITH_ASAN "Compile with ASAN" OFF)
+OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
+OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 
 IF(WIN32)
   OPTION(WITH_MSI "Build MSI installation package" ON)
+  OPTION(CONC_WITH_MSI "Build C/C MSI installation package" OFF)
   OPTION(WITH_SIGNCODE "Digitally sign files" OFF)
 
   OPTION(MARIADB_LINK_DYNAMIC "Link Connector/C library dynamically" OFF)
@@ -18,8 +23,9 @@ IF(WIN32)
   SET(CLIENT_PLUGIN_PVIO_NPIPE "STATIC")
   # We don't provide its support in ODBC yet, thus there is no need to bloat the library size
   #SET(CLIENT_PLUGIN_PVIO_SHMEM "STATIC")
+  SET(WITH_UBSAN OFF)
+  SET(WITH_MSAN OFF)
 ELSE()
-  OPTION(WITH_MSI "Build MSI installation package" OFF)
   IF(APPLE)
     OPTION(MARIADB_LINK_DYNAMIC "Link Connector/C library dynamically" OFF)
   ELSE()
@@ -52,6 +58,8 @@ IF(NOT EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   SET(USE_SYSTEM_INSTALLED_LIB ON)
 ENDIF()
 
+SET(MAODBC_LINKER_FLAGS "")
+
 IF(APPLE)
   SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
   SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -79,6 +87,8 @@ IF(WIN32)
     SET(MARIADB_LINK_DYNAMIC OFF)
   ENDIF()
 ELSE()
+  SET(WITH_MSI OFF)
+  SET(CONC_WITH_MSI OFF)
   # Defaults for creating odbc(inst).ini for tests with Unix/iOdbc
   IF(WITH_UNIT_TESTS)
     SET_VALUE(TEST_DRIVER "maodbc_test")

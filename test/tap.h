@@ -652,9 +652,18 @@ do {\
   }
 
 #define IS(A) if (!(A)) { diag("Error in %s:%d", __FILE__, __LINE__); return FAIL; }
-#define IS_STR_EX(A,B,C,D) do {const char *loc_a=(const char *)(A), *loc_b=(const char *)(B);\
-if ((D)) diag("%s %s", loc_a, loc_b);\
-FAIL_IF(loc_a == NULL || loc_b == NULL || strncmp(loc_a, loc_b, (C)) != 0, "Strings do not match"); } while(0)
+
+BOOL is_str_ex(const char* str1, const char* str2, size_t len, BOOL verbose)
+{
+  if (verbose)
+  {
+    fprintf(stdout, "# %s %s", str1, str2);
+  }
+  return str1 == NULL || str2 == NULL || strncmp(str1, str2, len) != 0;
+}
+
+#define IS_STR_EX(A,B,C,D) FAIL_IF(is_str_ex((const char *)(A), (const char *)(B), (C), (D)), "Strings do not match")
+
 #define IS_STR(A,B,C) IS_STR_EX(A,B,C,TRUE)
 
 #define is_num(A,B) \
@@ -719,7 +728,7 @@ SQLWCHAR *my_fetch_wstr(SQLHSTMT Stmt, SQLWCHAR *buffer, SQLUSMALLINT icol, SQLL
 
 const char *my_fetch_str(SQLHSTMT Stmt, SQLCHAR *szData, SQLUSMALLINT icol)
 {
-    SQLLEN nLen;
+    SQLLEN nLen= 0;
 
     SQLGetData(Stmt, icol, SQL_CHAR, szData, 1000, &nLen);
     /* If Null value - putting down smth meaningful. also that allows caller to
