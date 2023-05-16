@@ -9,6 +9,9 @@
 OPTION(BUILD_INTERACTIVE_TESTS "Build test(s) requiring user interaction" OFF)
 OPTION(USE_INTERACTIVE_TESTS "Run interactive test(s) with ctest" OFF)
 OPTION(CONC_WITH_UNIT_TESTS "Build C/C unit tests" OFF)
+OPTION(WITH_ASAN "Compile with ASAN" OFF)
+OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
+OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 
 IF(WIN32)
   OPTION(WITH_MSI "Build MSI installation package" ON)
@@ -20,6 +23,8 @@ IF(WIN32)
   SET(CLIENT_PLUGIN_PVIO_NPIPE "STATIC")
   # We don't provide its support in ODBC yet, thus there is no need to bloat the library size
   #SET(CLIENT_PLUGIN_PVIO_SHMEM "STATIC")
+  SET(WITH_UBSAN OFF)
+  SET(WITH_MSAN OFF)
 ELSE()
   IF(APPLE)
     OPTION(MARIADB_LINK_DYNAMIC "Link Connector/C library dynamically" OFF)
@@ -52,6 +57,8 @@ ENDIF()
 IF(NOT EXISTS ${CMAKE_SOURCE_DIR}/libmariadb)
   SET(USE_SYSTEM_INSTALLED_LIB ON)
 ENDIF()
+
+SET(MAODBC_LINKER_FLAGS "")
 
 IF(APPLE)
   SET(CMAKE_SKIP_BUILD_RPATH  FALSE)

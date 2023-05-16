@@ -329,7 +329,9 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
   /* If we already know index columns - we walk through column index values stored in Stmt->UniqueIndex, all columns otherwise */
   for (i= IndexArrIdx == 0 ? 0 : Stmt->UniqueIndex[1];
     IndexArrIdx == 0 ? i < MADB_STMT_COLUMN_COUNT(Stmt) : IndexArrIdx <= Stmt->UniqueIndex[0];
-    i= IndexArrIdx == 0 ? i + 1 : Stmt->UniqueIndex[++IndexArrIdx])
+    i= IndexArrIdx == 0 ? i + 1 : (++IndexArrIdx > Stmt->UniqueIndex[0] ? 0 /* Doesn't really matter what we set here - loop won't go further,
+                                                                               we just don't want to read past Stmt->UniqueIndex allocated area */
+                                                                        : Stmt->UniqueIndex[IndexArrIdx]))
   {
     const MYSQL_FIELD *field= Stmt->metadata->getField(i);
 

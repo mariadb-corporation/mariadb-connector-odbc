@@ -218,7 +218,7 @@ ODBC_TEST(test_semicolon)
    Also tests ODBC-97*/
 ODBC_TEST(t_odbc74)
 {
-  SQLCHAR ref[][4]= {"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[8];
+  SQLCHAR ref[][6]= {"\"", "'", "*/", "/*", "end", "one\\", "two\\"}, val[10];
   unsigned int i;
   SQLHDBC     hdbc1;
   SQLHSTMT    Stmt1;

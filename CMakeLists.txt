@@ -21,15 +21,23 @@ cmake_minimum_required(VERSION 2.8.12)
 
 CMAKE_POLICY(SET CMP0048 NEW)
 CMAKE_POLICY(SET CMP0040 OLD)
+#CMAKE_POLICY(SET CMP0057 NEW)
 PROJECT(mariadb_connector_odbc 
         VERSION 3.2.1
         LANGUAGES CXX C)
 
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+cmake_minimum_required(VERSION 2.8...2.8.12)
+
+GET_PROPERTY(MAODBC_LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
+# We don't need RC for what we need MAODBC_LANGUAGES for
+LIST(REMOVE_ITEM MAODBC_LANGUAGES "RC")
 
 SET(MARIADB_ODBC_VERSION_QUALITY "beta")
 SET(MARIADB_ODBC_VERSION "03.02.0001")
+
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 SET(MARIADB_DEFAULT_PLUGINS_SUBDIR "plugin")
 
@@ -47,20 +55,59 @@ MACRO(ADD_OPTION _name _text _default)
   ENDIF()
 ENDMACRO()
 
+INCLUDE(check_compiler_flag)
+
+IF(WITH_ASAN)
+  IF(MSVC)
+    MA_SET_COMPILER_FLAG("-fsanitize=address" DEBUG RELWITHDEBINFO)
+    SET(MAODBC_LINKER_FLAGS ${MAODBC_LINKER_FLAGS} /INCREMENTAL:NO)
+    MA_SET_LINKER_FLAG("${MAODBC_LINKER_FLAGS}" DEBUG RELWITHDEBINFO)
+  ELSE()
+    MY_CHECK_AND_SET_COMPILER_FLAG("-U_FORTIFY_SOURCE" DEBUG RELWITHDEBINFO)
+    MY_CHECK_AND_SET_COMPILER_FLAG("-fsanitize=address -fPIC" DEBUG RELWITHDEBINFO)
+
+    SET(WITH_ASAN_OK 1)
+    FOREACH(lang ${MAODBC_LANGUAGES})
+      IF(NOT ${have_${lang}__fsanitize_address__fPIC})
+        SET(WITH_ASAN_OK 0)
+      ENDIF()
+    ENDFOREACH()
+    IF(WITH_ASAN_OK)
+      OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" OFF)
+      IF(WITH_ASAN_SCOPE)
+        MY_CHECK_AND_SET_COMPILER_FLAG("-fsanitize=address -fsanitize-address-use-after-scope" DEBUG RELWITHDEBINFO)
+      ENDIF()
+    ELSE()
+      MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+IF (WITH_UBSAN)
+  MY_CHECK_AND_SET_COMPILER_FLAG("-fsanitize=undefined -fno-sanitize=alignment -U_FORTIFY_SOURCE -DWITH_UBSAN" DEBUG RELWITHDEBINFO)
+ENDIF()
+
+IF (WITH_MSAN)
+  MY_CHECK_AND_SET_COMPILER_FLAG("-fsanitize=memory -fsanitize-memory-track-origins -U_FORTIFY_SOURCE" DEBUG RELWITHDEBINFO)
+ENDIF()
+
 # This has to be before C/C's cmake run, or it will build with /MD
 IF(WIN32)
   IF (MSVC)
     SET(CONFIG_TYPES "DEBUG" "RELEASE" "RELWITHDEBINFO" "MINSIZEREL")
     FOREACH(BUILD_TYPE ${CONFIG_TYPES})
-      FOREACH(COMPILER CXX C)
+      FOREACH(COMPILER ${MAODBC_LANGUAGES})
         SET(COMPILER_FLAGS "${CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}}")
         IF (NOT COMPILER_FLAGS STREQUAL "")
-          STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
-          IF (BUILD_TYPE STREQUAL "Debug")
-            SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1 /RTCc")
+          IF(NOT WITH_ASAN)
+            STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
+            IF (BUILD_TYPE STREQUAL "Debug")
+              SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1 /RTCc")
+            ENDIF()
             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
-          ENDIF()
+          ENDIF(NOT WITH_ASAN)
           MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
+          MESSAGE (STATUS "CMAKE_SHARED_LINKER_FLAGS_${BUILD_TYPE}= ${CMAKE_SHARED_LINKER_FLAGS_${BUILD_TYPE}}")
           SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE
                STRING "overwritten by mariadb-odbc" FORCE)
         ENDIF()
@@ -71,15 +118,14 @@ IF(WIN32)
   SET(INSTALL_PLUGINDIR "${MARIADB_DEFAULT_PLUGINS_SUBDIR}")
 ENDIF()
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SearchLibrary.cmake)
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetValueMacro.cmake)
+INCLUDE(SearchLibrary)
+INCLUDE(SetValueMacro)
 
 ### Build options, initial settings and platform defaults
-INCLUDE("${CMAKE_SOURCE_DIR}/cmake/options_defaults.cmake")
+INCLUDE("options_defaults")
 
 ### Setting installation paths - should go before C/C subproject sets its own. We need to have control over those
-INCLUDE("${CMAKE_SOURCE_DIR}/cmake/install.cmake")
-
+INCLUDE("install")
 
 IF(WIN32 OR WITH_OPENSSL OR "${WITH_SSL}" STREQUAL  "OPENSSL")
   # If C/C is linked dynamically, we don't need link C/ODBC against encryption library
@@ -115,7 +161,7 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
     SET(ODBC_GIT_BUILD_SRCPKG TRUE)
   ENDIF()
   MESSAGE(STATUS "Running C/C cmake scripts")
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/connector_c.cmake)
+  INCLUDE(connector_c)
 
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/driver ${CMAKE_SOURCE_DIR}/libmariadb/include)
   INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/driver ${CMAKE_BINARY_DIR}/libmariadb/include)
@@ -199,7 +245,7 @@ ENDIF()
 
 IF(NOT WIN32)
   # Looking for DM(UnixODBC) files
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindDM.cmake)
+  INCLUDE(FindDM)
 
   IF(DM_FOUND)
     INCLUDE_DIRECTORIES(${ODBC_INCLUDE_DIR})
@@ -215,7 +261,7 @@ IF(APPLE OR CMAKE_SYSTEM_NAME MATCHES AIX)
     SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${ICONV_LIBRARIES})
   ELSE()
     # Looking for iconv files
-    INCLUDE(${CMAKE_SOURCE_DIR}/cmake/FindIconv.cmake)
+    INCLUDE(FindIconv)
     IF(ICONV_FOUND)
       INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
       SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${ICONV_LIBRARIES})

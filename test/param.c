@@ -376,13 +376,13 @@ ODBC_TEST(t_param_offset)
   {
     rows[20+i].id= i * 10;
     rows[20+i].x= (i * 1000) % 97;
-    OK_SIMPLE_STMT(Stmt, "insert into t_param_offset values (?,?)");
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO t_param_offset VALUES (?,?)");
     bind_offset+= row_size;
   }
 
   /* verify the data */
-
-  OK_SIMPLE_STMT(Stmt, "select id, x from t_param_offset order by 1");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+  OK_SIMPLE_STMT(Stmt, "SELECT id, x FROM t_param_offset order by 1");
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &out_id, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_LONG, &out_x, 0, NULL));

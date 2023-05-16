@@ -53,10 +53,11 @@ char* trim(char *Str)
   char *end;
   
   Str= (char*)ltrim(Str);
-
   end= Str + strlen(Str) - 1;
-  while (*end > 0 && isspace(*end))
-    *end--= 0;
+  while (end >= Str && *end > 0 && isspace(*end))
+  {
+    *end--= '\0';
+  }
   return Str;
 }
 /* }}} */
