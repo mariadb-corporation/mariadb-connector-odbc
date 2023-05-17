@@ -456,9 +456,9 @@ ODBC_TEST(charset_utf8)
 {
   HDBC hdbc1;
   HSTMT hstmt1;
-  SQLCHAR conn[512], conn_out[512];
+  SQLCHAR conn[512], conn_out[1024];
   SQLLEN len;
-  SQLSMALLINT conn_out_len;
+  SQLSMALLINT conn_out_len, in_len;
   SQLINTEGER str_size;
   SQLWCHAR wc[20];
 
@@ -471,12 +471,12 @@ ODBC_TEST(charset_utf8)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8",
+  in_len= (SQLSMALLINT)_snprintf((char *)conn, sizeof(conn), "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8",
          my_dsn, my_uid, my_pwd);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, sizeof(conn), conn_out,
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, in_len, conn_out,
                                  sizeof(conn_out), &conn_out_len,
                                  SQL_DRIVER_NOPROMPT));
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
