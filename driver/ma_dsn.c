@@ -186,6 +186,7 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->SaveFile);
   MADB_FREE(Dsn->ServerKey);
   MADB_FREE(Dsn->TlsKeyPwd);
+  MADB_FREE(Dsn->Attributes);
   MADB_FREE(Dsn); 
 }
 /* }}} */
@@ -528,7 +529,8 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
   }
 
   Buffer= (char*)(MADB_ALLOC(Length + 1));
-  Buffer= (char*)(memcpy(Buffer, String, Length + 1));
+  Buffer= (char*)(memcpy(Buffer, String, Length));
+  Buffer[Length]= '\0';
   Key=    Buffer;
   ValueBuf= (char*)(MADB_ALLOC(Length - 4)); /*DSN=<value> - DSN or DRIVER must be in */
 

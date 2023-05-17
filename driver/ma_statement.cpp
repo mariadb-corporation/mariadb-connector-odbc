@@ -3718,7 +3718,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         
         ApdRec= MADB_DescGetInternalRecord(Stmt->DaeStmt->Apd, param, MADB_DESC_READ);
         ApdRec->DefaultValue= MADB_GetDefaultColumnValue(Stmt->DaeStmt->DefaultsResult.get(),
-          Stmt->rs->getMetaData()->getFields()[column].org_name);
+          Stmt->metadata->getFields()[column].org_name);
 
         ++param;
       }
