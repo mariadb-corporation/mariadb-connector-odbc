@@ -1521,6 +1521,74 @@ ODBC_TEST(t_odbc214)
   return OK;
 }
 
+/* The server returns '0' and '1' for bit field in subquery, while reporting it as a BIT. Connector interpreted '0'
+   as '\1'/true while fetched as a BIT since '0' != '\0' */
+ODBC_TEST(t_odbc350)
+{
+  SQLCHAR v1= 0, v2= 0;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc350");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc350 (v BIT(1), v2 BIT(8), v3 BIT(9))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc350 VALUES(0, 0, 256)");
+
+  OK_SIMPLE_STMT(Stmt, "SELECT v, (SELECT v FROM t_odbc350 LIMIT 1) FROM t_odbc350");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_BIT, &v1, sizeof(v1), NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_BIT, &v2, sizeof(v2), NULL));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(v1, 0);
+  is_num(v2, 0);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "UPDATE t_odbc350 SET v=1");
+  OK_SIMPLE_STMT(Stmt, "SELECT v, (SELECT v FROM t_odbc350 LIMIT 1) FROM t_odbc350");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(v1, 1);
+  is_num(v2, 1);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT v2, (SELECT v2 FROM t_odbc350 LIMIT 1) FROM t_odbc350");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(v1, 0);
+  is_num(v2, 0);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "UPDATE t_odbc350 SET v2=48"); /* '0'=48*/
+  OK_SIMPLE_STMT(Stmt, "SELECT v2, (SELECT v2 FROM t_odbc350 LIMIT 1) FROM t_odbc350");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(v1, 1);
+  is_num(v2, 1);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT v3, (SELECT v3 FROM t_odbc350 LIMIT 1) FROM t_odbc350");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(v1, 1);
+  is_num(v2, 1);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "UPDATE t_odbc350 SET v3=0");
+  OK_SIMPLE_STMT(Stmt, "SELECT v3, (SELECT v3 FROM t_odbc350 LIMIT 1) FROM t_odbc350");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(v1, 0);
+  is_num(v2, 0);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc350");
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1554,6 +1622,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc232, "t_odbc232"},
   {t_odbc274, "t_odbc274_InsDelReplace_returning"},
   {t_odbc214, "t_odbc214_medium"},
+  {t_odbc350, "t_odbc350_bit_in_subquery"},
   {NULL, NULL}
 };
 

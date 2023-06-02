@@ -1887,7 +1887,6 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       break;
     }
   }
-
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -1972,7 +1971,9 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
           char *p= (char *)Stmt->result[i].buffer;
           if (p)
           {
-            *p= test(*p != '\0');
+            /* Workaround for server returning bit field in subquery as string interpretation, but sets binary flag, unlike the "normal" bit field */
+            MYSQL_FIELD *f= mysql_fetch_fields(Stmt->metadata);
+            *p= test(*p != '\0' && !(f[i].type == MYSQL_TYPE_BIT && f[i].flags & BINARY_FLAG && *p == '0'));
           }
         }
         break;
@@ -2185,7 +2186,6 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
       }
     }
   }
-
   return rc;
 }
 /* }}} */

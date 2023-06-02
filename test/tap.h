@@ -657,7 +657,7 @@ BOOL is_str_ex(const char* str1, const char* str2, size_t len, BOOL verbose)
 {
   if (verbose)
   {
-    fprintf(stdout, "# %s %s", str1, str2);
+    fprintf(stdout, "# %s %s\n", str1, str2);
   }
   return str1 == NULL || str2 == NULL || strncmp(str1, str2, len) != 0;
 }

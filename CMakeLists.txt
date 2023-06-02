@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2022 MariaDB Corporation AB
+#   Copyright (C) 2013,2023 MariaDB Corporation AB
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -131,7 +131,6 @@ IF(WIN32)
             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
           ENDIF(NOT WITH_ASAN)
           MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
-          MESSAGE (STATUS "CMAKE_SHARED_LINKER_FLAGS_${BUILD_TYPE}= ${CMAKE_SHARED_LINKER_FLAGS_${BUILD_TYPE}}")
           SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE
                STRING "overwritten by mariadb-odbc" FORCE)
         ENDIF()

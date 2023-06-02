@@ -87,7 +87,7 @@ typedef struct
 {
   SQLUSMALLINT *RowOperationPtr;
   SQLULEN      *RowOffsetPtr;
-  MYSQL_BIND   *Bind;
+  /* MYSQL_BIND   *Bind;*/
   SQLLEN       dummy;
   SQLUINTEGER  BindSize;	/* size of each structure if using * Row-wise Binding */
   SQLSMALLINT  Allocated;
@@ -97,7 +97,7 @@ typedef struct
 {
   SQLUSMALLINT *ParamOperationPtr;
   SQLULEN      *ParamOffsetPtr;
-  MYSQL_BIND   *Bind;
+  /* MYSQL_BIND   *Bind;*/
   SQLLEN       ParamsetSize;
   SQLUINTEGER  ParamBindType;
   SQLSMALLINT  Allocated;
@@ -105,10 +105,10 @@ typedef struct
 
 typedef struct
 {
-  MADB_Stmt* stmt;
+  /*MADB_Stmt* stmt;*/
   SQLULEN* RowsFetched;
   SQLUSMALLINT* RowStatusArray;
-  MYSQL_FIELD* Fields;
+  /* MYSQL_FIELD* Fields;*/
   SQLUINTEGER FieldCount;
   SQLSMALLINT	Allocated;
 } MADB_Ird;

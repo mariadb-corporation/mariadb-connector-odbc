@@ -1356,3 +1356,10 @@ void MADB_InstallStmt(MADB_Stmt *Stmt, MYSQL_STMT *stmt)
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
   }
 }
+
+
+enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, int i)
+{
+  /* Assuming the caller knows what is it calling for - i.e. i is valid, and stmt->metadata is set. Should be */
+  return mysql_fetch_fields(Stmt->metadata)[i].type;
+}

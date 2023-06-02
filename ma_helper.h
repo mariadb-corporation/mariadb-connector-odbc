@@ -76,6 +76,8 @@ BOOL          MADB_IsIntType    (SQLSMALLINT ConciseType);
 /* For multistatement picks stmt handler pointed by stored index, and sets it as "current" stmt handler */
 void          MADB_InstallStmt  (MADB_Stmt *Stmt, MYSQL_STMT *stmt);
 
+enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, int i);
+
 /* for dummy binding */
 extern my_bool DummyError;
 
