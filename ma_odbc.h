@@ -390,6 +390,7 @@ struct st_ma_odbc_connection
   char    ServerCapabilities;
   my_bool IsAnsi;
   my_bool IsMySQL;
+  char    lcTableNamesMode2;
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);

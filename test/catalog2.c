@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2022 MariaDB Corporation AB
+                2017, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -755,7 +755,7 @@ ODBC_TEST(t_bug57182)
   SQLLEN nRowCount;
   SQLCHAR buff[24];
 
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists bug57182");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS bug57182");
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE DEFINER=`adb`@`%` PROCEDURE `bug57182`(in id int, in name varchar(20)) "
     "BEGIN"
     "  insert into simp values (id, name);"
@@ -839,9 +839,9 @@ ODBC_TEST(t_bug55870)
   SQLHDBC    hdbc1;
   SQLHSTMT   hstmt1;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870r");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870_2");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870r");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870");
   OK_SIMPLE_STMT(Stmt, "create table bug55870(a int not null primary key, "
     "b varchar(20) not null, c varchar(100) not null, INDEX(b)) ENGINE=InnoDB");
 
@@ -850,11 +850,11 @@ ODBC_TEST(t_bug55870)
      Thus let's test it on NO_I_S connection too */
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s; NO_I_S=1", my_dsn, my_uid, my_pwd);
+  sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s;NO_I_S=1", my_dsn, my_uid, my_pwd);
 
-  sprintf(query, "grant Insert, Select on bug55870 to %s", my_uid);
+  sprintf(query, "GRANT Insert, Select ON bug55870 TO %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
-  sprintf(query, "grant Insert (c), Select (c), Update (c) on bug55870 to %s", my_uid);
+  sprintf(query, "GRANT Insert (c), Select (c), Update (c) ON bug55870 to %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, noI_SconnStr, sizeof(noI_SconnStr), NULL,
@@ -1332,14 +1332,21 @@ ODBC_TEST(odbc119)
 {
   SQLCHAR StrValue[32];
   SQLLEN  RowCount;
+#ifdef _WIN32
+  /* Whether lower_case_table_names is 1 or 2 - it should work with lower case name. if 1 - it is created in lowercase, if 2
+  * - it is still compared in lowercase.
+  */
+  SQLCHAR *tname= (SQLCHAR*)"t_odbc119";
+#else
+  SQLCHAR *tname= (SQLCHAR*)"t_Odbc119";
+#endif
+  /* Made the name not all lower case to address ODBC-391/370(if lower_case_table_names=2). However 391 has got its own testcase */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_Odbc119");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_Odbc119(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, "
+    "ui_p1 INT NOT NULL, iu_p2 INT NOT NULL, a VARCHAR(100) NOT NULL, KEY `INDEX` (`a`), UNIQUE KEY `UNIQUE` (ui_p1, iu_p2)) ENGINE=InnoDB");
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_odbc119");
-  OK_SIMPLE_STMT(Stmt, "create table t_odbc119(id int not null primary key auto_increment, "
-    "ui_p1 INT NOT NULL, iu_p2 INT NOT NULL, a varchar(100) not null, KEY `INDEX` (`a`), UNIQUE KEY `UNIQUE` (ui_p1, iu_p2)) ENGINE=InnoDB");
-
-  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
-    "t_odbc119", SQL_NTS,
-    SQL_INDEX_ALL, SQL_QUICK));
+  /*  Here it probably can fail in case of case-insentive FS on MacOS and lower_case_table_names=1(not sure if it's even possible) */
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, tname, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
   is_num(RowCount, 4);
 
@@ -1373,7 +1380,7 @@ ODBC_TEST(odbc119)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc119");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_Odbc119");
 
   return OK;
 }
@@ -1865,6 +1872,110 @@ ODBC_TEST(odbc361)
   return OK;
 }
 
+/* With lower_case_table_names=2 server the driver may not read indexes in SQLStatistics 
+ * We can't assure that lower_case_table_names=2, but it's a good testcase for other modes as well.
+ * Besides other catalog functions are affected - not only SQLStatistics
+ * The problem arose, when application read (db or) table name with SQLTables, and it has original letter cases,
+ * but then if to use ifas parameter to (catalog or) table argument for various vatalog function, the server compares
+ * it to locase values of (db or) table name, and it failed(since ordinary argument comparison has to be cace-sensitive.
+ * The test basically makes sure, that this works
+ */
+ODBC_TEST(odbc391)
+{
+  SQLCHAR tname[12], buffer[MAX_NAME_LEN], dbname[MAX_NAME_LEN], pname[12];
+  SQLLEN  dbnameLen, tnameLen, pnameLen;
+  SQLINTEGER len;
+  BOOL found= FALSE;
+  SQLCHAR  dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[40 + sizeof(my_host)], revokeSelect[48 + sizeof(my_host)];
+
+  OK_SIMPLE_STMT(Stmt, "DROP SCHEMA IF EXISTS _SchemaOdbc391");
+  OK_SIMPLE_STMT(Stmt, "CREATE SCHEMA _SchemaOdbc391");
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &len));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"_SchemaOdbc391", 14));
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR*)SQL_ALL_CATALOGS, 1, "", 0, "", 0, NULL, 0));
+  while (SQLFetch(Stmt) != SQL_NO_DATA)
+  {
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, dbname, sizeof(dbname), &dbnameLen));
+    if (dbnameLen == (sizeof("_SchemaOdbc391") - 1) && strcmp(dbname + 8, "dbc391") == 0)
+    {
+      found= TRUE;
+      break;
+    }
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  FAIL_IF(!found, "Created schema wasn't found");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_Odbc391");
+  /* Current_Timestamp() is intentionally in mixed case, however there was no problem with that */
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_Odbc391(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, "
+    "ts TIMESTAMP  on update Current_Timestamp(), a VARCHAR(100) NOT NULL) ENGINE=InnoDB");
+
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+    NULL, 0, NULL, 0));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_CHAR, tname, sizeof(tname), &tnameLen));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+                                tname, (SQLSMALLINT)tnameLen, NULL, 0));
+  is_num(3, my_print_non_format_result(Stmt));
+  /* my_print_non_format_result closes cursor */
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, SQL_NTS, tname, (SQLSMALLINT)tnameLen,
+                                    SQL_INDEX_ALL, SQL_QUICK));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_ROWVER,  dbname, (SQLSMALLINT)dbnameLen, NULL, SQL_NTS, tname, (SQLSMALLINT)tnameLen,
+                                        SQL_SCOPE_TRANSACTION, SQL_NULLABLE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, SQL_NTS, tname, (SQLSMALLINT)tnameLen));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE ProcOdbc391(IN Id INT, IN Name VARCHAR(20))"\
+    "BEGIN END;"
+  );
+  CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+    NULL, 0));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_CHAR, pname, sizeof(pname), &pnameLen));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+    pname, (SQLSMALLINT)pnameLen, NULL, 0));
+  is_num(2, my_print_non_format_result(Stmt));
+  /* my_print_non_format_result closes cursor */
+
+  _snprintf(dropUser, sizeof(dropUser), "DROP USER Odbc391@'%s'", my_host);
+  /* we can have error, if there is simply no such user, and that is supposed to be the case, actually */
+  SQLExecDirect(Stmt, dropUser, SQL_NTS);
+  _snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  CHECK_USER_OPERATION(Stmt, createUser);
+  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
+  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT(id,ts,a) ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
+  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT(ts) ON t_Odbc391 FROM Odbc391@'%s'", my_host);
+  CHECK_USER_OPERATIONX(Stmt, revokeSelect, dropUser);
+
+  CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen));
+  is_num(1, my_print_non_format_result(Stmt));
+  CHECK_STMT_RC(Stmt, SQLColumnPrivileges(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen, NULL, 0));
+  is_num(2, my_print_non_format_result(Stmt));
+
+  OK_SIMPLE_STMT(Stmt, dropUser);
+  OK_SIMPLE_STMT(Stmt, "DROP SCHEMA _SchemaOdbc391");
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, len));
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1895,6 +2006,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc316, "odbc316_empty_string_parameters",  NORMAL},
   {odbc324, "odbc324_sqltables_versioned_table",NORMAL},
   {odbc361, "odbc361_unique_with_nulls",        NORMAL},
+  {odbc391, "odbc391_mixed_case_names",         NORMAL},
   {NULL, NULL}
 };
 

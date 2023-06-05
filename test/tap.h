@@ -757,8 +757,8 @@ int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 
   return OK;
 }
-#define check_sqlstate(stmt, sqlstate) \
-  check_sqlstate_ex((stmt), SQL_HANDLE_STMT, (sqlstate))
+#define check_sqlstate(_STMT, _SQLSTATE) \
+  check_sqlstate_ex((_STMT), SQL_HANDLE_STMT, (_SQLSTATE))
 
 #define CHECK_SQLSTATE_EX(A,B,C) FAIL_IF(check_sqlstate_ex(A,B,C) != OK, "Unexpected sqlstate!")
 #define CHECK_SQLSTATE(A,C) CHECK_SQLSTATE_EX(A, SQL_HANDLE_STMT, C)
@@ -776,6 +776,17 @@ int get_native_errcode(SQLHSTMT Stmt)
   return err_code;
 }
 
+#define SKIP_IF_NOT_GRANTED(_STMT) odbc_print_error(SQL_HANDLE_STMT, _STMT);\
+if (get_native_errcode(_STMT) == 1142) skip("Test user doesn't have enough privileges to run this test")
+#define SKIP_IF_NOT_GRANTED_OR_ERROR(_STMT) SKIP_IF_NOT_GRANTED(_STMT);\
+return FAIL
+
+#define CHECK_USER_OPERATION(_STMT, _QUERY) do { if (!SQL_SUCCEEDED(SQLExecDirect(_STMT, _QUERY, SQL_NTS))) { SKIP_IF_NOT_GRANTED_OR_ERROR(_STMT); } } while (0)
+#define CHECK_USER_OPERATIONX(_STMT, _QUERY, _QUERYONFAILURE) do { if (!SQL_SUCCEEDED(SQLExecDirect(_STMT, _QUERY, SQL_NTS))) {\
+SQLExecDirect(_STMT, _QUERYONFAILURE, SQL_NTS);\
+SKIP_IF_NOT_GRANTED(_STMT);\
+return FAIL;\
+} } while (0)
 
 int using_dm(HDBC hdbc)
 {

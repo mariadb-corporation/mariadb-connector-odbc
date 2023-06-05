@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2021 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -481,6 +481,7 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
     goto cleanup;
 
   Connection->AutoCommit= 4;
+  Connection->lcTableNamesMode2= (char)-1; /* -1 means we don't know if lower_case_table_names=2, ie that info has never been requested  yet */
   Connection->Environment= Env;
   Connection->Methods= &MADB_Dbc_Methods;
   //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
