@@ -126,10 +126,13 @@ SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset*
   return WStr;
 }
 
-  /* {{{ MADB_ConvertFromWChar
-  Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
-  TN in the Wstr) */
-char *MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
+/* {{{ MADB_ConvertFromWCharEx
+       Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
+       TN in the Wstr)
+       @mustBeNullTerminated[in] - forces to result string to be NULL-terminated
+ */
+char* MADB_ConvertFromWCharEx(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error,
+                              BOOL mustBeNullTerminated)
 {
   char *AscStr;
   int AscLen, AllocLen;
@@ -146,6 +149,7 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULE
     WstrCharLen= -1;
 
   AllocLen= AscLen= WideCharToMultiByte(cc->CodePage, 0, Wstr, WstrCharLen, NULL, 0, NULL, NULL);
+  /* WideCharToMultiByte doesn't terminate with NULL unless WstrCharLen is -1 or terminated null is counted in */
   if (WstrCharLen != -1)
     ++AllocLen;
   
@@ -155,7 +159,8 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULE
   AscLen= WideCharToMultiByte(cc->CodePage,  0, Wstr, WstrCharLen, AscStr, AscLen, NULL, (cc->CodePage != CP_UTF8) ? Error : NULL);
   if (AscLen && WstrCharLen == -1)
     --AscLen;
-
+  if (mustBeNullTerminated)
+    AscStr[AscLen]= '\0';
   if (Length)
     *Length= (SQLINTEGER)AscLen;
   return AscStr;

@@ -925,7 +925,6 @@ ODBC_TEST(t_describe_nulti)
   OK_SIMPLE_STMT(hstmt1, "INSERT INTO t1 VALUES ('test')");
   CHECK_STMT_RC(hstmt1, SQLPrepare(hstmt1, (SQLCHAR*)"SELECT * FROM t1", SQL_NTS));
  
-
   CHECK_STMT_RC(hstmt1, SQLDescribeCol(hstmt1, 1, ColumnName, 64, NULL, 0, 0, 0, 0));
 
   ODBC_Disconnect(henv1, hdbc1, hstmt1);
@@ -1184,10 +1183,17 @@ ODBC_TEST(t_bug41256)
 
 ODBC_TEST(t_bug44971)
 {
-/*  OK_SIMPLE_STMT(Stmt, "drop database if exists bug44971");
-  OK_SIMPLE_STMT(Stmt, "create database bug44971");
+  char buffer[MAX_NAME_LEN];
+  SQLINTEGER len;
+
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS bug44971");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE bug44971");
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &len));
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, "bug44971xxx", 8));
-  OK_SIMPLE_STMT(Stmt, "drop database if exists bug44971");*/
+  /* Restoring original schema back. This also covers ODBC-392. Somehow it always hits here, but not in the previous line */
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, len));
+
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS bug44971");
   return OK;
 }
 
@@ -1200,7 +1206,7 @@ ODBC_TEST(t_bug48603)
   HSTMT hstmt1;
   SQLCHAR conn[512], conn_out[512], query[53];
 
-  OK_SIMPLE_STMT(Stmt, "select @@wait_timeout, @@interactive_timeout");
+  OK_SIMPLE_STMT(Stmt, "SELECT @@wait_timeout, @@interactive_timeout");
   CHECK_STMT_RC(Stmt,SQLFetch(Stmt));
 
   timeout=      my_fetch_int(Stmt, 1);
@@ -1213,7 +1219,7 @@ ODBC_TEST(t_bug48603)
     diag("Changing interactive timeout globally as it is equal to wait_timeout");
     /* Changing globally interactive timeout to be able to test
        if INTERACTIVE option works */
-    sprintf((char *)query, "set GLOBAL interactive_timeout=%d", timeout + diff);
+    sprintf((char *)query, "SET GLOBAL interactive_timeout=%d", timeout + diff);
 
     if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, query, SQL_NTS)))
     {
@@ -1249,7 +1255,7 @@ ODBC_TEST(t_bug48603)
     SQL_DRIVER_NOPROMPT));
 
   CHECK_DBC_RC(hdbc1, SQLAllocStmt(hdbc1, &hstmt1));
-  OK_SIMPLE_STMT(hstmt1, "select @@interactive_timeout");
+  OK_SIMPLE_STMT(hstmt1, "SELECT @@interactive_timeout");
   CHECK_STMT_RC(hstmt1,SQLFetch(hstmt1));
 
   {
@@ -1262,16 +1268,14 @@ ODBC_TEST(t_bug48603)
     if (timeout == interactive)
     {
       /* setting global interactive timeout back if we changed it */
-      sprintf((char *)query, "set GLOBAL interactive_timeout=%d", timeout);
+      sprintf((char *)query, "SET GLOBAL interactive_timeout=%d", timeout);
       CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, query, SQL_NTS));
     }
 
     is_num(timeout + diff, cur_timeout);
   }
-
   return OK;
 }
-
 
 /*
   Bug#45378 - spaces in connection string aren't removed
@@ -1870,6 +1874,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug28820,     "t_bug28820",     NORMAL},
   {t_bug31959,     "t_bug31959",     NORMAL},
   {t_bug41256,     "t_bug41256",     NORMAL},
+  {t_bug44971,     "t_bug44971",     NORMAL},
   {t_bug48603,     "t_bug48603",     NORMAL},
   {t_bug45378,     "t_bug45378",     NORMAL},
   {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
