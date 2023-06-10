@@ -1891,6 +1891,7 @@ ODBC_TEST(odbc391)
   OK_SIMPLE_STMT(Stmt, "DROP SCHEMA IF EXISTS _SchemaOdbc391");
   OK_SIMPLE_STMT(Stmt, "CREATE SCHEMA _SchemaOdbc391");
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"_SchemaOdbc391", 14));
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR*)SQL_ALL_CATALOGS, 1, "", 0, "", 0, NULL, 0));
   while (SQLFetch(Stmt) != SQL_NO_DATA)
@@ -1927,7 +1928,7 @@ ODBC_TEST(odbc391)
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_ROWVER,  dbname, (SQLSMALLINT)dbnameLen, NULL, SQL_NTS, tname, (SQLSMALLINT)tnameLen,
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_ROWVER,  dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen,
                                         SQL_SCOPE_TRANSACTION, SQL_NULLABLE));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
@@ -1972,6 +1973,8 @@ ODBC_TEST(odbc391)
 
   OK_SIMPLE_STMT(Stmt, dropUser);
   OK_SIMPLE_STMT(Stmt, "DROP SCHEMA _SchemaOdbc391");
+  /* Old UnixODBC needs this(and in many other places where it looks redundant) */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, len));
   return OK;
 }

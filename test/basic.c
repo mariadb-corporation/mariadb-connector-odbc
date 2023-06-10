@@ -1189,6 +1189,7 @@ ODBC_TEST(t_bug44971)
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS bug44971");
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE bug44971");
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, "bug44971xxx", 8));
   /* Restoring original schema back. This also covers ODBC-392. Somehow it always hits here, but not in the previous line */
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, len));
