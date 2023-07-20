@@ -436,7 +436,7 @@ ODBC_TEST(t_bug27862_1)
 {
   SQLHDBC  hdbc1;
   SQLHSTMT hstmt1;
-  SQLLEN   len;
+  SQLLEN   len, expected= IsXpand ? 65535 : 4;
 
   AllocEnvConn(&Env, &hdbc1);
   hstmt1= ConnectWithCharset(&hdbc1, "latin1", NULL); /* We need to make sure that the charset used for connection is not multibyte */
@@ -449,14 +449,14 @@ ODBC_TEST(t_bug27862_1)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
                                  NULL, &len));
-  is_num(len, 4);
+  is_num(len, expected);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_LENGTH, NULL, 0,
                                  NULL, &len));
-  is_num(len, 4);
+  is_num(len, expected);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLColAttribute(hstmt1, 1, SQL_DESC_OCTET_LENGTH, NULL, 0,
                                  NULL, &len));
   /* Octet length should *not* include terminanting null character according to ODBC specs. This check may fail if multibyte charset is used for connection */
-  is_num(len, 4);
+  is_num(len, expected);
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -1195,11 +1195,12 @@ ODBC_TEST(t_bug29402)
   IS(AllocEnvConn(&Env, &hdbc1));
 
   /* We don't have NO_BINARY_RESULT option, and not clear atm if we need it */
-  hstmt1= ConnectWithCharset(&hdbc1, "cp1250", NULL);
+  /* Does not look like the test requires cp1250 exactly. Changed to cp850 as xpand does not have the former, but has the latter */
+  hstmt1= ConnectWithCharset(&hdbc1, "cp850", NULL);
 
   FAIL_IF(hstmt1 == NULL, "");
 
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, CW("SELECT CONCAT(_cp1250 0x80, 100) concated"), SQL_NTS));
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLExecDirectW(hstmt1, CW("SELECT CONCAT(_cp850 0x80, 100) concated"), SQL_NTS));
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, hstmt1, SQLDescribeCol(hstmt1, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -154,12 +154,13 @@ ODBC_TEST(t_bug14639)
   SQLINTEGER connection_id;
   SQLUINTEGER is_dead;
   char buf[100];
-  SQLHENV henv2;
   SQLHANDLE  Connection2;
   SQLHANDLE Stmt2;
 
+  SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
+
   /* Create a new connection that we deliberately will kill */
-  ODBC_Connect(&henv2, &Connection2, &Stmt2);
+  ODBC_Connect(&Env, &Connection2, &Stmt2);
   OK_SIMPLE_STMT(Stmt2, "SELECT connection_id()");
   CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
   connection_id= my_fetch_int(Stmt2, 1);
@@ -179,6 +180,9 @@ ODBC_TEST(t_bug14639)
                                  sizeof(is_dead), 0));
   is_num(is_dead, SQL_CD_TRUE);
 
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+  CHECK_DBC_RC(Connection2, SQLDisconnect(Connection2));
+  CHECK_DBC_RC(Connection2, SQLFreeHandle(SQL_HANDLE_DBC, Connection2));
   return OK;
 }
 

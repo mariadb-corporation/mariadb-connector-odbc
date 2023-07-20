@@ -161,7 +161,7 @@ ODBC_TEST(t_isolation)
   /* Check that it was actually changed on the server. */
   if (ServerNotOlderThan(Connection, 11, 1, 1))
   {
-    OK_SIMPLE_STMT(Stmt, "select @@transaction_isolation");
+    OK_SIMPLE_STMT(Stmt, "SELECT @@transaction_isolation");
   }
   else
   {
@@ -171,6 +171,7 @@ ODBC_TEST(t_isolation)
                             sizeof(tx_isolation), NULL));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(tx_isolation, "READ-UNCOMMITTED", 16);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Restoring default SQL_TXN_REPEATABLE_READ */
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION,

@@ -1,6 +1,6 @@
   /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2018 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -926,6 +926,8 @@ ODBC_TEST(t_bug59772)
 
     int overall_result= OK;
 
+    SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
+
     /* Create a new connection that we deliberately will kill */
     ODBC_Connect(&henv2, &hdbc2, &hstmt2);
 
@@ -971,10 +973,7 @@ ODBC_TEST(t_bug59772)
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
     CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "DROP TABLE IF EXISTS t_bug59772", SQL_NTS));
 
-    SQLFreeHandle(SQL_HANDLE_STMT, hstmt2);
-    SQLDisconnect(hdbc2);
-    SQLFreeHandle(SQL_HANDLE_DBC, hdbc2);
-    SQLFreeHandle(SQL_HANDLE_ENV, henv2);
+    ODBC_Disconnect(henv2, hdbc2, hstmt2);
 
     return overall_result;
 #undef ROWS_TO_INSERT

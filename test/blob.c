@@ -142,7 +142,7 @@ ODBC_TEST(t_1piecewrite2)
 
     OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS TBLOB");
     OK_SIMPLE_STMT(Stmt, "CREATE TABLE TBLOB (I INTEGER NOT NULL PRIMARY KEY,"
-          "B LONG VARCHAR NOT NULL)");
+                         "B MEDIUMTEXT NOT NULL)");
 
     cbValue = 3510L;
 
@@ -197,7 +197,7 @@ ODBC_TEST(t_putdata)
   SQLPOINTER token;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_putdata");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 LONG VARCHAR)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 MEDIUMTEXT)");
 
   CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt,
                             (SQLCHAR *)"insert into t_putdata values(?,?)",
@@ -265,7 +265,7 @@ ODBC_TEST(t_putdata1)
   SQLPOINTER token;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_putdata");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 LONG VARCHAR)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 MEDIUMTEXT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_putdata VALUES (10,'venu')");
 
   CHECK_STMT_RC(Stmt, 
@@ -335,11 +335,11 @@ ODBC_TEST(t_putdata2)
   SQLPOINTER token;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_putdata");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 LONG VARCHAR,"
-        "c3 LONG VARCHAR)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_putdata (c1 INT, c2 MEDIUMTEXT,"
+                        "c3 MEDIUMTEXT)");
 
   CHECK_STMT_RC(Stmt,  SQLPrepare(Stmt,
-                            (SQLCHAR *)"insert into t_putdata values(?,?,?)",
+                            (SQLCHAR *)"INSERT INTO t_putdata VALUES(?,?,?)",
                             SQL_NTS));
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_LONG,
@@ -383,7 +383,7 @@ ODBC_TEST(t_putdata2)
     SQLFreeStmt(Stmt, SQL_RESET_PARAMS);
     SQLFreeStmt(Stmt, SQL_CLOSE);
 
-    OK_SIMPLE_STMT(Stmt, "select c2,c3 from t_putdata where c1= 10");
+    OK_SIMPLE_STMT(Stmt, "SELECT c2,c3 FROM t_putdata WHERE c1= 10");
     CHECK_STMT_RC(Stmt, rc);
 
     rc = SQLFetch(Stmt);

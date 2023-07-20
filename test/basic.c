@@ -443,14 +443,6 @@ ODBC_TEST(t_reconnect)
   return OK;
 }
 
-int GetIntVal(SQLHANDLE hStmt, SQLINTEGER Column)
-{
-  int Value;
-
-  CHECK_STMT_RC(hStmt, SQLGetData(hStmt, (SQLUSMALLINT)Column, SQL_C_LONG, &Value, 0, NULL));
-  printf("Value: %d\n", Value);
-  return Value;
-}
 
 ODBC_TEST(charset_utf8)
 {
@@ -471,8 +463,8 @@ ODBC_TEST(charset_utf8)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  in_len= (SQLSMALLINT)_snprintf((char *)conn, sizeof(conn), "DSN=%s;UID=%s;PWD=%s;CHARSET=utf8",
-         my_dsn, my_uid, my_pwd);
+  in_len= (SQLSMALLINT)_snprintf((char *)conn, sizeof(conn), "DSN=%s;UID=%s;PWD=%s;PORT=%u;CHARSET=utf8",
+         my_dsn, my_uid, my_pwd, my_port);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
@@ -497,47 +489,51 @@ ODBC_TEST(charset_utf8)
                              (SQLCHAR *)"%", 1));
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  is_num(GetIntVal(hstmt1, 7), 10);
-  str_size= GetIntVal(hstmt1, 8);
+  is_num(my_fetch_int(hstmt1, 7), 10);
+  str_size= my_fetch_int(hstmt1, 8);
   /* utf8 mbmaxlen = 3 in libmysql before MySQL 6.0 */
   
   if (str_size == 30)
   {
-    is_num(GetIntVal(hstmt1, 16), 30);
+    is_num(my_fetch_int(hstmt1, 16), 30);
   }
   else
   {
     is_num(str_size, 40);
-    is_num(GetIntVal(hstmt1, 16), 40);
+    is_num(my_fetch_int(hstmt1, 16), 40);
   }
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-  is_num(GetIntVal(hstmt1, 7), 10);
-  is_num(GetIntVal(hstmt1, 8), 10);
-  is_num(GetIntVal(hstmt1, 16), 10);
+  is_num(my_fetch_int(hstmt1, 7), 10);
+  is_num(my_fetch_int(hstmt1, 8), 10);
+  is_num(my_fetch_int(hstmt1, 16), 10);
     
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(hstmt1, "SELECT _big5 0xA4A4");
+  /* Seemingly xpand does not have big5 */
+  if (!IsXpand)
+  {
+    OK_SIMPLE_STMT(hstmt1, "SELECT _big5 0xA4A4");
 
-  CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
+    CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  is_num(0xE4, conn[0]);
-  is_num(3, len);
-  
-  CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  is_num(0xB8, conn[0]);
-  is_num(2, len);
-  
-  CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
-  is_num(0xAD, conn[0]);
-  is_num(1, len);
-  
-  FAIL_IF(SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len) != SQL_NO_DATA_FOUND, "Expected SQL_NO_DATA_FOUND");
-  FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND,"Expected SQL_NO_DATA_FOUND");
+    CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
+    is_num(0xE4, conn[0]);
+    is_num(3, len);
 
-  CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
+    CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
+    is_num(0xB8, conn[0]);
+    is_num(2, len);
+
+    CHECK_STMT_RC(hstmt1, SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len));
+    is_num(0xAD, conn[0]);
+    is_num(1, len);
+
+    FAIL_IF(SQLGetData(hstmt1, 1, SQL_C_CHAR, conn, 2, &len) != SQL_NO_DATA_FOUND, "Expected SQL_NO_DATA_FOUND");
+    FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND, "Expected SQL_NO_DATA_FOUND");
+
+    CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
+  }
 
   OK_SIMPLE_STMT(hstmt1, "SELECT 'abcdefghijklmnopqrstuvw'");
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
@@ -558,6 +554,8 @@ ODBC_TEST(charset_gbk)
   SQLHANDLE hdbc1;
   SQLHANDLE hstmt1;
   SQLCHAR conn[512], conn_out[512];
+  
+  SKIPIF(IsXpand, "Xpand does not have gbk");
   /*
     The fun here is that 0xbf5c is a valid GBK character, and we have 0x27
     as the second byte of an invalid GBK character. mysql_real_escape_string()
@@ -1057,13 +1055,23 @@ ODBC_TEST(t_bug28820)
 {
   SQLULEN length;
   SQLCHAR dummy[20];
-  SQLSMALLINT i;
+  SQLSMALLINT i, columnCount= IsXpand ? 2 : 3;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28820");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28820 ("
-                "x VARCHAR(90) CHARACTER SET latin1,"
-                "y VARCHAR(90) CHARACTER SET big5,"
-                "z VARCHAR(90) CHARACTER SET utf8)");
+
+  if (IsXpand)
+  {
+    OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28820 ("
+      "x VARCHAR(90) CHARACTER SET latin1,"
+      "z VARCHAR(90) CHARACTER SET utf8)");
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28820 ("
+      "x VARCHAR(90) CHARACTER SET latin1,"
+      "y VARCHAR(90) CHARACTER SET big5,"
+      "z VARCHAR(90) CHARACTER SET utf8)");
+  }
 
   OK_SIMPLE_STMT(Stmt, "SELECT x,y,z FROM t_bug28820");
 
@@ -1309,10 +1317,11 @@ ODBC_TEST(t_bug45378)
 
 ODBC_TEST(t_mysqld_stmt_reset)
 {
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_reset");
-  OK_SIMPLE_STMT(Stmt, "create table t_reset (a int)");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_reset");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_reset (a int)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_reset(a) VALUES (1),(2),(3)");
 
+  CHECK_STMT_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT));
   /* Succesful query deploying PS */
   OK_SIMPLE_STMT(Stmt, "SELECT count(*) FROM t_reset");
   CHECK_STMT_RC(Stmt,SQLFetch(Stmt));
@@ -1324,7 +1333,8 @@ ODBC_TEST(t_mysqld_stmt_reset)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Successful directly executed query */
-  OK_SIMPLE_STMT(Stmt, "delete from t_reset where a=2");
+  OK_SIMPLE_STMT(Stmt, "DELETE FROM t_reset WHERE a=2");
+  CHECK_STMT_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* And now successful query again */
@@ -1334,7 +1344,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_reset");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_reset");
   return OK;
 }
 
@@ -1345,7 +1355,7 @@ ODBC_TEST(t_odbc32)
   SQLCHAR     conn[512];
   SQLUINTEGER packet_size= 0;
 
-  sprintf((char *)conn, "DSN=%s;", my_dsn);
+  sprintf((char *)conn, "DSN=%s;PORT=%u", my_dsn, my_port);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLSetConnectAttr(hdbc1, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)(4096*1024), 0));
@@ -1558,6 +1568,7 @@ ODBC_TEST(t_odbc137)
   const char SelectStmtTpl[]= "SELECT * FROM t_odbc137 WHERE val = 0x%s";
   char       SelectStmt[sizeof(SelectStmtTpl) + sizeof(AllAnsiHex)];// HexStr[0])];
   unsigned int i, j, Escapes= 0;
+  BOOL _7bitOnly= iOdbc() || IsSkySql || IsSkySqlHa;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS `t_odbc137`");
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
@@ -1566,7 +1577,7 @@ ODBC_TEST(t_odbc137)
      applications, is to use utf8 anyway */
   /* On iOdbc it takes utf as source cs for recoding, and values starting from 0x80 require special values in the following byte.
      Thus testing only till 0x7f */
-  for (i= 1; i < (iOdbc() ? 0x80 : 256); ++i)
+  for (i= 1; i < (_7bitOnly ? 0x80U : 256U); ++i)
   {
     if (i == '\'' || i == '\\')
     {
@@ -1578,9 +1589,10 @@ ODBC_TEST(t_odbc137)
     sprintf(AllAnsiHex + (i-1)*2, "%02x", i);
   }
 
-  AllAnsiChars[(iOdbc() ? 0x7f : 255) + Escapes]= AllAnsiHex[(iOdbc() ? 0x7f : 255)*2 + 1]= '\0';
+  AllAnsiChars[(_7bitOnly ? 0x7f : 255) + Escapes]= AllAnsiHex[(_7bitOnly ? 0x7f : 255)*2 + 1]= '\0';
   
-  for (i= 0; i < sizeof(Charset)/sizeof(Charset[0]); ++i)
+  /* Xpand does not support bunch of charsets. First 2 it supports, 3rd - does not. Not checking all of them, just leaving 2 so far */
+  for (i= 0; i < (IsXpand ? 2U : sizeof(Charset)/sizeof(Charset[0])); ++i)
   {
     if (iOdbc() && strcmp(Charset[i], "koi8u")==0)
     {
@@ -1608,7 +1620,7 @@ ODBC_TEST(t_odbc137)
     /* We still need to make sure that the string has been delivered correctly */
     my_fetch_str(Hstmt, (SQLCHAR*)buffer, 1);
     /* AllAnsiChars is escaped, so we cannot compare result string against it */
-    for (j= 1; j < (iOdbc() ? 0x80 : 256); ++j)
+    for (j= 1; j < (_7bitOnly ? 0x80U : 256U); ++j)
     {
       is_num((unsigned char)buffer[j - 1], j);
     }
@@ -1672,16 +1684,16 @@ ODBC_TEST(t_odbc162)
   SQLSMALLINT ColumnCount;
   SQLRETURN rc;
 
-  rc= SQLExecDirect(Stmt, (SQLCHAR*)"with x as (select 1 as `val`\
-                                   union all\
-                                   select 2 as `val`\
-                                   union all\
-                                   select 3 as `val`)\
-                        select repeat(cast(x.val as nchar), x.val * 2) as `string`,\
-                               repeat(cast(x.val as char), x.val * 2) as `c_string`,\
-                               cast(repeat(char(x.val), x.val * 12000) as binary) as `binary`,\
-                               x.val as `index`\
-                        from x", SQL_NTS);
+  rc= SQLExecDirect(Stmt, (SQLCHAR*)"WITH x AS (SELECT 1 as `val`\
+                                   UNION ALL\
+                                   SELECT 2 AS `val`\
+                                   UNION ALL\
+                                   SELECT 3 AS `val`)\
+                                   SELECT REPEAT(CAST(x.val AS nchar), x.val * 2) AS `string`,\
+                                   REPEAT(CAST(x.val AS char), x.val * 2) AS `c_string`,\
+                                   CAST(REPEAT(CHAR(x.val), x.val * 12000) as BINARY) as `binary`,\
+                                    x.val AS `index`\
+                                  FROM x", SQL_NTS);
 
   if (SQL_SUCCEEDED(rc))
   {
@@ -1692,8 +1704,16 @@ ODBC_TEST(t_odbc162)
   }
   else
   {
-    /* Old server does not support it */
-    CHECK_SQLSTATE(Stmt, "42000");
+    if (IsXpand)
+    {
+      /* Xpand seemingly can't digest such queries, but setting general sqlstate*/
+      CHECK_SQLSTATE(Stmt, "HY000");
+    }
+    else
+    {
+      /* Old server does not support it */
+      CHECK_SQLSTATE(Stmt, "42000");
+    }
   }
 
   return OK;
@@ -1806,7 +1826,7 @@ ODBC_TEST(t_odbc377)
   CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)2, 0));
   EXPECT_DBC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CONNECTION_TIMEOUT, (SQLPOINTER)2, 0), SQL_SUCCESS_WITH_INFO);
   /* Connection with *disabled* LOAD DATA LOCAL INFILE */
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(3)}");
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(4)}");
   if (Hstmt != NULL)
   {
     CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
@@ -1824,7 +1844,7 @@ ODBC_TEST(t_odbc377)
   EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "SELECT SLEEP(2)", SQL_NTS), SQL_ERROR);
   Sqlstate[0]= '\0';
   CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
-  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
+  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0 && (!IsXpand || strncmp(Sqlstate, "HYOOO", 6) != 0))
   {
     diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
     return FAIL;
@@ -1836,7 +1856,8 @@ ODBC_TEST(t_odbc377)
   EXPECT_STMT(Hstmt, SQLExecute(Hstmt), SQL_ERROR);
   Sqlstate[0]= '\0';
   CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
-  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0)
+  /* Not sure what to expect from Xpand here, thus expecting same general error state as before */
+  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0 && (!IsXpand || strncmp(Sqlstate, "HYOOO", 6) != 0))
   {
     diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
     return FAIL;

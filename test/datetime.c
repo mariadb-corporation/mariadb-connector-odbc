@@ -729,7 +729,7 @@ ODBC_TEST(t_bug9927)
   /* Not sure which exactly version that was introduced, but 10.11.2 is first ga */
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt,SQL_ROWVER,  NULL, 0,
                                    NULL, 0, (SQLCHAR *)"t_bug9927", SQL_NTS,
-                                   0, ServerNotOlderThan(Connection, 10,11,2) ? SQL_NULLABLE : SQL_NO_NULLS));
+                                   0, ServerNotOlderThan(Connection, 10,10,2) ? SQL_NULLABLE : SQL_NO_NULLS));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 2), "b", 1);

@@ -689,7 +689,7 @@ ODBC_TEST(test_autocommit)
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, tracked, sizeof(tracked), NULL));
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
+    diag("Tracked: %s", tracked);
     OK_SIMPLE_STMT(Stmt, "SET autocommit=1;");
     CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, 0, NULL));
     is_num(ac, SQL_AUTOCOMMIT_ON);
@@ -725,8 +725,13 @@ ODBC_TEST(t_odbc375)
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, Query, SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
+  if (SkipIfRsStreming())
+  {
+    skip("The error is not detectable atm in case of result streaming");
+  }
   /* Still checking if error returnded in case of single statement */
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT(SELECT 1 UNION SELECT 2)", SQL_NTS), SQL_ERROR);
+
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;

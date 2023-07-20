@@ -3729,7 +3729,7 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
     return SQL_ERROR;
   }
-  if (BufferLength== SQL_NTS)
+  if (BufferLength == SQL_NTS)
     BufferLength= (SQLINTEGER)strlen(Buffer);
   if (BufferLength < 0)
   {

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -147,9 +147,9 @@ static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port=        3306;
 char                 ma_strport[12]= "PORT=3306";
-char                 my_host[256];
+char                 my_host[256], sql_mode[512];
 static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -283,6 +283,26 @@ void get_env_defaults()
     add_connstr= env_val;
     storedAddConnstr= add_connstr;
   }
+
+  if (env_val= getenv("srv"))
+  {
+    if (strcmp(env_val, "maxscale") == 0)
+    {
+      IsMaxScale= TRUE;
+    }
+    else if (strcmp(env_val, "skysql") == 0)
+    {
+      IsSkySql= TRUE;
+    }
+    else if (strcmp(env_val, "skysql-ha") == 0)
+    {
+      IsSkySqlHa= TRUE;
+    }
+    else if (strcmp(env_val, "xpand") == 0)
+    {
+      IsXpand= TRUE;
+    }
+  }
 }
 
 
@@ -340,7 +360,6 @@ void get_options(int argc, char **argv)
       exit(0);
     }
   }
-
   _snprintf(ma_strport, sizeof(ma_strport), "PORT=%u", my_port);
 }
 
@@ -1059,11 +1078,16 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
       sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
     }
 
-    OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
+    OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1), @@sql_mode FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, sql_mode, sizeof(sql_mode), NULL));
     CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
+    if (Travis)
+    {
+      diag("Sql mode: %s", sql_mode);
+    }
     /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
     CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
     rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
@@ -1493,10 +1517,13 @@ const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
   return Buffer;
 }
 
+
 BOOL WindowsDM(HDBC hdbc)
 {
   return using_dm(hdbc) && UnixOdbc() == FALSE && iOdbc() == FALSE;
 }
+
+#define SKIPIF(_COND, _MSG) do {if (_COND) {skip(_MSG);}} while(0)
 
 int SkipIfRsStreming()
 {
@@ -1507,6 +1534,7 @@ int SkipIfRsStreming()
   }
   return 0;
 }
+
 
 void DoNotSkipTests(MA_ODBC_TESTS* tests)
 {

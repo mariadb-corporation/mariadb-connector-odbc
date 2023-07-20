@@ -1144,6 +1144,8 @@ ODBC_TEST(t_bug28168)
   SQLSMALLINT errmsglen;
   SQLINTEGER native_error= 0;
 
+  SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
+
   /* Create tables to give permissions */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28168");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28168 (x int)");

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation A
+                2013, 2023 MariaDB Corporation A
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -508,9 +508,9 @@ ODBC_TEST(t_max_rows)
     HSTMT hstmt1;
     SQLCHAR conn[512];
 
-    sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PREFETCH=5",
-          my_dsn, my_uid, my_pwd);
-    
+    sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=%u;PREFETCH=5",
+          my_dsn, my_uid, my_pwd, my_port);
+
     CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
 
     CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, sizeof(conn), NULL,
@@ -864,8 +864,8 @@ ODBC_TEST(t_cache_bug)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_cache (id INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_cache VALUES (1),(2),(3),(4),(5)");
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=1048579",
-          my_dsn, my_uid, my_pwd, my_schema);
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;PORT=%u;OPTION=1048579",
+          my_dsn, my_uid, my_pwd, my_schema, my_port);
   
   IS(mydrvconnect(&henv1, &hdbc1, &hstmt1, conn) == OK);
 
@@ -921,8 +921,8 @@ ODBC_TEST(t_non_cache_bug)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_cache (id INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_cache VALUES (1),(2),(3),(4),(5)");
 
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;OPTION=3",
-          my_dsn, my_uid, my_pwd, my_schema);
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;DATABASE=%s;PORT=%u;OPTION=3",
+          my_dsn, my_uid, my_pwd, my_schema, my_port);
   
   IS(mydrvconnect(&henv1, &hdbc1, &hstmt1, conn) == OK);
 
