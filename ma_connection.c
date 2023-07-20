@@ -816,11 +816,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
 
   /* Set isolation level */
-  if (Connection->IsolationLevel)
+  if (Connection->TxnIsolation)
   {
     for (i = 0; i < 4; i++)
     {
-      if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
+      if (MADB_IsolationLevel[i].SqlIsolation == Connection->TxnIsolation)
       {
         _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
           MADB_IsolationLevel[i].StrIsolation);

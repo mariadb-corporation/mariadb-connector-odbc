@@ -208,6 +208,46 @@ ODBC_TEST(t_isolation2)
   return OK;
 }
 
+/* Testing, that setting of isolation level before connection establishing works
+ * This covers also the case of ODBC-395
+ */
+ODBC_TEST(t_isolation3)
+{
+  SQLINTEGER isolation= 0;
+  SQLHANDLE dbc= NULL, Stmt1= NULL;
+  char buffer[32];
+
+  IS(AllocEnvConn(&Env, &dbc));
+
+ /* Setting different level(SQL_TXN_READ_COMMITTED) */
+  CHECK_DBC_RC(dbc, SQLSetConnectAttr(dbc, SQL_ATTR_TXN_ISOLATION,
+    (SQLPOINTER)SQL_TXN_READ_COMMITTED, 0));
+  /* We don't need statement, but it's easier to connect this way :), let's neglect, that the error may be in fact stmt allocation error */
+  Stmt1= DoConnect(dbc, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
+  FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate statement");
+  
+  /* Checking that after connection we have that isolation level */
+  CHECK_DBC_RC(dbc, SQLGetConnectAttr(dbc, SQL_ATTR_TXN_ISOLATION, &isolation,
+    SQL_IS_POINTER, NULL));
+  is_num(isolation, SQL_TXN_READ_COMMITTED);
+
+  if (ServerNotOlderThan(Connection, 11, 1, 1))
+  {
+    OK_SIMPLE_STMT(Stmt1, "SELECT @@transaction_isolation");
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Stmt1, "SELECT @@tx_isolation");
+  }
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR("READ-COMMITTED", my_fetch_str(Stmt1, buffer, 1), sizeof("READ-COMMITTED"));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_DBC_RC(dbc, SQLDisconnect(dbc));
+  CHECK_DBC_RC(dbc, SQLFreeConnect(dbc));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -215,6 +255,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_tran, "t_tran"},
   {t_isolation, "t_isolation"},
   {t_isolation2, "t_isolation2_value_change_tracking"},
+  {t_isolation3, "t_isolation3_set_before_connect"},
   {NULL, NULL}
 };
 

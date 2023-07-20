@@ -380,7 +380,6 @@ struct st_ma_odbc_connection
   SQLUINTEGER WriteTimeout;
   SQLUINTEGER PacketSize;
   SQLINTEGER  AccessMode;
-  SQLINTEGER  IsolationLevel;     /* tx_isolation */
   SQLUINTEGER Trace;
   unsigned int LoginTimeout; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
                                 (not sure how does other DM define it) But C/C option is unsigned int */

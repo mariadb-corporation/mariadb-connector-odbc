@@ -1118,11 +1118,11 @@ ODBC_TEST(t_bug31959)
 
   if (ServerNotOlderThan(Connection, 11, 1, 1))
   {
-    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select @@transaction_isolation", SQL_NTS));
+    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"SELECT @@transaction_isolation", SQL_NTS));
   }
   else
   {
-    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select @@tx_isolation", SQL_NTS));
+    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"SELECT @@tx_isolation", SQL_NTS));
   }
 
   /* check all 4 valid isolation levels */
