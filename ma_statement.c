@@ -3233,7 +3233,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if (!(BufferLength) && StrLen_or_IndPtr)
       {
         /* Paranoid - before StrLen_or_IndPtr was used as length directly. so leaving same value in Bind.length. Unlikely needed */
-        Bind.length_value= (unsigned long)*StrLen_or_IndPtr;
+        Bind.length_value= (unsigned long)( *StrLen_or_IndPtr & (unsigned long)-1);
         Bind.length=       &Bind.length_value;
 
         mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]);

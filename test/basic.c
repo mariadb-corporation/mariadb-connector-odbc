@@ -1116,8 +1116,14 @@ ODBC_TEST(t_bug31959)
                           (SQLCHAR *)"READ-COMMITTED",
                           (SQLCHAR *)"READ-UNCOMMITTED"};
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt,
-                            (SQLCHAR *)"select @@tx_isolation", SQL_NTS));
+  if (ServerNotOlderThan(Connection, 11, 1, 1))
+  {
+    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select @@transaction_isolation", SQL_NTS));
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select @@tx_isolation", SQL_NTS));
+  }
 
   /* check all 4 valid isolation levels */
   for(i = 3; i >= 0; --i)
@@ -1147,7 +1153,6 @@ ODBC_TEST(t_bug31959)
 
   IS_STR(sql_state, (SQLCHAR *)"HY024", 5);
   }
-
   return OK;
 }
 

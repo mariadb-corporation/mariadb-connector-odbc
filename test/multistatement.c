@@ -720,13 +720,13 @@ ODBC_TEST(test_autocommit)
 
 ODBC_TEST(t_odbc375)
 {
-  SQLCHAR *Query= "SELECT 1; SELECT(SELECT ENGINE FROM INFORMATION_SCHEMA.ENGINES); SELECT 2";
+  SQLCHAR *Query= "SELECT 1; SELECT(SELECT 1 UNION SELECT 2); SELECT 2";
 
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, Query, SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Still checking if error returnded in case of single statement */
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT(SELECT ENGINE FROM INFORMATION_SCHEMA.ENGINES)", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT(SELECT 1 UNION SELECT 2)", SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;

@@ -159,11 +159,51 @@ ODBC_TEST(t_isolation)
   is_num(isolation, SQL_TXN_READ_UNCOMMITTED);
 
   /* Check that it was actually changed on the server. */
-  OK_SIMPLE_STMT(Stmt, "SELECT @@tx_isolation");
+  if (ServerNotOlderThan(Connection, 11, 1, 1))
+  {
+    OK_SIMPLE_STMT(Stmt, "select @@transaction_isolation");
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Stmt, "SELECT @@tx_isolation");
+  }
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, tx_isolation,
                             sizeof(tx_isolation), NULL));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   IS_STR(tx_isolation, "READ-UNCOMMITTED", 16);
+
+  /* Restoring default SQL_TXN_REPEATABLE_READ */
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION,
+    (SQLPOINTER)SQL_TXN_REPEATABLE_READ, 0));
+  return OK;
+}
+
+/* Testing that if isolation level is changed with SQL command, we still get correct attribute value
+ * This covers also the case of ODBC-394
+ */
+ODBC_TEST(t_isolation2)
+{
+  SQLINTEGER isolation= 0;
+
+  /* Check that the default is REPEATABLE READ. */
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, &isolation,
+    SQL_IS_POINTER, NULL));
+  is_num(isolation, SQL_TXN_REPEATABLE_READ);
+
+  /* Change it to READ UNCOMMITTED. */
+  OK_SIMPLE_STMT(Stmt, "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+  /* Check that the driver has rmeembered the new value. */
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, &isolation,
+    SQL_IS_POINTER, NULL));
+  is_num(isolation, SQL_TXN_READ_COMMITTED);
+
+  /* Restoring default SQL_TXN_REPEATABLE_READ */
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION,
+    (SQLPOINTER)SQL_TXN_REPEATABLE_READ, 0));
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_TXN_ISOLATION, &isolation,
+    SQL_IS_POINTER, NULL));
+  is_num(isolation, SQL_TXN_REPEATABLE_READ);
 
   return OK;
 }
@@ -173,7 +213,8 @@ MA_ODBC_TESTS my_tests[]=
 {
   {my_transaction,"my_transaction"},
   {t_tran, "t_tran"},
-  {t_isolation,"t_isolation"},
+  {t_isolation, "t_isolation"},
+  {t_isolation2, "t_isolation2_value_change_tracking"},
   {NULL, NULL}
 };
 
