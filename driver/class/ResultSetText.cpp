@@ -1078,13 +1078,13 @@ namespace mariadb
     {
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_TINY:
-      *static_cast<uint8_t*>(bind->buffer) = getByte(position);
+      *static_cast<uint8_t*>(bind->buffer)= getByte(position);
       *bind->length = 1;
       intAppType = true;
       break;
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_SHORT:
-      *static_cast<int16_t*>(bind->buffer) = getShort(position);
+      *static_cast<int16_t*>(bind->buffer)= getShort(position);
       *bind->length = 2;
       intAppType = true;
       break;

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2022 MariaDB Corporation AB
+                2017, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -291,6 +291,8 @@ ODBC_TEST(t_bug50195)
   SQLCHAR     priv[24], dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[36 + sizeof(my_host)], revokeSelect[44 + sizeof(my_host)];
   SQLLEN      len;
 
+  SKIPIF(IsMaxScale || IsSkySqlHa, "Not stable with Maxscale - error on login with created user");
+
   if (ServerNotOlderThan(Connection, 10, 3, 4))
   {
     expected= expected_103[0];
@@ -304,38 +306,26 @@ ODBC_TEST(t_bug50195)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
-  if (Travis != 0  && TravisOnOsx == 0)
+  /* Basically this can be used for Travis as well, and the if's above and below can be removed*/
+  _snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
+  _snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  _snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
+  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
+  SQLExecDirect(Stmt, dropUser, SQL_NTS);
+
+  OK_SIMPLE_STMT(Stmt, createUser);
+
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grantAll, SQL_NTS)))
   {
-    diag("Test is run in Travis");
-    SQLExecDirect(Stmt, (SQLCHAR *)"DROP USER bug50195@'%'", SQL_NTS);
-    OK_SIMPLE_STMT(Stmt, "CREATE USER bug50195@'%' IDENTIFIED BY 's3CureP@wd'");
-
-    OK_SIMPLE_STMT(Stmt, "GRANT ALL ON bug50195 TO bug50195@'%'");
-    OK_SIMPLE_STMT(Stmt, "REVOKE SELECT ON bug50195 FROM bug50195@'%'");
-  }
-  else
-  {
-    /* Basically this can be used for Travis as well, and the if's above and below can be removed*/
-    _snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
-    _snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
-    _snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
-    _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
-    SQLExecDirect(Stmt, dropUser, SQL_NTS);
-
-    OK_SIMPLE_STMT(Stmt, createUser);
-
-    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grantAll, SQL_NTS)))
+    odbc_print_error(SQL_HANDLE_STMT, Stmt);
+    if (get_native_errcode(Stmt) == 1142)
     {
-      odbc_print_error(SQL_HANDLE_STMT, Stmt);
-      if (get_native_errcode(Stmt) == 1142)
-      {
-        skip("Test user doesn't have enough privileges to run this test");
-      }
-      return FAIL;
+      skip("Test user doesn't have enough privileges to run this test");
     }
-
-    OK_SIMPLE_STMT(Stmt, revokeSelect);
+    return FAIL;
   }
+
+  OK_SIMPLE_STMT(Stmt, revokeSelect);
 
   OK_SIMPLE_STMT(Stmt, "FLUSH PRIVILEGES");
 
@@ -347,14 +337,7 @@ ODBC_TEST(t_bug50195)
   {
     diag("Couldn't connect with new user or allocate the stmt");
 
-    if (Travis != 0  && TravisOnOsx == 0)
-    {
-      OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@'%'");
-    }
-    else
-    {
-      OK_SIMPLE_STMT(Stmt, dropUser);
-    }
+    OK_SIMPLE_STMT(Stmt, dropUser);
     OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
 
     return FAIL;
@@ -378,14 +361,7 @@ ODBC_TEST(t_bug50195)
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
-  if (Travis != 0  && TravisOnOsx == 0)
-  {
-    OK_SIMPLE_STMT(Stmt, "DROP USER bug50195@'%'");
-  }
-  else
-  {
-    OK_SIMPLE_STMT(Stmt, dropUser);
-  }
+  OK_SIMPLE_STMT(Stmt, dropUser);
   
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
 
@@ -628,20 +604,32 @@ ODBC_TEST(t_sqlprocedurecolumns)
                 "Out re_param10 VARCHAR(64) charset utf8, ignore_param INT, re_param11 long VARBINARY, re_param12 double, re_param13 float)" \
                 "begin end;"
                 );
-  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test2(IN re_paramA bloB," \
-                "IN re_paramB LONGBLOB, inout re_paramC TinyBlob, re_paramD mediumblob, IN re_paramE varbinary(128)," \
-                "OUT re_paramF binary, re_paramG binary(8), `re_param H` LONG VARCHAR, IN re_paramI TEXT," \
-                "re_paramJ mediumtext, INOUT re_paramK longtext, re_paramL tinytext, re_paramM numeric(8,2))" \
-                "begin end;"
-                );
-  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test2_noparam()"\
-                "begin end;"
+  if (IsXpand)
+  {
+    OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test2(IN re_paramA bloB," \
+      "IN re_paramB LONGBLOB, inout re_paramC TinyBlob, re_paramD mediumblob, IN re_paramE varbinary(128)," \
+      "OUT re_paramF binary, re_paramG binary(8), `re_param H` MEDIUMTEXT, IN re_paramI TEXT," \
+      "re_paramJ mediumtext, INOUT re_paramK longtext, re_paramL tinytext, re_paramM numeric(8,2))" \
+      "begin end;"
+    );
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test2(IN re_paramA bloB," \
+      "IN re_paramB LONGBLOB, inout re_paramC TinyBlob, re_paramD mediumblob, IN re_paramE varbinary(128)," \
+      "OUT re_paramF binary, re_paramG binary(8), `re_param H` LONG VARCHAR, IN re_paramI TEXT," \
+      "re_paramJ mediumtext, INOUT re_paramK longtext, re_paramL tinytext, re_paramM numeric(8,2))" \
+      "begin end;"
+    );
+  }
+  OK_SIMPLE_STMT(Hstmt1, "CREATE PROCEDURE procedure_columns_test2_noparam()"\
+                "BEGIN END;"
                 );
   
-  OK_SIMPLE_STMT(Hstmt1, "create procedure procedure_columns_test3(IN re_param_00 datetime,"\
+  OK_SIMPLE_STMT(Hstmt1, "CREATE PROCEDURE procedure_columns_test3(IN re_param_00 datetime,"\
                 "OUT re_param_01 date, OUT re_param_02 time, INOUT re_param_03 timestamp,"\
                 "re_param_04 year)" \
-                "begin end;"
+                "BEGIN END;"
                 );
 
   OK_SIMPLE_STMT(Hstmt1, "create function procedure_columns_test4_func(re_paramF int) returns varchar(32) deterministic "\
@@ -755,7 +743,7 @@ ODBC_TEST(t_bug57182)
   SQLLEN nRowCount;
   SQLCHAR buff[24];
 
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists bug57182");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS bug57182");
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE DEFINER=`adb`@`%` PROCEDURE `bug57182`(in id int, in name varchar(20)) "
     "BEGIN"
     "  insert into simp values (id, name);"
@@ -839,22 +827,22 @@ ODBC_TEST(t_bug55870)
   SQLHDBC    hdbc1;
   SQLHSTMT   hstmt1;
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870r");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870_2");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870");
-  OK_SIMPLE_STMT(Stmt, "create table bug55870(a int not null primary key, "
-    "b varchar(20) not null, c varchar(100) not null, INDEX(b)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870r");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLe bug55870(a INT NOT NULL PRIMARY KEY, "
+    "b VARCHAR(20) NOT NULL, c VARCHAR(100) NOT NULL, INDEX(b)) ENGINE=InnoDB");
 
   /* There should be no problems with I_S version of SQLTablePrivileges. Thus need connection
      not using I_S. SQlStatistics doesn't have I_S version, but it ma change at certain point.
      Thus let's test it on NO_I_S connection too */
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s; NO_I_S=1", my_dsn, my_uid, my_pwd);
+  sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s;PORT=%u;NO_I_S=1", my_dsn, my_uid, my_pwd, my_port);
 
-  sprintf(query, "grant Insert, Select on bug55870 to %s", my_uid);
+  sprintf(query, "GRANT Insert, Select ON bug55870 TO %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
-  sprintf(query, "grant Insert (c), Select (c), Update (c) on bug55870 to %s", my_uid);
+  sprintf(query, "GRANT Insert (c), Select (c), Update (c) ON bug55870 to %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
 
   CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, noI_SconnStr, sizeof(noI_SconnStr), NULL,
@@ -886,13 +874,13 @@ ODBC_TEST(t_bug55870)
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "create table bug55870_2 (id int not null primary key, value "
-                "varchar(255) not null) ENGINE=InnoDB");
-  OK_SIMPLE_STMT(Stmt, "create table bug55870r (id int unsigned not null primary key,"
-                "refid int not null, refid2 int not null,"
-                "somevalue varchar(20) not null,  foreign key b55870fk1 (refid) "
-                "references bug55870 (a), foreign key b55870fk2 (refid2) "
-                "references bug55870_2 (id)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug55870_2 (id INT NOT NULL PRIMARY KEY, value "
+                "VARCHAR(255) NOT NULL) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug55870r (id INT UNSIGNED NOT NULL PRIMARY KEY,"
+                "refid INT NOT NULL, refid2 INT NOT NULL,"
+                "somevalue VARCHAR(20) NOT NULL,  FOREIGN KEY b55870fk1 (refid) "
+                "REFERENCES bug55870 (a), FOREIGN KEY b55870fk2 (refid2) "
+                "REFERENCES bug55870_2 (id)) ENGINE=InnoDB");
 
   /* actually... looks like no-i_s version of SQLForeignKeys is broken on latest
      server versions. comment in "show table status..." contains nothing */
@@ -905,16 +893,15 @@ ODBC_TEST(t_bug55870)
   /** surprise-surprise - just removing table is not enough to remove related
       records from tables_priv and columns_priv
   */
-  sprintf(query, "revoke select,insert on bug55870 from %s", my_uid);
+  sprintf(query, "REVOKE SELECT,INSERT ON bug55870 FROM %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
 
-  sprintf(query, "revoke select (c),insert (c),update (c) on bug55870 from %s", my_uid);
+  sprintf(query, "REVOKE SELECT (c),INSERT (c),UPDATE (c) ON bug55870 FROM %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870r");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870_2");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists bug55870");
-  
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE bug55870r");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE bug55870_2");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE bug55870");
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
@@ -1332,14 +1319,21 @@ ODBC_TEST(odbc119)
 {
   SQLCHAR StrValue[32];
   SQLLEN  RowCount;
+#ifdef _WIN32
+  /* Whether lower_case_table_names is 1 or 2 - it should work with lower case name. if 1 - it is created in lowercase, if 2
+  * - it is still compared in lowercase.
+  */
+  SQLCHAR *tname= (SQLCHAR*)"t_odbc119";
+#else
+  SQLCHAR *tname= (SQLCHAR*)"t_Odbc119";
+#endif
+  /* Made the name not all lower case to address ODBC-391/370(if lower_case_table_names=2). However 391 has got its own testcase */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_Odbc119");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_Odbc119(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, "
+    "ui_p1 INT NOT NULL, iu_p2 INT NOT NULL, a VARCHAR(100) NOT NULL, KEY `INDEX` (`a`), UNIQUE KEY `UNIQUE` (ui_p1, iu_p2)) ENGINE=InnoDB");
 
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_odbc119");
-  OK_SIMPLE_STMT(Stmt, "create table t_odbc119(id int not null primary key auto_increment, "
-    "ui_p1 INT NOT NULL, iu_p2 INT NOT NULL, a varchar(100) not null, KEY `INDEX` (`a`), UNIQUE KEY `UNIQUE` (ui_p1, iu_p2)) ENGINE=InnoDB");
-
-  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
-    "t_odbc119", SQL_NTS,
-    SQL_INDEX_ALL, SQL_QUICK));
+  /*  Here it probably can fail in case of case-insentive FS on MacOS and lower_case_table_names=1(not sure if it's even possible) */
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, tname, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
   is_num(RowCount, 4);
 
@@ -1373,7 +1367,7 @@ ODBC_TEST(odbc119)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc119");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_Odbc119");
 
   return OK;
 }
@@ -1551,7 +1545,13 @@ ODBC_TEST(odbc313)
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
-  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, AddSchema, NULL, NULL, NULL);
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, AddSchema, NULL, NULL, NULL);
+  if (Hstmt == NULL && (IsMaxScale || IsSkySqlHa))
+  {
+    char addParams[15/*INITSTMT={USE }*/ + sizeof(AddSchema)];
+    sprintf(addParams, "INITSTMT={USE %s}", AddSchema);
+    Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, addParams);
+  }
   FAIL_IF(Hstmt == NULL, "Could not connect with created schema as default, or other error occurred");
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc313_1");
@@ -1865,6 +1865,113 @@ ODBC_TEST(odbc361)
   return OK;
 }
 
+/* With lower_case_table_names=2 server the driver may not read indexes in SQLStatistics 
+ * We can't assure that lower_case_table_names=2, but it's a good testcase for other modes as well.
+ * Besides other catalog functions are affected - not only SQLStatistics
+ * The problem arose, when application read (db or) table name with SQLTables, and it has original letter cases,
+ * but then if to use ifas parameter to (catalog or) table argument for various vatalog function, the server compares
+ * it to locase values of (db or) table name, and it failed(since ordinary argument comparison has to be cace-sensitive.
+ * The test basically makes sure, that this works
+ */
+ODBC_TEST(odbc391)
+{
+  SQLCHAR tname[12], buffer[MAX_NAME_LEN], dbname[MAX_NAME_LEN], pname[12];
+  SQLLEN  dbnameLen, tnameLen, pnameLen;
+  SQLINTEGER len;
+  BOOL found= FALSE;
+  SQLCHAR  dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[40 + sizeof(my_host)], revokeSelect[48 + sizeof(my_host)];
+
+  OK_SIMPLE_STMT(Stmt, "DROP SCHEMA IF EXISTS _SchemaOdbc391");
+  OK_SIMPLE_STMT(Stmt, "CREATE SCHEMA _SchemaOdbc391");
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"_SchemaOdbc391", 14));
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR*)SQL_ALL_CATALOGS, 1, "", 0, "", 0, NULL, 0));
+  while (SQLFetch(Stmt) != SQL_NO_DATA)
+  {
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, dbname, sizeof(dbname), &dbnameLen));
+    if (dbnameLen == (sizeof("_SchemaOdbc391") - 1) && strcmp(dbname + 8, "dbc391") == 0)
+    {
+      found= TRUE;
+      break;
+    }
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  FAIL_IF(!found, "Created schema wasn't found");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_Odbc391");
+  /* Current_Timestamp() is intentionally in mixed case, however there was no problem with that */
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_Odbc391(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, "
+    "ts TIMESTAMP  on update Current_Timestamp(), a VARCHAR(100) NOT NULL) ENGINE=InnoDB");
+
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+    NULL, 0, NULL, 0));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_CHAR, tname, sizeof(tname), &tnameLen));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+                                tname, (SQLSMALLINT)tnameLen, NULL, 0));
+  is_num(3, my_print_non_format_result(Stmt));
+  /* my_print_non_format_result closes cursor */
+
+  CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, SQL_NTS, tname, (SQLSMALLINT)tnameLen,
+                                    SQL_INDEX_ALL, SQL_QUICK));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_ROWVER,  dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen,
+                                        SQL_SCOPE_TRANSACTION, SQL_NULLABLE));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, SQL_NTS, tname, (SQLSMALLINT)tnameLen));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE ProcOdbc391(IN Id INT, IN Name VARCHAR(20))"\
+    "BEGIN END;"
+  );
+  CHECK_STMT_RC(Stmt, SQLProcedures(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+    NULL, 0));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_CHAR, pname, sizeof(pname), &pnameLen));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
+    pname, (SQLSMALLINT)pnameLen, NULL, 0));
+  is_num(2, my_print_non_format_result(Stmt));
+  /* my_print_non_format_result closes cursor */
+
+  _snprintf(dropUser, sizeof(dropUser), "DROP USER Odbc391@'%s'", my_host);
+  /* we can have error, if there is simply no such user, and that is supposed to be the case, actually */
+  SQLExecDirect(Stmt, dropUser, SQL_NTS);
+  _snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  CHECK_USER_OPERATION(Stmt, createUser);
+  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
+  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT(id,ts,a) ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
+  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT(ts) ON t_Odbc391 FROM Odbc391@'%s'", my_host);
+  CHECK_USER_OPERATIONX(Stmt, revokeSelect, dropUser);
+
+  CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen));
+  is_num(1, my_print_non_format_result(Stmt));
+  CHECK_STMT_RC(Stmt, SQLColumnPrivileges(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen, NULL, 0));
+  is_num(2, my_print_non_format_result(Stmt));
+
+  OK_SIMPLE_STMT(Stmt, dropUser);
+  OK_SIMPLE_STMT(Stmt, "DROP SCHEMA _SchemaOdbc391");
+  /* Old UnixODBC needs this(and in many other places where it looks redundant) */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, len));
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1895,6 +2002,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc316, "odbc316_empty_string_parameters",  NORMAL},
   {odbc324, "odbc324_sqltables_versioned_table",NORMAL},
   {odbc361, "odbc361_unique_with_nulls",        NORMAL},
+  {odbc391, "odbc391_mixed_case_names",         NORMAL},
   {NULL, NULL}
 };
 

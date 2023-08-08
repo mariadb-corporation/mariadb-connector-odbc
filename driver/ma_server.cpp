@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2016, 2017 MariaDB Corporation AB
+   Copyright (C) 2016, 2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -22,8 +22,8 @@
 #include <ma_odbc.h>
 
 unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT},
-                                          {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES}};
-/*                                          {100202, MADB_SESSION_TRACKING}*/
+                                          {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES},
+                                          {110101, MADB_MYSQL_TRANSACTION_ISOLATION}};
 unsigned long MySQLVersionCapabilityMap[][2]= {{50720, MADB_MYSQL_TRANSACTION_ISOLATION}};
 /*                                               {50704, MADB_SESSION_TRACKING}*/
 unsigned long CapabilitiesMap[][2]= {{CLIENT_SESSION_TRACKING, MADB_SESSION_TRACKING}};
@@ -43,7 +43,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
     {
       if (ServerVersion >= VersionCapabilityMap[i][0])
       {
-        Dbc->ServerCapabilities |= VersionCapabilityMap[i][1];
+        Dbc->ServerCapabilities|= VersionCapabilityMap[i][1];
       }
     }
   }
@@ -73,22 +73,27 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
     if (!(Dbc->mariadb->server_capabilities & CLIENT_MYSQL)
       && (ServerExtCapabilities & ExtCapabilitiesMap[i][0]))
     {
-      Dbc->ServerCapabilities |= ExtCapabilitiesMap[i][1];
+      Dbc->ServerCapabilities|= ExtCapabilitiesMap[i][1];
     }
   }
 }
+/* }}} */
 
+/* {{{  */
 bool MADB_ServerSupports(MADB_Dbc *Dbc, char Capability)
 {
   return (Dbc->ServerCapabilities & Capability);
 }
+/* }}} */
 
+/* {{{  */
 const char* MADB_GetTxIsolationQuery(MADB_Dbc* Dbc)
 {
   return ((Dbc->ServerCapabilities & MADB_MYSQL_TRANSACTION_ISOLATION) != 0 ? "SELECT @@transaction_isolation" : "SELECT @@tx_isolation");
 }
 /* }}} */
 
+/* {{{  */
 const char* MADB_GetTxIsolationVarName(MADB_Dbc* Dbc)
 {
   return ((Dbc->ServerCapabilities & MADB_MYSQL_TRANSACTION_ISOLATION) != 0 ? "transaction_isolation" : "tx_isolation");

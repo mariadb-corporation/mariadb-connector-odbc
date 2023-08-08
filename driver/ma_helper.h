@@ -69,6 +69,8 @@ int           MADB_FindNextDaeParam     (MADB_Desc *Desc, int InitialParam, SQLS
 BOOL          MADB_IsNumericType(SQLSMALLINT ConciseType);
 BOOL          MADB_IsIntType    (SQLSMALLINT ConciseType);
 
+enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, uint32_t i);
+
 /* for dummy binding */
 extern my_bool DummyError;
 

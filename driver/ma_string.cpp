@@ -422,66 +422,14 @@ my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString)
   return FALSE;
 }
 
-char *MADB_GetInsertStatement(MADB_Stmt *Stmt)
+/* {{{ MADB_ConvertFromWChar
+       Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
+       TN in the Wstr) */
+char* MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
 {
-  char *StmtStr;
-  size_t Length= 1024;
-  char *p;
-  char *TableName;
-  uint32_t i, colCount;
-
-  if (!(TableName= MADB_GetTableName(Stmt)))
-  {
-    return nullptr;
-  }
-  if (!(StmtStr= static_cast<char*>(MADB_CALLOC(1024))))
-  {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
-    return nullptr;
-  }
-  p= StmtStr;
-  p+= _snprintf(StmtStr, 1024, "INSERT INTO `%s` (", TableName);
-
-  const MYSQL_FIELD* Field= Stmt->metadata->getFields();
-  colCount= Stmt->metadata->getColumnCount();
-  for (i=0; i < colCount; i++)
-  {
-    if (strlen(StmtStr) > Length - NAME_LEN - 4/* comma + 2 ticks + terminating nullptr */)
-    {
-      Length+= 1024;
-      if (!(StmtStr= static_cast<char*>(MADB_REALLOC(StmtStr, Length))))
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
-        goto error;
-      }
-    }
-    p+= _snprintf(p, Length - strlen(StmtStr), "%s`%s`", (i==0) ? "" : ",", Field[i].org_name);
-  }
-  p+= _snprintf(p, Length - strlen(StmtStr), ") VALUES (");
-
-  if (strlen(StmtStr) > Length - colCount*2 - 1)/* , and ? for each column  + (- 1 comma for 1st column + closing ')')
-                                                                            + terminating nullptr */
-  {
-    Length= strlen(StmtStr) + colCount*2 + 1;
-    if (!(StmtStr= static_cast<char*>(MADB_REALLOC(StmtStr, Length))))
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY013, nullptr, 0);
-      goto error;
-    }
-  }
-
-  for (i=0; i < colCount; i++)
-  {
-    p+= _snprintf(p, Length - strlen(StmtStr), "%s?", (i==0) ? "" : ",");
-  }
-  p+= _snprintf(p, Length - strlen(StmtStr), ")");
-  return StmtStr;
-
-error:
-  MADB_FREE(StmtStr);
-  return nullptr;
+  return MADB_ConvertFromWCharEx(Wstr, WstrCharLen, Length, cc, Error, FALSE);
 }
-
+/* }}} */
 
 my_bool MADB_ValidateStmt(MADB_QUERY *Query)
 {

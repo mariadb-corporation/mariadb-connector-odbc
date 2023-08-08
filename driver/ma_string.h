@@ -19,11 +19,12 @@
 #ifndef _ma_string_h_
 #define _ma_string_h_
 
+char *MADB_ConvertFromWCharEx(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed,
+                           BOOL mustBeNullTerminated);
 char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset* cc, BOOL *DefaultCharUsed);
 int MADB_ConvertAnsi2Unicode(Client_Charset* cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error);
-char*     MADB_GetInsertStatement(MADB_Stmt *Stmt);
 char*     MADB_GetTableName(MADB_Stmt *Stmt);
 char*     MADB_GetCatalogName(MADB_Stmt *Stmt);
 my_bool   MADB_DynStrUpdateSet(MADB_Stmt *Stmt, MADB_DynString *DynString);

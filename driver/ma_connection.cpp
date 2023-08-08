@@ -305,12 +305,27 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       MADB_FREE(Dbc->CatalogName);
       if (isWChar)
       {
-        /* IsAnsi will be set before this, even if it is set before connection */
-        Dbc->CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength, NULL, Dbc->ConnOrSrcCharset, NULL);
+        /* IsAnsi will be set before this, even if it is set before connection
+           StringLength from DM here is octets length */
+        Dbc->CatalogName= MADB_ConvertFromWCharEx((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), NULL, Dbc->ConnOrSrcCharset, NULL, TRUE);
       }
       else
-        Dbc->CatalogName= _strdup((char *)ValuePtr);
-
+      {
+        if (StringLength == SQL_NTS || *((char*)ValuePtr + StringLength - 1) == '\0')
+         Dbc->CatalogName= _strdup((char *)ValuePtr);
+        else
+        {
+          if ((Dbc->CatalogName= (char *)MADB_CALLOC(StringLength + 1)))
+          {
+            memcpy(Dbc->CatalogName, ValuePtr, StringLength);
+            Dbc->CatalogName[StringLength]= '\0';
+          }
+        }
+      }
+      if (Dbc->CatalogName == NULL)
+      {
+        MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
+      }
       if (Dbc->mariadb &&
           mysql_select_db(Dbc->mariadb, Dbc->CatalogName))
       {
@@ -877,11 +892,11 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
 
   /* Set isolation level */
-  if (Connection->IsolationLevel)
+  if (Connection->TxnIsolation)
   {
     for (i = 0; i < 4; i++)
     {
-      if (MADB_IsolationLevel[i].SqlIsolation == Connection->IsolationLevel)
+      if (MADB_IsolationLevel[i].SqlIsolation == Connection->TxnIsolation)
       {
         _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
           MADB_IsolationLevel[i].StrIsolation);

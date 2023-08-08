@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -147,9 +147,9 @@ static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port=        3306;
 char                 ma_strport[12]= "PORT=3306";
-char                 my_host[256], DriverVersion[12];
+char                 my_host[256], DriverVersion[12], sql_mode[512];
 static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -283,6 +283,26 @@ void get_env_defaults()
     add_connstr= env_val;
     storedAddConnstr= add_connstr;
   }
+
+  if (env_val= getenv("srv"))
+  {
+    if (strcmp(env_val, "maxscale") == 0)
+    {
+      IsMaxScale= TRUE;
+    }
+    else if (strcmp(env_val, "skysql") == 0)
+    {
+      IsSkySql= TRUE;
+    }
+    else if (strcmp(env_val, "skysql-ha") == 0)
+    {
+      IsSkySqlHa= TRUE;
+    }
+    else if (strcmp(env_val, "xpand") == 0)
+    {
+      IsXpand= TRUE;
+    }
+  }
 }
 
 
@@ -340,7 +360,6 @@ void get_options(int argc, char **argv)
       exit(0);
     }
   }
-
   _snprintf(ma_strport, sizeof(ma_strport), "PORT=%u", my_port);
 }
 
@@ -657,7 +676,7 @@ BOOL is_str_ex(const char* str1, const char* str2, size_t len, BOOL verbose)
 {
   if (verbose)
   {
-    fprintf(stdout, "# %s %s", str1, str2);
+    fprintf(stdout, "# %s %s\n", str1, str2);
   }
   return str1 == NULL || str2 == NULL || strncmp(str1, str2, len) != 0;
 }
@@ -757,8 +776,8 @@ int check_sqlstate_ex(SQLHANDLE hnd, SQLSMALLINT hndtype, char *sqlstate)
 
   return OK;
 }
-#define check_sqlstate(stmt, sqlstate) \
-  check_sqlstate_ex((stmt), SQL_HANDLE_STMT, (sqlstate))
+#define check_sqlstate(_STMT, _SQLSTATE) \
+  check_sqlstate_ex((_STMT), SQL_HANDLE_STMT, (_SQLSTATE))
 
 #define CHECK_SQLSTATE_EX(A,B,C) FAIL_IF(check_sqlstate_ex(A,B,C) != OK, "Unexpected sqlstate!")
 #define CHECK_SQLSTATE(A,C) CHECK_SQLSTATE_EX(A, SQL_HANDLE_STMT, C)
@@ -776,6 +795,17 @@ int get_native_errcode(SQLHSTMT Stmt)
   return err_code;
 }
 
+#define SKIP_IF_NOT_GRANTED(_STMT) odbc_print_error(SQL_HANDLE_STMT, _STMT);\
+if (get_native_errcode(_STMT) == 1142) skip("Test user doesn't have enough privileges to run this test")
+#define SKIP_IF_NOT_GRANTED_OR_ERROR(_STMT) SKIP_IF_NOT_GRANTED(_STMT);\
+return FAIL
+
+#define CHECK_USER_OPERATION(_STMT, _QUERY) do { if (!SQL_SUCCEEDED(SQLExecDirect(_STMT, _QUERY, SQL_NTS))) { SKIP_IF_NOT_GRANTED_OR_ERROR(_STMT); } } while (0)
+#define CHECK_USER_OPERATIONX(_STMT, _QUERY, _QUERYONFAILURE) do { if (!SQL_SUCCEEDED(SQLExecDirect(_STMT, _QUERY, SQL_NTS))) {\
+SQLExecDirect(_STMT, _QUERYONFAILURE, SQL_NTS);\
+SKIP_IF_NOT_GRANTED(_STMT);\
+return FAIL;\
+} } while (0)
 
 int using_dm(HDBC hdbc)
 {
@@ -1500,10 +1530,13 @@ const char * OdbcTypeAsString(SQLSMALLINT TypeId, char *Buffer)
   return Buffer;
 }
 
+
 BOOL WindowsDM(HDBC hdbc)
 {
   return using_dm(hdbc) && UnixOdbc() == FALSE && iOdbc() == FALSE;
 }
+
+#define SKIPIF(_COND, _MSG) do {if (_COND) {skip(_MSG);}} while(0)
 
 int SkipIfRsStreming()
 {
@@ -1514,6 +1547,7 @@ int SkipIfRsStreming()
   }
   return 0;
 }
+
 
 void DoNotSkipTests(MA_ODBC_TESTS* tests)
 {

@@ -425,7 +425,12 @@ namespace mariadb
        return static_cast<int64_t>(doubleValue);
      }
      case MYSQL_TYPE_BIT:
-       return parseBit();
+       // Workaround of the server bug MDEV-31392 - server returns string interpretation of bit field in subquery.
+       // The difference in the metadata in this case is binary flag
+       if (!(columnInfo->getFlags() & BINARY_FLAG)) {
+         return parseBit();
+       }
+       // Falling down otherwise
      case MYSQL_TYPE_TINY:
      case MYSQL_TYPE_SHORT:
      case MYSQL_TYPE_YEAR:

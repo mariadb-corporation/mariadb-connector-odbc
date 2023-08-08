@@ -58,27 +58,26 @@ struct MADB_Header
   SQLSMALLINT   AllocType;
   SQLSMALLINT   Count;
   /* Header end */
-} ;
+};
 
 struct MADB_Ard
 {
-	SQLUSMALLINT *RowOperationPtr;
-	SQLULEN		   *RowOffsetPtr;
-  /*MADB_ColBind *ColumnBind;*/
-	MYSQL_BIND   *Bind;
-  SQLLEN      dummy;
-  SQLUINTEGER	BindSize;	/* size of each structure if using * Row-wise Binding */
-	SQLSMALLINT	Allocated;
-} ;
+  SQLUSMALLINT *RowOperationPtr;
+  SQLULEN      *RowOffsetPtr;
+  /* MYSQL_BIND   *Bind;*/
+  SQLLEN       dummy;
+  SQLUINTEGER  BindSize;	/* size of each structure if using * Row-wise Binding */
+  SQLSMALLINT  Allocated;
+};
 
 struct MADB_Apd
 {
-	SQLUSMALLINT  *ParamOperationPtr;
-	SQLULEN       *ParamOffsetPtr;
-	MYSQL_BIND    *Bind;
-  SQLLEN      ParamsetSize;
-  SQLUINTEGER	ParamBindType;
-	SQLSMALLINT	Allocated;
+  SQLUSMALLINT *ParamOperationPtr;
+  SQLULEN      *ParamOffsetPtr;
+  /* MYSQL_BIND   *Bind;*/
+  SQLLEN       ParamsetSize;
+  SQLUINTEGER  ParamBindType;
+  SQLSMALLINT  Allocated;
 };
 
 struct MADB_Stmt;
@@ -86,12 +85,12 @@ struct MADB_Dbc;
 
 struct MADB_Ird
 {
-  MADB_Stmt* stmt;
+  /*MADB_Stmt* stmt;*/
   SQLULEN* RowsFetched;
   SQLUSMALLINT* RowStatusArray;
-  MYSQL_FIELD* Fields;
-	SQLUINTEGER FieldCount;
-	SQLSMALLINT	Allocated;
+  /* MYSQL_FIELD* Fields;*/
+  SQLUINTEGER FieldCount;
+  SQLSMALLINT	Allocated;
 };
 
 struct MADB_Ipd
@@ -302,10 +301,12 @@ struct MADB_Dbc
   SQLINTEGER  CursorCount= 0;
   unsigned int LoginTimeout= 0; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
                                 (not sure how does other DM define it) But C/C option is unsigned int */
-  char    ServerCapabilities= '\0';
+  char ServerCapabilities= '\0';
+  char lcTableNamesMode2= '\xff'; /* -1 means we don't know if lower_case_table_names=2, ie that info has never been requested  yet */
+
   bool IsAnsi= false;
   bool IsMySQL=false;
-
+  
   MADB_Dbc(MADB_Env* Env);
 
 };

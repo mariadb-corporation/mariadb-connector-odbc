@@ -127,8 +127,17 @@ ODBC_TEST(t_bulk_insert)
   SQLDOUBLE  dt, dbl[MAX_INSERT_COUNT];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_insert");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_insert (id INT, v VARCHAR(100),"
-         "txt TEXT, ft FLOAT(10), ltxt LONG VARCHAR)");
+  /* Xpand does not know LONG VARCHAR. Probably iT's ok to use everywhere. Unlikely using LONG VARCHAR has some subtle sense in the test */
+  if (IsXpand)
+  { 
+    OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_insert (id INT, v VARCHAR(100),"
+         "txt TEXT, ft FLOAT(10), ltxt MEDIUMTEXT)");
+  }
+  else
+  {
+    OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bulk_insert (id INT, v VARCHAR(100),"
+      "txt TEXT, ft FLOAT(10), ltxt LONG VARCHAR)");
+  }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

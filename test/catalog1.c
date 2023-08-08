@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2016 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1107,7 +1107,7 @@ ODBC_TEST(bug15713)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug15713 (a INT)");
 
   /* The connection strings must not include DATABASE. */
-  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s", my_dsn, my_uid, my_pwd);
+  sprintf((char *)conn, "DSN=%s;UID=%s;PWD=%s;PORT=%u", my_dsn, my_uid, my_pwd, my_port);
  
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
 
@@ -1222,6 +1222,8 @@ ODBC_TEST(t_bug26934)
   SQLHSTMT   Stmt1;
   SQLINTEGER ConnectionId;
   char       Kill[64];
+
+  SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
 
   ODBC_Connect(&Env1, &Connection1, &Stmt1);
 

@@ -54,20 +54,59 @@ static int AddPvCondition(MADB_Dbc *dbc, void* buffer, size_t bufferLen, char* v
 }
 /* }}} */
 
+/* {{{ Read_lower_case_table_names */
+static char Read_lower_case_table_names(MADB_Dbc *Dbc)
+{
+  if (Dbc->lcTableNamesMode2 < 0)
+  {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    if (mysql_real_query(Dbc->mariadb, "SELECT @@lower_case_table_names", sizeof("SELECT @@lower_case_table_names") - 1))
+    {
+      Dbc->lcTableNamesMode2= '\0';
+      return Dbc->lcTableNamesMode2;
+    }
+    res= mysql_store_result(Dbc->mariadb);
+    row= mysql_fetch_row(res);
+    if (row[0][0] == '2')
+    {
+      Dbc->lcTableNamesMode2= '\1';
+    }
+    else
+    {
+      Dbc->lcTableNamesMode2= '\0';
+    }
+    mysql_free_result(res);
+  }
+  return Dbc->lcTableNamesMode2;
+}
+/* }}} */
+
 /* {{{ AddOaCondition */
-static int AddOaCondition(MADB_Dbc *dbc, void* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
+static int AddOaCondition(MADB_Dbc *Dbc, void* buffer, size_t bufferLen, char* value, SQLSMALLINT len)
 {
   char escaped[2 * NAME_LEN + 1];
+  const char *cs= "=BINARY'", *ci= "='", *compare= cs;
+  const size_t cs_len= sizeof("=BINARY'") - 1, ci_len= sizeof("='") - 1;
+  size_t compare_len= cs_len;
   if (len < 0)
   {
-    len = (SQLSMALLINT)strlen(value);
+    len= (SQLSMALLINT)strlen(value);
   }
     
-  len = (SQLSMALLINT)mysql_real_escape_string(dbc->mariadb, escaped, value, len);
+  len= (SQLSMALLINT)mysql_real_escape_string(Dbc->mariadb, escaped, value, len);
+
+  if (Read_lower_case_table_names(Dbc))
+  {
+    compare= ci;
+    compare_len= ci_len;
+  }
+
   /* If DynString */
   if (bufferLen == (size_t)-1)
   {
-    if (MADB_DYNAPPENDCONST((MADB_DynString*)buffer, " = BINARY '") ||
+    if (MADB_DynstrAppendMem((MADB_DynString*)buffer, compare, compare_len) ||
       MADB_DynstrAppendMem((MADB_DynString*)buffer, escaped, len) ||
       MADB_DynstrAppendMem((MADB_DynString*)buffer, "' ", 2))
     {
@@ -76,7 +115,7 @@ static int AddOaCondition(MADB_Dbc *dbc, void* buffer, size_t bufferLen, char* v
     return 0;
   }
 
-  return _snprintf((char*)buffer, bufferLen, " = BINARY '%.*s' ", len, escaped);
+  return _snprintf((char*)buffer, bufferLen, "%s%.*s' ", compare, len, escaped);
 }
 /* }}} */
 

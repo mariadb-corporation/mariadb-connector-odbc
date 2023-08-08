@@ -221,12 +221,12 @@ ODBC_TEST(t_bug3456)
 {
   SQLINTEGER connection_id;
   char buf[100];
-  SQLHENV henv2;
   SQLHDBC  Connection2;
   SQLHSTMT Stmt2;
 
+  SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
   /* Create a new connection that we deliberately will kill */
-  ODBC_Connect(&henv2, &Connection2, &Stmt2);
+  ODBC_Connect(&Env, &Connection2, &Stmt2);
   OK_SIMPLE_STMT(Stmt2, "SELECT connection_id()");
   CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
   connection_id= my_fetch_int(Stmt2, 1);
@@ -239,6 +239,9 @@ ODBC_TEST(t_bug3456)
   /* Now check that the connection killed returns the right SQLSTATE */
   EXPECT_STMT(Stmt2, SQLExecDirect(Stmt2, (SQLCHAR*)"SELECT connection_id()", SQL_NTS), SQL_ERROR);
   CHECK_SQLSTATE(Stmt2, "08S01");
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+  CHECK_DBC_RC(Connection2, SQLDisconnect(Connection2));
+  CHECK_DBC_RC(Connection2, SQLFreeHandle(SQL_HANDLE_DBC, Connection2));
 
   return OK;
 }

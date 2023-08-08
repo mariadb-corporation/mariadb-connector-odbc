@@ -180,9 +180,9 @@ SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset*
 }
 
 
-/* {{{ MADB_ConvertFromWChar */
-char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
-                            BOOL *Error)
+/* {{{ MADB_ConvertFromWCharEx */
+char *MADB_ConvertFromWCharEx(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
+                            BOOL *Error, BOOL mustBeNullTerminated)
 {
   char *AscStr;
   size_t AscLen= PtrLength, PtrOctetLen;
@@ -214,7 +214,7 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
   {
     /* PtrLength is in characters. MADB_ConvertString(iconv) needs bytes */
     PtrOctetLen= SqlwcsOctetLen(Ptr, &PtrLength);
-    AscLen= PtrLength*cc->cs_info->char_maxlen;
+    AscLen= (PtrLength + (mustBeNullTerminated ? 1 : 0))*cc->cs_info->char_maxlen;
   }
 
   if (!(AscStr = (char *)MADB_CALLOC(AscLen)))
@@ -228,6 +228,8 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
     {
       --AscLen;
     }
+    if (mustBeNullTerminated)
+      AscStr[AscLen]= '\0';
   }
   else
   {

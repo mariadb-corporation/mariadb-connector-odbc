@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2022 MariaDB Corporation AB
+#   Copyright (C) 2013,2023 MariaDB Corporation AB
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -36,6 +36,13 @@ LIST(REMOVE_ITEM MAODBC_LANGUAGES "RC")
 
 SET(MARIADB_ODBC_VERSION_QUALITY "beta")
 SET(MARIADB_ODBC_VERSION "03.02.0001")
+IF(CMAKE_VERSION VERSION_LESS "3.1")
+  IF(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    SET (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 ${CMAKE_C_FLAGS}")
+  ENDIF()
+ELSE()
+  SET(CMAKE_C_STANDARD 99)
+endif()
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -101,15 +108,14 @@ IF(WIN32)
         IF (NOT COMPILER_FLAGS STREQUAL "")
           IF(NOT WITH_ASAN)
             STRING(REPLACE "/MD" "/MT" COMPILER_FLAGS ${COMPILER_FLAGS})
-            IF (BUILD_TYPE STREQUAL "Debug")
-              SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1 /RTCc")
+            IF (BUILD_TYPE STREQUAL "DEBUG")#OR BUILD_TYPE STREQUAL "RELWITHDEBINFO")
+              SET(COMPILER_FLAGS "${COMPILER_FLAGS} /RTC1") # STL does not like /RTCc
             ENDIF()
             STRING(REPLACE "/Zi" "/ZI" COMPILER_FLAGS ${COMPILER_FLAGS})
           ENDIF(NOT WITH_ASAN)
           MESSAGE (STATUS "CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE}= ${COMPILER_FLAGS}")
-          MESSAGE (STATUS "CMAKE_SHARED_LINKER_FLAGS_${BUILD_TYPE}= ${CMAKE_SHARED_LINKER_FLAGS_${BUILD_TYPE}}")
           SET(CMAKE_${COMPILER}_FLAGS_${BUILD_TYPE} ${COMPILER_FLAGS} CACHE
-               STRING "overwritten by mariadb-odbc" FORCE)
+               STRING "Overwritten by mariadb-odbc" FORCE)
         ENDIF()
       ENDFOREACH()
     ENDFOREACH()

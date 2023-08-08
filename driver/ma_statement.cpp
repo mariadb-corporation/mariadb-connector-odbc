@@ -1635,7 +1635,6 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
       break;
     }
   }
-
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -1720,7 +1719,17 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, int64_t SaveCurs
           char *p= (char *)Stmt->result[i].buffer;
           if (p)
           {
-            *p= MADBTEST(*p != '\0');
+            // Since it's temporily anyway(before fixed in server). For text protocol it can and should be cared in the resultset class
+            // For binary it's easier to do here(since type conversion is done in C/C) the way it's done in upstream version.
+            if (Stmt->rs->isBinaryEncoded())
+            {
+              const MYSQL_FIELD *f= Stmt->metadata->getField(i);
+              *p= (*p != '\0' && !(f->type == MYSQL_TYPE_BIT && f->flags & BINARY_FLAG && *p == '0') ? '\1' : '\0');
+            }
+            else
+            {
+              *p= *p != '\0' ? '\1' : '\0';
+            }
           }
         }
         break;
@@ -1933,7 +1942,6 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, int64_t SaveCurs
       }
     }
   }
-
   return rc;
 }
 /* }}} */
@@ -1979,8 +1987,8 @@ SQLRETURN MADB_ProcessTruncation(MADB_Stmt *Stmt)
     if (Stmt->result[col].error && *Stmt->result[col].error > 0 &&
       !(Stmt->result[col].flags & MADB_BIND_DUMMY))
     {
-      MADB_DescRecord* ArdRec = MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
-        * IrdRec = MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
+      MADB_DescRecord *ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, col, MADB_DESC_READ),
+        *IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, col, MADB_DESC_READ);
       /* If (numeric) field value and buffer are of the same size - ignoring truncation.
       In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
       some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
@@ -2990,8 +2998,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       if (!(BufferLength) && StrLen_or_IndPtr)
       {
         /* Paranoid - before StrLen_or_IndPtr was used as length directly. so leaving same value in Bind.length. Unlikely needed */
-        Bind.length_value = (unsigned long)*StrLen_or_IndPtr;
-        Bind.length = &Bind.length_value;
+        Bind.length_value= (unsigned long)( *StrLen_or_IndPtr & (unsigned long)-1);
+        Bind.length=       &Bind.length_value;
 
         Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]);
 
@@ -3503,7 +3511,7 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
     MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
     return SQL_ERROR;
   }
-  if (BufferLength== SQL_NTS)
+  if (BufferLength == SQL_NTS)
     BufferLength= (SQLINTEGER)strlen(Buffer);
   if (BufferLength < 0)
   {

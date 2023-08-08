@@ -1272,3 +1272,11 @@ BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
   }
   return FALSE;
 }
+
+
+enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, uint32_t i)
+{
+  /* Assuming the caller knows what is it calling for - i.e. i is valid, and stmt->metadata is set. Should be */
+  return static_cast<enum enum_field_types>(Stmt->metadata->getColumnType(i));
+}
+
