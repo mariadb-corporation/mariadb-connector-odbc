@@ -13,16 +13,19 @@
 # Built with default prefix=/usr
 #
 #
-# The following va+riables are used and can be overwritten
+# The following variables are used and can be overwritten
 #
 # INSTALL_LAYOUT     installation layout (DEFAULT = standard for tar.gz and zip packages
 #                                         RPM packages
 #
-# INSTALL_BINDIR    location of binaries (mariadb_config)
+# INSTALL_BINDIR    location of binaries ()
 # INSTALL_LIBDIR    location of libraries
 # INSTALL_PLUGINDIR location of plugins
 # INSTALL_DOCDIR    location of docs
 # INSTALL_LICENSEDIR location of license
+
+#Sets platform specific CMAKE_INSTALL_XXXDIR values
+INCLUDE(GNUInstallDirs)
 
 IF(DEB)
   SET(INSTALL_LAYOUT "DEB")
@@ -67,11 +70,13 @@ IF(NOT DEFINED INSTALL_LIB_SUFFIX)
   ENDIF()
 ENDIF()
 
-#
-# Todo: We don't generate man pages yet, will fix it
-#       later (webhelp to man transformation)
-#
-
+IF(NOT INSTALL_LAYOUT STREQUAL "DEFAULT")
+  IF(APPLE)
+    SET(CMAKE_INSTALL_PREFIX "/") # /usr/local ?
+  ELSE()
+    SET(CMAKE_INSTALL_PREFIX "/usr")
+  ENDIF()
+ENDIF()
 #
 # DEFAULT layout
 #
@@ -90,38 +95,24 @@ SET(LIBMARIADB_STATIC_DEFAULT "mariadbclient")
 #
 # RPM layout
 #
-SET(INSTALL_BINDIR_RPM "bin")
-IF((CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "s390x") AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-  SET(INSTALL_LIBDIR_RPM "lib64/mariadb")
-  SET(INSTALL_PCDIR_RPM "lib64/pkgconfig")
-  SET(INSTALL_PLUGINDIR_RPM "lib64/mariadb/plugin")
-ELSE()
-  SET(INSTALL_LIBDIR_RPM "lib/mariadb")
-  SET(INSTALL_PCDIR_RPM "lib/pkgconfig")
-  SET(INSTALL_PLUGINDIR_RPM "lib/mariadb/plugin")
-ENDIF()
-SET(INSTALL_INCLUDEDIR_RPM "include/mariadb")
-SET(INSTALL_DOCDIR_RPM "share/doc/mariadb-connector-odbc")
+SET(INSTALL_BINDIR_RPM "${CMAKE_INSTALL_BINDIR}")
+SET(INSTALL_LIBDIR_RPM "${CMAKE_INSTALL_LIBDIR}")
+SET(INSTALL_PCDIR_RPM "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+SET(INSTALL_PLUGINDIR_RPM "${CMAKE_INSTALL_LIBDIR}/mariadb/plugin")
+SET(INSTALL_INCLUDEDIR_RPM "${CMAKE_INSTALL_INCLUDEDIR}/mariadb")
+SET(INSTALL_DOCDIR_RPM "${CMAKE_INSTALL_DOCDIR}/mariadbcpp")
 SET(INSTALL_LICENSEDIR_RPM ${INSTALL_DOCDIR_RPM})
 SET(LIBMARIADB_STATIC_RPM "mariadbclient")
 
 #
 # DEB layout
-# Only ia-32 and amd64 here. the list is too long to hardcode it
-IF(NOT CMAKE_LIBRARY_ARCHITECTURE)
-  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    SET(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
-  ELSE()
-    SET(CMAKE_LIBRARY_ARCHITECTURE "i386-linux-gnu")
-  ENDIF()
-ENDIF()
-
-SET(INSTALL_BINDIR_DEB "bin")
-SET(INSTALL_LIBDIR_DEB "lib/${CMAKE_LIBRARY_ARCHITECTURE}")
-SET(INSTALL_PCDIR_DEB "lib/${CMAKE_LIBRARY_ARCHITECTURE}/pkgconfig")
+#
+SET(INSTALL_BINDIR_DEB "${CMAKE_INSTALL_BINDIR}")
+SET(INSTALL_LIBDIR_DEB "${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE}")
+SET(INSTALL_PCDIR_DEB "${INSTALL_LIBDIR_DEB}/pkgconfig")
 SET(INSTALL_PLUGINDIR_DEB "${INSTALL_LIBDIR_DEB}/libmariadb${CPACK_PACKAGE_VERSION_MAJOR}/plugin")
-SET(INSTALL_INCLUDEDIR_DEB "include/mariadb")
-SET(INSTALL_DOCDIR_DEB "share/doc/mariadb-connector-odbc")
+SET(INSTALL_INCLUDEDIR_DEB "${CMAKE_INSTALL_INCLUDEDIR}/mariadb")
+SET(INSTALL_DOCDIR_DEB "${CMAKE_INSTALL_DOCDIR}")
 SET(INSTALL_LICENSEDIR_DEB "${INSTALL_DOCDIR_DEB}")
 SET(LIBMARIADB_STATIC_DEB "mariadb")
 
@@ -180,5 +171,3 @@ ENDFOREACH()
 SET(INSTALL_PLUGINDIR_CLIENT ${INSTALL_PLUGINDIR})
 MESSAGE(STATUS "MariaDB Connector ODBC: INSTALL_PLUGINDIR_CLIENT=${INSTALL_PLUGINDIR_CLIENT}")
 
-MESSAGE(STATUS "Libraries installation dir: ${INSTALL_LIBDIR}")
-MESSAGE(STATUS "Authentication Plugins installation dir: ${INSTALL_PLUGINDIR}")

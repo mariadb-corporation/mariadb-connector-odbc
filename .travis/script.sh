@@ -118,14 +118,14 @@ if ! [ "$TRAVIS_OS_NAME" = "windows" ] ; then
 else
   TEST_DRIVER="MariaDB ODBC 3.1 Driver"
   # INSTALLFOLDER=''
-  cd ../wininstall && for %%a in (mariadb-connector-odbc-*.msi) do (msiexec /i %%a  /qn /norestart
+  cd ../wininstall && for msi in mariadb-connector-odbc-*.msi ; do msiexec /i $msi  /qn /norestart; done
   set +x
   odbcconf CONFIGDSN "$TEST_DRIVER" "DSN=$TEST_DSN;SERVER=$TEST_SERVER;DATABASE=$TEST_SCHEMA;USER=$TEST_UID;PASSWORD=$TEST_PASSWORD;PORT=$TEST_PORT;$TEST_ADD_PARAM"
   set -ex
 fi
 
 ctest --output-on-failure
-# Running tests 2nd time with resultset streaming. "${TEST_REQUIRE_TLS}" = "1" basically means "not on skysql"
+# Running tests 2nd time with resultset streaming. "${TEST_REQUIRE_TLS}" = "1" basically means "not on skysql".
 if ! [ "${TEST_REQUIRE_TLS}" = "1" ] && ! [ "$srv" = "xpand" ]; then
   export TEST_ADD_PARAM="STREAMRS=1;FORWARDONLY=1"
   ctest --output-on-failure

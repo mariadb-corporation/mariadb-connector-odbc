@@ -10,7 +10,7 @@ prefix=@libmaodbc_prefix@
 includedir=${prefix}/@INSTALL_INCLUDEDIR@/@SUFFIX_INSTALL_DIR@
 libdir=${prefix}/@INSTALL_LIBDIR@/@SUFFIX_INSTALL_DIR@
 
-Name: libmariadb
+Name: libmaodbc
 Version: @CPACK_PACKAGE_VERSION@
 Description: MariaDB Connector/ODBC dynamic library
 Cflags: -I${includedir}
