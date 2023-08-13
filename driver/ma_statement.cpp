@@ -391,7 +391,8 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
   }
   catch (SQLException& e)
   {
-    if (e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed)
+    // First condition is probably means we can a multistatement, that can't be prepared, 2nd - that the query is not preparable
+    if (e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed || e.getErrorCode() == 1295)
     {
       Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));

@@ -21,6 +21,7 @@
 #define _SQLSTRING_H_
 
 #include <string>
+#include <cctype>
 #include <algorithm>
 
 namespace odbc
