@@ -1,6 +1,7 @@
 # ************************************************************************************
 #   Copyright (C) 2019,2020 MariaDB Corporation AB
-#   
+#                 2023 MariaDB plc
+#
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
 #   License as published by the Free Software Foundation; either
@@ -17,7 +18,7 @@
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 
-SET(ODBC_SOURCE_PKG_DIR ${CMAKE_SOURCE_DIR}/osxinstall)
+SET(ODBC_SOURCE_PKG_DIR ${CMAKE_SOURCE_DIR}/packaging/macos)
 
 # Get revision number
 IF(WITH_REVNO)

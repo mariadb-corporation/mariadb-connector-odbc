@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if ! odbcinst -i -d -n "MariaDB ODBC Connector" -f @CMAKE_INSTALL_PREFIX@/@INSTALL_DOCDIR@/maodbc.ini ; then
+  if [-z ${ODBCINSTINI+x}]; then
+    if [-z ${ODBCSYSINI+x}]; then
+      ODBCINIFILE="/etc/odbcinst.ini";
+    else
+      ODBCINIFILE="$ODBCSYSINI/odbcinst.ini";
+    fi
+  else
+    ODBCINIFILE="$ODBCINSTINI";
+  fi
+
+  cat @CMAKE_INSTALL_PREFIX@/@INSTALL_DOCDIR@/maodbc.ini >> $ODBCINIFILE
+fi

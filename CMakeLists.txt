@@ -210,7 +210,7 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
   ELSE()
     INSTALL(FILES
             $<TARGET_FILE:libmariadb>
-            DESTINATION ${INSTALL_LIBDIR}
+            DESTINATION "${INSTALL_LIBDIR}"
             COMPONENT ConCLib)
     MESSAGE(STATUS "Configuring to install libmariadb to ${INSTALL_LIBDIR}")
     IF(NOT ALL_PLUGINS_STATIC)
@@ -436,6 +436,14 @@ ELSEIF(APPLE)
 ENDIF()
 
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
+
+# "set/append array" - append a set of strings, separated by a space
+MACRO(SETA var)
+  FOREACH(v ${ARGN})
+    SET(${var} "${${var}} ${v}")
+  ENDFOREACH()
+ENDMACRO(SETA)
+
 IF(WIN32)
   IF(WITH_MSI)
     IF(ALL_PLUGINS_STATIC)
@@ -444,8 +452,8 @@ IF(WIN32)
                                       -DPLUGINS_LIB_DIR=""
                                       -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
                                       -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
-                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
-                                      -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
+                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/packaging/windows/binaries_dir.xml.in
+                                      -DFILE_OUT=${CMAKE_SOURCE_DIR}/packaging/windows/binaries_dir.xml
                                       -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
     ELSE()
       ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
@@ -453,29 +461,65 @@ IF(WIN32)
                                       -DPLUGINS_LIB_DIR=$<TARGET_FILE_DIR:dialog>
                                       -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
                                       -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
-                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml.in
-                                      -DFILE_OUT=${CMAKE_SOURCE_DIR}/wininstall/binaries_dir.xml
+                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/packaging/windows/binaries_dir.xml.in
+                                      -DFILE_OUT=${CMAKE_SOURCE_DIR}/packaging/windows/binaries_dir.xml
                                       -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
                                     
     ENDIF()
-    ADD_SUBDIRECTORY(wininstall)
+    ADD_SUBDIRECTORY(packaging/windows)
   ELSE()
     MESSAGE(STATUS "MSI package won't be generated - WITH_MSI=${WITH_MSI}")
   ENDIF()
-  ADD_EXECUTABLE(install_driver osxinstall/install_driver.c)
+  ADD_EXECUTABLE(install_driver packaging/macos/install_driver.c)
   TARGET_LINK_LIBRARIES(install_driver ${PLATFORM_DEPENDENCIES} ${ODBC_INSTLIBS})
 ELSE()
   IF(APPLE)
     MESSAGE(STATUS "Configuring to generate PKG package")
-    ADD_SUBDIRECTORY(osxinstall)
+    ADD_SUBDIRECTORY(packaging/macos)
   ELSE()
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libmaodbc.pc.in
                    ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc @ONLY)
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc
             DESTINATION "${INSTALL_PCDIR}"
             COMPONENT Development)
-    IF(RPM)
-      SET(CPACK_RPM_Development_USER_FILELIST "%ignore ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR}")
+    # Not doing this with MacOS(iOdbc). So far, at least
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/packaging/linux/maodbc.ini.in
+                   ${CMAKE_BINARY_DIR}/packaging/linux/maodbc.ini @ONLY)
+    INSTALL(FILES
+            ${CMAKE_BINARY_DIR}/packaging/linux/maodbc.ini
+            DESTINATION
+            "${INSTALL_DOCDIR}"
+            COMPONENT Documentation)
+    IF(RPM OR DEB)
+      CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/packaging/linux/postinstall.in
+                     ${CMAKE_BINARY_DIR}/packaging/linux/postinstall @ONLY)
+
+      IF(RPM)
+        SET(CPACK_RPM_Development_USER_FILELIST "%ignore ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR}")
+        SET(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR})
+        MESSAGE(STATUS "Excluding ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR} from RPM filelist")
+        SET(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_BINARY_DIR}/packaging/linux/postinstall)
+
+        IF(CMAKE_VERSION VERSION_GREATER "3.9.99")
+
+          SET(CPACK_SOURCE_GENERATOR "RPM")
+          SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-DRPM=${RPM}")
+
+          MACRO(ADDIF var)
+            IF(DEFINED ${var})
+              SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-D${var}=${${var}}")
+            ENDIF()
+          ENDMACRO()
+
+          ADDIF(CMAKE_BUILD_TYPE)
+          ADDIF(BUILD_CONFIG)
+          #ADDIF(WITH_SSL)
+
+        ENDIF()
+      ELSE()
+        SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_BINARY_DIR}/packaging/linux/postinstall")
+      ENDIF()
+
     ENDIF()
   ENDIF()
   INSTALL(TARGETS
@@ -488,6 +532,7 @@ ELSE()
           DESTINATION
           "${INSTALL_DOCDIR}"
           COMPONENT Documentation)
+
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/COPYING
           DESTINATION
@@ -573,7 +618,7 @@ SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-src")
 SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
-SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation AB")
+SET(CPACK_PACKAGE_VENDOR "MariaDB plc")
 SET(CPACK_SOURCE_IGNORE_FILES
 /test/
 /.git/

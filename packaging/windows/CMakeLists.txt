@@ -1,4 +1,4 @@
-SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/wininstall)
+SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/packaging/windows)
 
 # Get revision number
 IF(WITH_REVNO)
@@ -83,8 +83,8 @@ ELSE()
   SET(GUID_INSTALLER_TOOLS "786BD2C3-20B0-4b8f-8D9B-374C736E3A1B")
 ENDIF()
 
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/wininstall/mariadb_odbc.xml.in
-               ${CMAKE_BINARY_DIR}/wininstall/mariadb_odbc.xml)
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/packaging/windows/mariadb_odbc.xml.in
+               ${CMAKE_BINARY_DIR}/packaging/windows/mariadb_odbc.xml)
 IF(${revno})
   SET(MSI_PACKAGE "mariadb-connector-odbc-${PRODUCT_VERSION}-r${revno}-${PLATFORM}.msi")
 ELSE()
