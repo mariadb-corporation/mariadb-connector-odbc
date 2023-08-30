@@ -70,8 +70,11 @@ jobs:
       name: "ES 10.4"
     - env: srv=mariadb-es v=10.5
       name: "ES 10.5"
-    - env: srv=mariadb v=10.6 local=1 BENCH=true
-      name: "benchmark"
+      #    - env: srv=mariadb v=10.6 local=1 BENCH=true
+      #name: "benchmark"
+    - env: srv=mariadb-es-test v=23.08
+      name: "ES 23.08"
+      if: type = push AND fork = false
     - env: srv=maxscale MAXSCALE_TEST_DISABLE=true
       name: "Maxscale"
     - env: srv=skysql SKYSQL=true
