@@ -235,8 +235,8 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
   ENDIF()
 ELSE()
   # Adding mariadb subdirs of standard include locations
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/local/include/mariadb")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/include/mariadb")
+  INCLUDE_DIRECTORIES("/usr/local/include/mariadb")
   MESSAGE(STATUS "Linking against libmariadb installed on the system")
 ENDIF()
 
@@ -379,7 +379,30 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
 
 IF(MARIADB_LINK_DYNAMIC)# OR USE_SYSTEM_INSTALLED_LIB)
   IF(USE_SYSTEM_INSTALLED_LIB)
-    SET(MARIADB_CLIENT_TARGET_NAME mariadb)
+    FIND_LIBRARY(CCLIB libmariadb.so)
+    IF (CCLIB-NOTFOUND)
+      # It won't be found by linker either unless user does some magic before build, so we actually could stop here with error
+      MESSAGE(STATUS "C/C library has not bee found")
+      SET(MARIADB_CLIENT_TARGET_NAME mariadb)
+    ELSE()
+      MESSAGE(STATUS "C/C library found here ${CCLIB}")
+      SET(MARIADB_CLIENT_TARGET_NAME ${CCLIB})
+    ENDIF()
+    FIND_FILE(CCHEADER NAMES "mysql.h"
+              PATHS /usr/include/mariadb
+                    /usr/include/mysql
+                    /usr/local/include/mariadb
+                    /usr/local/include/mysql)
+              #PATH_SUFFIXES mariadb mysql)
+    IF (${CCHEADER} STREQUAL "CCHEADER-NOTFOUND")
+      # Again should probably stop
+      MESSAGE(STATUS "C/C headers have not been found")
+      INCLUDE_DIRECTORIES(/usr/include/mariadb /usr/include/mysql)
+    ELSE()
+      GET_FILENAME_COMPONENT(CCHEADERDIR ${CCHEADER} DIRECTORY)
+      MESSAGE(STATUS "C/C headers have been found here ${CCHEADERDIR}")
+      INCLUDE_DIRECTORIES(${CCHEADERDIR})
+    ENDIF()
   ELSE()
     SET(MARIADB_CLIENT_TARGET_NAME libmariadb)
   ENDIF()
@@ -503,6 +526,7 @@ ELSE()
         IF(CMAKE_VERSION VERSION_GREATER "3.9.99")
 
           SET(CPACK_SOURCE_GENERATOR "RPM")
+          #SET(CPACK_RPM_BUILDREQUIRES "cmake;unixODBC-devel;mariadb-connector-c")
           SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-DRPM=${RPM}")
 
           MACRO(ADDIF var)
@@ -513,7 +537,14 @@ ELSE()
 
           ADDIF(CMAKE_BUILD_TYPE)
           ADDIF(BUILD_CONFIG)
+          ADDIF(MARIADB_LINK_DYNAMIC)
+          #ADDIF(CMAKE_C_FLAGS_RELWITHDEBINFO)
+          #ADDIF(DCMAKE_CXX_FLAGS_RELWITHDEBINFO)
           #ADDIF(WITH_SSL)
+
+          INCLUDE(build_depends)
+          MESSAGE(STATUS "Build dependencies of the source RPM are: ${CPACK_RPM_BUILDREQUIRES}")
+          MESSAGE(STATUS "Cmake params for build from source RPM: ${CPACK_RPM_SOURCE_PKG_BUILD_PARAMS}")
 
         ENDIF()
       ELSE()
