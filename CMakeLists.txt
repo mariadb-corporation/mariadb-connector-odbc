@@ -380,9 +380,9 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/mariadb-odbc-driver.def.in
 IF(MARIADB_LINK_DYNAMIC)# OR USE_SYSTEM_INSTALLED_LIB)
   IF(USE_SYSTEM_INSTALLED_LIB)
     FIND_LIBRARY(CCLIB libmariadb.so)
-    IF (CCLIB-NOTFOUND)
+    IF (${CCLIB} STREQUAL "CCLIB-NOTFOUND")
       # It won't be found by linker either unless user does some magic before build, so we actually could stop here with error
-      MESSAGE(STATUS "C/C library has not bee found")
+      MESSAGE(STATUS "C/C library has not been found")
       SET(MARIADB_CLIENT_TARGET_NAME mariadb)
     ELSE()
       MESSAGE(STATUS "C/C library found here ${CCLIB}")
