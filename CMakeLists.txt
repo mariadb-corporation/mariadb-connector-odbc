@@ -19,6 +19,7 @@
 
 CMAKE_POLICY(SET CMP0048 NEW)
 #CMAKE_POLICY(SET CMP0057 NEW)
+CMAKE_POLICY(SET CMP0054 NEW)
 
 PROJECT(mariadb_connector_odbc C)
 
@@ -502,6 +503,8 @@ ELSE()
   ELSE()
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libmaodbc.pc.in
                    ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc @ONLY)
+    # RPM adds dependency on pkg-config, that we do not want. With later versions of cmake looks like we can deal with that            
+    MESSAGE(STATUS "Configuring to install libmaodbc.pc")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc
             DESTINATION "${INSTALL_PCDIR}"
             COMPONENT Development)
@@ -518,10 +521,20 @@ ELSE()
                      ${CMAKE_BINARY_DIR}/packaging/linux/postinstall @ONLY)
 
       IF(RPM)
-        SET(CPACK_RPM_Development_USER_FILELIST "%ignore ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR}")
-        SET(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR})
-        MESSAGE(STATUS "Excluding ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR} from RPM filelist")
         SET(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_BINARY_DIR}/packaging/linux/postinstall)
+        SET(CPACK_RPM_SPEC_MORE_DEFINE "
+%define __requires_exclude .*pkg-config
+")
+        SET(CPACK_RPM_Development_USER_FILELIST "%ignore ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR}")
+        # I guess this line works, and the previous does not. Keeping both as I am not sure
+        SET(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR})
+
+        IF(CMAKE_VERSION VERSION_GREATER "3.21.99")
+          MESSAGE(STATUS "Excluding ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR} from RPM filelist")
+          SET(CPACK_RPM_REQUIRES_EXCLUDE_FROM ".*pkg-config")
+          
+          MESSAGE(STATUS "Excluding pkg-config from RPM dependencies")
+        ENDIF()
 
         IF(CMAKE_VERSION VERSION_GREATER "3.9.99")
 
