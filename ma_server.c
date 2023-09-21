@@ -36,6 +36,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
   unsigned long ServerCapabilities, ServerExtCapabilities;
 
   Dbc->IsMySQL= (strcmp(ServerName, "MySQL") == 0);
+  /*Dbc->IsXpand= (strcmp(ServerName, "Xpand") == 0);*/
 
   if (Dbc->IsMySQL == 0)
   {

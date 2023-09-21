@@ -1064,6 +1064,7 @@ ODBC_TEST(t_bug28820)
     OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28820 ("
       "x VARCHAR(90) CHARACTER SET latin1,"
       "z VARCHAR(90) CHARACTER SET utf8)");
+    OK_SIMPLE_STMT(Stmt, "SELECT x,z FROM t_bug28820");
   }
   else
   {
@@ -1071,11 +1072,10 @@ ODBC_TEST(t_bug28820)
       "x VARCHAR(90) CHARACTER SET latin1,"
       "y VARCHAR(90) CHARACTER SET big5,"
       "z VARCHAR(90) CHARACTER SET utf8)");
+    OK_SIMPLE_STMT(Stmt, "SELECT x,y,z FROM t_bug28820");
   }
 
-  OK_SIMPLE_STMT(Stmt, "SELECT x,y,z FROM t_bug28820");
-
-  for (i= 0; i < 3; ++i)
+  for (i= 0; i < columnCount; ++i)
   {
     length= 0;
     CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, i+1, dummy, sizeof(dummy), NULL,
@@ -1324,7 +1324,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
   CHECK_STMT_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT));
   /* Succesful query deploying PS */
   OK_SIMPLE_STMT(Stmt, "SELECT count(*) FROM t_reset");
-  CHECK_STMT_RC(Stmt,SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 3);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -1339,7 +1339,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
 
   /* And now successful query again */
   OK_SIMPLE_STMT(Stmt, "SELECT count(*) FROM t_reset");
-  CHECK_STMT_RC(Stmt,SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 2);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));

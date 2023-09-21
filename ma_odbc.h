@@ -389,6 +389,7 @@ struct st_ma_odbc_connection
   char    ServerCapabilities;
   my_bool IsAnsi;
   my_bool IsMySQL;
+ /* my_bool IsXpand;*/
   char    lcTableNamesMode2;
 };
 
