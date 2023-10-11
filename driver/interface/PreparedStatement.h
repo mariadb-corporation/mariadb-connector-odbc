@@ -60,6 +60,10 @@ protected:
   PreparedStatement(
     MYSQL* maHandle,
     int32_t resultSetScrollType);
+  PreparedStatement(
+    MYSQL* maHandle,
+    const SQLString& _sql,
+    int32_t resultSetScrollType);
 
 public:
 

@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
 #include "mysql.h"
 #include "PrepareResult.h"
 #include "SQLString.h"
@@ -37,22 +38,23 @@ namespace mariadb
 
 class ServerPrepareResult  : public PrepareResult
 {
+  std::mutex lock;
   ServerPrepareResult(const ServerPrepareResult&)= delete;
   const SQLString sql;
+  MYSQL* connection;
   MYSQL_STMT* statementId;
   /*std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> metadata;*/
   unsigned long paramCount= 0;
-  MYSQL_BIND* paramBind;
-  MYSQL* connection;
+  MYSQL_BIND* paramBind= nullptr;
+  std::size_t  shareCounter= 1;
+  bool isBeingDeallocate= false;
 
 public:
   ~ServerPrepareResult();
 
-  /*ServerPrepareResult(
+  ServerPrepareResult(
     const SQLString& sql,
-    MYSQL_STMT* statementId,
-    MYSQL_FIELD* columns,
-    MYSQL* dbc);*/
+    MYSQL* dbc);
 
   ServerPrepareResult(
     const SQLString& sql,
@@ -69,6 +71,10 @@ public:
   const MYSQL_BIND* getParameters() const;
   const SQLString& getSql() const;
   ResultSetMetaData* getEarlyMetaData();
+  bool incrementShareCounter();
+  void decrementShareCounter();
+  bool canBeDeallocate();
+  int32_t getShareCounter();
   /*void bindParameters(std::vector<Unique::ParameterHolder>& parameters);
   void bindParameters(MYSQL_BIND* parameters, const int16_t *type= nullptr);*/
   };

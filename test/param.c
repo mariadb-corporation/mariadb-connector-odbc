@@ -987,6 +987,11 @@ ODBC_TEST(t_odbcoutparams)
   SQLLEN      len;
   SQLSMALLINT type[]= {SQL_PARAM_INPUT, SQL_PARAM_OUTPUT, SQL_PARAM_INPUT_OUTPUT};
   SQLCHAR     str[20]= "initial value", buff[20];
+  SQLHANDLE   hdbc= NULL, hstmt;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
+  hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "PSCACHESIZE=0");
+  FAIL_IF(hstmt == NULL, "Could not connect or allocate stmt handle")
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbcoutparams("
@@ -997,32 +1002,30 @@ ODBC_TEST(t_odbcoutparams)
                 "  SET p_in = p_in*10, p_out = (p_in+p_inout)*10, p_inout = p_inout*10; "
                 "END");
 
-
-
   for (i=0; i < sizeof(par)/sizeof(SQLINTEGER); ++i)
   {
-    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, i+1, type[i], SQL_C_LONG, SQL_INTEGER, 0,
+    CHECK_STMT_RC(hstmt, SQLBindParameter(hstmt, i+1, type[i], SQL_C_LONG, SQL_INTEGER, 0,
       0, &par[i], 0, NULL));
   }
 
-  OK_SIMPLE_STMT(Stmt, "CALL t_odbcoutparams(?, ?, ?)");
+  OK_SIMPLE_STMT(hstmt, "CALL t_odbcoutparams(?, ?, ?)");
   /* Need to get to next resultset to get OUT parameters */
-  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
+  CHECK_STMT_RC(hstmt, SQLNumResultCols(hstmt,&ncol));
   is_num(ncol, 2);
 
   is_num(par[1], 1300);
   is_num(par[2], 300);
   
   /* Only 1 row always - we still can get them as a result */
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 1300);
-  is_num(my_fetch_int(Stmt, 2), 300);
-  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  is_num(my_fetch_int(hstmt, 1), 1300);
+  is_num(my_fetch_int(hstmt, 2), 300);
+  FAIL_IF(SQLFetch(hstmt) != SQL_NO_DATA_FOUND, "eof expected");
 
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
-  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbcoutparams("
+  OK_SIMPLE_STMT(hstmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
+  OK_SIMPLE_STMT(hstmt, "CREATE PROCEDURE t_odbcoutparams("
                 "  IN p_in INT, "
                 "  OUT p_out INT, "
                 "  INOUT p_inout INT) "
@@ -1030,30 +1033,30 @@ ODBC_TEST(t_odbcoutparams)
                 "  SELECT p_in, p_out, p_inout; "
                 "  SET p_in = 300, p_out = 100, p_inout = 200; "
                 "END");
-  OK_SIMPLE_STMT(Stmt, "CALL t_odbcoutparams(?, ?, ?)");
+  OK_SIMPLE_STMT(hstmt, "CALL t_odbcoutparams(?, ?, ?)");
   /* rs-1 */
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  CHECK_STMT_RC(hstmt, SQLNumResultCols(hstmt,&ncol));
   is_num(ncol, 3);
 
-  is_num(my_fetch_int(Stmt, 1), 10);
+  is_num(my_fetch_int(hstmt, 1), 10);
   /* p_out does not have value at the moment */
-  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_INTEGER, &val, 0, &len));
+  CHECK_STMT_RC(hstmt, SQLGetData(hstmt, 2, SQL_INTEGER, &val, 0, &len));
   is_num(len, SQL_NULL_DATA);
-  is_num(my_fetch_int(Stmt, 3), 300);
+  is_num(my_fetch_int(hstmt, 3), 300);
 
-  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
-  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+  FAIL_IF(SQLFetch(hstmt) != SQL_NO_DATA_FOUND, "eof expected");
+  CHECK_STMT_RC(hstmt, SQLMoreResults(hstmt));
 
   is_num(par[1], 100);
   is_num(par[2], 200);
 
-  is_num(SQLMoreResults(Stmt), SQL_SUCCESS); /* Last result - SP execution status, affected rows */
-  FAIL_IF(SQLMoreResults(Stmt) != SQL_NO_DATA, "eof expected");
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  is_num(SQLMoreResults(hstmt), SQL_SUCCESS); /* Last result - SP execution status, affected rows */
+  FAIL_IF(SQLMoreResults(hstmt) != SQL_NO_DATA, "eof expected");
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
-  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbcoutparams("
+  OK_SIMPLE_STMT(hstmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
+  OK_SIMPLE_STMT(hstmt, "CREATE PROCEDURE t_odbcoutparams("
                 "  OUT p_out VARCHAR(19), "
                 "  IN p_in INT, "
                 "  INOUT p_inout INT) "
@@ -1062,33 +1065,35 @@ ODBC_TEST(t_odbcoutparams)
                 "  SELECT p_inout, p_in, substring(p_out, 9);"
                 "END");
   
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_OUTPUT, SQL_C_CHAR, SQL_VARCHAR, 0,
+  CHECK_STMT_RC(hstmt, SQLBindParameter(hstmt, 1, SQL_PARAM_OUTPUT, SQL_C_CHAR, SQL_VARCHAR, 0,
       0, str, sizeof(str)/sizeof(SQLCHAR), NULL));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0,
+  CHECK_STMT_RC(hstmt, SQLBindParameter(hstmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0,
       0, &par[0], 0, NULL));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT_OUTPUT, SQL_C_LONG,
+  CHECK_STMT_RC(hstmt, SQLBindParameter(hstmt, 3, SQL_PARAM_INPUT_OUTPUT, SQL_C_LONG,
       SQL_INTEGER, 0, 0, &par[1], 0, NULL));
 
-  OK_SIMPLE_STMT(Stmt, "CALL t_odbcoutparams(?, ?, ?)");
+  OK_SIMPLE_STMT(hstmt, "CALL t_odbcoutparams(?, ?, ?)");
 
   /* rs-1 */
-  CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt,&ncol));
+  CHECK_STMT_RC(hstmt, SQLNumResultCols(hstmt,&ncol));
   is_num(ncol, 3);
   
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 200);
-  is_num(my_fetch_int(Stmt, 2), 300);
-  IS_STR(my_fetch_str(Stmt, buff, 3), "OUT param", 10);
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  is_num(my_fetch_int(hstmt, 1), 200);
+  is_num(my_fetch_int(hstmt, 2), 300);
+  IS_STR(my_fetch_str(hstmt, buff, 3), "OUT param", 10);
 
-  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+  CHECK_STMT_RC(hstmt, SQLMoreResults(hstmt));
   IS_STR(str, "This is OUT param", 18);
   is_num(par[1], 200);
 
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  IS_STR(my_fetch_str(Stmt, buff, 1), "This is OUT param", 18);
-  is_num(my_fetch_int(Stmt, 2), 200);
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  IS_STR(my_fetch_str(hstmt, buff, 1), "This is OUT param", 18);
+  is_num(my_fetch_int(hstmt, 2), 200);
 
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeConnect(hdbc));
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE t_odbcoutparams");
 

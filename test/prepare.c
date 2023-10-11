@@ -1332,6 +1332,94 @@ ODBC_TEST(t_odbc378)
 }
 
 
+int getPsCount(SQLHDBC hdbc)
+{
+  SQLHANDLE hstmt= NULL;
+  SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
+  int result= -1;
+
+  if (hstmt)
+  {
+    if (SQL_SUCCEEDED(SQLPrepare(hstmt, "SHOW GLOBAL STATUS LIKE 'Prepared_stmt_count'", SQL_NTS)) &&
+      SQL_SUCCEEDED(SQLExecute(hstmt)) &&
+      SQL_SUCCEEDED(SQLFetch(hstmt)))
+    {
+      result= my_fetch_int(hstmt, 2);
+    }
+    SQLFreeStmt(hstmt, SQL_DROP);
+  }
+  return result;
+}
+
+/** Test of prepared statement cache. Requires exclusive server - otherwise may fail
+ */
+ODBC_TEST(psCache)
+{
+  SQLHANDLE hdbc= NULL, hstmt, hstmt2= NULL;
+  char cacheParams[64];
+
+  _snprintf(cacheParams, sizeof(cacheParams), "PREPONCLIENT=0;PSCACHESIZE=2;MAXCACHEKEY=%u",
+    (unsigned int)(45 + 1 + strlen(my_schema)));
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
+  hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, cacheParams);
+
+  FAIL_IF(hstmt == NULL, "Could not connect or allocate stmt handle")
+  
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS psCache");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE psCache(id int not NULL PRIMARY KEY AUTO_INCREMENT, val VARCHAR(31))");
+
+  // getPsCount uses PS and thus - adds to cache and to total number of statements
+  int initialCount= getPsCount(hdbc);
+  CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, "INSERT INTO psCache(val) values('XXX')", SQL_NTS));
+
+  int newCount= getPsCount(hdbc);
+  is_num(initialCount + 1, newCount);
+
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt2));
+  CHECK_STMT_RC(hstmt2, SQLPrepare(hstmt2, "INSERT INTO psCache(val) values('XXX')", SQL_NTS));
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 1, newCount);
+
+  CHECK_STMT_RC(hstmt2, SQLExecute(hstmt2));
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 1, newCount);
+
+  // Should not get into the cache
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
+  CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, "SELECT '12345648901234567890123456789012345 > 45'", SQL_NTS));
+  CHECK_STMT_RC(hstmt2, SQLPrepare(hstmt2, "SELECT '12345648901234567890123456789012345 > 45'", SQL_NTS));
+
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 3, newCount);
+
+  // Should still be in cache
+  CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, "INSERT INTO psCache(val) values('XXX')", SQL_NTS));
+  // ... and one of previously prepared now closed
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 2, newCount);
+
+  // This should push other INSERT out of the cache, as it is full by now, and the query in the getPsCount
+  // was last requested from cache.
+  CHECK_STMT_RC(hstmt2, SQLPrepare(hstmt2, "INSERT INTO psCache(val) values('0')", SQL_NTS));
+  // Statement count is the same, as last SELECT PS is now closed, but pstmt is not closed, and holds reference to 1st INSERT PS
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 2, newCount);
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 1, newCount);
+
+  CHECK_STMT_RC(hstmt2, SQLFreeStmt(hstmt2, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeConnect(hdbc));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS psCache");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_prep_basic, "t_prep_basic"},
@@ -1341,7 +1429,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_prep_getdata, "t_prep_getdata"},
   {t_prep_getdata1, "t_prep_getdata1"},
   {t_prep_catalog, "t_prep_catalog"},
-  {t_sps, "t_sps"},
+  {t_sps,     "t_sps"},
   {t_prepare, "t_prepare"},
   {t_prepare1, "t_prepare1"},
   {tmysql_bindcol, "tmysql_bindcol"},
@@ -1355,6 +1443,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc269, "odbc-269-begin_not_atomic"},
   {t_mdev16708, "t_mdev16708-new_supported_statements"},
   {t_odbc378, "t_odbc378-optimize_table"},
+  {psCache,   "psCache"},
   {NULL, NULL}
 };
 

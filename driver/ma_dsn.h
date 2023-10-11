@@ -143,6 +143,8 @@ typedef struct st_madb_dsn
   unsigned int ConnectionTimeout;
   unsigned int ReadTimeout;
   unsigned int WriteTimeout;
+  unsigned int PsCacheSize;
+  unsigned int PsCacheMaxKeyLen;
   my_bool StreamResult; /* bool so far, but in future should be changed to uint */
   my_bool Reconnect;
   my_bool MultiStatements;

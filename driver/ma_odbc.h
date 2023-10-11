@@ -24,7 +24,7 @@
 
 #include <memory>
 #include "ma_c_stuff.h"
-//#include "PreparedStatement.h"
+#include "lru/pscache.h"
 
 namespace odbc
 {
@@ -33,6 +33,12 @@ namespace mariadb
 class PreparedStatement;
 class ResultSet;
 class ResultSetMetaData;
+class ServerPrepareResult;
+
+typedef ::mariadb::PsCache<ServerPrepareResult> PsCache;
+//typedef ::mariadb::Cache<std::string, ServerPrepareResult> Cache;
+//// Base class has empty methods eimplementations
+//typedef ::mariadb::Cache<std::string, ServerPrepareResult> NoCache;
 
 namespace Unique
 {
@@ -40,6 +46,7 @@ namespace Unique
   typedef std::unique_ptr<odbc::mariadb::ResultSet> ResultSet;
   typedef std::unique_ptr<::MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
   typedef std::unique_ptr<odbc::mariadb::ResultSetMetaData> ResultSetMetaData;
+  typedef std::unique_ptr < odbc::mariadb::PsCache> PsCache;
 }
 }
 }
@@ -283,8 +290,9 @@ struct MADB_Dbc
   char*      TraceFile= nullptr;
   MADB_Stmt* Streamer= nullptr;
 
-  SQLULEN    AsyncEnable= 0;
   SQLPOINTER EnlistInDtc= nullptr;
+  Unique::PsCache psCache;
+  SQLULEN    AsyncEnable= 0;
   SQLULEN    OdbcCursors= 0;
   unsigned long Options= 0;
   SQLUINTEGER AutoIpd= 0;
@@ -299,7 +307,7 @@ struct MADB_Dbc
   SQLUINTEGER MetadataId= 0;
   SQLINTEGER  TxnIsolation= 0;
   SQLINTEGER  CursorCount= 0;
-  unsigned int LoginTimeout= 0; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
+  uint32_t    LoginTimeout= 0; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
                                 (not sure how does other DM define it) But C/C option is unsigned int */
   char ServerCapabilities= '\0';
   char lcTableNamesMode2= '\xff'; /* -1 means we don't know if lower_case_table_names=2, ie that info has never been requested  yet */
@@ -308,8 +316,7 @@ struct MADB_Dbc
   bool IsMySQL=false;
   
   MADB_Dbc(MADB_Env* Env);
-
-};
+  };
 
 struct MADB_Stmt
 {

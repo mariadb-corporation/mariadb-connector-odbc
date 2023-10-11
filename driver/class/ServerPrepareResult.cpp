@@ -21,7 +21,7 @@
 
 #include "ServerPrepareResult.h"
 #include "ResultSetMetaData.h"
-//#include "ColumnType.h"
+#include "Exception.h"
 //#include "ColumnDefinition.h"
 
 #include "ColumnDefinition.h"
@@ -32,30 +32,43 @@ namespace mariadb
 {
   ServerPrepareResult::~ServerPrepareResult()
   {
-    mysql_stmt_close(statementId);
+    if (statementId) {
+      mysql_stmt_close(statementId);
+    }
   }
   /**
     * PrepareStatement Result object.
     *
     * @param sql query
-    * @param statementId server statement Id.
-    * @param columns columns information
-    * @param parameters parameters information
     * @param unProxiedProtocol indicate the protocol on which the prepare has been done
     */
-  /*ServerPrepareResult::ServerPrepareResult(
+  ServerPrepareResult::ServerPrepareResult(
     const SQLString& _sql,
-    MYSQL_STMT* _statementId,
-    std::vector<ColumnDefinition>& _columns,
-    std::vector<ColumnDefinition>& _parameters
+    MYSQL* dbc // This plays role of the unproxiedProtocol so far
     )
     : sql(_sql)
-    , statementId(_statementId)
-    , columns(_columns)
-    , parameters(_parameters)
-    , metadata(mysql_stmt_result_metadata(statementId), &mysql_free_result)
+    , connection(dbc)
+    , statementId(mysql_stmt_init(dbc))
   {
-  }*/
+    static const my_bool updateMaxLength= 1;
+    int rc= 1;
+
+    if (statementId == nullptr) {
+      throw rc;
+    }
+    mysql_stmt_attr_set(statementId, STMT_ATTR_UPDATE_MAX_LENGTH, &updateMaxLength);
+
+    if ((rc= mysql_stmt_prepare(statementId, sql.c_str(), static_cast<unsigned long>(sql.length()))) != 0) {
+      SQLException e(mysql_stmt_error(statementId), mysql_stmt_sqlstate(statementId), mysql_stmt_errno(statementId));
+      mysql_stmt_close(statementId);
+      throw e;
+    }
+    paramCount= mysql_stmt_param_count(statementId);
+    std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> metadata(mysql_stmt_result_metadata(statementId), &mysql_free_result);
+    if (metadata) {
+      init(mysql_fetch_fields(metadata.get()), mysql_stmt_field_count(statementId));
+    }
+  }
 
   /**
   * PrepareStatement Result object.
@@ -76,11 +89,11 @@ namespace mariadb
     , connection (dbc)
     , paramCount(mysql_stmt_param_count(statementId))
   {
+    // Feels like this can be done better
     std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> metadata(mysql_stmt_result_metadata(statementId), &mysql_free_result);
     if (metadata) {
       init(mysql_fetch_fields(metadata.get()), mysql_stmt_field_count(statementId));
     }
-    paramBind= nullptr;
   }
 
 
@@ -133,6 +146,52 @@ namespace mariadb
     return new ResultSetMetaData(column);
   }
 
+
+  /**
+    * Increment share counter.
+    *
+    * @return true if can be used (is not been deallocate).
+    */
+  bool ServerPrepareResult::incrementShareCounter()
+  {
+    std::lock_guard<std::mutex> localScopeLock(lock);
+    if (isBeingDeallocate) {
+      return false;
+    }
+    ++shareCounter;
+    return true;
+  }
+
+  void ServerPrepareResult::decrementShareCounter()
+  {
+    std::lock_guard<std::mutex> localScopeLock(lock);
+    --shareCounter;
+  }
+
+  /**
+    * Asked if can be deallocate (is not shared in other statement and not in cache) Set deallocate
+    * flag to true if so.
+    *
+    * @return true if can be deallocate
+    */
+  bool ServerPrepareResult::canBeDeallocate()
+  {
+    std::lock_guard<std::mutex> localScopeLock(lock);
+
+    if (shareCounter > 1 || isBeingDeallocate) {
+      return false;
+    }
+    isBeingDeallocate= true;
+    return true;
+  }
+
+
+  // for unit test
+  int32_t ServerPrepareResult::getShareCounter()
+  {
+    std::lock_guard<std::mutex> localScopeLock(lock);
+    return static_cast<int32_t>(shareCounter);
+  }
 
   /*void initBindStruct(MYSQL_BIND& bind, const MYSQL_BIND* paramInfo)
   {

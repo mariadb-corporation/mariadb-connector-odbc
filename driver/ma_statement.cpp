@@ -371,6 +371,28 @@ SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+/* Sets state and processes available metadata */
+void AfterPrepare(MADB_Stmt *Stmt)
+{
+  Stmt->State= MADB_SS_PREPARED;
+
+  Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
+  /* If we have result returning query - fill descriptor records with metadata */
+  if (Stmt->metadata && Stmt->metadata->getColumnCount() > 0)
+  {
+    MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
+  }
+
+  if ((Stmt->ParamCount= (SQLSMALLINT)Stmt->stmt->getParamCount()) > 0)
+  {
+    if (Stmt->params)
+    {
+      MADB_FREE(Stmt->params);
+    }
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
+  }
+}
+
 /* {{{ MADB_RegularPrepare - Method called from SQLPrepare in case it is SQLExecDirect and if !(server > 10.2)
    (i.e. we aren't going to do mariadb_stmt_exec_direct)
    The connection should be locked by the caller
@@ -386,6 +408,29 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 
   try
   {
+    if (Stmt->Connection->psCache)
+    {
+      std::string key(Stmt->Connection->CurrentSchema);
+      key.append(1, '-').append(STMT_STRING(Stmt));
+      ServerPrepareResult *pr= Stmt->Connection->psCache->get(key);
+      if (pr == nullptr)
+      {
+        pr= new ServerPrepareResult(STMT_STRING(Stmt), Stmt->Connection->mariadb);
+
+        auto somebodyHasCachedMeanwhile= Stmt->Connection->psCache->put(key, pr);
+
+        // Taking the cached then
+        if (somebodyHasCachedMeanwhile != nullptr)
+        {
+          delete pr;
+          pr= somebodyHasCachedMeanwhile;
+        }
+      }
+      Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->mariadb, pr, Stmt->Options.CursorType));
+      AfterPrepare(Stmt);
+      return SQL_SUCCESS;
+    }
+
     Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
       Stmt->Options.CursorType));
   }
@@ -413,23 +458,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
   }
 
-  Stmt->State= MADB_SS_PREPARED;
-
-  Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
-  /* If we have result returning query - fill descriptor records with metadata */
-  if (Stmt->metadata && Stmt->metadata->getColumnCount() > 0)
-  {
-    MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
-  }
-
-  if ((Stmt->ParamCount= (SQLSMALLINT)Stmt->stmt->getParamCount()) > 0)
-  {
-    if (Stmt->params)
-    {
-      MADB_FREE(Stmt->params);
-    }
-    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
-  }
+  AfterPrepare(Stmt);
 
   return SQL_SUCCESS;
 }

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2023 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -34,10 +34,23 @@ namespace mariadb
   ServerSidePreparedStatement::~ServerSidePreparedStatement()
   {
     if (results) {
-      results->loadFully(false);
+      try
+      {
+        results->loadFully(false);
+      }
+      catch (...)
+      {
+      }
       results.reset();
     }
-    serverPrepareResult.reset();
+    if (serverPrepareResult) {
+      if (serverPrepareResult->canBeDeallocate()) {
+        delete serverPrepareResult;
+      }
+      else {
+        serverPrepareResult->decrementShareCounter();
+      }
+    }
   }
   /**
     * Constructor for creating Server prepared statement.
@@ -56,17 +69,24 @@ namespace mariadb
   ServerSidePreparedStatement::ServerSidePreparedStatement(
     MYSQL* _connection, const SQLString& _sql,
     int32_t resultSetScrollType)
-    : ServerSidePreparedStatement(_connection, resultSetScrollType)
+    : PreparedStatement(_connection, _sql, resultSetScrollType)
   {
-    sql= _sql;
     prepare(sql);
+  }
+
+
+  ServerSidePreparedStatement::ServerSidePreparedStatement(
+    MYSQL* connection, ServerPrepareResult* pr, int32_t resultSetScrollType)
+    : PreparedStatement(connection, pr->getSql(), resultSetScrollType)
+    , serverPrepareResult (pr)
+  {
+    //serverPrepareResult->incrementShareCounter(); // ?
   }
 
   ServerSidePreparedStatement::ServerSidePreparedStatement(
     MYSQL* _connection,
     int32_t resultSetScrollType)
-    : PreparedStatement(_connection, resultSetScrollType),
-      serverPrepareResult(nullptr)
+    : PreparedStatement(_connection, resultSetScrollType)
   {
   }
 
@@ -89,23 +109,8 @@ namespace mariadb
 
   void ServerSidePreparedStatement::prepare(const SQLString& sql)
   {
-    int32_t rc= 1;
-    MYSQL_STMT* stmtId = mysql_stmt_init(connection);
-    if (stmtId == nullptr) {
-      throw rc;
-    }
-    static const my_bool updateMaxLength = 1;
-    
-    mysql_stmt_attr_set(stmtId, STMT_ATTR_UPDATE_MAX_LENGTH, &updateMaxLength);
-
-    if ( (rc= mysql_stmt_prepare(stmtId, sql.c_str(), static_cast<unsigned long>(sql.length()))) != 0) {
-      SQLException e(mysql_stmt_error(stmtId), mysql_stmt_sqlstate(stmtId), mysql_stmt_errno(stmtId));
-      mysql_stmt_close(stmtId);
-      throw e;
-    }
-    serverPrepareResult.reset(new ServerPrepareResult(sql, stmtId, connection));
+    serverPrepareResult= new ServerPrepareResult(sql, connection);
     setMetaFromResult();
-
   }
 
   void ServerSidePreparedStatement::setMetaFromResult()
@@ -169,7 +174,7 @@ namespace mariadb
 
   void ServerSidePreparedStatement::executeBatchInternal(uint32_t queryParameterSize)
   {
-    executeQueryPrologue(serverPrepareResult.get());
+    executeQueryPrologue(serverPrepareResult);
 
     results.reset(
       new Results(
@@ -217,7 +222,7 @@ namespace mariadb
     }
     else {
       serverPrepareResult->reReadColumnInfo();
-      ResultSet *rs= ResultSet::create(results.get(), serverPrepareResult.get());
+      ResultSet *rs= ResultSet::create(results.get(), serverPrepareResult);
       results->addResultSet(rs, hasMoreResults() || results->getFetchSize() > 0);
     }
   }
@@ -275,7 +280,13 @@ namespace mariadb
     }
 
     if (serverPrepareResult) {
-      serverPrepareResult.reset(); //?
+      serverPrepareResult->decrementShareCounter();
+
+      // deallocate from server if not cached
+      if (serverPrepareResult->canBeDeallocate()) {
+        delete serverPrepareResult;
+        serverPrepareResult= nullptr;
+      }
     }
   }
 

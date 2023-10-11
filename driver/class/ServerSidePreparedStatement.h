@@ -33,11 +33,12 @@ namespace mariadb
 
 class ServerSidePreparedStatement : public PreparedStatement {
 
-  Unique::ServerPrepareResult serverPrepareResult;
+  ServerPrepareResult* serverPrepareResult= nullptr;
 
 public:
   ~ServerSidePreparedStatement();
   ServerSidePreparedStatement(MYSQL* connection, const SQLString& sql, int32_t resultSetScrollType);
+  ServerSidePreparedStatement(MYSQL* connection, ServerPrepareResult* pr, int32_t resultSetScrollType);
 
   ServerSidePreparedStatement* clone(MYSQL* connection);
 
@@ -61,7 +62,7 @@ private:
   void getResult();
 
 public:
-  PrepareResult* getPrepareResult() { return dynamic_cast<PrepareResult*>(serverPrepareResult.get()); }
+  PrepareResult* getPrepareResult() { return dynamic_cast<PrepareResult*>(serverPrepareResult); }
   bool executeInternal(int32_t fetchSize);
   uint32_t fieldCount() const;
 

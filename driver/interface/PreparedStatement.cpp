@@ -50,11 +50,22 @@ namespace mariadb
       MYSQL* maHandle,
       int32_t resultSetScrollType
       )
-    : connection(maHandle),
-      useFractionalSeconds(true),
-      batchRes(0)
+    : connection(maHandle)
+    , resultSetScrollType(resultSetScrollType)
+    , batchRes(0)
   {
   }
+
+
+  PreparedStatement::PreparedStatement(
+    MYSQL* maHandle,
+    const SQLString& _sql,
+    int32_t resultSetScrollType)
+    : connection(maHandle)
+    , sql(_sql)
+    , resultSetScrollType(resultSetScrollType)
+    , batchRes(0)
+  {}
 
   /**
    * Check if statement is closed, and throw exception if so.

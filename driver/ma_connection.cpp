@@ -19,6 +19,7 @@
 
 #include <ma_odbc.h>
 #include "interface/ResultSet.h"
+#include "ServerPrepareResult.h"
 #include <limits.h>
 
 extern const char* DefaultPluginLocation;
@@ -1132,6 +1133,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_CACHE))
   {
     Connection->Methods->CacheRestOfCurrentRsStream= &MADB_Dbc_CacheRestOfCurrentRsStream;
+  }
+
+  if (Dsn->PsCacheSize > 0 && Dsn->PsCacheMaxKeyLen > 0) {
+    Connection->psCache.reset(new PsCache(Dsn->PsCacheSize, Dsn->PsCacheMaxKeyLen));
   }
 
   if (MADB_ServerSupports(Connection, MADB_SESSION_TRACKING) == TRUE)

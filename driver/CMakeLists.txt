@@ -132,6 +132,7 @@ ELSE()
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/interface ${CMAKE_CURRENT_SOURCE_DIR}/template ${CMAKE_CURRENT_SOURCE_DIR}/class)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/class)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/mariadb-odbc-driver.def.in
                ${CMAKE_BINARY_DIR}/driver/mariadb-odbc-driver-uni.def)
