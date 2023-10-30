@@ -1057,26 +1057,15 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   if (MADB_ServerSupports(Connection, MADB_SESSION_TRACKING) == TRUE)
   {
     int len;
-    if (DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS))
+
+    char buffer[sizeof("SET session_track_schema=1,session_track_system_variables='autocommit'") + 1/*','*/ + 21/*transaction_isolation*/];
+    len= _snprintf(buffer, sizeof(buffer), "SET session_track_schema=1,session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
+    if (mysql_real_query(Connection->mariadb, buffer, (unsigned long)len)/* ||
+      mysql_next_result(Connection->mariadb)*/)
     {
-      char buffer[sizeof("SET session_track_schema= ON;SET session_track_system_variables='autocommit'") + 1/*','*/ + 21/*transaction_isolation*/];
-      len= _snprintf(buffer, sizeof(buffer), "SET session_track_schema= ON;SET session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
-      if (mysql_real_query(Connection->mariadb, buffer, (unsigned long)len) ||
-        mysql_next_result(Connection->mariadb))
-      {
-        goto sessionTrackinErr;
-      }
+      goto sessionTrackinErr;
     }
-    else
-    {
-      char buffer[sizeof("SET session_track_system_variables='autocommit'") + 1/*','*/ + 21/*transaction_isolation*/];
-      len= _snprintf(buffer, sizeof(buffer), "SET session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
-      if (mysql_real_query(Connection->mariadb, "SET session_track_schema= ON", 28) ||
-        mysql_real_query(Connection->mariadb, buffer, (unsigned long)len))
-      {
-        goto sessionTrackinErr;
-      }
-    }
+
     if (defaultSchema != NULL)
     {
       Connection->CurrentSchema= _strdup(defaultSchema);
