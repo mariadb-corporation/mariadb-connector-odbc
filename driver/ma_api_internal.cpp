@@ -65,28 +65,32 @@ SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
     SQLHANDLE *OutputHandlePtr)
 {
   SQLRETURN ret= SQL_ERROR;
+  MADB_Error *Error= nullptr;
 
-  switch(HandleType) {
+  try
+  {
+    switch (HandleType) {
     case SQL_HANDLE_DBC:
-      EnterCriticalSection(&((MADB_Env *)InputHandle)->cs);
-      MADB_CLEAR_ERROR(&((MADB_Env *)InputHandle)->Error);
+      Error= &((MADB_Env *)InputHandle)->Error;
+      MADB_CLEAR_ERROR(Error);
       if ((*OutputHandlePtr= (SQLHANDLE)MADB_DbcInit((MADB_Env *)InputHandle)) != NULL)
       {
         ret= SQL_SUCCESS;
       }
-      LeaveCriticalSection(&((MADB_Env *)InputHandle)->cs);
       break;
     case SQL_HANDLE_DESC:
+    {
       MDBUG_C_DUMP(InputHandle, InputHandle, 0x);
       MDBUG_C_DUMP(InputHandle, OutputHandlePtr, 0x);
-      EnterCriticalSection(&((MADB_Dbc *)InputHandle)->cs);
-      MADB_CLEAR_ERROR(&((MADB_Dbc *)InputHandle)->Error);
+      Error= &((MADB_Dbc *)InputHandle)->Error;
+      std::lock_guard<std::mutex> localScopeLock(((MADB_Dbc *)InputHandle)->ListsCs);
+      MADB_CLEAR_ERROR(Error);
       if ((*OutputHandlePtr= (SQLHANDLE)MADB_DescInit((MADB_Dbc *)InputHandle, MADB_DESC_UNKNOWN, TRUE)) != NULL)
       {
         ret= SQL_SUCCESS;
       }
-      LeaveCriticalSection(&((MADB_Dbc *)InputHandle)->cs);
       break;
+    }
     case SQL_HANDLE_ENV:
       if ((*OutputHandlePtr= (SQLHANDLE)MADB_EnvInit()) != NULL)
       {
@@ -94,28 +98,37 @@ SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
       }
       break;
     case SQL_HANDLE_STMT:
+    {
+      MDBUG_C_DUMP(InputHandle, InputHandle, 0x);
+      MDBUG_C_DUMP(InputHandle, OutputHandlePtr, 0x);
+      MADB_Dbc *Connection= (MADB_Dbc *)InputHandle;
+      MDBUG_C_ENTER(InputHandle, "MA_SQLAllocHandle(Stmt)");
+      Error= &Connection->Error;
+      MADB_CLEAR_ERROR(Error);
+
+      if (!Connection->CheckConnection())
       {
-        MDBUG_C_DUMP(InputHandle, InputHandle, 0x);
-        MDBUG_C_DUMP(InputHandle, OutputHandlePtr, 0x);
-        MADB_Dbc *Connection= (MADB_Dbc *)InputHandle;
-        MDBUG_C_ENTER(InputHandle, "MA_SQLAllocHandle(Stmt)");
-
-        MADB_CLEAR_ERROR(&Connection->Error);
-       
-        if (!CheckConnection(Connection))
-        {
-          MADB_SetError(&Connection->Error, MADB_ERR_08003, NULL, 0);
-          break;
-        }
-
-        ret= MADB_StmtInit(Connection, OutputHandlePtr);
-        MDBUG_C_DUMP(InputHandle, *OutputHandlePtr, 0x);
-        MDBUG_C_RETURN(InputHandle,ret, &Connection->Error);
+        MADB_SetError(&Connection->Error, MADB_ERR_08003, NULL, 0);
+        break;
       }
-      break;
+
+      ret= MADB_StmtInit(Connection, OutputHandlePtr);
+      MDBUG_C_DUMP(InputHandle, *OutputHandlePtr, 0x);
+      MDBUG_C_RETURN(InputHandle, ret, &Connection->Error);
+    }
+    break;
     default:
       /* todo: set error message */
       break;
+    }
+  }
+  catch (std::bad_alloc &/*e*/)
+  {
+    if (Error)
+    {
+      return MADB_SetError(Error, MADB_ERR_HY001, NULL, 0);
+    }
+    return SQL_ERROR;
   }
   return ret;
 }
@@ -235,13 +248,15 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
   MDBUG_C_ENTER(Stmt->Connection, "SQLCancel");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
 
-  if (TryEnterCriticalSection(&Stmt->Connection->cs))
+  auto& lock= Stmt->Connection->guard->getLock();
+  if (lock.try_lock())
   {
-    LeaveCriticalSection(&Stmt->Connection->cs);
+    lock.unlock();
     ret= Stmt->Methods->StmtFree(Stmt, SQL_CLOSE);
 
     MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-  } else
+  }
+  else
   {
     MYSQL *MariaDb, *Kill=Stmt->Connection->mariadb;
     
@@ -260,17 +275,13 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
     }
     
     _snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
-    if (mysql_query(MariaDb, StmtStr))
+    if (!mysql_query(MariaDb, StmtStr))
     {
-      mysql_close(MariaDb);
-      goto end;
+      ret= SQL_SUCCESS;
     }
     mysql_close(MariaDb);
-    ret= SQL_SUCCESS;
   }
 end:
-  LeaveCriticalSection(&Stmt->Connection->cs);
-
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
@@ -528,7 +539,7 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Connection, Authentication, s);
   MDBUG_C_DUMP(Connection, NameLength3, d);
 
-  if (CheckConnection(Connection))
+  if (Connection->CheckConnection())
   {
     MADB_SetError(&Connection->Error, MADB_ERR_08002, NULL, 0);
     return SQL_ERROR;
@@ -553,7 +564,7 @@ SQLRETURN SQLConnectCommon(SQLHDBC ConnectionHandle,
   MADB_DSN_SET_STR(Dsn, UserName, (char*)UserName, NameLength2);
   MADB_DSN_SET_STR(Dsn, Password, (char*)Authentication, NameLength3);
 
-  ret = Connection->Methods->ConnectDB(Connection, Dsn);
+  ret = Connection->ConnectDB(Dsn);
 
   if (SQL_SUCCEEDED(ret))
   {
@@ -651,7 +662,7 @@ SQLRETURN MA_SQLDriverConnect(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Dbc, BufferLength, d);
   MDBUG_C_DUMP(Dbc, StringLength2Ptr, 0x);
   MDBUG_C_DUMP(Dbc, DriverCompletion, d);
-  ret = Dbc->Methods->DriverConnect(Dbc, WindowHandle, InConnectionString, StringLength1, OutConnectionString,
+  ret = Dbc->DriverConnect(WindowHandle, InConnectionString, StringLength1, OutConnectionString,
     BufferLength, StringLength2Ptr, DriverCompletion);
 
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
@@ -699,7 +710,7 @@ SQLRETURN MA_SQLDriverConnectW(SQLHDBC      ConnectionHandle,
     }
   }
 
-  ret = Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR*)InConnStrA, InStrAOctLen, (SQLCHAR*)OutConnStrA,
+  ret = Dbc->DriverConnect(WindowHandle, (SQLCHAR*)InConnStrA, InStrAOctLen, (SQLCHAR*)OutConnStrA,
     Length, StringLength2Ptr, DriverCompletion);
   MDBUG_C_DUMP(Dbc, ret, d);
   if (!SQL_SUCCEEDED(ret))
@@ -725,25 +736,46 @@ SQLRETURN MA_SQLEndTran(SQLSMALLINT HandleType,
     SQLHANDLE Handle,
     SQLSMALLINT CompletionType)
 {
-  SQLRETURN ret= SQL_SUCCESS;
+
   switch (HandleType) {
   case SQL_HANDLE_ENV:
     {
       MADB_Env *Env= (MADB_Env *)Handle;
-      MADB_List *List= Env->Dbcs;
 
-      for (List= Env->Dbcs; List; List= List->next)
-        ((MADB_Dbc *)List->data)->Methods->EndTran((MADB_Dbc *)List->data, CompletionType);
+      for (auto& con: Env->Dbcs)
+      {
+        try
+        {
+          if (con->mariadb)
+          {
+            con->EndTran(CompletionType);
+          }
+        }
+        catch (SQLException &)
+        {
+          // TODO: what should happen here if error occurs on some connection?
+        }
+      }
     }
     break;
   case SQL_HANDLE_DBC:
     {
       MADB_Dbc *Dbc= (MADB_Dbc *)Handle;
       if (!Dbc->mariadb)
-        MADB_SetError(&Dbc->Error, MADB_ERR_08002, NULL, 0);
+      {
+        return MADB_SetError(&Dbc->Error, MADB_ERR_08002, NULL, 0);
+      }
       else
-        Dbc->Methods->EndTran(Dbc, CompletionType);
-      ret= Dbc->Error.ReturnValue;
+      {
+        try
+        {
+          Dbc->EndTran(CompletionType);
+        }
+        catch (SQLException &e)
+        {
+          return MADB_FromException(Dbc->Error, e);
+        }
+      }
     }
     break;
   default:
@@ -751,7 +783,7 @@ SQLRETURN MA_SQLEndTran(SQLSMALLINT HandleType,
     break;
   }
 
-  return ret;
+  return SQL_SUCCESS;
 }
 /* }}} */
 
@@ -819,7 +851,20 @@ SQLRETURN MA_SQLExecDirect(SQLHSTMT StatementHandle,
   if (!Stmt)
     ret = SQL_INVALID_HANDLE;
   else
-    ret = Stmt->Methods->ExecDirect(Stmt, (char*)StatementText, TextLength);
+  {
+    try
+    {
+      ret = Stmt->Methods->ExecDirect(Stmt, (char*)StatementText, TextLength);
+    }
+    catch (SQLException &e)
+    {
+      ret= MADB_FromException(Stmt->Error, e);
+    }
+    catch (const std::bad_alloc&)
+    {
+      ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    }
+  }
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
@@ -840,15 +885,26 @@ SQLRETURN MA_SQLExecDirectW(SQLHSTMT StatementHandle,
   MDBUG_C_ENTER(Stmt->Connection, "SQLExecDirectW");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
 
-  CpStmt = MADB_ConvertFromWChar(StatementText, TextLength, &StmtLength, Stmt->Connection->ConnOrSrcCharset, &ConversionError);
-  MDBUG_C_DUMP(Stmt->Connection, CpStmt, s);
-  if (ConversionError)
+  try
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_22018, NULL, 0);
-    ret = Stmt->Error.ReturnValue;
+    CpStmt = MADB_ConvertFromWChar(StatementText, TextLength, &StmtLength, Stmt->Connection->ConnOrSrcCharset, &ConversionError);
+    MDBUG_C_DUMP(Stmt->Connection, CpStmt, s);
+    if (ConversionError)
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_22018, NULL, 0);
+      ret = Stmt->Error.ReturnValue;
+    }
+    else
+      ret = Stmt->Methods->ExecDirect(Stmt, CpStmt, (SQLINTEGER)StmtLength);
   }
-  else
-    ret = Stmt->Methods->ExecDirect(Stmt, CpStmt, (SQLINTEGER)StmtLength);
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Stmt->Error, e);
+  }
+  catch (const std::bad_alloc&)
+  {
+    ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
   MADB_FREE(CpStmt);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
@@ -862,8 +918,19 @@ SQLRETURN MA_SQLExecute(SQLHSTMT StatementHandle)
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLExecute");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
-
-  return Stmt->Methods->Execute(Stmt, FALSE);
+  
+  try
+  {
+    return Stmt->Methods->Execute(Stmt, FALSE);
+  }
+  catch (SQLException &e)
+  {
+    return MADB_FromException(Stmt->Error, e);
+  }
+  catch (const std::bad_alloc&)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
 }
 /* }}} */
 
@@ -1125,8 +1192,14 @@ SQLRETURN MA_SQLGetConnectAttrW(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Dbc, ValuePtr, 0x);
   MDBUG_C_DUMP(Dbc, BufferLength, d);
   MDBUG_C_DUMP(Dbc, StringLengthPtr, 0x);
-
-  ret = Dbc->Methods->GetAttr(Dbc, Attribute, ValuePtr, BufferLength, StringLengthPtr, TRUE);
+  try
+  {
+    ret= Dbc->GetAttr(Attribute, ValuePtr, BufferLength, StringLengthPtr, true);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Dbc->Error, e);
+  }
 
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
 }
@@ -1274,7 +1347,14 @@ SQLRETURN MA_SQLGetConnectAttr(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Dbc, BufferLength, d);
   MDBUG_C_DUMP(Dbc, StringLengthPtr, 0x);
 
-  ret= Dbc->Methods->GetAttr(Dbc, Attribute, ValuePtr, BufferLength, StringLengthPtr, FALSE);
+  try
+  {
+    ret= Dbc->GetAttr(Attribute, ValuePtr, BufferLength, StringLengthPtr, FALSE);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Dbc->Error, e);
+  }
 
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
 }
@@ -1411,7 +1491,7 @@ SQLRETURN MA_SQLGetFunctions(SQLHDBC ConnectionHandle,
   MDBUG_C_ENTER(Dbc, "SQLGetFunctions");
   MDBUG_C_DUMP(Dbc, FunctionId, d);
   MDBUG_C_DUMP(Dbc, SupportedPtr, 0x);
-  ret = Dbc->Methods->GetFunctions(Dbc, FunctionId, SupportedPtr);
+  ret= Dbc->GetFunctions(FunctionId, SupportedPtr);
 
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
 }
@@ -1430,7 +1510,14 @@ SQLRETURN MA_SQLGetInfo(SQLHDBC ConnectionHandle,
 
   MDBUG_C_ENTER(Dbc, "SQLGetInfo");
   MDBUG_C_DUMP(Dbc, InfoType, d);
-  ret = Dbc->Methods->GetInfo(Dbc, InfoType, InfoValuePtr, BufferLength, StringLengthPtr, isWstr);
+  try
+  {
+    ret= Dbc->GetInfo(InfoType, InfoValuePtr, BufferLength, StringLengthPtr, isWstr);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Dbc->Error, e);
+  }
 
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
 }
@@ -1531,8 +1618,18 @@ SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
   MDBUG_C_DUMP(Stmt->Connection, StatementText, s);
   MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
-
-  return Stmt->Prepare((char*)StatementText, TextLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+  try
+  {
+    return Stmt->Prepare((char*)StatementText, TextLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+  }
+  catch (SQLException &e)
+  {
+    return MADB_FromException(Stmt->Error, e);
+  }
+  catch (const std::bad_alloc&)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
 }
 /* }}} */
 
@@ -1549,20 +1646,31 @@ SQLRETURN MA_SQLPrepareW(SQLHSTMT StatementHandle,
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLPrepareW");
 
-  StmtStr = MADB_ConvertFromWChar(StatementText, TextLength, &StmtLength, Stmt->Connection->ConnOrSrcCharset, &ConversionError);
-
-  MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
-  MDBUG_C_DUMP(Stmt->Connection, StmtStr, s);
-  MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
-
-  if (ConversionError)
+  try // Currently string transcoding cannot throw, but in future it most cetainly will
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_22018, NULL, 0);
-    ret = Stmt->Error.ReturnValue;
+    StmtStr= MADB_ConvertFromWChar(StatementText, TextLength, &StmtLength, Stmt->Connection->ConnOrSrcCharset, &ConversionError);
+
+    MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
+    MDBUG_C_DUMP(Stmt->Connection, StmtStr, s);
+    MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
+
+    if (ConversionError)
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_22018, NULL, 0);
+      ret = Stmt->Error.ReturnValue;
+    }
+    else
+    {
+      ret= Stmt->Prepare(StmtStr, (SQLINTEGER)StmtLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+    }
   }
-  else
+  catch (SQLException &e)
   {
-    ret = Stmt->Prepare(StmtStr, (SQLINTEGER)StmtLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+    ret= MADB_FromException(Stmt->Error, e);
+  }
+  catch (const std::bad_alloc&)
+  {
+    ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
   MADB_FREE(StmtStr);
 
@@ -1591,8 +1699,19 @@ SQLRETURN MA_SQLPrimaryKeys(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, TableName, s);
   MDBUG_C_DUMP(Stmt->Connection, NameLength3, d);
 
-  ret = Stmt->Methods->PrimaryKeys(Stmt, (char*)CatalogName, NameLength1, (char*)SchemaName, NameLength2,
+  try
+  {
+    ret = Stmt->Methods->PrimaryKeys(Stmt, (char*)CatalogName, NameLength1, (char*)SchemaName, NameLength2,
       (char*)TableName, NameLength3);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Stmt->Error, e);
+  }
+  catch (const std::bad_alloc&)
+  {
+    ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
@@ -1809,7 +1928,14 @@ SQLRETURN MA_SQLSetConnectAttr(SQLHDBC ConnectionHandle,
   MDBUG_C_DUMP(Dbc, ValuePtr, 0x);
   MDBUG_C_DUMP(Dbc, StringLength, d);
 
-  ret= Dbc->Methods->SetAttr(Dbc, Attribute, ValuePtr, StringLength, isWchar);
+  try
+  {
+    ret= Dbc->SetAttr(Attribute, ValuePtr, StringLength, isWchar);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Dbc->Error, e);
+  }
 
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
 }
@@ -1876,7 +2002,18 @@ SQLRETURN MA_SQLSetPos(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, Operation, u);
   MDBUG_C_DUMP(Stmt->Connection, LockType, d);
 
-  MDBUG_C_RETURN(Stmt->Connection, Stmt->Methods->SetPos(Stmt, RowNumber, Operation, LockType, 0), &Stmt->Error);
+  try
+  {
+    MDBUG_C_RETURN(Stmt->Connection, Stmt->Methods->SetPos(Stmt, RowNumber, Operation, LockType, 0), &Stmt->Error);
+  }
+  catch (SQLException &e)
+  {
+    return MADB_FromException(Stmt->Error, e);
+  }
+  catch (std::bad_alloc &/*e*/)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
 }
 /* }}} */
 
@@ -2085,8 +2222,19 @@ SQLRETURN MA_SQLTables(SQLHSTMT StatementHandle,
   SQLSMALLINT NameLength4)
 {
   MADB_Stmt* Stmt = (MADB_Stmt*)StatementHandle;
-  return Stmt->Methods->Tables(Stmt, (char*)CatalogName, NameLength1, (char*)SchemaName, NameLength2,
-    (char*)TableName, NameLength3, (char*)TableType, NameLength4);
+  try
+  {
+    return Stmt->Methods->Tables(Stmt, (char*)CatalogName, NameLength1, (char*)SchemaName, NameLength2,
+      (char*)TableName, NameLength3, (char*)TableType, NameLength4);
+  }
+  catch (SQLException &e)
+  {
+    return MADB_FromException(Stmt->Error, e);
+  }
+  catch (std::bad_alloc &/*e*/)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
 }
 /* }}} */
 
@@ -2101,33 +2249,45 @@ SQLRETURN MA_SQLTablesW(SQLHSTMT StatementHandle,
   SQLWCHAR* TableType,
   SQLSMALLINT NameLength4)
 {
-  MADB_Stmt* Stmt = (MADB_Stmt*)StatementHandle;
-  char* CpCatalog = NULL,
-    * CpSchema = NULL,
-    * CpTable = NULL,
-    * CpType = NULL;
+  MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  char* CpCatalog= NULL,
+    * CpSchema= NULL,
+    * CpTable= NULL,
+    * CpType= NULL;
   SQLULEN CpLength1 = 0, CpLength2 = 0, CpLength3 = 0, CpLength4 = 0;
   SQLRETURN ret;
 
   if (CatalogName)
   {
-    CpCatalog = MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
+    CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
   }
   if (SchemaName)
   {
-    CpSchema = MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
+    CpSchema= MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
   }
   if (TableName)
   {
-    CpTable = MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
+    CpTable= MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
   }
   if (TableType)
   {
-    CpType = MADB_ConvertFromWChar(TableType, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
+    CpType= MADB_ConvertFromWChar(TableType, NameLength4, &CpLength4, Stmt->Connection->ConnOrSrcCharset, NULL);
   }
 
-  ret = Stmt->Methods->Tables(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, (SQLSMALLINT)CpLength2,
-    CpTable, (SQLSMALLINT)CpLength3, CpType, (SQLSMALLINT)CpLength4);
+  try
+  {
+    ret= Stmt->Methods->Tables(Stmt, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, (SQLSMALLINT)CpLength2,
+      CpTable, (SQLSMALLINT)CpLength3, CpType, (SQLSMALLINT)CpLength4);
+  }
+  catch (SQLException &e)
+  {
+    return MADB_FromException(Stmt->Error, e);
+  }
+  catch (std::bad_alloc &/*e*/)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+
+  }
   MADB_FREE(CpCatalog);
   MADB_FREE(CpSchema);
   MADB_FREE(CpTable);

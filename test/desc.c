@@ -94,8 +94,8 @@ ODBC_TEST(t_desc_paramset)
   }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_paramset");
-  OK_SIMPLE_STMT(Stmt, "create table t_paramset(x int, y int)");
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "insert into t_paramset values (?, ?)", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_paramset(x int, y int)");
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "INSERT INTO t_paramset VALUES (?, ?)", SQL_NTS));
 
   CHECK_STMT_RC(Stmt,
           SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_INTEGER, SQL_C_LONG,

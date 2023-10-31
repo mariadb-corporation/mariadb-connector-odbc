@@ -25,6 +25,8 @@
 
 #include "class/SQLString.h"
 
+using namespace mariadb;
+
 enum enum_madb_query_type { MADB_QUERY_NO_RESULT= 0, /* Default type for the query types we are not interested in */ 
                             MADB_QUERY_INSERT,
                             MADB_QUERY_UPDATE= SQL_UPDATE,
@@ -76,7 +78,7 @@ typedef struct {
 #define PQUERY_UPDATE_LEN(PARSED_QUERY_PTR) (PARSED_QUERY_PTR)->RefinedLength= strlen((PARSED_QUERY_PTR)->RefinedLength)
 #define QUERY_IS_MULTISTMT(PARSED_QUERY) (PARSED_QUERY.MultiStatement)
 
-int  MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLength);
+int  MADB_ResetParser(MADB_Stmt *Stmt, const char *OriginalQuery, SQLINTEGER OriginalLength);
 
 int  MADB_ParseQuery(MADB_QUERY *Query);
 

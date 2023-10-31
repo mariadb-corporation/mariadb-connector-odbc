@@ -22,13 +22,12 @@
 
 #include "ServerSidePreparedStatement.h"
 #include "Results.h"
-//#include "ServerPrepareResult.h"
 #include "ResultSetMetaData.h"
 #include "ServerPrepareResult.h"
 #include "interface/Exception.h"
+#include "Protocol.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
   ServerSidePreparedStatement::~ServerSidePreparedStatement()
@@ -36,7 +35,7 @@ namespace mariadb
     if (results) {
       try
       {
-        results->loadFully(false);
+        results->loadFully(false, guard);
       }
       catch (...)
       {
@@ -67,7 +66,7 @@ namespace mariadb
     * @throws SQLException exception
     */
   ServerSidePreparedStatement::ServerSidePreparedStatement(
-    MYSQL* _connection, const SQLString& _sql,
+    Protocol* _connection, const SQLString& _sql,
     int32_t resultSetScrollType)
     : PreparedStatement(_connection, _sql, resultSetScrollType)
   {
@@ -76,7 +75,7 @@ namespace mariadb
 
 
   ServerSidePreparedStatement::ServerSidePreparedStatement(
-    MYSQL* connection, ServerPrepareResult* pr, int32_t resultSetScrollType)
+    Protocol* connection, ServerPrepareResult* pr, int32_t resultSetScrollType)
     : PreparedStatement(connection, pr->getSql(), resultSetScrollType)
     , serverPrepareResult (pr)
   {
@@ -84,7 +83,7 @@ namespace mariadb
   }
 
   ServerSidePreparedStatement::ServerSidePreparedStatement(
-    MYSQL* _connection,
+    Protocol* _connection,
     int32_t resultSetScrollType)
     : PreparedStatement(_connection, resultSetScrollType)
   {
@@ -97,7 +96,7 @@ namespace mariadb
     * @return Clone statement.
     * @throws CloneNotSupportedException if any error occur.
     */
-  ServerSidePreparedStatement* ServerSidePreparedStatement::clone(MYSQL* connection)
+  ServerSidePreparedStatement* ServerSidePreparedStatement::clone(Protocol* connection)
   {
     ServerSidePreparedStatement* clone= new ServerSidePreparedStatement(connection, this->resultSetScrollType);
     clone->metadata.reset(new ResultSetMetaData(*metadata));
@@ -109,7 +108,7 @@ namespace mariadb
 
   void ServerSidePreparedStatement::prepare(const SQLString& sql)
   {
-    serverPrepareResult= new ServerPrepareResult(sql, connection);
+    serverPrepareResult= new ServerPrepareResult(sql, guard);
     setMetaFromResult();
   }
 
@@ -245,17 +244,18 @@ namespace mariadb
         param));
 
       
-    int32_t rc= mysql_stmt_execute(serverPrepareResult->getStatementId());
+    guard->executePreparedQuery(serverPrepareResult, results.get());
 
-    if (rc == 0) {
-      getResult();
-      results->commandEnd();
-    }
-    else {
-      results->commandEnd();
-      throw rc;
-    }
-
+    //try
+    //{
+    //  getResult();
+    //}
+    //catch (int)
+    //{
+    //  results->commandEnd();
+    //  throwStmtError(serverPrepareResult->getStatementId()); // or further int?
+    //}
+    results->commandEnd();
     return results->getResultSet() != nullptr;
   }
 
@@ -274,7 +274,7 @@ namespace mariadb
     if (results) {
       if (results->getFetchSize() != 0) {
         // Probably not current results, but current streamer's results
-        results->loadFully(true);
+        results->loadFully(true, guard);
       }
       results->close();
     }
@@ -325,11 +325,7 @@ namespace mariadb
 
   void ServerSidePreparedStatement::moveToNextResult()
   {
-    int rc = mysql_stmt_next_result(serverPrepareResult->getStatementId());
-    if (rc) {
-      throw rc;
-    }
+    guard->moveToNextResult(results.get(), serverPrepareResult);
     getResult();
   }
-}
-}
+} // namespace mariadb

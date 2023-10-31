@@ -25,6 +25,7 @@
 #include <map>
 
 #include "mysql.h"
+
 #include "SQLString.h"
 
 
@@ -43,11 +44,9 @@ case MYSQL_TYPE_INT24
 #define MAX_BLOB_LEN    0xFFFF
 #define MAX_MEDIUM_BLOB 0xFFFFFF
 
-namespace odbc
-{
+
 namespace mariadb
 {
-
 //extern const std::map<enum enum_field_types, SQLString> typeName;
 SQLString columnTypeName(enum enum_field_types type, int64_t len, int64_t charLen, bool _signed, bool binary);
 
@@ -112,6 +111,5 @@ public:
   SQLString getColumnTypeName() const;
 };
 
-}
 }
 #endif

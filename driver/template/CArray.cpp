@@ -19,10 +19,8 @@
 
 #include "CArray.h"
 
-namespace odbc
-{
 // Instantiating template classes that have to be exported
 template struct CArray<char>;
 template struct CArray<int32_t>;
 template struct CArray<int64_t>;
-}
+

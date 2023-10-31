@@ -144,7 +144,7 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   Desc->Header.Count= 0;
   if (Desc->AppType)
   {
-    EnterCriticalSection(&Desc->Dbc->ListsCs);
+    std::lock_guard<std::mutex> localScopeLock(Desc->Dbc->ListsCs);
     for (i=0; i < Desc->Stmts.elements; i++)
     {
       MADB_Stmt **XStmt= ((MADB_Stmt **)Desc->Stmts.buffer) + i;
@@ -161,7 +161,6 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
     MADB_DeleteDynamic(&Desc->Stmts);
   
     Desc->Dbc->Descrs= MADB_ListDelete(Desc->Dbc->Descrs, &Desc->ListItem);
-    LeaveCriticalSection(&Desc->Dbc->ListsCs);
   }
   
   if (!RecordsOnly)

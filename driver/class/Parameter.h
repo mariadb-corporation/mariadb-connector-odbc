@@ -24,12 +24,11 @@
 #include "mysql.h"
 #include "SQLString.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
 
-class Parameter
+  class Parameter
 {
   static void* getBuffer(MYSQL_BIND& params, std::size_t row);
   static unsigned long getLength(MYSQL_BIND& params, std::size_t row);
@@ -42,6 +41,5 @@ public:
   static std::size_t getApproximateStringLength(MYSQL_BIND& param, std::size_t row);
 };
 
-}
 }
 #endif

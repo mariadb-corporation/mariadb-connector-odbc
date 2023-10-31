@@ -22,29 +22,26 @@
 #define _SERVERSIDEPREPAREDSTATEMENT_H_
 
 #include "ServerPrepareResult.h"
-//#include "ParameterHolder.h"
 #include "PreparedStatement.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
-//class ResultSetMetaData;
 
-class ServerSidePreparedStatement : public PreparedStatement {
-
+class ServerSidePreparedStatement : public PreparedStatement
+{
   ServerPrepareResult* serverPrepareResult= nullptr;
 
 public:
   ~ServerSidePreparedStatement();
-  ServerSidePreparedStatement(MYSQL* connection, const SQLString& sql, int32_t resultSetScrollType);
-  ServerSidePreparedStatement(MYSQL* connection, ServerPrepareResult* pr, int32_t resultSetScrollType);
+  ServerSidePreparedStatement(Protocol* connection, const SQLString& sql, int32_t resultSetScrollType);
+  ServerSidePreparedStatement(Protocol* connection, ServerPrepareResult* pr, int32_t resultSetScrollType);
 
-  ServerSidePreparedStatement* clone(MYSQL* connection);
+  ServerSidePreparedStatement* clone(Protocol* connection);
 
 private:
   ServerSidePreparedStatement(
-    MYSQL* connection,
+    Protocol* connection,
     int32_t resultSetScrollType
     );
 
@@ -84,6 +81,5 @@ public:
   bool hasMoreResults();
   void moveToNextResult();
   };
-}
 }
 #endif

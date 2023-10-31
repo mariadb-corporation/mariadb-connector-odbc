@@ -20,11 +20,8 @@
 
 #include "PrepareResult.h"
 
-namespace odbc 
-{
 namespace mariadb
 {
-
   void PrepareResult::init(MYSQL_FIELD* fields, std::size_t fieldCount)
   {
     for (std::size_t i = 0; i < fieldCount; ++i) {
@@ -32,5 +29,4 @@ namespace mariadb
       field.push_back(column.back().getColumnRawData());
     }
   }
-}
 }

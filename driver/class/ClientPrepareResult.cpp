@@ -21,9 +21,9 @@
 #include "mysql.h"
 #include "ClientPrepareResult.h"
 #include "Parameter.h"
+#include "Protocol.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
   const SQLString SpecChars("();><=-+,");
@@ -31,13 +31,6 @@ namespace mariadb
   static const char DBL_QUOTE = '"';
   static const char ZERO_BYTE = '\0';
   static const char BACKSLASH = '\\';
-  static const std::size_t MAX_PACKET_LENGTH = 0x00ffffff + 4;
-
-  bool checkRemainingSize(int64_t newQueryLen)
-  {
-    return newQueryLen < MAX_PACKET_LENGTH;
-  }
-
 
   void escapeData(const char* in, std::size_t len, bool noBackslashEscapes, SQLString& out)
   {
@@ -822,7 +815,7 @@ namespace mariadb
     // Now we have one paramset length in estimatedLength, that we can take for estimation
     estimatedLength= pos.length() + (pos.length() - estimatedLength)*(arraySize - index);
     if (estimatedLength > capacity) {
-      pos.reserve(((std::min(MAX_PACKET_LENGTH, (estimatedLength)) + 7) / 8) * 8);
+      pos.reserve(((std::min(Protocol::MAX_PACKET_LENGTH, static_cast<int64_t>((estimatedLength)) + 7) / 8) * 8));
     }
 
     while (index < arraySize) {
@@ -844,7 +837,7 @@ namespace mariadb
 
       if (knownParameterSize) {
 
-        if (checkRemainingSize(pos.length() + 1 + parameterLength + intermediatePartLength + lastPartLength)) {
+        if (Protocol::checkRemainingSize(pos.length() + 1 + parameterLength + intermediatePartLength + lastPartLength)) {
           pos.append(1, ',');
           pos.append(secondPart);
 
@@ -900,7 +893,7 @@ namespace mariadb
     ++index;
     estimatedLength = pos.length() * (arraySize - currentIndex);
     if (estimatedLength > capacity) {
-      pos.reserve(((std::min<std::size_t>(MAX_PACKET_LENGTH, estimatedLength) + 7) / 8) * 8);
+      pos.reserve(((std::min<std::size_t>(Protocol::MAX_PACKET_LENGTH, estimatedLength) + 7) / 8) * 8);
     }
 
     while (index < arraySize) {
@@ -918,7 +911,7 @@ namespace mariadb
 
       if (knownParameterSize) {
 
-        if (checkRemainingSize(pos.length() + staticLength + parameterLength)) {
+        if (Protocol::checkRemainingSize(pos.length() + staticLength + parameterLength)) {
           pos.append(1, ';');
           pos.append(firstPart);
           pos.append(secondPart);
@@ -965,5 +958,4 @@ namespace mariadb
     }
     return nextIndex;
   }
-}
-}
+} // namespace mariadb

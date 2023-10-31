@@ -22,7 +22,7 @@
 /* Minimal query length when we tried to avoid full parsing */
 #define QUERY_LEN_FOR_POOR_MAN_PARSING 32768
 
-using namespace odbc::mariadb;
+using namespace mariadb;
 
  const char* SkipSpacesAndComments(const char **CurPtr, size_t *Length, bool OverWrite= false)
 {
@@ -89,7 +89,7 @@ const char* SkipQuotedString_Noescapes(const char **CurPtr, const char *End, cha
 }
 
 
-int MADB_ResetParser(MADB_Stmt *Stmt, char *OriginalQuery, SQLINTEGER OriginalLength)
+int MADB_ResetParser(MADB_Stmt *Stmt, const char *OriginalQuery, SQLINTEGER OriginalLength)
 {
   Stmt->Query.reset();
 
@@ -125,7 +125,7 @@ int MADB_ParseQuery(MADB_QUERY * Query)
 {
    /* make sure we don't have trailing whitespace or semicolon */
   sqlRtrim(Query->RefinedText);
-  odbc::mariadb::ltrim(Query->RefinedText);
+  mariadb::ltrim(Query->RefinedText);
   FixIsoFormat(Query->RefinedText);
 
   /* Making copy of "original" string, with minimal changes required to be able to execute */

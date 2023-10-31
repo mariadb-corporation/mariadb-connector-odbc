@@ -24,8 +24,6 @@
 #include "Row.h"
 #include "mysql.h"
 
-namespace odbc
-{
 namespace mariadb
 {
 class ColumnDefinition;
@@ -70,9 +68,8 @@ public:
   SQLString getInternalTimeString(const ColumnDefinition* columnInfo);
 
   bool isBinaryEncoded();
-  void cacheCurrentRow(std::vector<odbc::bytes>& rowDataCache, std::size_t columnCount);
+  void cacheCurrentRow(std::vector<bytes>& rowDataCache, std::size_t columnCount);
   };
 
-}
 }
 #endif

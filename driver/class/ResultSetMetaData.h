@@ -24,8 +24,6 @@
 #include <vector>
 #include <ColumnDefinition.h>
 
-namespace odbc
-{
 namespace mariadb
 {
 class ResultSetMetaData
@@ -74,8 +72,8 @@ private:
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::ResultSetMetaData> ResultSetMetaData;
+  typedef std::unique_ptr<mariadb::ResultSetMetaData> ResultSetMetaData;
 }
-}
-}
+
+} // namespace mariadb
 #endif

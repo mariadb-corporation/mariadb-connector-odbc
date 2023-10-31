@@ -20,8 +20,7 @@
 
 #include "ColumnDefinition.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
   extern const SQLString emptyStr;
@@ -421,5 +420,5 @@ namespace mariadb
   bool ColumnDefinition::isBinary() const {
     return (getCharsetNumber() == 63);
   }
-}
-}
+
+} // namespace mariadb

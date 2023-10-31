@@ -1,0 +1,220 @@
+/************************************************************************************
+   Copyright (C) 2023 MariaDB Corporation AB
+
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
+
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not see <http://www.gnu.org/licenses>
+   or write to the Free Software Foundation, Inc.,
+   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
+*************************************************************************************/
+
+
+#ifndef _PROTOCOL_H_
+#define _PROTOCOL_H_
+
+#include <vector>
+#include <mutex>
+#include <memory>
+
+#include "mysql.h"
+
+#include "lru/pscache.h"
+#include "SQLString.h"
+#include "Exception.h"
+
+namespace mariadb
+{
+class ServerPrepareResult;
+class ClientPrepareResult;
+class Results;
+class PreparedStatement;
+
+enum IsolationLevel {
+  TRANSACTION_NONE= 0,
+  TRANSACTION_READ_UNCOMMITTED= 1,
+  TRANSACTION_READ_COMMITTED= 2,
+  TRANSACTION_REPEATABLE_READ= 4,
+  TRANSACTION_SERIALIZABLE =8
+};
+
+namespace Shared
+{
+  typedef std::shared_ptr<mariadb::Results> Results;
+}
+
+namespace Unique
+{
+  typedef std::unique_ptr<::MYSQL, decltype(&mysql_close)> MYSQL;
+  typedef std::unique_ptr<::MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
+}
+// Some independent helper functions
+SQLException fromStmtError(MYSQL_STMT* stmt);
+void         throwStmtError(MYSQL_STMT* stmt);
+SQLException fromConnError(MYSQL* dbc);
+void         throwConnError(MYSQL* dbc);
+SQLString&   addTxIsolationName2Query(SQLString& query, enum IsolationLevel txIsolation);
+
+SQLString&   addQueryTimeout(SQLString& sql, int32_t queryTimeout);
+
+class Protocol
+{
+  std::mutex lock;
+  Unique::MYSQL connection;
+  enum IsolationLevel transactionIsolationLevel= TRANSACTION_NONE;
+  int64_t maxRows= 0;
+  MYSQL_STMT* statementIdToRelease= nullptr;
+  bool interrupted= false;
+  bool hasWarningsFlag= false;
+  /* This cannot be Shared as long as C/C stmt handle is owned by  statement(SSPS class in this case) object */
+  std::weak_ptr<Results> activeStreamingResult;
+  uint32_t serverStatus= 0;
+
+  int32_t autoIncrementIncrement= 1;
+
+  bool readOnly= false;
+  volatile bool connected= false;
+  bool explicitClosed= false;
+  SQLString database;
+ 
+  std::unique_ptr<Cache<std::string, ServerPrepareResult>> serverPrepareStatementCache;
+
+  int64_t serverCapabilities= 0;
+  int32_t socketTimeout= 0;
+
+  SQLString serverVersion;
+  bool serverMariaDb= true;
+  uint32_t majorVersion= 10;
+  uint32_t minorVersion= 0;
+  uint32_t patchVersion= 0;
+  SQLString txIsolationVarName;
+
+  // ----- private methods -----
+  void cmdPrologue();
+  void cmdEpilog();
+  void executeBatch(Results* results, const std::vector<SQLString>& queries);
+  void executeBatchAggregateSemiColon(Results* results, const std::vector<SQLString>& queries, std::size_t totalLenEstimation);
+  void changeReadTimeout(int32_t millis);
+  void checkClose();
+  void processResult(Results* results, ServerPrepareResult *pr);
+  void readResultSet(Results* results, ServerPrepareResult *pr);
+  void readOk(Results* results, ServerPrepareResult *pr);
+  void handleStateChange();
+  void closeSocket();
+  void cleanMemory();
+  void parseVersion(const SQLString& _serverVersion);
+  void destroySocket();
+  void abortActiveStream();
+  void sendSessionInfos(const char *trIsolVarName);
+  uint32_t errorOccurred(ServerPrepareResult *pr);
+  SQLException processError(Results* results, ServerPrepareResult *pr);
+  ServerPrepareResult* prepareInternal(const SQLString& sql);
+  Protocol() = delete;
+
+public:
+  static const int64_t MAX_PACKET_LENGTH= 0x00ffffff + 4;
+  static bool checkRemainingSize(int64_t newQueryLen);
+
+  ~Protocol() {}
+  Protocol(MYSQL *connectedHandle, const SQLString& defaultDb, Cache<std::string,
+    ServerPrepareResult> *psCache= nullptr, /* Temporary before move things here */const char *trIsolVarName= nullptr,
+    enum IsolationLevel txIsolation= TRANSACTION_REPEATABLE_READ);
+
+  ServerPrepareResult* prepare(const SQLString& sql);
+  bool getAutocommit();
+  bool noBackslashEscapes();
+  void connect();
+  bool inTransaction();
+  void close();
+  void abort();
+  void reset();
+  void closeExplicit();
+  void markClosed(bool closed);
+  bool isClosed();
+  void resetDatabase();
+  const SQLString& getSchema();
+  void setSchema(const SQLString& database);
+  const SQLString& getServerVersion() const;
+  bool isConnected();
+  uint32_t fieldCount(ServerPrepareResult *pr);
+  bool getReadonly() const;
+  void setReadonly(bool readOnly);
+  bool mustBeMasterConnection();
+  void commit();
+  void rollback();
+  const SQLString& getDatabase() const;
+  const SQLString& getUsername() const;
+  bool ping();
+  bool isValid(int32_t timeout);
+  void executeQuery(const SQLString& sql);
+  void executeQuery(Results* results, const SQLString& sql);
+  /*void executeQuery(Results* results, const SQLString& sql, const Charset* charset);
+  void executeQuery(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* clientPrepareResult,
+    std::vector<Unique::ParameterHolder>& parameters);
+  void executeQuery(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* clientPrepareResult,
+    std::vector<Unique::ParameterHolder>& parameters,
+    int32_t timeout);
+  bool executeBatchClient(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* prepareResult,
+    std::vector<std::vector<Unique::ParameterHolder>>& parametersList, bool hasLongData);*/
+  void executeBatchStmt(bool mustExecuteOnMaster, Results* results, const std::vector<SQLString>& queries);
+  void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results* results);
+  /*bool executeBatchServer(bool mustExecuteOnMaster, ServerPrepareResult* serverPrepareResult, Results* results, const SQLString& sql,
+                                  std::vector<std::vector<Unique::ParameterHolder>>& parameterList, bool hasLongData);*/
+  void moveToNextResult(Results* results, ServerPrepareResult* spr= nullptr);
+  void getResult(Results* results, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
+  //void cancelCurrentQuery();
+  void interrupt();
+  void skip();
+  bool hasWarnings();
+  int64_t getMaxRows();
+  void setMaxRows(int64_t max);
+  uint32_t getMajorServerVersion();
+  uint32_t getMinorServerVersion();
+  uint32_t getPatchServerVersion();
+  bool versionGreaterOrEqual(uint32_t major, uint32_t minor, uint32_t patch) const;
+  int32_t getTimeout();
+  void setTimeout(int32_t timeout);
+  int64_t getServerThreadId();
+  int32_t getTransactionIsolationLevel();
+  bool isExplicitClosed();
+  void connectWithoutProxy();
+  void releasePrepareStatement(ServerPrepareResult* serverPrepareResult);
+  bool forceReleasePrepareStatement(MYSQL_STMT* statementId);
+  void forceReleaseWaitingPrepareStatement();
+  //Cache* prepareStatementCache();
+  void prolog(int64_t maxRows, bool hasProxy, PreparedStatement* statement);
+  Shared::Results getActiveStreamingResult();
+  void setActiveStreamingResult(Shared::Results& mariaSelectResultSet);
+  std::mutex& getLock();
+  bool hasMoreResults();
+  bool hasSpOutparams();
+  void setServerStatus(uint32_t serverStatus);
+  uint32_t getServerStatus();
+  void removeHasMoreResults();
+  void setHasWarnings(bool hasWarnings);
+  ServerPrepareResult* addPrepareInCache(const SQLString& key, ServerPrepareResult* serverPrepareResult);
+  void realQuery(const SQLString& sql);
+  void safeRealQuery(const SQLString& sql);
+  void removeActiveStreamingResult();
+  void resetStateAfterFailover( int64_t maxRows, enum IsolationLevel transactionIsolationLevel, const SQLString& database,bool autocommit);
+  bool isServerMariaDb();
+  int32_t getAutoIncrementIncrement();
+  bool sessionStateAware();
+  bool isInterrupted();
+  void stopIfInterrupted();
+  Cache<std::string, ServerPrepareResult>* Protocol::prepareStatementCache();
+  inline MYSQL* getCHandle() { return connection.get(); }
+  void setTransactionIsolation(enum IsolationLevel level);
+  inline bool sessionStateChanged() { return (serverStatus & SERVER_SESSION_STATE_CHANGED) != 0; }
+  };
+
+}
+#endif

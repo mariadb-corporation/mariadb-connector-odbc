@@ -21,26 +21,19 @@
 #ifndef _PREPARESTATEMENT_H_
 #define _PREPARESTATEMENT_H_
 
-//#include "ColumnType.h"
-//#include "ParameterHolder.h"
 #include "PrepareResult.h"
 #include "ResultSet.h"
 #include "Results.h"
 #include "ResultSetMetaData.h"
 
-struct MADB_Stmt;
-
-namespace odbc
-{
 namespace mariadb
 {
-
-SQLString& addQueryTimeout(SQLString& sql, int32_t queryTimeout);
+class Protocol;
 
 class PreparedStatement
 {
 protected:
-  MYSQL* connection;
+  Protocol* guard;
 
   SQLString sql;
   std::size_t parameterCount= 0; // Do we need it here if we can get it pro prepare result class
@@ -49,7 +42,7 @@ protected:
   int32_t fetchSize= 0;
   int32_t resultSetScrollType= 0;
   bool closed= false;
-  odbc::Longs batchRes;
+  Longs batchRes;
   Unique::ResultSetMetaData metadata;
   Unique::Results results;
   MYSQL_BIND* param= nullptr;
@@ -58,10 +51,10 @@ protected:
   uint32_t queryTimeout= 0;
 
   PreparedStatement(
-    MYSQL* maHandle,
+    Protocol* handle,
     int32_t resultSetScrollType);
   PreparedStatement(
-    MYSQL* maHandle,
+    Protocol* handle,
     const SQLString& _sql,
     int32_t resultSetScrollType);
 
@@ -100,7 +93,7 @@ public:
   ResultSet* getResultSet();
   int64_t    getUpdateCount();
 
-  const odbc::Longs&  executeBatch();
+  const Longs&  executeBatch();
   ResultSetMetaData*  getEarlyMetaData();
   std::size_t         getParamCount();
 
@@ -120,7 +113,6 @@ public:
   Results* getInternalResults() { return results.get(); }
 
   //void validateParamset(std::size_t paramCount);
-  //operator MADB_Stmt* () { return stmt; }
   /**
   * Retrieves the number, types and properties of this <code>PreparedStatement</code> object's
   * parameters.
@@ -160,6 +152,5 @@ public:
   void addBatch(); */
   };
 
-}
-}
+} // namespace mariadb
 #endif

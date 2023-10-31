@@ -22,15 +22,14 @@
 #include "Results.h"
 #include "ServerSidePreparedStatement.h"
 #include "ResultSetMetaData.h"
+#include "Protocol.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   /**
     * Private constructor for the clone.
   */
-  ClientSidePreparedStatement::ClientSidePreparedStatement(MYSQL* _connection,
+  ClientSidePreparedStatement::ClientSidePreparedStatement(Protocol* _connection,
     int32_t resultSetScrollType,
     bool _noBackslashEscapes)
     : PreparedStatement(_connection, resultSetScrollType)
@@ -50,7 +49,7 @@ namespace mariadb
     *     of <code>Statement.RETURN_GENERATED_KEYS</code> or <code>Statement.NO_GENERATED_KEYS</code>
     * @throws SQLException exception
     */
-  ClientSidePreparedStatement::ClientSidePreparedStatement(MYSQL* _connection, const SQLString& _sql,
+  ClientSidePreparedStatement::ClientSidePreparedStatement(Protocol* _connection, const SQLString& _sql,
     int32_t resultSetScrollType, bool _noBackslashEscapes)
     : PreparedStatement(_connection, resultSetScrollType),
       noBackslashEscapes(_noBackslashEscapes)
@@ -67,8 +66,10 @@ namespace mariadb
     if (results) {
       // in case of multistatment and some of queries fail - we need catch and eat it
       try {
-        results->loadFully(false);
+        results->loadFully(false, guard);
       }
+      catch (SQLException&)
+      {}
       catch (int32_t)
       {}
       results.reset();
@@ -82,7 +83,7 @@ namespace mariadb
     * @return Clone statement.
     * @throws CloneNotSupportedException if any error occur.
     */
-  ClientSidePreparedStatement* ClientSidePreparedStatement::clone(MYSQL* _connection)
+  ClientSidePreparedStatement* ClientSidePreparedStatement::clone(Protocol* _connection)
   {
     ClientSidePreparedStatement* clone= new ClientSidePreparedStatement(_connection, resultSetScrollType, noBackslashEscapes);
     clone->sql= sql;
@@ -91,7 +92,7 @@ namespace mariadb
     return clone;
   }
 
-
+  // This has to be changed to use Protocol service
   bool ClientSidePreparedStatement::executeInternal(int32_t fetchSize)
   {
     validateParamset(prepareResult->getParamCount());
@@ -111,35 +112,36 @@ namespace mariadb
     SQLString sql;
     addQueryTimeout(sql, queryTimeout);
     prepareResult->assembleQuery(sql, param, longData);
-    int32_t rc= mysql_real_query(connection, sql.c_str(), static_cast<unsigned long>(sql.length()));
 
-    if (rc == 0) {
+    try {
+      guard->safeRealQuery(sql);
       getResult();
       results->commandEnd();
 
       return results->getResultSet();
     }
-    else {
-      if (results) {
-        results->commandEnd();
-      }
-      throw rc;
+    catch (SQLException &e) {
+      // Do we reallly need it if something goes wrong?
+      results->commandEnd();
+      throw e;
     }
     return false;
   }
+
 
   PrepareResult* ClientSidePreparedStatement::getPrepareResult()
   {
     return dynamic_cast<PrepareResult*>(prepareResult.get());
   }
 
-  uint32_t odbc::mariadb::ClientSidePreparedStatement::fieldCount() const
+
+  uint32_t ClientSidePreparedStatement::fieldCount() const
   {
-    return mysql_field_count(connection);
+    return mysql_field_count(guard->getCHandle());// guard->fieldCount(nullptr);
   }
 
   /**  */
-  odbc::Longs& ClientSidePreparedStatement::executeBatch()
+  mariadb::Longs& ClientSidePreparedStatement::executeBatch()
   {
     checkClose();
     if (batchArraySize == 0) {
@@ -166,7 +168,7 @@ namespace mariadb
     *     elements of the array are ordered according to the order in which commands were added to
     *     the batch.
     */
-  odbc::Longs& ClientSidePreparedStatement::getServerUpdateCounts()
+  mariadb::Longs& ClientSidePreparedStatement::getServerUpdateCounts()
   {
     if (results && results->getCmdInformation()) {
       return batchRes.wrap(results->getCmdInformation()->getServerUpdateCounts());
@@ -199,7 +201,7 @@ namespace mariadb
     while (nextIndex < size) {
       SQLString sql("");
       nextIndex= prepareResult->assembleBatchQuery(sql, param, size, nextIndex);
-      int32_t rc = mysql_real_query(connection, sql.c_str(), static_cast<unsigned long>(sql.length()));
+      int32_t rc = mysql_real_query(guard->getCHandle(), sql.c_str(), static_cast<unsigned long>(sql.length()));
 
       if (rc == 0) {
         getResult();
@@ -267,7 +269,7 @@ namespace mariadb
   {
     try {
       ServerSidePreparedStatement ssps(
-        connection,
+        guard,
         sql,
         ResultSet::TYPE_SCROLL_INSENSITIVE);
       metadata.reset(ssps.getMetaData());
@@ -287,10 +289,10 @@ namespace mariadb
   void ClientSidePreparedStatement::getSingleResult()
   {
     if (fieldCount() == 0) {
-      results->addStats(mysql_affected_rows(connection), hasMoreResults());
+      results->addStats(mysql_affected_rows(guard->getCHandle()), hasMoreResults());
     }
     else {
-      ResultSet* rs = ResultSet::create(results.get(), connection);
+      ResultSet* rs = ResultSet::create(results.get(), guard->getCHandle());
       results->addResultSet(rs, hasMoreResults() || results->getFetchSize() > 0);
     }
   }
@@ -318,17 +320,17 @@ namespace mariadb
 
   const char* ClientSidePreparedStatement::getError()
   {
-    return mysql_error(connection);
+    return mysql_error(guard->getCHandle());
   }
 
   uint32_t ClientSidePreparedStatement::getErrno()
   {
-    return mysql_errno(connection);
+    return mysql_errno(guard->getCHandle());
   }
 
   const char* ClientSidePreparedStatement::getSqlState()
   {
-    return mysql_sqlstate(connection);
+    return mysql_sqlstate(guard->getCHandle());
   }
 
   bool ClientSidePreparedStatement::bind(MYSQL_BIND* param)
@@ -350,13 +352,13 @@ namespace mariadb
 
   bool ClientSidePreparedStatement::hasMoreResults()
   {
-    return mysql_more_results(connection);
+    return guard->hasMoreResults();
   }
 
 
   void ClientSidePreparedStatement::moveToNextResult()
   {
-    int rc= mysql_next_result(connection);
+    int rc= mysql_next_result(guard->getCHandle());
     if (rc) {
       throw rc;
     }
@@ -382,5 +384,4 @@ namespace mariadb
     return sb;
   }*/
 
-}
 }

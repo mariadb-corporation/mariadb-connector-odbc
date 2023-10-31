@@ -26,13 +26,11 @@
 #include "Row.h"
 #include "mysql.h"
 
-namespace odbc
-{
 namespace mariadb
 {
 
-class TextRow  : public Row {
-
+class TextRow  : public Row
+{
   std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> capiResults;
   MYSQL_ROW  rowData;
   unsigned long* lengthArr;
@@ -63,11 +61,10 @@ public:
   SQLString getInternalTimeString(const ColumnDefinition*  columnInfo);
 
   bool isBinaryEncoded();
-  void cacheCurrentRow(std::vector<odbc::bytes>& rowData, std::size_t columnCount);
+  void cacheCurrentRow(std::vector<mariadb::bytes>& rowData, std::size_t columnCount);
 
   //bool get(MYSQL_BIND* bind, const ColumnDefinition* columnInfo, uint64_t offset);
 };
 
 } // namespace mariadb
-} // namespace odbc
 #endif

@@ -26,12 +26,10 @@
 #include "PreparedStatement.h"
 #include "ClientPrepareResult.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
 class ResultSetMetaData;
-//class ParameterMetaData;
 
 class ClientSidePreparedStatement : public PreparedStatement
 {
@@ -40,19 +38,19 @@ class ClientSidePreparedStatement : public PreparedStatement
   std::map<uint32_t, std::string> longData;
 
   ClientSidePreparedStatement(
-    MYSQL* _connection,
+    Protocol* _connection,
     int32_t resultSetScrollType,
     bool _noBackslashEscapes
     );
 public:
   ClientSidePreparedStatement(
-    MYSQL* _connection,
+    Protocol* _connection,
     const SQLString& sql,
     int32_t resultSetScrollType,
     bool _noBackslashEscapes
     );
   ~ClientSidePreparedStatement();
-  ClientSidePreparedStatement* clone(MYSQL* connection);
+  ClientSidePreparedStatement* clone(Protocol* connection);
 
 protected:
   bool executeInternal(int32_t fetchSize);
@@ -61,8 +59,8 @@ protected:
   uint32_t fieldCount() const;
 
 public:
-  odbc::Longs& executeBatch();
-  odbc::Longs& getServerUpdateCounts();
+  Longs& executeBatch();
+  Longs& getServerUpdateCounts();
   ResultSetMetaData* getMetaData();
   /*ParameterMetaData* getParameterMetaData();*/
 
@@ -91,6 +89,5 @@ public:
   void moveToNextResult();
   //SQLString toString();
 };
-}
 }
 #endif

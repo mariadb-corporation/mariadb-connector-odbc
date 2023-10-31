@@ -24,9 +24,8 @@
 #include "CmdInformationSingle.h"
 #include "CmdInformationMultiple.h"
 #include "CmdInformationBatch.h"
+#include "Protocol.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   /**
@@ -102,7 +101,6 @@ namespace mariadb
     const SQLString& _sql,
     MYSQL_BIND* _parameters)
     : parameters(_parameters)
-    , resultSet(nullptr)
     , cmdInformation(nullptr)
     , fetchSize(fetchSize)
     , batch(_batch)
@@ -286,7 +284,7 @@ namespace mariadb
    * @param skip must result be available afterwhile
    * @throws SQLException if any connection error occur
    */
-  void Results::loadFully(bool skip) {
+  void Results::loadFully(bool skip, Protocol *guard) {
 
     if (fetchSize != 0) {
       fetchSize= 0;
@@ -301,7 +299,8 @@ namespace mariadb
         }else {
           rs->fetchRemaining();
         }
-      }else {
+      }
+      else {
         Unique::ResultSet firstResult;
         auto it= executionResults.begin();
 
@@ -316,8 +315,9 @@ namespace mariadb
         }
       }
     }
-    while (statement->hasMoreResults()) {
-      statement->moveToNextResult();
+    while (guard->hasMoreResults()) {
+      guard->moveToNextResult(this, serverPrepResult);
+      guard->getResult(this);
     }
   }
 
@@ -369,10 +369,9 @@ namespace mariadb
    * @return true if other resultSet exists.
    * @throws SQLException if any connection error occur.
    */
-  bool Results::getMoreResults(bool closeCurrent) {
+  bool Results::getMoreResults(bool closeCurrent, Protocol *guard) {
 
     if (fetchSize != 0 && resultSet) {
-      try {
 
         if (closeCurrent && resultSet) {
           resultSet->realClose(true);
@@ -380,15 +379,10 @@ namespace mariadb
         else {
           resultSet->fetchRemaining();
         }
-      }
-      catch (int32_t rc)
-      {
-        throw rc;
-      }
     }
 
     if (statement->hasMoreResults()) {
-      statement->moveToNextResult();
+      guard->moveToNextResult(this, serverPrepResult);
     }
 
     if (cmdInformation->moreResults() && !batch) {
@@ -478,5 +472,4 @@ namespace mariadb
     }
   }
 
-}
-}
+} // namespace mariadb

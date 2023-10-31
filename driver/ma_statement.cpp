@@ -22,61 +22,19 @@
 #include "interface/ResultSet.h"
 #include "ResultSetMetaData.h"
 #include "interface/Exception.h"
+#include "Protocol.h"
 
 #include "ma_odbc.h"
 
 #define MADB_MIN_QUERY_LEN 5
 
-
-/* {{{ MADB_RealQuery - the caller is responsible for locking, as the caller may need to do some operations
-       before it's ok to unlock. e.g. read results */
-SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error* Error)
-{
-  SQLRETURN ret = SQL_ERROR;
-
-  if (StatementText)
-  {
-    if (MADB_GOT_STREAMER(Dbc) && Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, Error))
-    {
-      return Error->ReturnValue;
-    }
-    MDBUG_C_PRINT(Dbc, "mysql_real_query(%0x,%s,%lu)", Dbc->mariadb, StatementText, TextLength);
-    if (!mysql_real_query(Dbc->mariadb, StatementText, TextLength))
-    {
-      ret = SQL_SUCCESS;
-      MADB_CLEAR_ERROR(Error);
-
-      Dbc->Methods->TrackSession(Dbc);
-    }
-    else
-    {
-      MADB_SetNativeError(Error, SQL_HANDLE_DBC, Dbc->mariadb);
-    }
-  }
-  else
-    MADB_SetError(Error, MADB_ERR_HY001, mysql_error(Dbc->mariadb),
-      mysql_errno(Dbc->mariadb));
-
-  return ret;
-}
-/* }}} */
-
 /* {{{ MADB_ExecuteQuery */
-SQLRETURN MADB_ExecuteQuery(MADB_Stmt* Stmt, char* StatementText, SQLINTEGER TextLength)
-{
-  LOCK_MARIADB(Stmt->Connection);
-  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, StatementText, TextLength, &Stmt->Error)))
-  {
-    Stmt->AffectedRows = mysql_affected_rows(Stmt->Connection->mariadb);
-    /*if (MADB_GOT_STREAMER(Dbc) && Dbc->Methods->CacheRestOfCurrentRsStream(Dbc, Error))
-    {
-      return Error->ReturnValue;
-    }
-    Dbc->Methods->TrackSession(Dbc);*/
-  }
-  UNLOCK_MARIADB(Stmt->Connection);
-  return Stmt->Error.ReturnValue;
-}
+//void MADB_ExecuteQuery(MADB_Stmt* Stmt, char* StatementText, SQLINTEGER TextLength)
+//{
+//  std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
+//  Stmt->Connection->guard->safeRealQuery({StatementText, static_cast<std::size_t>(TextLength)});
+//  Stmt->AffectedRows = mysql_affected_rows(Stmt->Connection->mariadb);
+//}
 /* }}} */
 
 /* {{{ MADB_StmtBulkOperations */
@@ -133,11 +91,22 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       if (Stmt->State > MADB_SS_PREPARED)
       {
         MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
-        LOCK_MARIADB(Stmt->Connection);
         Stmt->rs.reset();
-        while (Stmt->stmt->getMoreResults() || Stmt->stmt->getUpdateCount() != -1);
-
-        UNLOCK_MARIADB(Stmt->Connection);
+        while (Stmt->stmt->hasMoreResults())
+        {
+          try
+          {
+            Stmt->stmt->moveToNextResult();
+          }
+          catch (int)
+          {
+            break;
+          }
+          catch (SQLException&)
+          {
+            break;
+          }
+        }
       }
 
       Stmt->metadata.reset();
@@ -174,9 +143,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     /* For explicit descriptors we only remove reference to the stmt*/
     if (Stmt->Apd->AppType)
     {
-      EnterCriticalSection(&Stmt->Connection->ListsCs);
+      std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
       RemoveStmtRefFromDesc(Stmt->Apd, Stmt, TRUE);
-      LeaveCriticalSection(&Stmt->Connection->ListsCs);
       MADB_DescFree(Stmt->IApd, FALSE);
     }
     else
@@ -185,9 +153,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     }
     if (Stmt->Ard->AppType)
     {
-      EnterCriticalSection(&Stmt->Connection->ListsCs);
+      std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
       RemoveStmtRefFromDesc(Stmt->Ard, Stmt, TRUE);
-      LeaveCriticalSection(&Stmt->Connection->ListsCs);
       MADB_DescFree(Stmt->IArd, FALSE);
     }
     else
@@ -206,11 +173,6 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       Stmt->DaeStmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
       Stmt->DaeStmt= NULL;
     }
-    LOCK_MARIADB(Stmt->Connection);
-    if (MADB_STMT_IS_STREAMING(Stmt))
-    {
-      MADB_RESET_STREAMER(Stmt->Connection);
-    }
 
     if (Stmt->stmt != NULL)
     {
@@ -218,10 +180,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_STMT_CLOSE_STMT(Stmt);
     }
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
-    UNLOCK_MARIADB(Stmt->Connection);
-    EnterCriticalSection(&Stmt->Connection->ListsCs);
+    std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
     Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
-    LeaveCriticalSection(&Stmt->Connection->ListsCs);
     
     delete Stmt;
   } /* End of switch (Option) */
@@ -356,7 +316,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
 /* {{{ MADB_CsPrepare - Method called if we do client side prepare */
 SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 {
-  Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt), Stmt->Options.CursorType
+  Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->Options.CursorType
     , Stmt->Query.NoBackslashEscape));
   if ((Stmt->ParamCount= static_cast<SQLSMALLINT>(Stmt->stmt->getParamCount())/* + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)*/) != 0)
   {
@@ -401,45 +361,18 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
   MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt.get(), STMT_STRING(Stmt).c_str());
 
-  if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
-  {
-    return Stmt->Error.ReturnValue;
-  }
-
   try
   {
-    if (Stmt->Connection->psCache)
-    {
-      std::string key(Stmt->Connection->CurrentSchema);
-      key.append(1, '-').append(STMT_STRING(Stmt));
-      ServerPrepareResult *pr= Stmt->Connection->psCache->get(key);
-      if (pr == nullptr)
-      {
-        pr= new ServerPrepareResult(STMT_STRING(Stmt), Stmt->Connection->mariadb);
-
-        auto somebodyHasCachedMeanwhile= Stmt->Connection->psCache->put(key, pr);
-
-        // Taking the cached then
-        if (somebodyHasCachedMeanwhile != nullptr)
-        {
-          delete pr;
-          pr= somebodyHasCachedMeanwhile;
-        }
-      }
-      Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->mariadb, pr, Stmt->Options.CursorType));
-      AfterPrepare(Stmt);
-      return SQL_SUCCESS;
-    }
-
-    Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
-      Stmt->Options.CursorType));
+    ServerPrepareResult *pr= Stmt->Connection->guard->prepare(STMT_STRING(Stmt));
+    Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->guard.get(), pr, Stmt->Options.CursorType));
+    AfterPrepare(Stmt);
   }
   catch (SQLException& e)
   {
     // First condition is probably means we can a multistatement, that can't be prepared, 2nd - that the query is not preparable
     if (e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed || e.getErrorCode() == 1295)
     {
-      Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+      Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
     }
     else
@@ -448,13 +381,12 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
       MADB_FromException(Stmt->Error, e);
       ///* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
       MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt.get());
-      UNLOCK_MARIADB(Stmt->Connection);
       return Stmt->Error.ReturnValue;
     }
   }
   catch (int)
   {
-    Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+    Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
   }
 
@@ -472,7 +404,6 @@ void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
   /* Query was prepared on client, and now application requested metadata */
   if (!Stmt->metadata && Stmt->State < MADB_SS_EXECUTED && Stmt->Connection->Dsn->PrepareOnClient && !Stmt->stmt->isServerSide())
   {
-    LOCK_MARIADB(Stmt->Connection);
     // We need it for the case server side prepare fails, but MADB_RegularPrepare falls back to CS on its own, if SS goes wrong.
     PreparedStatement *currenCs= Stmt->stmt.release();
     if (MADB_RegularPrepare(Stmt) == SQL_ERROR)
@@ -483,7 +414,6 @@ void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
     {
       delete currenCs;
     }
-    UNLOCK_MARIADB(Stmt->Connection);
   }
 }
 /* }}} */
@@ -501,7 +431,7 @@ void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
 /* }}} */
 
 /* {{{ MADB_Stmt::Prepare */
-SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool ServerSide)
+SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, bool ServerSide)
 {
   const char   *CursorName= NULL;
   unsigned int  WhereOffset;
@@ -517,11 +447,8 @@ SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool Se
     return MADB_SetError(&Error, MADB_ERR_42000, NULL, 0);
   }
 
-  LOCK_MARIADB(Connection);
-
   if (MADB_StmtReset(this) != SQL_SUCCESS)
   {
-    UNLOCK_MARIADB(Connection);
     return Error.ReturnValue;
   }
 
@@ -566,7 +493,6 @@ SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool Se
 
   if ((CursorName= MADB_ParseCursorName(&Query, &WhereOffset)))
   {
-    MADB_DynString StmtStr;
     char *TableName;
 
     /* Make sure we have a delete or update statement
@@ -588,24 +514,16 @@ SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool Se
       goto cleanandexit;
     }
 
-    /* If we don't cache RS of the referenced cursor now, we will still need to do this later, and if we can't now, we won't be able later.
-       If there is other streamer - we can check later */
-    if (MADB_STMT_IS_STREAMING(PositionedCursor) && Connection->Methods->CacheRestOfCurrentRsStream(Connection, &Error))
+    TableName= MADB_GetTableName(PositionedCursor);
+    SQLString StmtStr(Query.RefinedText.c_str(),WhereOffset);
+    StmtStr.reserve(8192);
+    if (MADB_DynStrGetWhere(PositionedCursor, StmtStr, TableName, true))
     {
-      PositionedCommand= 0;
-      PositionedCursor=  NULL;
-      /* CacheRestOfCurrentRsStream methods sets Stmt's error*/
       goto cleanandexit;
     }
-
-    TableName= MADB_GetTableName(PositionedCursor);
-    MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
-    MADB_DynstrAppendMem(&StmtStr, Query.RefinedText.c_str(), WhereOffset);
-    MADB_DynStrGetWhere(PositionedCursor, &StmtStr, TableName, TRUE);
     
-    STMT_STRING(this).assign(StmtStr.str, StmtStr.length);
+    STMT_STRING(this).assign(StmtStr);
     /* Constructed query we've copied for execution has parameters */
-    MADB_DynstrFree(&StmtStr);
   }
 
   if (Options.MaxRows)
@@ -631,7 +549,6 @@ SQLRETURN MADB_Stmt::Prepare(char *StatementText, SQLINTEGER TextLength, bool Se
   }
 
 cleanandexit:
-  UNLOCK_MARIADB(Connection);
   return Error.ReturnValue;
 }
 /* }}} */
@@ -987,7 +904,7 @@ SQLRETURN MADB_Stmt::DoExecuteBatch()
   }
   try
   {
-    const odbc::Longs &batchRes= stmt->executeBatch();
+    const Longs &batchRes= stmt->executeBatch();
     rs.reset();
     AffectedRows+= stmt->getUpdateCount();
   }
@@ -997,7 +914,6 @@ SQLRETURN MADB_Stmt::DoExecuteBatch()
     return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
   }
   State= MADB_SS_EXECUTED;
-  Connection->Methods->TrackSession(Connection);
 
   return ret;
 }
@@ -1033,13 +949,9 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt)
     return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
   }
 
-  unsigned int ServerStatus;
-
   Stmt->State= MADB_SS_EXECUTED;
-  Stmt->Connection->Methods->TrackSession(Stmt->Connection);
 
-  mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
-  if (ServerStatus & SERVER_PS_OUT_PARAMS)
+    if (Stmt->Connection->guard->hasSpOutparams())
   {
     Stmt->State= MADB_SS_OUTPARAMSFETCHED;
     ret= Stmt->GetOutParams(0);
@@ -1110,13 +1022,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     MADB_SetError(&Stmt->Error, MADB_ERR_HY010, NULL, 0);
   }
 
-  LOCK_MARIADB(Stmt->Connection);
-  /* Prepare routine has the same check, thus I am not sure if we actually able to hit this case here */
-  if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
-  {
-    return Stmt->Error.ReturnValue;
-  }
-
   Stmt->AffectedRows= 0;
 
   if (Stmt->Ipd->Header.RowsProcessedPtr)
@@ -1160,7 +1065,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   else
   {
     /* Convert and bind parameters */
-    for (j= Start; j < Start + Stmt->Apd->Header.ArraySize; ++j)
+    for (j= Start; j < Start + (MADB_STMT_PARAM_COUNT(Stmt) ? Stmt->Apd->Header.ArraySize : 1); ++j)
     {
       /* "... In an IPD, this SQLUINTEGER * header field points to a buffer containing the number
           of sets of parameters that have been processed, including error sets. ..." */
@@ -1284,7 +1189,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     Stmt->AffectedRows= -1;
   }
 end:
-  UNLOCK_MARIADB(Stmt->Connection);
   Stmt->LastRowFetched= 0;
 
   if (DefaultResult)
@@ -1301,7 +1205,7 @@ end:
   if (IntegralRc == SQL_NEED_DATA && !Stmt->stmt->isServerSide()) {
     
     try {
-      ServerSidePreparedStatement* ssps = new ServerSidePreparedStatement(Stmt->Connection->mariadb, STMT_STRING(Stmt),
+      ServerSidePreparedStatement* ssps = new ServerSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType);
       Stmt->stmt.reset(ssps);
     }
@@ -3236,16 +3140,6 @@ SQLRETURN MADB_StmtRowCount(MADB_Stmt *Stmt, SQLLEN *RowCountPtr)
     *RowCountPtr= (SQLLEN)Stmt->AffectedRows;
   else if (Stmt->rs)
   {
-    if (MADB_STMT_IS_STREAMING(Stmt))
-    {
-      LOCK_MARIADB(Stmt->Connection);
-      if (MADB_STMT_IS_STREAMING(Stmt))
-      {
-        // TODO: return value has to be checked?
-        Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error);
-      }
-      UNLOCK_MARIADB(Stmt->Connection);
-    }
     *RowCountPtr = (SQLLEN)(Stmt->rs->rowsCount());
   }
   else
@@ -3657,20 +3551,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
   }
-  /* We will break protocol, if we have any streamer. Unless this is POSITION operation - since we can have only one
-     streamer at a time, we either position on cached RS, and no operation on connecion is needed, or this Stmt is
-     a streamer, and we do some fetch's */
-  if (Operation != SQL_POSITION && MADB_GOT_STREAMER(Stmt->Connection))
-  {
-    LOCK_MARIADB(Stmt->Connection);
-    /* Verifying now in safe way, that we are still a streamer */
-    if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
-    {
-      UNLOCK_MARIADB(Stmt->Connection);
-      return Stmt->Error.ReturnValue;
-    }
-    UNLOCK_MARIADB(Stmt->Connection);
-  }
 
   if (LockType != SQL_LOCK_NO_CHANGE)
   {
@@ -3930,11 +3810,12 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     }
   case SQL_DELETE:
     {
-      MADB_DynString DynamicStmt;
-      SQLULEN        SaveArraySize= Stmt->Ard->Header.ArraySize;
-      my_ulonglong   Start=         0,
-                     End=           Stmt->rs->rowsCount();
-      char           *TableName=    MADB_GetTableName(Stmt);
+      SQLString     DynamicStmt("DELETE FROM ");
+      std::size_t   baseStmtLen;
+      SQLULEN       SaveArraySize= Stmt->Ard->Header.ArraySize;
+      my_ulonglong  Start=         0,
+                    End=           Stmt->rs->rowsCount();
+      char          *TableName=    MADB_GetTableName(Stmt);
 
       if (!TableName)
       {
@@ -3954,39 +3835,32 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       }
       Start= (RowNumber) ? Stmt->Cursor.Position + RowNumber - 1 : Stmt->Cursor.Position;
       if (SaveArraySize && !RowNumber)
+      {
         End= MIN(End, Start + SaveArraySize - 1);
+      }
       else
+      {
         End= Start;
-
+      }
+      DynamicStmt.reserve(8182);
+      baseStmtLen= DynamicStmt.length();
       while (Start <= End)
       {
         MADB_StmtDataSeek(Stmt, Start);
         Stmt->Methods->RefreshRowPtrs(Stmt);
-        MADB_InitDynamicString(&DynamicStmt, "DELETE FROM ", 8192, 1024);
-        if (MADB_DynStrAppendQuoted(&DynamicStmt, TableName) ||
-           MADB_DynStrGetWhere(Stmt, &DynamicStmt, TableName, FALSE))
-        {
-          MADB_DynstrFree(&DynamicStmt);
-          MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+        DynamicStmt.append(TableName);
 
+        if (MADB_DynStrGetWhere(Stmt, DynamicStmt, TableName, false))
+        {
           return Stmt->Error.ReturnValue;
         }
 
-        LOCK_MARIADB(Stmt->Connection);
-        if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, (unsigned long)DynamicStmt.length))
-        {
-          MADB_DynstrFree(&DynamicStmt);
-          MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
-                            mysql_errno(Stmt->Connection->mariadb));
+        std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
+        Stmt->Connection->guard->safeRealQuery(DynamicStmt);
 
-          UNLOCK_MARIADB(Stmt->Connection);
-
-          return Stmt->Error.ReturnValue;
-        }
-        UNLOCK_MARIADB(Stmt->Connection);
-        MADB_DynstrFree(&DynamicStmt);
         Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
-        Start++;
+        ++Start;
+        DynamicStmt.erase(baseStmtLen);
       }
 
       Stmt->Ard->Header.ArraySize= SaveArraySize;
@@ -4208,19 +4082,17 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
  
-  LOCK_MARIADB(Connection);
   Stmt->stmt.reset();
+
   if (!(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
     !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
     !(Stmt->IIpd= MADB_DescInit(Connection, MADB_DESC_IPD, FALSE)) ||
     !(Stmt->IIrd= MADB_DescInit(Connection, MADB_DESC_IRD, FALSE)))
   {
-    UNLOCK_MARIADB(Stmt->Connection);
     goto error;
   }
 
   MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt.get());
-  UNLOCK_MARIADB(Connection);
 
   Stmt->Methods= &MADB_StmtMethods;
 
@@ -4235,9 +4107,10 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   Stmt->Ird= Stmt->IIrd;
   
   Stmt->ListItem.data= (void *)Stmt;
-  EnterCriticalSection(&Stmt->Connection->ListsCs);
-  Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
-  LeaveCriticalSection(&Stmt->Connection->ListsCs);
+  {
+    std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
+    Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
+  }
 
   Stmt->Ard->Header.ArraySize= 1;
 

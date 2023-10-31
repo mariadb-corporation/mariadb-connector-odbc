@@ -22,18 +22,16 @@
 #include "ServerPrepareResult.h"
 #include "ResultSetMetaData.h"
 #include "Exception.h"
-//#include "ColumnDefinition.h"
 
 #include "ColumnDefinition.h"
+#include "Protocol.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   ServerPrepareResult::~ServerPrepareResult()
   {
     if (statementId) {
-      mysql_stmt_close(statementId);
+      connection->forceReleasePrepareStatement(statementId);
     }
   }
   /**
@@ -44,11 +42,11 @@ namespace mariadb
     */
   ServerPrepareResult::ServerPrepareResult(
     const SQLString& _sql,
-    MYSQL* dbc // This plays role of the unproxiedProtocol so far
+    Protocol* guard
     )
     : sql(_sql)
-    , connection(dbc)
-    , statementId(mysql_stmt_init(dbc))
+    , connection(guard)
+    , statementId(mysql_stmt_init(guard->getCHandle()))
   {
     static const my_bool updateMaxLength= 1;
     int rc= 1;
@@ -82,11 +80,10 @@ namespace mariadb
   ServerPrepareResult::ServerPrepareResult(
     const SQLString& _sql,
     MYSQL_STMT* _statementId,
-    MYSQL* dbc)
-    :
-      sql(_sql)
+    Protocol* guard)
+    : sql(_sql)
     , statementId(_statementId)
-    , connection (dbc)
+    , connection (guard)
     , paramCount(mysql_stmt_param_count(statementId))
   {
     // Feels like this can be done better
@@ -282,5 +279,5 @@ namespace mariadb
   //  mysql_stmt_attr_set(statementId, STMT_ATTR_CB_PARAM, (const void*)&paramRowUpdateCallback);
   //  mysql_stmt_bind_param(statementId, paramBind);
   //}
-}
-}
+
+} // namespace mariadb

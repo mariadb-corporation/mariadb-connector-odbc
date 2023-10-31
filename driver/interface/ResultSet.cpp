@@ -18,15 +18,10 @@
 *************************************************************************************/
 
 #include "ResultSet.h"
-//#include "ColumnDefinition.h"
 #include "ServerPrepareResult.h"
-
 #include "ResultSetBin.h"
 #include "ResultSetText.h"
-//#include "ColumnDefinition.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   const MYSQL_FIELD bigint{0,0,0,0,0,0,0, 21,0, 0,0,0,0,0,0,0, 0,0,0, MYSQL_TYPE_LONGLONG,0};
@@ -61,7 +56,7 @@ namespace mariadb
     */
   ResultSet* ResultSet::create(
     const MYSQL_FIELD* columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes>>& resultSet,
     int32_t resultSetScrollType)
   {
     return new ResultSetText(columnInformation, resultSet, resultSetScrollType);
@@ -78,7 +73,7 @@ namespace mariadb
     */
   ResultSet* ResultSet::create(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes>>& resultSet,
     int32_t resultSetScrollType)
   {
     return new ResultSetText(columnInformation, resultSet, resultSetScrollType);
@@ -98,12 +93,12 @@ namespace mariadb
   ResultSet* ResultSet::createGeneratedData(std::vector<int64_t>& data, bool findColumnReturnsOne)
   {
     /*std::vector<ColumnDefinition> columns{ColumnDefinition::create("insert_id", &bigint)};*/
-    std::vector<std::vector<odbc::bytes>> rows;
+    std::vector<std::vector<mariadb::bytes>> rows;
     std::string idAsStr;
 
 
     for (int64_t rowData : data) {
-      std::vector<odbc::bytes> row;
+      std::vector<mariadb::bytes> row;
       if (rowData != 0) {
         idAsStr= std::to_string(rowData);
         row.emplace_back();
@@ -122,7 +117,7 @@ namespace mariadb
   }
 
   ResultSet* ResultSet::createEmptyResultSet() {
-    static std::vector<std::vector<odbc::bytes>> emptyRs;
+    static std::vector<std::vector<mariadb::bytes>> emptyRs;
 
     return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, emptyRs, TYPE_SCROLL_SENSITIVE);
   }
@@ -130,7 +125,7 @@ namespace mariadb
 
   ResultSet * ResultSet::createResultSet(const std::vector<SQLString>& columnNames,
     const std::vector<MYSQL_FIELD*>& columnTypes,
-    std::vector<std::vector<odbc::bytes>>& data)
+    std::vector<std::vector<mariadb::bytes>>& data)
   {
     std::size_t columnNameLength= columnNames.size();
 
@@ -141,7 +136,7 @@ namespace mariadb
       columns.emplace_back(ColumnDefinition::create(columnNames[i], columnTypes[i]));
     }
 
-    /*std::vector<odbc::bytes> rows;
+    /*std::vector<mariadb::bytes> rows;
 
     for (auto& rowData : data) {
       //assert(rowData.size() == columnNameLength);
@@ -175,5 +170,5 @@ namespace mariadb
     }
     ++dataFetchTime;
   }
-}
-}
+
+} // namespace mariadb

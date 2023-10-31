@@ -67,7 +67,6 @@ ODBC_TEST(test_CONO3)
 
 ODBC_TEST(simple_test)
 {
-  SQLRETURN rc= SQL_SUCCESS;
   SQLSMALLINT value=3;
   SQLWCHAR Buffer[20];
 
@@ -85,17 +84,17 @@ ODBC_TEST(simple_test)
   OK_SIMPLE_STMTW(Stmt, CW("INSERT INTO smpltest VALUES (1, 'Row no 1')"));
   OK_SIMPLE_STMTW(Stmt, CW("INSERT INTO smpltest VALUES (2, 'Row no 2')"));
   
-  rc= SQLPrepareW(Stmt, CW("SELECT a, b FROM smpltest"), SQL_NTS);
-  rc= SQLExecute(Stmt);
+  CHECK_STMT_RC(Stmt, SQLPrepareW(Stmt, CW("SELECT a, b FROM smpltest"), SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
   
   SQLFetch(Stmt);
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, sizeof(Buffer), 0);
-  FAIL_IF(value != 1, "Expected value=1");
+  is_num(value, 1);
 
   IS_WSTR(Buffer, CW("Row no 1"), 9);
 
-  rc= SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer,  sizeof(Buffer), 0);
   FAIL_IF(value != 2, "Expected value=2");

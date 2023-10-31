@@ -1,5 +1,5 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-                 2016 MariaDB Corporation AB
+                 2016,2023 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -132,7 +132,7 @@ int MADB_ListWalk(MADB_List *list, MADB_ListWalkAction action, char * argument)
   By monty.
 */
 
-my_bool MADB_InitDynamicString(MADB_DynString *str, const char *init_str,
+bool MADB_InitDynamicString(MADB_DynString *str, const char *init_str,
 			    size_t init_alloc, size_t alloc_increment)
 {
   unsigned int length;
@@ -146,16 +146,16 @@ my_bool MADB_InitDynamicString(MADB_DynString *str, const char *init_str,
     init_alloc=alloc_increment;
 
   if (!(str->str=(char*) malloc(init_alloc)))
-    return(TRUE);
+    return true;
   str->length=length-1;
   if (init_str)
     memcpy(str->str,init_str,length);
   str->max_length=init_alloc;
   str->alloc_increment=alloc_increment;
-  return(FALSE);
+  return false;
 }
 
-my_bool MADB_DynstrSet(MADB_DynString *str, const char *init_str)
+bool MADB_DynstrSet(MADB_DynString *str, const char *init_str)
 {
   unsigned int length;
 
@@ -166,7 +166,7 @@ my_bool MADB_DynstrSet(MADB_DynString *str, const char *init_str)
     if (!str->max_length)
       str->max_length=str->alloc_increment;
     if (!(str->str=(char*) realloc(str->str,str->max_length)))
-      return(TRUE);
+      return true;
   }
   if (init_str)
   {
@@ -175,31 +175,31 @@ my_bool MADB_DynstrSet(MADB_DynString *str, const char *init_str)
   }
   else
     str->length=0;
-  return(FALSE);
+  return false;
 }
 
 
-my_bool MADB_DynstrRealloc(MADB_DynString *str, size_t additional_size)
+bool MADB_DynstrRealloc(MADB_DynString *str, size_t additional_size)
 {
-  if (!additional_size) return(FALSE);
+  if (!additional_size) return false;
   if (str->length + additional_size > str->max_length)
   {
     str->max_length=((str->length + additional_size+str->alloc_increment-1)/
 		     str->alloc_increment)*str->alloc_increment;
     if (!(str->str=(char*) realloc(str->str,str->max_length)))
-      return(TRUE);
+      return true;
   }
-  return(FALSE);
+  return false;
 }
 
 
-my_bool MADB_DynstrAppend(MADB_DynString *str, const char *append)
+bool MADB_DynstrAppend(MADB_DynString *str, const char *append)
 {
   return MADB_DynstrAppendMem(str,append,strlen(append));
 }
 
 
-my_bool MADB_DynstrAppendMem(MADB_DynString *str, const char *append,
+bool MADB_DynstrAppendMem(MADB_DynString *str, const char *append,
 			  size_t length)
 {
   char *new_ptr;
@@ -209,14 +209,14 @@ my_bool MADB_DynstrAppendMem(MADB_DynString *str, const char *append,
       str->alloc_increment;
     new_length*=str->alloc_increment;
     if (!(new_ptr=(char*) realloc(str->str,new_length)))
-      return TRUE;
+      return true;
     str->str=new_ptr;
     str->max_length=new_length;
   }
   memcpy(str->str + str->length,append,length);
   str->length+=length;
   str->str[str->length]=0;			/* Safety for C programs */
-  return FALSE;
+  return false;
 }
 
 
@@ -249,7 +249,7 @@ char *MADB_DynstrMake(register char *dst, register const char *src, size_t lengt
   even if space allocation failed
 */
 
-my_bool MADB_InitDynamicArray(MADB_DynArray *array, unsigned int element_size,
+bool MADB_InitDynamicArray(MADB_DynArray *array, unsigned int element_size,
                               unsigned int init_alloc, unsigned int alloc_increment)
 {
   if (!alloc_increment)
@@ -268,19 +268,19 @@ my_bool MADB_InitDynamicArray(MADB_DynArray *array, unsigned int element_size,
   if (!(array->buffer=(char*) malloc(element_size*init_alloc)))
   {
     array->max_element=0;
-    return(TRUE);
+    return true;
   }
-  return(FALSE);
+  return false;
 }
 
 
-my_bool MADB_InsertDynamic(MADB_DynArray *array, void *element)
+bool MADB_InsertDynamic(MADB_DynArray *array, void *element)
 {
   void *buffer;
   if (array->elements == array->max_element)
   {						/* Call only when nessesary */
     if (!(buffer=MADB_AllocDynamic(array)))
-      return TRUE;
+      return true;
   }
   else
   {
@@ -288,7 +288,7 @@ my_bool MADB_InsertDynamic(MADB_DynArray *array, void *element)
     array->elements++;
   }
   memcpy(buffer,element,(size_t) array->size_of_element);
-  return FALSE;
+  return false;
 }
 
 
@@ -320,7 +320,7 @@ unsigned char *MADB_PopDynamic(MADB_DynArray *array)
 }
 
 
-my_bool MADB_SetDynamic(MADB_DynArray *array, void * element, unsigned int idx)
+bool MADB_SetDynamic(MADB_DynArray *array, void * element, unsigned int idx)
 {
   if (idx >= array->elements)
   {
@@ -332,7 +332,7 @@ my_bool MADB_SetDynamic(MADB_DynArray *array, void * element, unsigned int idx)
       size*= array->alloc_increment;
       if (!(new_ptr=(char*) realloc(array->buffer,size*
 			            array->size_of_element)))
-	return TRUE;
+	return true;
       array->buffer=new_ptr;
       array->max_element=size;
     }
@@ -342,7 +342,7 @@ my_bool MADB_SetDynamic(MADB_DynArray *array, void * element, unsigned int idx)
   }
   memcpy(array->buffer+(idx * array->size_of_element),element,
 	 (size_t) array->size_of_element);
-  return FALSE;
+  return false;
 }
 
 

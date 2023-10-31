@@ -22,8 +22,6 @@
 #include "ResultSet.h"
 #include "PreparedStatement.h"
 
-namespace odbc
-{
 namespace mariadb
 {
 
@@ -160,5 +158,4 @@ namespace mariadb
   {
     this->rewritten= rewritten;
   }
-}
-}
+} // namespace mariadb

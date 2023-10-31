@@ -24,12 +24,11 @@
 #include <vector>
 #include <memory>
 
-namespace odbc
-{
 namespace mariadb
 {
 
-class CmdInformation  {
+class CmdInformation
+{
   CmdInformation(const CmdInformation &);
   void operator=(CmdInformation &);
 protected:
@@ -56,8 +55,7 @@ public:
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::CmdInformation> CmdInformation;
-}
+  typedef std::unique_ptr<mariadb::CmdInformation> CmdInformation;
 }
 }
 #endif

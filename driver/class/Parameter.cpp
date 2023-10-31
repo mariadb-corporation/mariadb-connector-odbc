@@ -22,8 +22,6 @@
 #include "Parameter.h"
 #include "ColumnDefinition.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   const char BINARY_INTRODUCER[] = { '_','b','i','n','a','r','y',' ','\'','\0' };
@@ -223,8 +221,7 @@ namespace mariadb
   std::size_t Parameter::getApproximateStringLength(MYSQL_BIND& param, std::size_t row)
   {
     unsigned long length = getLength(param, row);
-    if (length > 0 && (param.buffer_type > MYSQL_TYPE_TIME2 || typeLen[param.buffer_type] < 0))
-    {
+    if (length > 0 && (param.buffer_type > MYSQL_TYPE_TIME2 || typeLen[param.buffer_type] < 0)) {
       std::size_t result= length*2;
       switch (param.buffer_type) {
       case MARIADB_BINARY_TYPES:
@@ -276,7 +273,6 @@ namespace mariadb
           return -1;
         }
       }
-      }
     }
-}
-}
+  }
+} // namespace mariadb

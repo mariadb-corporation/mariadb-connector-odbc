@@ -57,8 +57,7 @@ SQLRETURN MADB_EnvFree(MADB_Env *Env)
 {
   if (!Env)
     return SQL_ERROR;
-  DeleteCriticalSection(&Env->cs);
-  free(Env);
+  delete Env;
 
 #ifdef _WIN32
   WSACleanup();
@@ -87,7 +86,7 @@ static void DetectAppType(MADB_Env* Env)
 /* {{{ MADB_EnvInit */
 MADB_Env *MADB_EnvInit()
 {
-  MADB_Env *Env= NULL;
+  MADB_Env *Env= nullptr;
 
   #ifdef _WIN32
   /* Since we can't determine if WSAStartup has been called, we need
@@ -114,7 +113,7 @@ MADB_Env *MADB_EnvInit()
   }
 #endif
   mysql_library_init(0, NULL, NULL);
-  if (!(Env= (MADB_Env *)MADB_CALLOC(sizeof(MADB_Env))))
+  if (!(Env= new MADB_Env()))
   {
     /* todo: optional debug output */
     goto cleanup;
@@ -122,7 +121,6 @@ MADB_Env *MADB_EnvInit()
 
   MADB_PutErrorPrefix(NULL, &Env->Error);
 
-  InitializeCriticalSection(&Env->cs);
   Env->OdbcVersion= SQL_OV_ODBC3;
 
   /* This is probably is better todo with thread_once */
@@ -162,7 +160,7 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
 {
   switch (Attribute) {
    case SQL_ATTR_ODBC_VERSION:
-    if (Env->Dbcs)
+    if (!Env->Dbcs.empty())
     {
       MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
       return Env->Error.ReturnValue;
@@ -177,7 +175,6 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
     MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
     break;
   }
-//  LeaveCriticalSection(&Env->cs);
   return Env->Error.ReturnValue;
 }
 /* }}} */
@@ -204,3 +201,16 @@ SQLRETURN MADB_EnvGetAttr(MADB_Env *Env, SQLINTEGER Attribute, SQLPOINTER ValueP
   return Env->Error.ReturnValue;
 }
  /* }}} */
+
+MADB_Env::ListIterator MADB_Env::addConnection(MADB_Dbc* conn)
+{
+  std::lock_guard<std::mutex> localScopeLock(cs);
+  return Dbcs.insert(Dbcs.cbegin(), conn);
+}
+
+
+void MADB_Env::forgetConnection(MADB_Env::ListIterator& it)
+{
+  std::lock_guard<std::mutex> localScopeLock(cs);
+  Dbcs.erase(it);
+}

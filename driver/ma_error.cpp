@@ -242,13 +242,14 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
 /* }}} */
 
 /* {{{ MADB_CopyError */
-void MADB_CopyError(MADB_Error *ErrorTo, MADB_Error *ErrorFrom)
+SQLRETURN MADB_CopyError(MADB_Error *ErrorTo, MADB_Error *ErrorFrom)
 {
   ErrorTo->NativeError= ErrorFrom->NativeError;
   ErrorTo->ReturnValue= ErrorFrom->ReturnValue;
   ErrorTo->PrefixLen=   ErrorFrom->PrefixLen;
   strcpy_s(ErrorTo->SqlState, SQLSTATE_LENGTH + 1, ErrorFrom->SqlState);
   strcpy_s(ErrorTo->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, ErrorFrom->SqlErrorMsg);
+  return ErrorTo->ReturnValue;
 }
 /* }}} */
 

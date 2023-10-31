@@ -19,11 +19,9 @@
 
 
 #include "Row.h"
-
 #include "ColumnDefinition.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
   uint64_t stoull(const SQLString& str, std::size_t* pos)
@@ -50,7 +48,7 @@ namespace mariadb
   uint64_t stoull(const char* str, std::size_t len, std::size_t* pos)
   {
     len = len == static_cast<std::size_t>(-1) ? std::strlen(str) : len;
-    return odbc::mariadb::stoull(SQLString(str, len), pos);
+    return mariadb::stoull(SQLString(str, len), pos);
   }
 
   Date nullDate("0000-00-00");
@@ -211,7 +209,7 @@ namespace mariadb
   }
 
 
-  void Row::resetRow(std::vector<odbc::bytes>& _buf)
+  void Row::resetRow(std::vector<mariadb::bytes>& _buf)
   {
     buf= &_buf;
   }
@@ -366,5 +364,5 @@ namespace mariadb
   {
     return (lastValueNull & BIT_LAST_FIELD_NULL)!=0 || (lastValueNull & BIT_LAST_ZERO_DATE)!=0;
   }
-}
-}
+
+} // namespace mariadb

@@ -24,8 +24,6 @@
 #include <stdexcept>
 #include "class/SQLString.h"
 
-namespace odbc
-{
 namespace mariadb
 {
 class SQLException : public ::std::runtime_error
@@ -52,6 +50,5 @@ public:
   char const* what() const noexcept override;
 };
 
-}
 }
 #endif

@@ -27,33 +27,31 @@
 #include "SQLString.h"
 #include "ColumnDefinition.h"
 
-namespace odbc 
-{
 namespace mariadb
 {
+class ResultSetMetaData;
 
-  class ResultSetMetaData;
-
-  class PrepareResult  {
-    void operator=(PrepareResult &)= delete;
+class PrepareResult
+{
+  void operator=(PrepareResult &)= delete;
   
-  protected:
-    std::vector<ColumnDefinition> column;
-    // Independet from C/C copy. Is needed to be able to reurn array of FIELD structures. ColumnDefinition also is referring these structures
-    // It's better to have FIELDS array cuz in text protocol we don't have pure metadata MYSQL_RES object
-    std::vector<const MYSQL_FIELD*> field;
+protected:
+  std::vector<ColumnDefinition> column;
+  // Independet from C/C copy. Is needed to be able to reurn array of FIELD structures. ColumnDefinition also is referring these structures
+  // It's better to have FIELDS array cuz in text protocol we don't have pure metadata MYSQL_RES object
+  std::vector<const MYSQL_FIELD*> field;
 
-    void init(MYSQL_FIELD* fields, std::size_t fieldCount);
+  void init(MYSQL_FIELD* fields, std::size_t fieldCount);
 
-  public:
-    PrepareResult() {}
+public:
+  PrepareResult() {}
 
-    virtual ~PrepareResult(){}
+  virtual ~PrepareResult(){}
 
-    virtual const SQLString& getSql() const=0;
-    virtual std::size_t getParamCount() const=0;
-    virtual ResultSetMetaData* getEarlyMetaData()=0;
-  };
-}
+  virtual const SQLString& getSql() const=0;
+  virtual std::size_t getParamCount() const=0;
+  virtual ResultSetMetaData* getEarlyMetaData()=0;
+};
+
 }
 #endif

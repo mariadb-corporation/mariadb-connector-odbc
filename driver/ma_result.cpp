@@ -121,6 +121,8 @@ void QuickDropAllPendingResults(MYSQL* Mariadb)
 /* }}} */
 
 /* {{{ MADB_StmtMoreResults */
+// TODO: need to do it in unified way - create function in ma_api_internal, to some basic paremeters validation and
+//       exceptions processing
 SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt*)StatementHandle;
@@ -137,7 +139,6 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   Stmt->metadata.reset();
   Stmt->rs.reset();
 
-  LOCK_MARIADB(Stmt->Connection);
   try {
     if (Stmt->stmt->getMoreResults())
     {
@@ -164,7 +165,6 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
     }
     else
     {
-      UNLOCK_MARIADB(Stmt->Connection);
       return SQL_NO_DATA;
     }
   }
@@ -174,9 +174,7 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   catch (int32_t /*rc*/) {
     ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
   }
-  UNLOCK_MARIADB(Stmt->Connection);
 
-  Stmt->Connection->Methods->TrackSession(Stmt->Connection);
   MADB_StmtResetResultStructures(Stmt);
 
   return ret;

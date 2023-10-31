@@ -19,23 +19,10 @@
 
 
 #include "PreparedStatement.h"
-//#include "Results.h"
-//#include "Parameters.h"
+#include "Protocol.h"
 
-
-namespace odbc
-{
 namespace mariadb
 {
-
-  SQLString& addQueryTimeout(SQLString& sql, int32_t queryTimeout)
-  {
-    if (queryTimeout > 0) {
-      sql.append("SET STATEMENT max_statement_time=" + std::to_string(queryTimeout) + " FOR ");
-    }
-    return sql;
-  }
-
   /**
    * Constructor. Base class that permits setting parameters for client and server PrepareStatement.
    *
@@ -47,10 +34,10 @@ namespace mariadb
    *     ResultSet.CONCUR_READ_ONLY</code> or <code>ResultSet.CONCUR_UPDATABLE</code>
    */
   PreparedStatement::PreparedStatement(
-      MYSQL* maHandle,
+      Protocol* handle,
       int32_t resultSetScrollType
       )
-    : connection(maHandle)
+    : guard(handle)
     , resultSetScrollType(resultSetScrollType)
     , batchRes(0)
   {
@@ -58,10 +45,10 @@ namespace mariadb
 
 
   PreparedStatement::PreparedStatement(
-    MYSQL* maHandle,
+    Protocol* handle,
     const SQLString& _sql,
     int32_t resultSetScrollType)
-    : connection(maHandle)
+    : guard(handle)
     , sql(_sql)
     , resultSetScrollType(resultSetScrollType)
     , batchRes(0)
@@ -81,7 +68,7 @@ namespace mariadb
   void PreparedStatement::markClosed()
   {
     closed= true;
-    connection= nullptr;
+    guard= nullptr;
   }
 
   void PreparedStatement::validateParamset(std::size_t paramCount)
@@ -95,7 +82,7 @@ namespace mariadb
     */
   int64_t PreparedStatement::getServerThreadId()
   {
-    return mysql_thread_id(connection);
+    return guard->getServerThreadId();
   }
 
   void PreparedStatement::clearBatch()
@@ -141,7 +128,7 @@ namespace mariadb
 
   bool PreparedStatement::getMoreResults()
   {
-    return results && results->getMoreResults();
+    return results && results->getMoreResults(true, guard);
   }
 
 
@@ -156,7 +143,7 @@ namespace mariadb
       return getPrepareResult()->getParamCount();
   }
 
-  const odbc::Longs& PreparedStatement::executeBatch()
+  const mariadb::Longs& PreparedStatement::executeBatch()
   {
     checkClose();
     batchRes.wrap(nullptr, 0);
@@ -215,5 +202,4 @@ namespace mariadb
   {
     return results->getCmdInformation()->getUpdateCount();
   }
-}
-}
+} // namespace mariadb

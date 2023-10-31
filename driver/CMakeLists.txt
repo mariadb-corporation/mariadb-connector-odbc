@@ -60,6 +60,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           class/ResultSetBin.cpp
                           class/ResultSetMetaData.cpp
                           class/Parameter.cpp
+                          class/Protocol.cpp
                           interface/PreparedStatement.cpp
                           interface/Row.cpp
                           interface/ResultSet.cpp
@@ -112,6 +113,7 @@ IF(WIN32)
                           class/ResultSetBin.h
                           class/ResultSetMetaData.h
                           class/Parameter.h
+                          class/Protocol.h
                           interface/PreparedStatement.h
                           interface/PrepareResult.h
                           interface/Row.h

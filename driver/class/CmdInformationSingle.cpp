@@ -22,11 +22,9 @@
 
 #include "interface/ResultSet.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
-
   /**
     * Object containing update / insert ids, optimized for only one result.
     *
@@ -103,5 +101,4 @@ namespace mariadb
   {
 
   }
-}
-}
+} // namespace mariadb

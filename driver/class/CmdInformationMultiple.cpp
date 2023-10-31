@@ -22,11 +22,8 @@
 #include "ResultSet.h"
 #include "interface/PreparedStatement.h"
 
-namespace odbc
-{
 namespace mariadb
 {
-
   /**
     * Object containing update / insert ids, optimized for only multiple result.
     *
@@ -141,5 +138,4 @@ namespace mariadb
   {
     this->rewritten= rewritten;
   }
-}
-}
+} // namespace mariadb

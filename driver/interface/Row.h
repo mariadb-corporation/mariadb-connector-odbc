@@ -30,8 +30,7 @@
 #include "SQLString.h"
 #include "CArray.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
 extern Date nullDate;
@@ -72,7 +71,6 @@ bool isDate(const SQLString& str);
 bool isTime(const SQLString& str);
 bool parseTime(const SQLString& str, std::vector<SQLString>& time);
 
-
 class Row  {
 
 public:
@@ -92,8 +90,8 @@ protected:
 
 public:
   int32_t lastValueNull;
-  std::vector<odbc::bytes>* buf;
-  odbc::bytes fieldBuf;
+  std::vector<bytes>* buf;
+  bytes fieldBuf;
   int32_t pos;
   uint32_t length;
 
@@ -104,7 +102,7 @@ public:
   Row();
   virtual ~Row() {}
 
-  void resetRow(std::vector<odbc::bytes>& buf);
+  void resetRow(std::vector<bytes>& buf);
   virtual void setPosition(int32_t position)=0;
   uint32_t getLengthMaxFieldSize();
   uint32_t getMaxFieldSize();
@@ -129,7 +127,7 @@ public:
   virtual SQLString getInternalTimeString(const ColumnDefinition* columnInfo)=0;
 
   virtual bool isBinaryEncoded()=0;
-  virtual void cacheCurrentRow(std::vector<odbc::bytes>& rowData, std::size_t columnCount)=0;
+  virtual void cacheCurrentRow(std::vector<bytes>& rowData, std::size_t columnCount)=0;
   bool lastValueWasNull();
 
 protected:
@@ -153,8 +151,8 @@ public:
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::Row> Row;
+  typedef std::unique_ptr<mariadb::Row> Row;
 }
+
 } // namespace mariadb
-} // namespace odbc
 #endif
