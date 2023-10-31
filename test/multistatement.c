@@ -563,7 +563,7 @@ ODBC_TEST(t_odbc169)
                           {"8", "7", "Row #4"}
                         };
   unsigned int i, RsIndex= 0, ExpectedRows[]= {1, 3, 3, 3, 0, 4};
-  /* From 3.2.0 we return rows count for RS returnign queries in multistatement */
+  /* From 3.2.0 we return rows count for RS returning queries in multistatement */
   SQLLEN Rows, ExpRowCount[]= {1, 3, 3, 3, 1, 4}; /*{0, 0, 0, 0, 1, 0} <-- Expected results before 3.2.0 */;
   SQLSMALLINT ColumnsCount, expCols[]= {1, 3, 3, 2, 0, 3};
   SQLRETURN rc= SQL_SUCCESS;
@@ -610,7 +610,6 @@ ODBC_TEST(t_odbc169)
   }
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc169");
-
   return OK;
 }
 
@@ -689,16 +688,10 @@ ODBC_TEST(test_autocommit)
   is_num(my_fetch_int(Stmt, 1), 0);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (SQL_SUCCEEDED(SQLExecDirect(Stmt, "SELECT @@session_track_system_variables", SQL_NTS)))
-  {
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, tracked, sizeof(tracked), NULL));
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-    diag("Tracked: %s", tracked);
-    OK_SIMPLE_STMT(Stmt, "SET autocommit=1;");
-    CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, 0, NULL));
-    is_num(ac, SQL_AUTOCOMMIT_ON);
-  }
+  OK_SIMPLE_STMT(Stmt, "SET autocommit=1;");
+  CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, 0, NULL));
+  is_num(ac, SQL_AUTOCOMMIT_ON);
+
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
 // Leaving couple of deprecated function calls to test them

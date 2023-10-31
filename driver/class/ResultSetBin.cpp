@@ -27,7 +27,6 @@
 #include "Results.h"
 
 #include "ColumnDefinition.h"
-//#include "SqlStates.h"
 #include "Row.h"
 #include "BinRow.h"
 #include "TextRow.h"
@@ -39,8 +38,6 @@
 # undef max
 #endif // max
 
-namespace odbc
-{
 namespace mariadb
 {
   /**
@@ -293,7 +290,7 @@ namespace mariadb
     *
     * @return row's raw bytes
     */
-  std::vector<odbc::bytes>& ResultSetBin::getCurrentRowData() {
+  std::vector<mariadb::bytes>& ResultSetBin::getCurrentRowData() {
     return data[rowPointer];
   }
 
@@ -303,7 +300,7 @@ namespace mariadb
     *
     * @param rawData new row's raw data.
     */
-  void ResultSetBin::updateRowData(std::vector<odbc::bytes>& rawData)
+  void ResultSetBin::updateRowData(std::vector<mariadb::bytes>& rawData)
   {
     data[rowPointer]= rawData;
     row->resetRow(data[rowPointer]);
@@ -322,7 +319,7 @@ namespace mariadb
     previous();
   }
 
-  void ResultSetBin::addRowData(std::vector<odbc::bytes>& rawData) {
+  void ResultSetBin::addRowData(std::vector<mariadb::bytes>& rawData) {
     if (dataSize +1 >= data.size()) {
       growDataArray();
     }
@@ -491,7 +488,7 @@ namespace mariadb
   void ResultSetBin::resetRow() const
   {
     if (rowPointer > -1 && data.size() > static_cast<std::size_t>(rowPointer)) {
-      row->resetRow(const_cast<std::vector<odbc::bytes> &>(data[rowPointer]));
+      row->resetRow(const_cast<std::vector<mariadb::bytes> &>(data[rowPointer]));
     }
     else {
       if (rowPointer != lastRowPointer + 1) {
@@ -863,7 +860,7 @@ namespace mariadb
   }
 
  
-  std::size_t odbc::mariadb::ResultSetBin::rowsCount() const
+  std::size_t ResultSetBin::rowsCount() const
   {
     return dataSize;
   }
@@ -896,7 +893,7 @@ namespace mariadb
     rowPointer= pointer;
   }
 
-  void odbc::mariadb::ResultSetBin::checkOut()
+  void ResultSetBin::checkOut()
   {
     if (statement != nullptr && statement->getInternalResults()) {
       statement->getInternalResults()->checkOut(this);
@@ -929,13 +926,8 @@ namespace mariadb
       catch (SQLException & queryException) {
         if (!noLock) {
         }
-        throw queryException;
-      }
-      catch (std::runtime_error & ioe) {
-        if (!noLock) {
-        }
         resetVariables();
-        handleIoException(ioe);
+        throw queryException;
       }
       if (!noLock) {
       }
@@ -983,5 +975,5 @@ namespace mariadb
     }
     return truncations;
   }
-}
-}
+
+} // namespace mariadb

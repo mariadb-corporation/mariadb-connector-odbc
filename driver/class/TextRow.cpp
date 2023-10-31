@@ -22,15 +22,12 @@
 
 #include "TextRow.h"
 
-//#include "ColumnType.h"
 #include "ColumnDefinition.h"
 #include "Exception.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
-
 /**
  * Constructor.
  *
@@ -495,7 +492,7 @@ namespace mariadb
      case MYSQL_TYPE_LONG:
      case MYSQL_TYPE_INT24:
      case MYSQL_TYPE_LONGLONG:
-       value= odbc::mariadb::stoull(fieldBuf.arr);
+       value= mariadb::stoull(fieldBuf.arr);
        break;
      case MYSQL_TYPE_TIMESTAMP:
      case MYSQL_TYPE_DATETIME:
@@ -505,7 +502,7 @@ namespace mariadb
          /*"Conversion to integer not available for data field type "
          + columnInfo->getColumnType().getCppTypeName());*/
      default:
-       value= odbc::mariadb::stoull(fieldBuf.arr + pos, length);
+       value= mariadb::stoull(fieldBuf.arr + pos, length);
      }
 
    }
@@ -736,12 +733,11 @@ namespace mariadb
  }
 
 
- void TextRow::cacheCurrentRow(std::vector<odbc::bytes>& rowDataCache, std::size_t columnCount)
+ void TextRow::cacheCurrentRow(std::vector<mariadb::bytes>& rowDataCache, std::size_t columnCount)
  {
    rowDataCache.clear();
    for (std::size_t i = 0; i < columnCount; ++i) {
      rowDataCache.emplace_back(const_cast<const char*>(rowData[i]), lengthArr[i]);
    }
  }
-}
-}
+} // namespace mariadb

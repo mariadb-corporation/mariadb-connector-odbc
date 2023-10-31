@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022,2023 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,24 +24,21 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include "mysql.h"
+
 #include "PrepareResult.h"
 #include "SQLString.h"
+#include "mysql.h"
 
-
-namespace odbc
-{
 namespace mariadb
 {
-
-//class ParameterHolder;
+class Protocol;
 
 class ServerPrepareResult  : public PrepareResult
 {
   std::mutex lock;
   ServerPrepareResult(const ServerPrepareResult&)= delete;
   const SQLString sql;
-  MYSQL* connection;
+  Protocol* connection;
   MYSQL_STMT* statementId;
   /*std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> metadata;*/
   unsigned long paramCount= 0;
@@ -54,12 +51,12 @@ public:
 
   ServerPrepareResult(
     const SQLString& sql,
-    MYSQL* dbc);
+    Protocol* dbc);
 
   ServerPrepareResult(
     const SQLString& sql,
     MYSQL_STMT* statementId,
-    MYSQL* dbc);
+    Protocol* dbc);
 
   void reReadColumnInfo();
 
@@ -77,12 +74,13 @@ public:
   int32_t getShareCounter();
   /*void bindParameters(std::vector<Unique::ParameterHolder>& parameters);
   void bindParameters(MYSQL_BIND* parameters, const int16_t *type= nullptr);*/
-  };
+};
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::ServerPrepareResult> ServerPrepareResult;
+  typedef std::unique_ptr<mariadb::ServerPrepareResult> ServerPrepareResult;
 }
-}
-}
+
+} // namespace mariadb
+
 #endif

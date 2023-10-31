@@ -25,8 +25,6 @@
 #include "ColumnDefinition.h"
 #include "Exception.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   long getTypeBinLength(enum_field_types type);
@@ -470,7 +468,7 @@ namespace mariadb
     case MYSQL_TYPE_DECIMAL:
     {
       //rangeCheck("BigDecimal", static_cast<int64_t>(buf));
-      return odbc::mariadb::stoull(getInternalBigDecimal(columnInfo));
+      return mariadb::stoull(getInternalBigDecimal(columnInfo));
     }
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_VARCHAR:
@@ -478,7 +476,7 @@ namespace mariadb
     {
       std::string str(fieldBuf.arr, length);
       try {
-        return odbc::mariadb::stoull(str);
+        return mariadb::stoull(str);
       }
       // Common parent for std::invalid_argument and std::out_of_range
       catch (std::logic_error&) {
@@ -1132,7 +1130,7 @@ namespace mariadb
   }
 
 
-  void BinRow::cacheCurrentRow(std::vector<odbc::bytes>& rowDataCache, std::size_t columnCount)
+  void BinRow::cacheCurrentRow(std::vector<mariadb::bytes>& rowDataCache, std::size_t columnCount)
   {
     rowDataCache.clear();
     for (std::size_t i = 0; i < columnCount; ++i) {
@@ -1144,5 +1142,4 @@ namespace mariadb
       }
     }
   }
-}
-}
+} // namespace mariadb

@@ -27,15 +27,13 @@
 #include "Results.h"
 
 #include "ColumnDefinition.h"
-//#include "SqlStates.h"
 #include "interface/Row.h"
 #include "Exception.h"
 #include "class/BinRow.h"
 #include "class/TextRow.h"
 #include "interface/PreparedStatement.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
   ResultSetText::ResultSetText(Results * results,
@@ -102,7 +100,7 @@ namespace mariadb
     */
   ResultSetText::ResultSetText(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes>>& resultSet,
     int32_t resultSetScrollType)
     : ResultSet(0),
       columnsInformation(std::move(columnInformation)),
@@ -126,7 +124,7 @@ namespace mariadb
 
   ResultSetText::ResultSetText(
     const MYSQL_FIELD* field,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes>>& resultSet,
     int32_t resultSetScrollType)
     : ResultSet(0),
     statement(nullptr),
@@ -354,7 +352,7 @@ namespace mariadb
     *
     * @return row's raw bytes
     */
-  std::vector<odbc::bytes>& ResultSetText::getCurrentRowData() {
+  std::vector<mariadb::bytes>& ResultSetText::getCurrentRowData() {
     return data[rowPointer];
   }
 
@@ -364,7 +362,7 @@ namespace mariadb
     *
     * @param rawData new row's raw data.
     */
-  void ResultSetText::updateRowData(std::vector<odbc::bytes>& rawData)
+  void ResultSetText::updateRowData(std::vector<mariadb::bytes>& rawData)
   {
     data[rowPointer]= rawData;
     row->resetRow(data[rowPointer]);
@@ -383,7 +381,7 @@ namespace mariadb
     previous();
   }
 
-  void ResultSetText::addRowData(std::vector<odbc::bytes>& rawData) {
+  void ResultSetText::addRowData(std::vector<mariadb::bytes>& rawData) {
     if (dataSize + 1 >= data.size()) {
       growDataArray();
     }
@@ -518,7 +516,7 @@ namespace mariadb
   void ResultSetText::resetRow() const
   {
     if (data.size() > 0) {
-      row->resetRow(const_cast<std::vector<odbc::bytes>&>(data[rowPointer]));
+      row->resetRow(const_cast<std::vector<mariadb::bytes>&>(data[rowPointer]));
     }
     else {
       if (rowPointer != lastRowPointer + 1) {
@@ -902,7 +900,7 @@ namespace mariadb
   }
 
 
-  std::size_t odbc::mariadb::ResultSetText::rowsCount() const
+  std::size_t ResultSetText::rowsCount() const
   {
     return dataSize;
   }
@@ -938,7 +936,7 @@ namespace mariadb
     rowPointer= pointer;
   }
 
-  void odbc::mariadb::ResultSetText::checkOut()
+  void ResultSetText::checkOut()
   {
     if (statement != nullptr && statement->getInternalResults()) {
       statement->getInternalResults()->checkOut(this);
@@ -1187,5 +1185,5 @@ namespace mariadb
   {
     return fillBuffers();
   }
-}
-}
+
+} // namespace mariadb

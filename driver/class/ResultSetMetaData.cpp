@@ -22,11 +22,9 @@
 #include "ColumnDefinition.h"
 #include "Exception.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
-
   /**
     * Constructor.
     *
@@ -328,6 +326,6 @@ namespace mariadb
   {
     return getColumnDefinition(column).getCollation();
   }
-#endif
-}
-}
+#endif // ifndef LEAVING_THIS_SO_FAR_HERE_COMMENTED
+
+} // namespace mariadb

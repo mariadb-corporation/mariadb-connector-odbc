@@ -55,12 +55,12 @@ typedef struct st_ma_odbc_dynstr {
   size_t length,max_length,alloc_increment;
 } MADB_DynString;
 
-my_bool MADB_InitDynamicString(MADB_DynString *str, const char *init_str,
+bool MADB_InitDynamicString(MADB_DynString *str, const char *init_str,
 			    size_t init_alloc, size_t alloc_increment);
-my_bool MADB_DynstrSet(MADB_DynString *str, const char *init_str);
-my_bool MADB_DynstrRealloc(MADB_DynString *str, size_t additional_size);
-my_bool MADB_DynstrAppend(MADB_DynString *str, const char *append);
-my_bool MADB_DynstrAppendMem(MADB_DynString *str, const char *append,
+bool MADB_DynstrSet(MADB_DynString *str, const char *init_str);
+bool MADB_DynstrRealloc(MADB_DynString *str, size_t additional_size);
+bool MADB_DynstrAppend(MADB_DynString *str, const char *append);
+bool MADB_DynstrAppendMem(MADB_DynString *str, const char *append,
 			  size_t length);
 void MADB_DynstrFree(MADB_DynString *str);
 char *MADB_DynstrMake(register char *dst, register const char *src, size_t length);
@@ -76,14 +76,14 @@ typedef struct ma_odbc_st_dynarr {
   unsigned int size_of_element;
 } MADB_DynArray;
 
-my_bool MADB_InitDynamicArray(MADB_DynArray *array, unsigned int element_size,
+bool MADB_InitDynamicArray(MADB_DynArray *array, unsigned int element_size,
                               unsigned int init_alloc, unsigned int alloc_increment);
-my_bool MADB_InsertDynamic(MADB_DynArray *array, void *element);
+bool MADB_InsertDynamic(MADB_DynArray *array, void *element);
 	/* Alloc room for one element */
 unsigned char *MADB_AllocDynamic(MADB_DynArray *array);
 	/* remove last element from array and return it */
 unsigned char *MADB_PopDynamic(MADB_DynArray *array);
-my_bool MADB_SetDynamic(MADB_DynArray *array, void * element, unsigned int idx);
+bool MADB_SetDynamic(MADB_DynArray *array, void * element, unsigned int idx);
 void MADB_GetDynamic(MADB_DynArray *array, void * element, unsigned int idx);
 void MADB_DeleteDynamic(MADB_DynArray *array);
 void MADB_DeleteDynamicElement(MADB_DynArray *array, unsigned int idx);

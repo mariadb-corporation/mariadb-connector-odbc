@@ -110,16 +110,12 @@ my_bool MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String)
   return FALSE;
 }
 
-my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
+bool MADB_DynStrUpdateSet(MADB_Stmt* Stmt, SQLString& DynString)
 {
   int             i, IgnoredColumns= 0;
   MADB_DescRecord *Record;
 
-  if (MADB_DYNAPPENDCONST(DynString, " SET "))
-  {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
-    return TRUE;
-  }
+  DynString.append(" SET ");
 
   const MYSQL_FIELD *Field = Stmt->metadata->getFields();
   // ???? memcpy(&Stmt->Da->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
@@ -132,32 +128,22 @@ my_bool MADB_DynStrUpdateSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
                                             sizeof(SQLLEN)/*Record->OctetLength*/);
     if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
     {
-      IgnoredColumns++;
+      ++IgnoredColumns;
       continue;
     }
     
-    if ((i - IgnoredColumns) && MADB_DYNAPPENDCONST(DynString, ","))
+    if (i != IgnoredColumns)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
-      return TRUE;
+      DynString.append(1, ',');
     }
-    if (MADB_DynStrAppendQuoted(DynString, Field[i].org_name))
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
-      return TRUE;
-    }
-    if (MADB_DYNAPPENDCONST(DynString, "=?"))
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
-      return TRUE;
-    }
+    DynString.append(1, '`').append(Field[i].org_name).append("`=? ");
   }
   if (IgnoredColumns == Stmt->metadata->getColumnCount())
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_21S02, nullptr, 0);
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
@@ -240,7 +226,7 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString)
   return FALSE;
 }
 
-my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *TableName, my_bool ParameterMarkers)
+bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName, bool ParameterMarkers)
 {
   int UniqueCount=0, PrimaryCount= 0, TotalPrimaryCount= 0, TotalUniqueCount= 0, TotalTableFieldCount= 0;
   int i, Flag= 0, IndexArrIdx= 0;
@@ -321,10 +307,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     }
   }
 
-  if (MADB_DYNAPPENDCONST(DynString, " WHERE 1"))
-  {
-    goto memerror;
-  }
+  DynString.append(" WHERE 1");
 
   /* If we already know index columns - we walk through column index values stored in Stmt->UniqueIndex, all columns otherwise */
   for (i= IndexArrIdx == 0 ? 0 : Stmt->UniqueIndex[1];
@@ -344,13 +327,11 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
         /* Complicated(aka silly) way not to introduce another variable to store arr index for writing to the arr */
         Stmt->UniqueIndex[Stmt->UniqueIndex[0] - (--TotalUniqueCount)]= i;
       }
-      if (MADB_DYNAPPENDCONST(DynString, " AND ") ||
-          MADB_DynStrAppendQuoted(DynString, field->org_name))
-          goto memerror;
+      DynString.append(" AND ").append(field->org_name);
+
       if (ParameterMarkers)
       {
-        if (MADB_DYNAPPENDCONST(DynString, "=?"))
-          goto memerror;
+        DynString.append("=?");
       }
       else
       { 
@@ -361,8 +342,7 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
         }
         if (StrLength < 0)
         {
-           if (MADB_DYNAPPENDCONST(DynString, " IS NULL"))
-             goto memerror;
+          DynString.append(" IS NULL");
         }
         else
         {
@@ -371,12 +351,8 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
           Escaped = static_cast<char*>(MADB_CALLOC(2 * StrLength + 1));
           EscapedLength= mysql_real_escape_string(Stmt->Connection->mariadb, Escaped, Column, (unsigned long)StrLength);
 
-          if (MADB_DYNAPPENDCONST(DynString, "= '") ||
-            MADB_DynstrAppend(DynString, Escaped) ||//, EscapedLength) ||
-            MADB_DYNAPPENDCONST(DynString, "'"))
-          {
-            goto memerror;
-          }
+          DynString.append("= '").append(Escaped).append("'");
+
           MADB_FREE(Column);
           MADB_FREE(Escaped);
         }
@@ -384,17 +360,16 @@ my_bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, MADB_DynString *DynString, char *Ta
     }
   }
 
-  if (MADB_DYNAPPENDCONST(DynString, " LIMIT 1"))
-    goto memerror;
+  DynString.append(" LIMIT 1");
   MADB_FREE(Column);
 
-  return FALSE;
+  return false;
 
 memerror:
   MADB_FREE(Column);
   MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
 
-  return TRUE;
+  return true;
 }
 
 

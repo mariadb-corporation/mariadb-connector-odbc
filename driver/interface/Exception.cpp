@@ -20,8 +20,6 @@
 
 #include "Exception.h"
 
-namespace odbc
-{
 namespace mariadb
 {
   /******************** SQLException ***************************/
@@ -53,4 +51,3 @@ namespace mariadb
   }
 
 } // namespace mariadb
-} // namespace odbc

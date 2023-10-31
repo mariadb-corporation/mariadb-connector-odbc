@@ -23,13 +23,11 @@
 
 #include "CmdInformation.h"
 
-namespace odbc
-{
 namespace mariadb
 {
 
-class CmdInformationSingle  : public CmdInformation {
-
+class CmdInformationSingle  : public CmdInformation
+{
   int64_t updateCount;
 
 public:
@@ -47,7 +45,7 @@ public:
   bool isCurrentUpdateCount();
   void addSuccessStat(int64_t updateCount);
   void setRewrite(bool rewritten);
-  };
-}
+};
+
 }
 #endif

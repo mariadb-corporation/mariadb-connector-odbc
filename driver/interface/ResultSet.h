@@ -28,14 +28,8 @@
 
 #include "CArray.h"
 #include "Row.h"
-//#include "Results.h"
 #include "ColumnDefinition.h"
-//#include "ColumnType.h"
-//#include "ColumnNameMap.h"
 
-
-namespace odbc
-{
 namespace mariadb
 {
 class Results;
@@ -78,12 +72,12 @@ public:
 
   static ResultSet* create(
     const MYSQL_FIELD* columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<bytes>>& resultSet,
     int32_t resultSetScrollType);
 
   static ResultSet* create(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<bytes>>& resultSet,
     int32_t resultSetScrollType);
 
   static ResultSet* createGeneratedData(std::vector<int64_t>& data, bool findColumnReturnsOne);
@@ -103,7 +97,7 @@ public:
   */
 
   static ResultSet* createResultSet(const std::vector<SQLString>& columnNames, const std::vector<MYSQL_FIELD*>& columnTypes,
-    std::vector<std::vector<odbc::bytes>>& data);
+    std::vector<std::vector<bytes>>& data);
 
   virtual ~ResultSet();
 
@@ -128,10 +122,10 @@ public:
   virtual bool previous()=0;
  
 protected:
-  virtual std::vector<odbc::bytes>& getCurrentRowData()=0;
-  virtual void updateRowData(std::vector<odbc::bytes>& rawData)=0;
+  virtual std::vector<bytes>& getCurrentRowData()=0;
+  virtual void updateRowData(std::vector<bytes>& rawData)=0;
   virtual void deleteCurrentRowData()=0;
-  virtual void addRowData(std::vector<odbc::bytes>& rawData)=0;
+  virtual void addRowData(std::vector<bytes>& rawData)=0;
   void addStreamingValue(bool cacheLocally= false);
   virtual bool readNextValue(bool cacheLocally= false)= 0;
 
@@ -163,8 +157,8 @@ public:
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::ResultSet> ResultSet;
+  typedef std::unique_ptr<::mariadb::ResultSet> ResultSet;
 }
+
 } // namespace mariadb
-}
 #endif

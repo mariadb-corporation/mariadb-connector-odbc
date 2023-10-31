@@ -31,8 +31,7 @@
 
 #include "mysql.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
 class PreparedStatement;
@@ -52,7 +51,7 @@ class ResultSetText : public ResultSet
 
   MYSQL_BIND* resultBind= nullptr;
 
-  std::vector<std::vector<odbc::bytes>> data;
+  std::vector<std::vector<mariadb::bytes>> data;
   std::size_t dataSize; //Should go after data
 
   int32_t resultSetScrollType;
@@ -74,12 +73,12 @@ public:
 
   ResultSetText(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes>>& resultSet,
     int32_t resultSetScrollType);
 
   ResultSetText(
     const MYSQL_FIELD *columnInformation,
-    std::vector<std::vector<odbc::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes>>& resultSet,
     int32_t resultSetScrollType);
   
   ~ResultSetText();
@@ -102,10 +101,10 @@ private:
   bool readNextValue(bool cacheLocally= false);
 
 protected:
-  std::vector<odbc::bytes>& getCurrentRowData();
-  void updateRowData(std::vector<odbc::bytes>& rawData);
+  std::vector<mariadb::bytes>& getCurrentRowData();
+  void updateRowData(std::vector<mariadb::bytes>& rawData);
   void deleteCurrentRowData();
-  void addRowData(std::vector<odbc::bytes>& rawData);
+  void addRowData(std::vector<mariadb::bytes>& rawData);
 
 private:
   void growDataArray();
@@ -187,7 +186,7 @@ public:
   void bind(MYSQL_BIND* bind);
   bool get(MYSQL_BIND* bind, uint32_t column0basedIdx, uint64_t offset);
   bool get();
-  };
-}
-}
+};
+
+} // namespace mariadb
 #endif

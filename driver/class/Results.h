@@ -17,27 +17,21 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
-
 #ifndef _RESULTS_H_
 #define _RESULTS_H_
 
 #include <deque>
 
-//#include "ma_odbc.h"
-//#include "ParameterHolder.h"
 #include "CmdInformation.h"
 #include "ResultSet.h"
-//#include "ServerSidePreparedStatement.h"
-//#include "ClientSidePreparedStatement.h"
 
 
-namespace odbc
-{
 namespace mariadb
 {
 class ClientSidePreparedStatement;
 class ServerSidePreparedStatement;
 class PreparedStatement;
+class Protocol;
 
 class Results  {
 
@@ -49,7 +43,7 @@ class Results  {
   Unique::CmdInformation cmdInformation;
   std::deque<Unique::ResultSet> executionResults;
   Unique::ResultSet currentRs;
-  ResultSet* resultSet;
+  ResultSet* resultSet= nullptr;
   Unique::ResultSet callableResultSet;
   bool binaryFormat;
   int32_t resultSetScrollType;
@@ -107,10 +101,10 @@ public:
   ResultSet* getResultSet();
   ResultSet* releaseResultSet();
   ResultSet* getCallableResultSet();
-  void loadFully(bool skip);
+  void loadFully(bool skip, Protocol* guard);
   void abort();
   bool isFullyLoaded();
-  bool getMoreResults(bool closeCurrent= true);
+  bool getMoreResults(bool closeCurrent, Protocol *guard);
   int32_t getFetchSize();
   PreparedStatement* getStatement();
   bool isBatch();
@@ -128,8 +122,8 @@ public:
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::Results> Results;
+  typedef std::unique_ptr<mariadb::Results> Results;
 }
-}
-}
+
+} // namespace mariadb
 #endif

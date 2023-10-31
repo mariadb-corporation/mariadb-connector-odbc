@@ -19,39 +19,57 @@
 #ifndef _ma_odbc_h_
 #define _ma_odbc_h_
 
-#include "class/SQLString.h"
-#include "template/CArray.h"
 
 #include <memory>
+#include <list>
 #include "ma_c_stuff.h"
+#include "ma_legacy_helpers.h"
 #include "lru/pscache.h"
+#include "class/SQLString.h"
+#include "template/CArray.h"
+#include "class/Protocol.h"
+
+
+namespace mariadb
+{
+  //class PreparedStatement;
+  class ResultSet;
+  class ResultSetMetaData;
+  //class ServerPrepareResult;
+  //class Protocol;
+
+  namespace Unique
+  {
+    typedef std::unique_ptr<mariadb::PsCache<mariadb::ServerPrepareResult>> PsCache;
+    typedef std::unique_ptr<mariadb::PreparedStatement> PreparedStatement;
+    typedef std::unique_ptr<mariadb::ResultSet> ResultSet;
+    //typedef std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
+    typedef std::unique_ptr<mariadb::ResultSetMetaData> ResultSetMetaData;
+    typedef std::unique_ptr<mariadb::Protocol> Protocol;
+  }
+}
 
 namespace odbc
 {
-namespace mariadb
+  // So far just to have nice local type name
+  typedef mariadb::PsCache<mariadb::ServerPrepareResult> PsCache;
+}
+using namespace mariadb;
+
+typedef struct st_client_charset
 {
-class PreparedStatement;
-class ResultSet;
-class ResultSetMetaData;
-class ServerPrepareResult;
+  unsigned int CodePage;
+  MARIADB_CHARSET_INFO* cs_info;
+} Client_Charset;
 
-typedef ::mariadb::PsCache<ServerPrepareResult> PsCache;
-//typedef ::mariadb::Cache<std::string, ServerPrepareResult> Cache;
-//// Base class has empty methods eimplementations
-//typedef ::mariadb::Cache<std::string, ServerPrepareResult> NoCache;
-
-namespace Unique
+struct MADB_ERROR
 {
-  typedef std::unique_ptr<odbc::mariadb::PreparedStatement> PreparedStatement;
-  typedef std::unique_ptr<odbc::mariadb::ResultSet> ResultSet;
-  typedef std::unique_ptr<::MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
-  typedef std::unique_ptr<odbc::mariadb::ResultSetMetaData> ResultSetMetaData;
-  typedef std::unique_ptr < odbc::mariadb::PsCache> PsCache;
-}
-}
-}
+  char SqlState[SQL_SQLSTATE_SIZE + 1];
+  char SqlStateV2[SQLSTATE_LENGTH + 1];
+  char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLRETURN ReturnValue;
+};
 
-using namespace odbc::mariadb;
 
 struct MADB_Header
 {
@@ -255,68 +273,23 @@ enum MADB_AppType {
   ATypeMSAccess= 1
 };
 
-typedef struct st_ma_odbc_environment {
+struct MADB_Env {
+  typedef /*typename*/std::list<MADB_Dbc*>::iterator ListIterator;
   MADB_Error Error;
-  CRITICAL_SECTION cs;
-  MADB_List* Dbcs;
+  std::list<MADB_Dbc*> Dbcs;
   SQLWCHAR* TraceFile;
   SQLUINTEGER Trace;
   SQLINTEGER OdbcVersion;
   enum MADB_AppType AppType;
-} MADB_Env;
 
-struct MADB_Dbc
-{
-  MADB_Error Error;
-  CRITICAL_SECTION cs;           /* mutex for mariadb handle, i.e. for server communications */
-  CRITICAL_SECTION ListsCs;      /*       for operations with lists */
-  MADB_List ListItem;
-  Client_Charset Charset= {0,nullptr};
-  MYSQL* mariadb= nullptr;                /* handle to a mariadb connection */
-  MADB_Env* Environment= nullptr;         /* global environment */
-  MADB_Dsn* Dsn= nullptr;
-  struct st_ma_connection_methods* Methods= nullptr;
+  ListIterator addConnection(MADB_Dbc* conn);
+  void forgetConnection(MADB_Env::ListIterator& it);
 
-  Client_Charset* ConnOrSrcCharset= nullptr; /* "Source" here stands for which charset Windows DM was using as source, when converted to unicode.
-                                  We have to use same charset to recode from unicode to get same string as application sent it.
-                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system
-                                  codepage */
-  char* CurrentSchema= nullptr; /* Used to store current schema if the seesion tracking is possible */
-  MADB_List* Stmts= nullptr;
-  MADB_List* Descrs= nullptr;
-  /* Attributes */
-  char*      CatalogName= nullptr;
-  HWND       QuietMode= nullptr;
-  char*      TraceFile= nullptr;
-  MADB_Stmt* Streamer= nullptr;
+private:
+  std::mutex cs;
+};
 
-  SQLPOINTER EnlistInDtc= nullptr;
-  Unique::PsCache psCache;
-  SQLULEN    AsyncEnable= 0;
-  SQLULEN    OdbcCursors= 0;
-  unsigned long Options= 0;
-  SQLUINTEGER AutoIpd= 0;
-  SQLUINTEGER AutoCommit= 4;
-  SQLUINTEGER ConnectionDead= 0;
-  SQLUINTEGER ReadTimeout= 0;
-  SQLUINTEGER WriteTimeout= 0;
-  SQLUINTEGER PacketSize= 0;
-  SQLINTEGER  AccessMode= 0;
-  SQLINTEGER  IsolationLevel= 0;     /* tx_isolation */
-  SQLUINTEGER Trace= 0;
-  SQLUINTEGER MetadataId= 0;
-  SQLINTEGER  TxnIsolation= 0;
-  SQLINTEGER  CursorCount= 0;
-  uint32_t    LoginTimeout= 0; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
-                                (not sure how does other DM define it) But C/C option is unsigned int */
-  char ServerCapabilities= '\0';
-  char lcTableNamesMode2= '\xff'; /* -1 means we don't know if lower_case_table_names=2, ie that info has never been requested  yet */
-
-  bool IsAnsi= false;
-  bool IsMySQL=false;
-  
-  MADB_Dbc(MADB_Env* Env);
-  };
+#include "ma_connection.h"
 
 struct MADB_Stmt
 {
@@ -369,7 +342,7 @@ struct MADB_Stmt
   bool                      bind_done= false;
 
   MADB_Stmt(MADB_Dbc *Connection);
-  SQLRETURN Prepare(char* StatementText, SQLINTEGER TextLength, bool ServerSide= true);
+  SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true);
   SQLRETURN GetOutParams(int CurrentOffset);
   SQLRETURN DoExecuteBatch();
   //const SQLString& OriginalQuery() { return Query.Original; }
@@ -402,10 +375,6 @@ void  CloseClientCharset(Client_Charset *cc);
 #define BINARY_CHARSETNR       63
 /* Inexistent param id */
 #define MADB_NOPARAM           -1
-/* Macros to guard communications with the server.
-   TODO: make it(locking) optional depending on designated connection string option */
-#define LOCK_MARIADB(Dbc)   EnterCriticalSection(&(Dbc)->cs)
-#define UNLOCK_MARIADB(Dbc) LeaveCriticalSection(&(Dbc)->cs)
 
 /* Enabling tracing */
 #define MAODBC_DEBUG 1

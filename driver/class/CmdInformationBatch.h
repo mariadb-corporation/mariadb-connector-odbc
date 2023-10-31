@@ -23,12 +23,11 @@
 
 #include "CmdInformation.h"
 
-namespace odbc
-{
 namespace mariadb
 {
 
-class CmdInformationBatch : public CmdInformation {
+class CmdInformationBatch : public CmdInformation
+{
 
   std::vector<int64_t>updateCounts;
   std::size_t expectedSize;
@@ -52,7 +51,7 @@ public:
   bool moreResults();
   bool isCurrentUpdateCount();
   void setRewrite(bool rewritten);
-  };
-}
+};
+
 }
 #endif

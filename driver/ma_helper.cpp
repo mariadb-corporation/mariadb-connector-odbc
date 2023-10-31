@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include "class/ResultSetMetaData.h"
 #include "interface/PreparedStatement.h"
+#include "Protocol.h"
 
 #define MADB_FIELD_IS_BINARY(_field) ((_field)->charsetnr == BINARY_CHARSETNR)
 
@@ -101,16 +102,16 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
   MYSQL_RES   *Res;
   MYSQL_FIELD *Field;
   
-  Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
+  Connection->GetAttr(SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
   p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
   {
     p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
   }
   p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
-  LOCK_MARIADB(Connection);
-  if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (unsigned long)(p - StmtStr), &Connection->Error)) &&
-     (Res= mysql_store_result(Connection->mariadb)) != NULL)
+  std::lock_guard<std::mutex> localScopeLock(Connection->guard->getLock());
+  Connection->guard->safeRealQuery({StmtStr, (std::size_t)(p - StmtStr)});
+  if ((Res= mysql_store_result(Connection->mariadb)) != NULL)
   {
     Count= mysql_field_count(Connection->mariadb);
     for (i= 0; i < Count; ++i)
@@ -127,7 +128,6 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
     }
     mysql_free_result(Res);
   }
-  UNLOCK_MARIADB(Connection);
   return Count;
 }
 
@@ -266,16 +266,11 @@ const char *MADB_GetTypeName(const MYSQL_FIELD *Field)
 
 MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *fields)
 {
-  MADB_DynString DynStr;
+  SQLString DynStr("SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='");
   unsigned int i;
-  MYSQL_RES* result = NULL;
 
-  MADB_InitDynamicString(&DynStr, "SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='", 512, 512);
-  if (MADB_DynstrAppend(&DynStr, fields[0].db) ||
-    MADB_DYNAPPENDCONST(&DynStr, "' AND TABLE_NAME='") ||
-    MADB_DynstrAppend(&DynStr, fields[0].org_table) ||
-    MADB_DYNAPPENDCONST(&DynStr, "' AND COLUMN_NAME IN ("))
-    goto error;
+  DynStr.reserve(512);
+  DynStr.append(fields[0].db).append("' AND TABLE_NAME='").append(fields[0].org_table).append("' AND COLUMN_NAME IN (");
 
   for (i = 0; i < Stmt->metadata->getColumnCount(); i++)
   {
@@ -285,27 +280,13 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *field
     {
       continue;
     }
-    if (MADB_DynstrAppend(&DynStr, i > 0 ? ",'" : "'") ||
-      MADB_DynstrAppend(&DynStr, fields[i].org_name) ||
-      MADB_DynstrAppend(&DynStr, "'"))
-    {
-      goto error;
-    }
+    DynStr.append(i > 0 ? ",'" : "'").append(fields[i].org_name).append("'");
   }
-  if (MADB_DYNAPPENDCONST(&DynStr, ") AND COLUMN_DEFAULT IS NOT NULL"))
-    goto error;
+  DynStr.append(") AND COLUMN_DEFAULT IS NOT NULL");
 
-  LOCK_MARIADB(Stmt->Connection);
-  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, DynStr.str, (SQLINTEGER)DynStr.length, &Stmt->Error)))
-  {
-    result= mysql_store_result(Stmt->Connection->mariadb);
-  }
-
-  UNLOCK_MARIADB(Stmt->Connection);
-
-error:
-  MADB_DynstrFree(&DynStr);
-  return result;
+  std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
+  Stmt->Connection->guard->safeRealQuery(DynStr);
+  return mysql_store_result(Stmt->Connection->mariadb);
 }
 
 
@@ -1142,74 +1123,58 @@ size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
 
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
 {
-  char          *TableName=   MADB_GetTableName(Stmt);
-  char          *CatalogName= MADB_GetCatalogName(Stmt);
-  MADB_DynString DynStmt;
+  char      *TableName=   MADB_GetTableName(Stmt);
+  char      *CatalogName= MADB_GetCatalogName(Stmt);
+  SQLString Query;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-  memset(&DynStmt, 0, sizeof(MADB_DynString));
 
   if (Stmt->DaeStmt)
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-  Stmt->DaeStmt= NULL;
+  Stmt->DaeStmt= nullptr;
 
   if (!SQL_SUCCEEDED(MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
   {
-    MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
-    goto end;
+    return MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
   }
 
+  Query.reserve(1024);
   switch(Operation)
   {
   case SQL_ADD:
-    if (MADB_InitDynamicString(&DynStmt, "INSERT INTO ", 1024, 1024) ||
-        MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-        MADB_DynstrAppend(&DynStmt, ".") ||
-        MADB_DynStrAppendQuoted(&DynStmt, TableName)||
-        MADB_DynStrUpdateSet(Stmt, &DynStmt))
+    // Should it really be CatalogName
+    Query.assign("INSERT INTO `").append(CatalogName).append("`.`").append(TableName).append(1,'`');
+    if (MADB_DynStrUpdateSet(Stmt, Query))
     {
-      MADB_DynstrFree(&DynStmt);
       return Stmt->Error.ReturnValue;
     }
     Stmt->DataExecutionType= MADB_DAE_ADD;
     break;
   case SQL_DELETE:
-    if (MADB_InitDynamicString(&DynStmt, "DELETE FROM ", 1024, 1024) ||
-        MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-        MADB_DynstrAppend(&DynStmt, ".") ||
-        MADB_DynStrAppendQuoted(&DynStmt, TableName) ||
-        MADB_DynStrGetWhere(Stmt, &DynStmt, TableName, FALSE))
+    Query.assign("DELETE FROM `").append(CatalogName).append("`.`").append(TableName).append(1, '`');
+    if (MADB_DynStrGetWhere(Stmt, Query, TableName, false))
     {
-      MADB_DynstrFree(&DynStmt);
       return Stmt->Error.ReturnValue;
     }
+
     Stmt->DataExecutionType= MADB_DAE_DELETE;
     break;
   case SQL_UPDATE:
-    if (MADB_InitDynamicString(&DynStmt, "UPDATE ", 1024, 1024) ||
-        MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
-        MADB_DynstrAppend(&DynStmt, ".") ||
-        MADB_DynStrAppendQuoted(&DynStmt, TableName)||
-        MADB_DynStrUpdateSet(Stmt, &DynStmt)||
-        MADB_DynStrGetWhere(Stmt, &DynStmt, TableName, FALSE))
+    Query.assign("UPDATE `").append(CatalogName).append("`.`").append(TableName).append(1, '`');
+    if (MADB_DynStrUpdateSet(Stmt, Query)|| MADB_DynStrGetWhere(Stmt, Query, TableName, false))
     {
-      MADB_DynstrFree(&DynStmt);
       return Stmt->Error.ReturnValue;
     }
     Stmt->DataExecutionType= MADB_DAE_UPDATE;
     break;
   }
   
-  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Prepare(DynStmt.str, (SQLINTEGER)DynStmt.length, true)))
+  if (!SQL_SUCCEEDED(Stmt->DaeStmt->Prepare(Query.c_str(), (SQLINTEGER)Query.length(), true)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
     Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
   }
-   
-end:
-  MADB_DynstrFree(&DynStmt);
   return Stmt->Error.ReturnValue;
-
 }
 
 

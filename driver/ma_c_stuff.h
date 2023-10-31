@@ -29,7 +29,8 @@
 
 #include <stdlib.h>
 
-#include <ma_legacy_helpers.h>
+//#include "ma_legacy_helpers.h"
+#include "mysql.h"
 
 #include <sql.h>
 #include <sqlext.h>
@@ -43,7 +44,6 @@
 #include <assert.h>
 #include <time.h>
 #include <sqlext.h>
-#include <mysql.h>
 #define MADB_FREE(a) do { \
   free((void*)(a));\
   (a)= NULL; \
@@ -65,20 +65,6 @@
   }\
 } while(0)
 #define MADB_IS_EMPTY(STR) ((STR)==NULL || *(STR)=='\0')
-
-typedef struct st_client_charset
-{
-  unsigned int CodePage;
-  MARIADB_CHARSET_INFO* cs_info;
-} Client_Charset;
-
-struct MADB_ERROR
-{
-  char SqlState[SQL_SQLSTATE_SIZE + 1];
-  char SqlStateV2[SQLSTATE_LENGTH + 1];
-  char SqlErrorMsg[SQL_MAX_MESSAGE_LENGTH + 1];
-  SQLRETURN ReturnValue;
-};
 
 struct MADB_Error
 {

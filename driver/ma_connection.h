@@ -31,26 +31,71 @@ struct st_madb_isolation {
   const char* TrackStr; /* String coming with session tracking */
 };
 
-struct st_ma_connection_methods
+
+struct MADB_Dbc
 {
-  SQLRETURN (*SetAttr)(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength, my_bool isWChar);
-  SQLRETURN (*GetAttr)(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength, SQLINTEGER *StringLengthPtr, my_bool isWChar);
-  SQLRETURN (*ConnectDB)(MADB_Dbc *Connection, MADB_Dsn *Dsn);
-  SQLRETURN (*EndTran)(MADB_Dbc *Dbc, SQLSMALLINT CompletionType);
-  SQLRETURN (*GetFunctions)(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr);
-  SQLRETURN (*GetInfo)(MADB_Dbc *Dnc, SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
-                      SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, my_bool isWChar);
-  SQLRETURN (*DriverConnect)(MADB_Dbc *Dbc, SQLHWND WindowHandle, SQLCHAR *InConnectionString,
-                             SQLULEN StringLength1, SQLCHAR *OutConnectionString,
-                             SQLULEN BufferLength, SQLSMALLINT *StringLength2Ptr,
-                             SQLUSMALLINT DriverCompletion);
-  SQLRETURN (*GetCurrentDB)(MADB_Dbc* Connection, SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT* StringLengthPtr, my_bool isWChar);
-  SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
-  SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLINTEGER* txIsolation);
-  int       (*CacheRestOfCurrentRsStream)(MADB_Dbc *Dbc, MADB_Error *Error);
+  MADB_Error Error;
+  std::mutex ListsCs;      /*       for operations with lists */
+  MADB_Env::ListIterator ListItem;
+  Client_Charset Charset={0,nullptr};
+  Unique::Protocol guard;
+  MYSQL* mariadb= nullptr;                /* handle to a mariadb connection */
+  MADB_Env* Environment= nullptr;         /* global environment */
+  MADB_Dsn* Dsn= nullptr;
+
+  Client_Charset* ConnOrSrcCharset= nullptr; /* "Source" here stands for which charset Windows DM was using as source, when converted to unicode.
+                                  We have to use same charset to recode from unicode to get same string as application sent it.
+                                  For Unicode application that is the same as "Charset", or in case of ANSI on Windows - defaulst system
+                                  codepage */
+  MADB_List* Stmts= nullptr;
+  MADB_List* Descrs= nullptr;
+  /* Attributes */
+  char*      CatalogName= nullptr; /* Schema name set via SQLSetConnectAttr - it can be set before connection, thus we need it to have here */
+  HWND       QuietMode= nullptr;
+  char*      TraceFile= nullptr;
+  MADB_Stmt* Streamer= nullptr;
+
+  SQLPOINTER EnlistInDtc= nullptr;
+  SQLULEN    AsyncEnable= 0;
+  SQLULEN    OdbcCursors= 0;
+  unsigned long Options= 0;
+  SQLUINTEGER AutoIpd= 0;
+  SQLUINTEGER AutoCommit= 4;
+  SQLUINTEGER ConnectionDead= 0;
+  SQLUINTEGER ReadTimeout= 0;
+  SQLUINTEGER WriteTimeout= 0;
+  SQLUINTEGER PacketSize= 0;
+  SQLINTEGER  AccessMode= 0;
+  SQLINTEGER  IsolationLevel= 0;     /* tx_isolation */
+  SQLUINTEGER Trace= 0;
+  SQLUINTEGER MetadataId= 0;
+  SQLINTEGER  TxnIsolation= 0; /* Sames as catalog name - we need it here */
+  SQLINTEGER  CursorCount= 0;
+  uint32_t    LoginTimeout= 0; /* The attribute is SQLUINTEGER, that is unsigned long, that technically can be 8bytes
+                                (not sure how does other DM define it) But C/C option is unsigned int */
+  char ServerCapabilities= '\0';
+  char lcTableNamesMode2= '\xff'; /* -1 means we don't know if lower_case_table_names=2, ie that info has never been requested  yet */
+
+  bool IsAnsi= false;
+  bool IsMySQL=false;
+
+  MADB_Dbc(MADB_Env* Env);
+  SQLRETURN EndTran(SQLSMALLINT CompletionType);
+  SQLRETURN SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength, bool isWChar);
+  SQLRETURN GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength, SQLINTEGER *StringLengthPtr, bool isWChar);
+  SQLRETURN ConnectDB(MADB_Dsn *Dsn);
+  SQLRETURN GetFunctions(SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr);
+  SQLRETURN GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr, SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, bool isWChar);
+  SQLRETURN DriverConnect(SQLHWND WindowHandle, SQLCHAR *InConnectionString, SQLULEN StringLength1, SQLCHAR *OutConnectionString,
+                          SQLULEN BufferLength, SQLSMALLINT *StringLength2Ptr, SQLUSMALLINT DriverCompletion);
+  
+  bool CheckConnection();
+private:
+  SQLRETURN GetCurrentDB(SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT *StringLengthPtr, bool isWChar);
+  
 };
 
-my_bool CheckConnection(MADB_Dbc *Dbc);
+bool CheckConnection(MADB_Dbc *Dbc);
 bool HasMoreResults(MADB_Dbc *Dbc);
 SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle);
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);

@@ -24,8 +24,6 @@
 #include <cctype>
 #include <algorithm>
 
-namespace odbc
-{
 namespace mariadb
 {
   typedef std::string SQLString;
@@ -62,10 +60,12 @@ namespace mariadb
     return str;
   }
 
+
   inline SQLString& trim(SQLString& str)
   {
     return ltrim(rtrim(str));
   }
+
 
   inline SQLString& toLowerCase(SQLString& theString)
   {
@@ -73,7 +73,6 @@ namespace mariadb
       [](unsigned char c) { return std::tolower(c); });
     return theString;
   }
-}
-};
 
+} // namespace mariadb
 #endif

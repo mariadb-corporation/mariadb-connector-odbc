@@ -26,8 +26,7 @@
 
 #include "PrepareResult.h"
 
-namespace odbc
-{
+
 namespace mariadb
 {
 
@@ -78,8 +77,7 @@ public:
 
 namespace Unique
 {
-  typedef std::unique_ptr<odbc::mariadb::ClientPrepareResult> ClientPrepareResult;
-}
+  typedef std::unique_ptr<mariadb::ClientPrepareResult> ClientPrepareResult;
 }
 }
 #endif
