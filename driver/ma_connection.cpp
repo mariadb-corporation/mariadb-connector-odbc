@@ -246,7 +246,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
 //#endif
   case SQL_ATTR_ASYNC_ENABLE:
      if ((SQLPOINTER)SQL_ASYNC_ENABLE_OFF != ValuePtr)
-      MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
+       MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
      AsyncEnable= SQL_ASYNC_ENABLE_OFF;
     break;
   case SQL_ATTR_AUTO_IPD:
@@ -347,6 +347,15 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   case SQL_ATTR_QUIET_MODE:
     QuietMode= (HWND)ValuePtr;
     break;
+  case SQL_ATTR_RESET_CONNECTION:
+  {
+    SQLUINTEGER uiValue= (SQLUINTEGER)(SQLULEN)ValuePtr;
+    if (uiValue != SQL_RESET_CONNECTION_YES)
+    {
+      return MADB_SetError(&Error, MADB_ERR_HY024, NULL, 0);
+    }
+
+  }
   case SQL_ATTR_TRACE:
     break;
   case SQL_ATTR_TRACEFILE:
@@ -1424,7 +1433,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     break;
   case SQL_DRIVER_ODBC_VER:
     {
-      const char *OdbcVersion = "03.51";
+      const char *OdbcVersion= "03.80";
       /* DM requests this info before Charset initialized. Thus checking if it is, and use utf8 by default
          The other way would be to use utf8 when Dbc initialized */
       SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Charset.cs_info ? &Charset : &utf8 ): NULL,
@@ -1935,7 +1944,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     break;
   case SQL_SCROLL_CONCURRENCY:
     MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES, StringLengthPtr);
-    break;
+    break;  
 default:
     MADB_SetError(&Error, MADB_ERR_HY096, NULL, 0);
     return Error.ReturnValue;

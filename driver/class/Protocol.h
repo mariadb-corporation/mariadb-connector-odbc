@@ -96,6 +96,7 @@ class Protocol
   uint32_t minorVersion= 0;
   uint32_t patchVersion= 0;
   SQLString txIsolationVarName;
+  bool     mustReset= false;
 
   // ----- private methods -----
   void cmdPrologue();
@@ -118,6 +119,7 @@ class Protocol
   SQLException processError(Results* results, ServerPrepareResult *pr);
   ServerPrepareResult* prepareInternal(const SQLString& sql);
   Protocol() = delete;
+  void unsyncedReset();
 
 public:
   static const int64_t MAX_PACKET_LENGTH= 0x00ffffff + 4;
@@ -214,6 +216,7 @@ public:
   inline MYSQL* getCHandle() { return connection.get(); }
   void setTransactionIsolation(enum IsolationLevel level);
   inline bool sessionStateChanged() { return (serverStatus & SERVER_SESSION_STATE_CHANGED) != 0; }
+  void deferredReset() { mustReset= true; }
   };
 
 }

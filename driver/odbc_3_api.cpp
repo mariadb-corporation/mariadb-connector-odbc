@@ -144,7 +144,7 @@ SQLRETURN SQL_API SQLCancel(SQLHSTMT StatementHandle)
 SQLRETURN SQL_API SQLCancelHandle(SQLSMALLINT HandleType,
     SQLHANDLE Handle)
 {
-  if (Handle)
+  if (!Handle)
     return SQL_INVALID_HANDLE;
 
   switch(HandleType) {

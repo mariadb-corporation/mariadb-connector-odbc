@@ -818,12 +818,11 @@ ODBC_TEST(setnames_conn)
 /**
  Bug #15601: SQLCancel does not work to stop a query on the database server
 */
-#ifndef THREAD
 ODBC_TEST(sqlcancel)
 {
   SQLLEN     pcbLength= SQL_LEN_DATA_AT_EXEC(0);
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT ?", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1,SQL_PARAM_INPUT,SQL_C_CHAR,
                           SQL_VARCHAR,0,0,(SQLPOINTER)1,0,&pcbLength));
@@ -833,13 +832,12 @@ ODBC_TEST(sqlcancel)
   /* Without SQLCancel we would get "out of sequence" DM error */
   CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select 1", SQL_NTS));
-
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT 1", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   return OK;
 }
-#else
+
 
 #ifdef _WIN32
 DWORD WINAPI cancel_in_one_second(LPVOID arg)
@@ -855,23 +853,55 @@ DWORD WINAPI cancel_in_one_second(LPVOID arg)
 }
 
 
-ODBC_TEST(sqlcancel)
+DWORD WINAPI cancel_dbc(LPVOID arg)
+{
+  HDBC Dbc= (HDBC)arg;
+
+  Sleep(1000);
+
+  if (SQLCancelHandle(SQL_HANDLE_DBC, Dbc) != SQL_SUCCESS)
+    diag("SQLCancel failed!");
+
+  return 0;
+}
+
+
+ODBC_TEST(sqlcancel_threaded)
 {
   HANDLE thread;
   DWORD waitrc;
 
   thread= CreateThread(NULL, 0, cancel_in_one_second, Stmt, 0, NULL);
 
-  /* SLEEP(n) returns 1 when it is killed. */
-  OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 1);
+  /* */
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
 
   waitrc= WaitForSingleObject(thread, 10000);
   IS(!(waitrc == WAIT_TIMEOUT));
 
   return OK;
 }
+
+
+ODBC_TEST(sqlcancelhandle)
+{
+  HANDLE thread;
+  DWORD waitrc;
+
+  thread= CreateThread(NULL, 0, cancel_dbc, Connection, 0, NULL);
+
+  /*  */
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+  /*OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(1, my_fetch_int(Stmt, 1));*/
+
+  waitrc= WaitForSingleObject(thread, 10000);
+  IS(!(waitrc == WAIT_TIMEOUT));
+
+  return OK;
+}
+
 #else
 void *cancel_in_one_second(void *arg)
 {
@@ -885,25 +915,50 @@ void *cancel_in_one_second(void *arg)
   return NULL;
 }
 
+
+void *cancel_dbc(void *arg)
+{
+  HDBC Dbc= (HDBC)arg;
+  sleep(1);
+
+  if (SQLCancelHandle(Dbc) != SQL_SUCCESS)
+    diag("SQLCancel failed!");
+
+  return NULL;
+}
+
 #include <pthread.h>
 
-ODBC_TEST(sqlcancel)
+ODBC_TEST(sqlcancel_threaded)
 {
   pthread_t thread;
 
   pthread_create(&thread, NULL, cancel_in_one_second, Stmt);
 
-  /* SLEEP(n) returns 1 when it is killed. */
-  OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(10)");
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 1);
+  /* Error "execution was interrupted" is returned when it's killed,
+     "SLEEP(n) returns 1 when it is killed" - that is probably for older versions. Need to verify. */
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+
+  pthread_join(thread, NULL);
+
+  return OK;
+}
+
+
+ODBC_TEST(sqlcancelhandle)
+{
+  pthread_t thread;
+
+  pthread_create(&thread, NULL, cancel_dbc, Connection);
+
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
 
   pthread_join(thread, NULL);
 
   return OK;
 }
 #endif  // ifdef _WIN32
-#endif  // ifndef THREAD
+
 
 ODBC_TEST(t_describe_nulti)
 {
@@ -1968,6 +2023,39 @@ ODBC_TEST(t_odbc388)
   return OK;
 }
 
+ODBC_TEST(connection_reset)
+{
+  SQLCHAR    db[255];
+  SQLINTEGER  len;
+
+  skip("This test won't work with DM");
+
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS test_reset");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE test_reset");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, "test_reset", SQL_NTS));
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, db, sizeof(db), &len));
+
+  is_num(len, strlen("test_reset"));
+  IS_STR(db, "test_reset", 10);
+
+  /* reset */
+  /* SQL_RESET_CONNECTION_YES is the only valid value - checking error */
+  /* Only DM may set this attribute */
+  /*EXPECT_DBC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_RESET_CONNECTION, (SQLPOINTER)(SQL_RESET_CONNECTION_YES + 1), 0), SQL_ERROR);
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_RESET_CONNECTION, (SQLPOINTER)SQL_RESET_CONNECTION_YES, 0));*/
+
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, db, sizeof(db), &len));
+
+  /*is_num(len, strlen(my_schema));
+  IS_STR(db, my_schema, strlen(my_schema));*/
+  diag("Db after reset: %s", db);
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS));
+
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE test_reset");
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1993,7 +2081,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_driverconnect_outstring, "t_driverconnect_outstring", NORMAL},
   {setnames,       "setnames",       NORMAL},
   {setnames_conn,  "setnames_conn",  NORMAL},
-  {sqlcancel,      "sqlcancel",      NORMAL}, 
+  {sqlcancel,      "sqlcancel",      NORMAL},
+  {sqlcancel_threaded, "sqlcancel_threaded", NORMAL},
   {t_bug32014,     "t_bug32014",     NORMAL},
   {t_bug10128,     "t_bug10128",     NORMAL},
   {t_bug32727,     "t_bug32727",     NORMAL},
@@ -2020,6 +2109,8 @@ MA_ODBC_TESTS my_tests[]=
 #endif
   {t_odbc377,     "odbc377_timeout_attrs",    NORMAL},
   {t_odbc388,     "odbc388_perfschema_attrs",    NORMAL},
+  {sqlcancelhandle, "sqlcancelhandle", NORMAL},
+  {connection_reset, "test_SQL_ATTR_RESET_CONNECTION", NORMAL},
   {NULL, NULL, 0}
 };
 

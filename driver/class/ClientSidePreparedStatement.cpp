@@ -114,6 +114,7 @@ namespace mariadb
     prepareResult->assembleQuery(sql, param, longData);
 
     try {
+      std::lock_guard<std::mutex> localScopeLock(guard->getLock());
       guard->safeRealQuery(sql);
       getResult();
       results->commandEnd();

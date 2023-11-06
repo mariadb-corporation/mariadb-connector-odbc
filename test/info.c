@@ -49,7 +49,7 @@ ODBC_TEST(sqlgetinfo)
                           sizeof(rgbValue), &pcbInfo));
 
   is_num(pcbInfo, 5);
-  IS_STR(rgbValue, "03.51", 5);
+  IS_STR(rgbValue, "03.80", 5);
 
   return OK;
 }

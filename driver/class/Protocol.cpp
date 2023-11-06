@@ -89,15 +89,15 @@ namespace mariadb
     return SQLException(mysql_error(dbc), mysql_sqlstate(dbc), mysql_errno(dbc));
   }
 
+
   void throwConnError(MYSQL* dbc)
   {
     throw fromConnError(dbc);
   }
 
-  void Protocol::reset()
+
+  void Protocol::unsyncedReset()
   {
-    std::lock_guard<std::mutex> localScopeLock(lock);
-    cmdPrologue();
     if (mysql_reset_connection(connection.get()))
     {
       // I wonder if connection in this case may stay ok, and we shouldn't clear the cache anyway
@@ -105,6 +105,13 @@ namespace mariadb
     }
     serverPrepareStatementCache->clear();
     cmdEpilog();
+  }
+
+  void Protocol::reset()
+  {
+    std::lock_guard<std::mutex> localScopeLock(lock);
+    cmdPrologue();
+    unsyncedReset();
   }
 
   /**
@@ -178,6 +185,7 @@ namespace mariadb
 
   void Protocol::executeQuery(Results* results, const SQLString& sql)
   {
+    std::lock_guard<std::mutex> localScopeLock(lock);
     cmdPrologue();
     try {
       realQuery(sql);
@@ -562,6 +570,7 @@ namespace mariadb
    */
   void Protocol::executeBatchStmt(bool mustExecuteOnMaster, Results* results, const std::vector<SQLString>& queries)
   {
+    std::lock_guard<std::mutex> localScopeLock(lock);
     cmdPrologue();
 
     // check that queries are rewritable
@@ -596,6 +605,7 @@ namespace mariadb
    */
   void Protocol::executeBatch(Results* results, const std::vector<SQLString>& queries)
   {
+    std::lock_guard<std::mutex> localScopeLock(lock);
     for (auto& sql : queries) {
         realQuery(sql);
         getResult(results);
@@ -1113,10 +1123,8 @@ namespace mariadb
 
   void Protocol::setSchema(const SQLString& _database)
   {
-    cmdPrologue();
-
     std::unique_lock<std::mutex> localScopeLock(lock);
-
+    cmdPrologue();
     if (mysql_select_db(connection.get(), _database.c_str()) != 0) {
       if (mysql_get_socket(connection.get()) == MARIADB_INVALID_SOCKET) {
         std::string msg("Connection lost: ");
@@ -1497,6 +1505,11 @@ namespace mariadb
 
   void Protocol::cmdPrologue()
   {
+    if (mustReset)
+    {
+      this->unsyncedReset();
+      mustReset= false;
+    }
     Shared::Results activeStream= getActiveStreamingResult();
     if (activeStream) {
       activeStream->loadFully(false, this);

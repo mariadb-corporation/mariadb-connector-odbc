@@ -11,6 +11,7 @@ SQLBrowseConnect
 SQLBrowseConnect@UNICODE@
 SQLBulkOperations
 SQLCancel
+SQLCancelHandle
 SQLCloseCursor
 SQLColAttribute
 SQLColAttribute@UNICODE@

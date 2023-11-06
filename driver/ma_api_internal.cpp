@@ -274,8 +274,8 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       goto end;
     }
     
-    _snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
-    if (!mysql_query(MariaDb, StmtStr))
+    unsigned long len= static_cast<unsigned long>(_snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill)));
+    if (!mysql_real_query(MariaDb, StmtStr, len))
     {
       ret= SQL_SUCCESS;
     }

@@ -121,7 +121,7 @@ MADB_Env *MADB_EnvInit()
 
   MADB_PutErrorPrefix(NULL, &Env->Error);
 
-  Env->OdbcVersion= SQL_OV_ODBC3;
+  Env->OdbcVersion= SQL_OV_ODBC3_80;
 
   /* This is probably is better todo with thread_once */
   if (DmUnicodeCs == NULL)
@@ -158,17 +158,23 @@ cleanup:
 /* {{{ MADB_EnvSetAttr */
 SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength)
 {
+  SQLINTEGER valueAsInt= static_cast<SQLINTEGER>((SQLLEN)ValuePtr);
+
   switch (Attribute) {
    case SQL_ATTR_ODBC_VERSION:
     if (!Env->Dbcs.empty())
     {
-      MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
-      return Env->Error.ReturnValue;
+      return MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
     }
-    Env->OdbcVersion= (SQLINTEGER)(SQLLEN)ValuePtr;
+    
+    if (valueAsInt != SQL_OV_ODBC2 && valueAsInt != SQL_OV_ODBC3 && valueAsInt != SQL_OV_ODBC3_80)
+    {
+      return MADB_SetError(&Env->Error, MADB_ERR_HY024, NULL, 0);
+    }
+    Env->OdbcVersion= valueAsInt;
     break;
   case SQL_ATTR_OUTPUT_NTS:
-    if ((SQLINTEGER)(SQLLEN)ValuePtr != SQL_TRUE)
+    if (valueAsInt != SQL_TRUE)
       MADB_SetError(&Env->Error, MADB_ERR_S1C00, NULL, 0);
     break;
   default:
