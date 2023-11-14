@@ -60,12 +60,6 @@ class ColumnDefinition
   SQLString org_table;
   SQLString db;
 
-  /** For "hand-made" RS we need to take care of freeing memory, while for "natural" MYSQL_FIELD
-    we have to use pointer to C/C structures(to automatically get max_length when it's calculated -
-    that happens later, than the object is created).
-    It has to be shared since we have copy-copyconstructor
-  */
-  bool owned= false;
   //const ColumnType& type;
   uint32_t length= 0;
   //SQLString db;
@@ -77,9 +71,9 @@ public:
 
   ~ColumnDefinition();
   ColumnDefinition(const ColumnDefinition& other);
-  ColumnDefinition(const ColumnDefinition&& other);
+  ColumnDefinition(ColumnDefinition&& other) noexcept;
   ColumnDefinition(const SQLString name, const MYSQL_FIELD* metadata, bool ownshipPassed= false);
-  ColumnDefinition(const MYSQL_FIELD* field, bool ownshipPassed= true);
+  ColumnDefinition(const MYSQL_FIELD* field, bool ownshipPassed= false);
   ColumnDefinition& operator=(const ColumnDefinition& other);
 
 public:

@@ -53,7 +53,6 @@ struct MADB_Dbc
   char*      CatalogName= nullptr; /* Schema name set via SQLSetConnectAttr - it can be set before connection, thus we need it to have here */
   HWND       QuietMode= nullptr;
   char*      TraceFile= nullptr;
-  MADB_Stmt* Streamer= nullptr;
 
   SQLPOINTER EnlistInDtc= nullptr;
   SQLULEN    AsyncEnable= 0;
@@ -96,7 +95,6 @@ private:
 };
 
 bool CheckConnection(MADB_Dbc *Dbc);
-bool HasMoreResults(MADB_Dbc *Dbc);
 SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle);
 SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
 MADB_Dbc * MADB_DbcInit(MADB_Env *Env);

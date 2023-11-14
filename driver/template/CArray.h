@@ -75,31 +75,97 @@ template <class T> struct CArray
   void reserve(std::size_t size);
 };
 
-#define BYTES_INIT(STR) {STR, STR!=nullptr ? strlen(STR) + 1 : 1}
+#define BYTES_INIT(CSTR) {CSTR, CSTR!=nullptr ? std::strlen(CSTR) : 1}
 #define BYTES_STR_INIT(STR) {STR.c_str(), STR.length()}
 #define BYTES_ASSIGN_STR(BYTES, STR) BYTES.assign(STR.c_str(), STR.length())
+#define BYTES_FROM_CSTR(CSTR) CSTR, std::strlen(CSTR)
 
+template <class T> struct CArrView
+{
+  const T* arr;
+  std::size_t length;
 
-template <class T> CArray<T>::CArray(int64_t len) : arr(nullptr), length(len)
-{
-if (length < 0)
-{
-  throw std::invalid_argument("Invalid length");
-}
-if (length > 0)
-{
-  arr= new T[static_cast<size_t>(length)];
-  if (arr == nullptr)
+  operator const T*() const
   {
-    throw std::runtime_error("Could not allocate memory");
+    return arr;
+  }
+
+  operator bool()
+  {
+    return arr != nullptr;
+  }
+
+
+  CArrView(const T _arr[], size_t len)
+    : arr(_arr)
+    , length(len)
+  {}
+
+  ~CArrView() {}
+
+   std::size_t size() const { return length; }
+  const T* begin() const { return arr; }
+  const T* end() const { return arr + length; }
+
+  CArrView(const CArrView& rhs)
+    : arr(rhs.arr)
+    , length(rhs.length)
+  {
+  }
+
+  CArrView() : arr(nullptr), length(0)
+  {}
+
+  CArrView(const std::vector<T>& _vector)
+    : arr(_vector.data())
+    , length(_vector.size())
+  {
+  }
+
+  /* Technically we need it for char arrays only */
+  CArrView(const std::string& _str)
+    : arr(_str.data())
+    , length(_str.size())
+  {
+  }
+
+  CArrView<T>& wrap(const T* _arr, std::size_t size)
+  {
+    arr= _arr;
+    length= size;
+    return *this;
+  }
+
+  CArrView<T>& wrap(const std::vector<T>& _vector)
+  {
+    arr= _vector.data();
+    length= _vector.size();
+    return *this;
+  }
+};
+
+template <class T>
+CArray<T>::CArray(int64_t len) : arr(nullptr), length(len)
+{
+  if (length < 0)
+  {
+    throw std::invalid_argument("Invalid length");
+  }
+  if (length > 0)
+  {
+    arr= new T[static_cast<size_t>(length)];
+    if (arr == nullptr)
+    {
+      throw std::runtime_error("Could not allocate memory");
+    }
   }
 }
-}
 
 
-template <class T> CArray<T>::CArray(int64_t len, const T& fillValue) : CArray<T>(len)
+template <class T>
+CArray<T>::CArray(int64_t len, const T& fillValue) : CArray<T>(len)
 {
-std::fill(this->begin(), this->end(), fillValue);
+  std::fill(this->begin(), this->end(), fillValue);
 }
 
 #ifndef _WIN32
@@ -108,30 +174,34 @@ std::fill(this->begin(), this->end(), fillValue);
 # define ZEROI64 0I64
 #endif
 /* This constructor takes existin(stack?) array for "storing". Won't delete */
-template <class T> CArray<T>::CArray(T _arr[], size_t len) : arr(_arr), length(ZEROI64 - len)
+template <class T>
+CArray<T>::CArray(T _arr[], size_t len) : arr(_arr), length(ZEROI64 - len)
 {
 }
 
 
-template <class T> CArray<T>::CArray(const T _arr[], size_t len)
+template <class T>
+CArray<T>::CArray(const T _arr[], size_t len)
 : CArray(len)
 {
 std::memcpy(arr, _arr, len*sizeof(T));
 }
 
 
-template <class T> CArray<T>::~CArray()
+template <class T>
+CArray<T>::~CArray()
 {
-if (arr != nullptr && length > 0)
-{
-  delete[] arr;
-}
+  if (arr != nullptr && length > 0)
+  {
+    delete[] arr;
+  }
 }
 
 
-template <class T> CArray<T>::CArray(std::initializer_list<T> const& initList) : CArray(initList.end() - initList.begin())
+template <class T>
+CArray<T>::CArray(std::initializer_list<T> const& initList) : CArray(initList.end() - initList.begin())
 {
-std::copy(initList.begin(), initList.end(), arr);
+  std::copy(initList.begin(), initList.end(), arr);
 }
 
 
@@ -146,21 +216,23 @@ if (rhs.length > 0)
 }
 }*/
 
-template <class T> CArray<T>::CArray(const CArray& rhs)
+template <class T>
+CArray<T>::CArray(const CArray& rhs)
 : arr(rhs.arr)
 , length(rhs.length)
 {
-if (length > 0)
-{
-  arr= new T[static_cast<size_t>(length)];
-  std::memcpy(arr, rhs.arr, static_cast<std::size_t>(length));
-}
+  if (length > 0)
+  {
+    arr= new T[static_cast<size_t>(length)];
+    std::memcpy(arr, rhs.arr, static_cast<std::size_t>(length));
+  }
 }
 
 
-template <class T> T* CArray<T>::end()
+template <class T>
+T* CArray<T>::end()
 {
-return arr + (length > 0 ? length : -length);
+  return arr + (length > 0 ? length : -length);
 }
 
 
@@ -170,61 +242,65 @@ return arr + (length > 0 ? length : -length);
 }
 
 
-template <class T> void CArray<T>::assign(const T* _arr, std::size_t size)
+template <class T>
+void CArray<T>::assign(const T* _arr, std::size_t size)
 {
-if (size == 0)
-{
-  if (length == 0)
+  if (size == 0)
   {
-    throw std::invalid_argument("Size is not given, and the array is not yet allocated");
+    if (length == 0)
+    {
+      throw std::invalid_argument("Size is not given, and the array is not yet allocated");
+    }
+    else
+    {
+      size= this->size();
+    }
+  }
+  else if (size > this->size())
+  {
+    if (arr == nullptr/* && length == 0*/)
+    {
+      length= size;
+      arr= new T[size];
+    }
+    else
+    {
+      throw std::invalid_argument("Size is greater, then array's capacity");
+    }
+  }
+
+  std::memcpy(arr, _arr, size*sizeof(T));
+}
+
+template <class T>
+CArray<T>& CArray<T>::wrap(T* _arr, std::size_t size)
+{
+  if (length > 0/* && arr != nullptr*/)
+  {
+    delete[] arr;
+  }
+
+  arr= _arr;
+  if (arr == nullptr)
+  {
+    length= 0;
   }
   else
   {
-    size= this->size();
+    length= ZEROI64 - size;
   }
-}
-else if (size > this->size())
-{
-  if (arr == nullptr/* && length == 0*/)
-  {
-    length= size;
-    arr= new T[size];
-  }
-  else
-  {
-    throw std::invalid_argument("Size is greater, then array's capacity");
-  }
-}
-
-std::memcpy(arr, _arr, size*sizeof(T));
-}
-
-template <class T> CArray<T>& CArray<T>::wrap(T* _arr, std::size_t size)
-{
-if (length > 0/* && arr != nullptr*/)
-{
-  delete[] arr;
-}
-
-arr= _arr;
-if (arr == nullptr)
-{
-  length= 0;
-}
-else
-{
-  length= ZEROI64 - size;
-}
-return *this;
+  return *this;
 }
 
 
-template <class T> CArray<T>& CArray<T>::wrap(std::vector<T>& _vector)
+template <class T>
+CArray<T>& CArray<T>::wrap(std::vector<T>& _vector)
 {
-return this->wrap(_vector.data(), _vector.size());
+  return this->wrap(_vector.data(), _vector.size());
 }
 
-template <class T> void CArray<T>::reserve(std::size_t size)
+template <class T>
+void CArray<T>::reserve(std::size_t size)
 {
 if (size > 0)
 {
@@ -254,12 +330,14 @@ return static_cast<T*>(arr) + offset;
 extern template struct CArray<char>;
 extern template struct CArray<int32_t>;
 extern template struct CArray<int64_t>;
+extern template struct CArrView<char>;
 
 namespace mariadb
 {
   typedef CArray<char> bytes;
   typedef CArray<int32_t> Ints;
   typedef CArray<int64_t> Longs;
+  typedef CArrView<char> bytes_view;
 }
 
 template <template<typename, typename...> class C, typename T>

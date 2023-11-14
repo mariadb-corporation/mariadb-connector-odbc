@@ -157,33 +157,30 @@ namespace mariadb
 
   ColumnDefinition ColumnDefinition::create(const SQLString& name, const MYSQL_FIELD* _type)
   {
-    MYSQL_FIELD* md = new MYSQL_FIELD(*_type);
-    ColumnDefinition result(name, md, true);
-
     //TODO: this feels wrong
-    md->name= const_cast<char*>(result.name.c_str());
+    /*md->name= const_cast<char*>(result.name.c_str());
     md->org_name= md->name;
     md->name_length= static_cast<unsigned int>(name.length());
-    md->org_name_length = static_cast<unsigned int>(name.length());
+    md->org_name_length= static_cast<unsigned int>(name.length());
 
     if (md->length == 0) {
       switch (_type->type) {
       case MYSQL_TYPE_VARCHAR:
       case MYSQL_TYPE_STRING:
-        md->length = 64 * 3;
+        md->length= 64 * 3;
         break;
       case MYSQL_TYPE_SHORT:
-        md->length = 5;
+        md->length= 5;
         break;
       case MYSQL_TYPE_NULL:
-        md->length = 0;
+        md->length= 0;
         break;
       default:
-        md->length = 1;
+        md->length= 1;
         break;
       }
-    }
-    return result;
+    }*/
+    return ColumnDefinition(name, _type);
   }
 
   /* Refreshing pointers in FIELD structure to local names */
@@ -204,7 +201,7 @@ namespace mariadb
 
   ColumnDefinition::~ColumnDefinition()
   {
-    if (owned) {
+    if (metadata) {
       delete metadata;
     }
   }
@@ -215,42 +212,58 @@ namespace mariadb
     * @param other other columnInformation
     */
   ColumnDefinition::ColumnDefinition(const ColumnDefinition& other) :
+    metadata(new MYSQL_FIELD(*other.metadata)),
     name(other.name),
     org_name(other.org_name),
     table(other.table),
     org_table(other.org_table),
     db(other.db),
-    metadata(other.owned ? new MYSQL_FIELD(*other.metadata) : other.metadata),
-    length(other.length),
-    owned(other.owned)
+    length(other.length)
   {
-    if (owned) {
-      refreshPointers();
-    }
+     refreshPointers();
   }
 
 
-  ColumnDefinition::ColumnDefinition(const ColumnDefinition&& other) :
+  ColumnDefinition::ColumnDefinition(ColumnDefinition&& other) noexcept :
     metadata(other.metadata),
     name(std::move(other.name)),
-    length(other.length),
-    owned(other.owned)
+    org_name(std::move(other.org_name)),
+    table(std::move(other.table)),
+    org_table(std::move(other.org_table)),
+    db(std::move(other.db)),
+    length(other.length)
   {
+    refreshPointers();
+    other.metadata= nullptr;
   }
 
   ColumnDefinition::ColumnDefinition(const MYSQL_FIELD* field, bool ownshipPassed) :
-    metadata(ownshipPassed ? new MYSQL_FIELD(*field) : const_cast<MYSQL_FIELD*>(field)),
+    metadata(ownshipPassed ? const_cast<MYSQL_FIELD*>(field) : new MYSQL_FIELD(*field) ),
     name(field->name ? field->name : ""),
     org_name(field->org_name ? field->org_name : ""),
     table(field->table ? field->table : ""),
     org_table(field->org_table ? field->org_table : ""),
     db(field->db ? field->db : ""),
-    owned(ownshipPassed),
     length(std::max(field->length, field->max_length))
   {
-    if (owned) {
-      //std::memcpy(metadata, field, sizeof(MYSQL_FIELD));
-      refreshPointers();
+    //std::memcpy(metadata, field, sizeof(MYSQL_FIELD));
+    refreshPointers();
+    if (metadata->length == 0) {
+      switch (metadata->type) {
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_STRING:
+        metadata->length= 64 * 3;
+        break;
+      case MYSQL_TYPE_SHORT:
+        metadata->length= 5;
+        break;
+      case MYSQL_TYPE_NULL:
+        metadata->length= 0;
+        break;
+      default:
+        metadata->length= 1;
+        break;
+      }
     }
   }
 
@@ -261,17 +274,8 @@ namespace mariadb
     org_table= other.org_table;
     db= other.db;
     length= other.length;
-    owned= other.owned;
-
-    if (other.owned) {
-      metadata= new MYSQL_FIELD(*other.metadata);
-
-      refreshPointers();
-    }
-    else {
-      metadata= other.metadata;
-    }
-
+    metadata= new MYSQL_FIELD(*other.metadata);
+    refreshPointers();
     return *this;
   }
 
@@ -281,13 +285,13 @@ namespace mariadb
     * @param buffer buffer
     */
   ColumnDefinition::ColumnDefinition(const SQLString _name, const MYSQL_FIELD* _metadata, bool ownshipPassed) :
-    ColumnDefinition(_metadata, ownshipPassed)
+     ColumnDefinition(_metadata, ownshipPassed)
   {
     name= _name;
-    if (owned) {
-      metadata->name= const_cast<char*>(name.c_str());
-      metadata->org_name= metadata->name;
-    }
+    metadata->name= const_cast<char*>(name.c_str());
+    metadata->name_length= static_cast<unsigned int>(name.length());
+    metadata->org_name= metadata->name;
+    metadata->org_name_length= static_cast<unsigned int>(name.length());
     length= std::max(_metadata->length, _metadata->max_length);
   }
 

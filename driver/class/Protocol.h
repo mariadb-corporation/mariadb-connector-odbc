@@ -65,6 +65,7 @@ SQLString&   addTxIsolationName2Query(SQLString& query, enum IsolationLevel txIs
 
 SQLString&   addQueryTimeout(SQLString& sql, int32_t queryTimeout);
 
+
 class Protocol
 {
   std::mutex lock;
@@ -74,7 +75,7 @@ class Protocol
   MYSQL_STMT* statementIdToRelease= nullptr;
   bool interrupted= false;
   bool hasWarningsFlag= false;
-  /* This cannot be Shared as long as C/C stmt handle is owned by  statement(SSPS class in this case) object */
+  /* This cannot be Shared as long as C/C stmt handle is owned by statement(SSPS class in this case) object */
   std::weak_ptr<Results> activeStreamingResult;
   uint32_t serverStatus= 0;
 

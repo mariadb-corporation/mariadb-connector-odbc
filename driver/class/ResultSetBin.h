@@ -49,8 +49,7 @@ class ResultSetBin : public ResultSet
   MYSQL_STMT* capiStmtHandle;
   std::unique_ptr<MYSQL_BIND[]> resultBind;
 
-  /*std::unique_ptr<*/
-  std::vector<std::vector<mariadb::bytes>> data;
+  std::vector<std::vector<mariadb::bytes_view>> data;
   std::size_t dataSize; //Should go after data
 
   int32_t resultSetScrollType;
@@ -60,7 +59,6 @@ class ResultSetBin : public ResultSet
 
   mutable int32_t lastRowPointer; /*-1*/
   bool isClosedFlag;
-  bool eofDeprecated;
   bool forceAlias;
 
 public:
@@ -89,10 +87,10 @@ private:
   bool readNextValue(bool cacheLocally= false);
 
 protected:
-  std::vector<mariadb::bytes>& getCurrentRowData();
-  void updateRowData(std::vector<mariadb::bytes>& rawData);
+  std::vector<mariadb::bytes_view>& getCurrentRowData();
+  void updateRowData(std::vector<mariadb::bytes_view>& rawData);
   void deleteCurrentRowData();
-  void addRowData(std::vector<mariadb::bytes>& rawData);
+  void addRowData(std::vector<mariadb::bytes_view>& rawData);
 
 private:
   void growDataArray();

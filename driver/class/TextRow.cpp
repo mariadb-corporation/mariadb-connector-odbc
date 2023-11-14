@@ -55,7 +55,7 @@ namespace mariadb
 
    if (buf != nullptr)
    {
-     fieldBuf.wrap((*buf)[index], (*buf)[index].size());
+     fieldBuf.wrap((*buf)[index].arr, (*buf)[index].size());
      this->lastValueNull = fieldBuf ? BIT_LAST_FIELD_NOT_NULL : BIT_LAST_FIELD_NULL;
      length= static_cast<uint32_t>(fieldBuf.size());
    }
@@ -733,7 +733,7 @@ namespace mariadb
  }
 
 
- void TextRow::cacheCurrentRow(std::vector<mariadb::bytes>& rowDataCache, std::size_t columnCount)
+ void TextRow::cacheCurrentRow(std::vector<mariadb::bytes_view>& rowDataCache, std::size_t columnCount)
  {
    rowDataCache.clear();
    for (std::size_t i = 0; i < columnCount; ++i) {

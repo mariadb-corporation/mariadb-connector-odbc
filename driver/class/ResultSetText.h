@@ -50,8 +50,7 @@ class ResultSetText : public ResultSet
   MYSQL *capiConnHandle;
 
   MYSQL_BIND* resultBind= nullptr;
-
-  std::vector<std::vector<mariadb::bytes>> data;
+  std::vector<std::vector<mariadb::bytes_view>> data;
   std::size_t dataSize; //Should go after data
 
   int32_t resultSetScrollType;
@@ -61,7 +60,6 @@ class ResultSetText : public ResultSet
 
   mutable int32_t lastRowPointer; /*-1*/
   bool isClosedFlag;
-  bool eofDeprecated;
 //  Shared::mutex lock;
   bool forceAlias;
 
@@ -73,12 +71,12 @@ public:
 
   ResultSetText(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<mariadb::bytes>>& resultSet,
+    const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     int32_t resultSetScrollType);
 
   ResultSetText(
     const MYSQL_FIELD *columnInformation,
-    std::vector<std::vector<mariadb::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     int32_t resultSetScrollType);
   
   ~ResultSetText();
@@ -101,10 +99,10 @@ private:
   bool readNextValue(bool cacheLocally= false);
 
 protected:
-  std::vector<mariadb::bytes>& getCurrentRowData();
-  void updateRowData(std::vector<mariadb::bytes>& rawData);
+  std::vector<mariadb::bytes_view>& getCurrentRowData();
+  void updateRowData(std::vector<mariadb::bytes_view>& rawData);
   void deleteCurrentRowData();
-  void addRowData(std::vector<mariadb::bytes>& rawData);
+  void addRowData(std::vector<mariadb::bytes_view>& rawData);
 
 private:
   void growDataArray();

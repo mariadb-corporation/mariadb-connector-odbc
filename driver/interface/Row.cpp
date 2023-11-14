@@ -200,7 +200,7 @@ namespace mariadb
 
   Row::Row()
     : buf(nullptr)
-    , fieldBuf(0)
+    , fieldBuf()
     , length(0)
     , lastValueNull(0)
     , index(0)
@@ -209,7 +209,7 @@ namespace mariadb
   }
 
 
-  void Row::resetRow(std::vector<mariadb::bytes>& _buf)
+  void Row::resetRow(std::vector<mariadb::bytes_view>& _buf)
   {
     buf= &_buf;
   }

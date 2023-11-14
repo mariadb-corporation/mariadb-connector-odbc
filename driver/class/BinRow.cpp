@@ -235,10 +235,10 @@ namespace mariadb
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_INT24:
       if (columnInfo->isSigned()) {
-        return *reinterpret_cast<int32_t*>(fieldBuf.arr);
+        return *reinterpret_cast<const int32_t*>(fieldBuf.arr);
       }
       else {
-        value= *reinterpret_cast<uint32_t*>(fieldBuf.arr);
+        value= *reinterpret_cast<const uint32_t*>(fieldBuf.arr);
       }
       break;
     case MYSQL_TYPE_LONGLONG:
@@ -265,7 +265,7 @@ namespace mariadb
       catch (std::logic_error&) {
 
         throw SQLException(
-          "Out of range value for column '" + columnInfo->getName() + "' : value " + SQLString(static_cast<char*>(fieldBuf.arr), length),
+          "Out of range value for column '" + columnInfo->getName() + "' : value " + SQLString(fieldBuf.arr, length),
           "22003",
           1264);
       }
@@ -320,12 +320,12 @@ namespace mariadb
       }
       case MYSQL_TYPE_LONGLONG:
       {
-        value = *reinterpret_cast<uint64_t*>(fieldBuf.arr);
+        value = *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
 
         if (columnInfo->isSigned()) {
           return value;
         }
-        uint64_t unsignedValue = *reinterpret_cast<uint64_t*>(fieldBuf.arr);
+        uint64_t unsignedValue = *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
 
         if (unsignedValue > static_cast<uint64_t>(INT64_MAX)) {
           throw SQLException(
@@ -430,7 +430,7 @@ namespace mariadb
     }
     case MYSQL_TYPE_LONGLONG:
     {
-      value = *reinterpret_cast<int64_t*>(fieldBuf.arr);
+      value = *reinterpret_cast<const int64_t*>(fieldBuf.arr);
 
       break;
     }
@@ -541,14 +541,14 @@ namespace mariadb
     case MYSQL_TYPE_LONGLONG:
     {
       if (columnInfo->isSigned()) {
-        return static_cast<float>(*reinterpret_cast<int64_t*>(fieldBuf.arr));
+        return static_cast<float>(*reinterpret_cast<const int64_t*>(fieldBuf.arr));
       }
-      uint64_t unsignedValue= *reinterpret_cast<uint64_t*>(fieldBuf.arr);
+      uint64_t unsignedValue= *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
 
       return static_cast<float>(unsignedValue);
     }
     case MYSQL_TYPE_FLOAT:
-      return *reinterpret_cast<float*>(fieldBuf.arr);
+      return *reinterpret_cast<const float*>(fieldBuf.arr);
     case MYSQL_TYPE_DOUBLE:
       return static_cast<float>(getInternalDouble(columnInfo));
     case MYSQL_TYPE_NEWDECIMAL:
@@ -558,7 +558,7 @@ namespace mariadb
     case MYSQL_TYPE_DECIMAL:
       try {
         char* end;
-        return std::strtof(static_cast<char*>(fieldBuf.arr), &end);
+        return std::strtof(fieldBuf.arr, &end);
         // if (errno == ERANGE) ?
       }
       // Common parent for std::invalid_argument and std::out_of_range
@@ -604,21 +604,21 @@ namespace mariadb
     case MYSQL_TYPE_LONGLONG:
     {
       if (columnInfo->isSigned()) {
-        return static_cast<long double>(*reinterpret_cast<int64_t*>(fieldBuf.arr));
+        return static_cast<long double>(*reinterpret_cast<const int64_t*>(fieldBuf.arr));
       }
-      return static_cast<long double>(*reinterpret_cast<uint64_t*>(fieldBuf.arr));
+      return static_cast<long double>(*reinterpret_cast<const uint64_t*>(fieldBuf.arr));
     }
     case MYSQL_TYPE_FLOAT:
       return getInternalFloat(columnInfo);
     case MYSQL_TYPE_DOUBLE:
-      return *reinterpret_cast<double*>(fieldBuf.arr);
+      return *reinterpret_cast<const double*>(fieldBuf.arr);
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_DECIMAL:
       try {
-        return std::stold(static_cast<char*>(fieldBuf.arr));
+        return std::stold(fieldBuf.arr);
       }
       // Common parent for std::invalid_argument and std::out_of_range
       catch (std::logic_error& nfe) {
@@ -685,7 +685,7 @@ namespace mariadb
   }
 
 
-  bool isNullTimeStruct(MYSQL_TIME* mt, enum_field_types type)
+  bool isNullTimeStruct(const MYSQL_TIME* mt, enum_field_types type)
   {
     bool isNull= (mt->year == 0 && mt->month == 0 && mt->day == 0);
 
@@ -704,7 +704,7 @@ namespace mariadb
   }
 
 
-  SQLString makeStringFromTimeStruct(MYSQL_TIME* mt, enum_field_types type, size_t decimals)
+  SQLString makeStringFromTimeStruct(const MYSQL_TIME* mt, enum_field_types type, size_t decimals)
   {
     std::ostringstream out;
     if (mt->neg != 0)
@@ -766,7 +766,7 @@ namespace mariadb
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_DATE:
     {
-      MYSQL_TIME* mt= reinterpret_cast<MYSQL_TIME*>(fieldBuf.arr);
+      const MYSQL_TIME* mt= reinterpret_cast<const MYSQL_TIME*>(fieldBuf.arr);
 
       if (isNullTimeStruct(mt, MYSQL_TYPE_DATE)) {
         lastValueNull |= BIT_LAST_ZERO_DATE;
@@ -790,7 +790,7 @@ namespace mariadb
     }
     case MYSQL_TYPE_YEAR:
     {
-      int32_t year = *reinterpret_cast<int16_t*>(fieldBuf.arr);
+      int32_t year = *reinterpret_cast<const int16_t*>(fieldBuf.arr);
       if (length == 2 && columnInfo->getLength() == 2) {
         if (year < 70) {
           year += 2000;
@@ -848,7 +848,7 @@ namespace mariadb
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
     {
-      MYSQL_TIME* mt= reinterpret_cast<MYSQL_TIME*>(fieldBuf.arr);
+      const MYSQL_TIME* mt= reinterpret_cast<const MYSQL_TIME*>(fieldBuf.arr);
       return makeStringFromTimeStruct(mt, MYSQL_TYPE_TIME, columnInfo->getDecimals());
     }
     case MYSQL_TYPE_DATE:
@@ -906,7 +906,7 @@ namespace mariadb
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_DATE:
     {
-      MYSQL_TIME* mt= reinterpret_cast<MYSQL_TIME*>(fieldBuf.arr);
+      MYSQL_TIME* mt= const_cast<MYSQL_TIME*>(reinterpret_cast<const MYSQL_TIME*>(fieldBuf.arr));
 
       if (isNullTimeStruct(mt, MYSQL_TYPE_TIMESTAMP)) {
         lastValueNull |= BIT_LAST_ZERO_DATE;
@@ -917,7 +917,7 @@ namespace mariadb
         mt->year= 1970;
         mt->month= 1;
         mt->day= mt->day > 0 ? mt->day : 1;
-        //TODO if timeis negaive - shouldn't we deduct it?
+        //TODO if time is negaive - shouldn't we deduct it? with move to bytes_view - is it ok to write to the struct?
       }
 
       return makeStringFromTimeStruct(mt, MYSQL_TYPE_TIMESTAMP, columnInfo->getDecimals());
@@ -1068,7 +1068,7 @@ namespace mariadb
       break;
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_YEAR:
-      return *reinterpret_cast<int16_t*>(fieldBuf.arr);
+      return *reinterpret_cast<const int16_t*>(fieldBuf.arr);
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_INT24:
       value= getInternalMediumInt(columnInfo);
@@ -1115,7 +1115,7 @@ namespace mariadb
     if (lastValueWasNull()) {
       return "";
     }
-    MYSQL_TIME* ts= reinterpret_cast<MYSQL_TIME*>(fieldBuf.arr);
+    const MYSQL_TIME* ts= reinterpret_cast<const MYSQL_TIME*>(fieldBuf.arr);
     return makeStringFromTimeStruct(ts, MYSQL_TYPE_TIME, columnInfo->getDecimals());
   }
 
@@ -1130,12 +1130,12 @@ namespace mariadb
   }
 
 
-  void BinRow::cacheCurrentRow(std::vector<mariadb::bytes>& rowDataCache, std::size_t columnCount)
+  void BinRow::cacheCurrentRow(std::vector<mariadb::bytes_view>& rowDataCache, std::size_t columnCount)
   {
     rowDataCache.clear();
     for (std::size_t i = 0; i < columnCount; ++i) {
       if (bind[i].is_null_value != '\0') {
-        rowDataCache.emplace_back(0);
+        rowDataCache.emplace_back();
       }
       else {
         rowDataCache.emplace_back(static_cast<const char*>(bind[i].buffer), bind[i].length_value);

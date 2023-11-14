@@ -92,7 +92,7 @@ namespace mariadb
 
   bool PreparedStatement::execute()
   {
-    return executeInternal(0);// getFetchSize(stmt));
+    return executeInternal(getFetchSize());
   }
 
   /**

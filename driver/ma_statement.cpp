@@ -332,24 +332,24 @@ SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 /* }}} */
 
 /* Sets state and processes available metadata */
-void AfterPrepare(MADB_Stmt *Stmt)
+void MADB_Stmt::AfterPrepare()
 {
-  Stmt->State= MADB_SS_PREPARED;
+  State= MADB_SS_PREPARED;
 
-  Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
+  metadata.reset(stmt->getEarlyMetaData());
   /* If we have result returning query - fill descriptor records with metadata */
-  if (Stmt->metadata && Stmt->metadata->getColumnCount() > 0)
+  if (metadata && metadata->getColumnCount() > 0)
   {
-    MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
+    MADB_DescSetIrdMetadata(this, metadata->getFields(), metadata->getColumnCount());
   }
 
-  if ((Stmt->ParamCount= (SQLSMALLINT)Stmt->stmt->getParamCount()) > 0)
+  if ((ParamCount= (SQLSMALLINT)stmt->getParamCount()) > 0)
   {
-    if (Stmt->params)
+    if (params)
     {
-      MADB_FREE(Stmt->params);
+      MADB_FREE(params);
     }
-    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
+    params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * ParamCount);
   }
 }
 
@@ -365,7 +365,6 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
   {
     ServerPrepareResult *pr= Stmt->Connection->guard->prepare(STMT_STRING(Stmt));
     Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->guard.get(), pr, Stmt->Options.CursorType));
-    AfterPrepare(Stmt);
   }
   catch (SQLException& e)
   {
@@ -390,8 +389,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
   }
 
-  AfterPrepare(Stmt);
-
+  Stmt->AfterPrepare();
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -933,6 +931,10 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt)
   }
   try
   {
+    if (MADB_STMT_SHOULD_STREAM(Stmt))
+    {
+      Stmt->stmt->setFetchSize(1); // TODO: In ds should be possible to set number of rows to fetch at once
+    }
     if (Stmt->stmt->execute())
     {
       Stmt->rs.reset(Stmt->stmt->getResultSet());
@@ -951,7 +953,7 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt)
 
   Stmt->State= MADB_SS_EXECUTED;
 
-    if (Stmt->Connection->guard->hasSpOutparams())
+  if (Stmt->Connection->guard->hasSpOutparams())
   {
     Stmt->State= MADB_SS_OUTPARAMSFETCHED;
     ret= Stmt->GetOutParams(0);
@@ -985,6 +987,31 @@ void MADB_SetStatusArray(MADB_Stmt *Stmt, SQLUSMALLINT Status)
 #define CALC_ALL_ROWS_RC(_accumulated_rc, _cur_row_rc, _row_num)\
 if      (_row_num == 0)                  _accumulated_rc= _cur_row_rc;\
 else if (_cur_row_rc != _accumulated_rc) _accumulated_rc= SQL_SUCCESS_WITH_INFO
+
+void MADB_Stmt::ProcessRsMetadata()
+{
+  /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
+       The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
+  FetchMetadata(this);
+  MADB_StmtResetResultStructures(this);
+  MADB_DescSetIrdMetadata(this, metadata->getFields(), metadata->getColumnCount());
+
+  AffectedRows= -1;
+}
+
+
+void MADB_Stmt::AfterExecute()
+{
+  /* All rows processed, so we can unset ArrayOffset */
+  ArrayOffset= 0;
+
+  if (rs)
+  {
+    ProcessRsMetadata();
+  }
+
+  LastRowFetched= 0;
+}
 
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
@@ -1163,31 +1190,8 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     }     /* End of for() thru paramsets(parameters array) */
   }       /* End of if (bulk/not bulk) execution */
   
-  /* All rows processed, so we can unset ArrayOffset */
-  Stmt->ArrayOffset= 0;
+  Stmt->AfterExecute();
 
-  if (Stmt->rs)
-  {
-    /*************************** mysql_stmt_store_result ******************************/
-    /*If we did OUT params already, we should not store */
-    if (Stmt->State == MADB_SS_EXECUTED)
-    {
-     /* This should go somewhere in the catch of exception on rs object creation
-      if (DefaultResult)
-      {
-        mysql_free_result(DefaultResult);
-      }
-      return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());*/
-    }
-    
-    /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
-       The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
-    FetchMetadata(Stmt);
-    MADB_StmtResetResultStructures(Stmt);
-    MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
-
-    Stmt->AffectedRows= -1;
-  }
 end:
   Stmt->LastRowFetched= 0;
 
@@ -2090,14 +2094,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
         
         /* We have already incremented this counter, since there was no more rows, need to decrement */
         --*ProcessedPtr;
-        /* Here we prefer to use not the local, but global flag */
-        if (MADB_STMT_IS_STREAMING(Stmt))
-        {
-          if (!HasMoreResults(Stmt->Connection))
-          {
-            MADB_RESET_STREAMER(Stmt->Connection);
-          }
-        }
+
         /* SQL_NO_DATA should be only returned if first fetched row is already beyond end of the resultset */
         if (RowNum > 0)
         {

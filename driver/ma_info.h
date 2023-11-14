@@ -21,26 +21,26 @@
 
 typedef struct
 {
-  const char *TypeName;
-  SQLSMALLINT DataType;
-  SQLINTEGER ColumnSize;
-  const char *LiteralPrefix;
-  const char *LiteralSuffix;
-  const char *CreateParams;
-  SQLSMALLINT Nullable;
-  SQLSMALLINT CaseSensitive;
-  SQLSMALLINT Searchable;
-  SQLSMALLINT Unsigned;
-  SQLSMALLINT FixedPrecScale;
-  SQLSMALLINT AutoUniqueValue;
-  const char *LocalTypeName;
-  SQLSMALLINT MinimumScale;
-  SQLSMALLINT MaximumScale;
-  SQLSMALLINT SqlDataType1;
-  SQLSMALLINT SqlDateTimeSub;
-  SQLINTEGER NumPrecRadix;
-  SQLSMALLINT IntervalPrecision;
-  SQLSMALLINT SqlDataType;
+  bytes TypeName;
+  bytes DataType;
+  bytes ColumnSize;
+  bytes LiteralPrefix;
+  bytes LiteralSuffix;
+  bytes CreateParams;
+  bytes Nullable;
+  bytes CaseSensitive;
+  bytes Searchable;
+  bytes Unsigned;
+  bytes FixedPrecScale;
+  bytes AutoUniqueValue;
+  bytes LocalTypeName;
+  bytes MinimumScale;
+  bytes MaximumScale;
+  bytes SqlDataType1;
+  bytes SqlDateTimeSub;
+  bytes NumPrecRadix;
+  bytes IntervalPrecision;
+  bytes SqlDataType;
 } MADB_TypeInfo;
 
 

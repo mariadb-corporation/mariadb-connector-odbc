@@ -90,8 +90,8 @@ protected:
 
 public:
   int32_t lastValueNull;
-  std::vector<bytes>* buf;
-  bytes fieldBuf;
+  std::vector<bytes_view>* buf;
+  bytes_view fieldBuf;
   int32_t pos;
   uint32_t length;
 
@@ -102,7 +102,7 @@ public:
   Row();
   virtual ~Row() {}
 
-  void resetRow(std::vector<bytes>& buf);
+  void resetRow(std::vector<bytes_view>& buf);
   virtual void setPosition(int32_t position)=0;
   uint32_t getLengthMaxFieldSize();
   uint32_t getMaxFieldSize();
@@ -127,7 +127,7 @@ public:
   virtual SQLString getInternalTimeString(const ColumnDefinition* columnInfo)=0;
 
   virtual bool isBinaryEncoded()=0;
-  virtual void cacheCurrentRow(std::vector<bytes>& rowData, std::size_t columnCount)=0;
+  virtual void cacheCurrentRow(std::vector<bytes_view>& rowData, std::size_t columnCount)=0;
   bool lastValueWasNull();
 
 protected:

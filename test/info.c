@@ -195,19 +195,13 @@ ODBC_TEST(t_bug31055)
 {
   SQLUSMALLINT funcs[SQL_API_ODBC3_ALL_FUNCTIONS_SIZE];
 
-  /*
-     The DM will presumably return true for all functions that it
-     can satisfy in place of the driver. This test will only work
-     when linked directly to the driver.
-  */
-  if (using_dm(Connection))
-    return OK;
-
   memset(funcs, 0xff, sizeof(SQLUSMALLINT) * SQL_API_ODBC3_ALL_FUNCTIONS_SIZE);
 
+  // DM calls SQLGetFunctions at the connect time, and then returns result itself to subsequent calls
   CHECK_DBC_RC(Connection, SQLGetFunctions(Connection, SQL_API_ODBC3_ALL_FUNCTIONS, funcs));
 
-  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), 0);
+  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), using_dm(Connection) ? SQL_TRUE : SQL_FALSE);
+  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLCANCELHANDLE), SQL_TRUE);
 
   return OK;
 }

@@ -61,7 +61,6 @@ namespace mariadb
       resultSetScrollType(results->getResultSetScrollType()),
       rowPointer(-1),
       callableResult(callableResult),
-      eofDeprecated(eofDeprecated),
       isEof(false),
       capiStmtHandle(spr->getStatementId()),
       forceAlias(false),
@@ -241,34 +240,19 @@ namespace mariadb
 
     case MYSQL_NO_DATA: {
       uint32_t serverStatus;
-      uint32_t warnings;
+      uint32_t warnings= warningCount();
 
-      if (!eofDeprecated) {
-        warnings= warningCount();
-        mariadb_get_infov(capiStmtHandle->mysql, MARIADB_CONNECTION_SERVER_STATUS, (void*)&serverStatus);
+      mariadb_get_infov(capiStmtHandle->mysql, MARIADB_CONNECTION_SERVER_STATUS, (void*)&serverStatus);
 
-        // CallableResult has been read from intermediate EOF server_status
-        // and is mandatory because :
-        //
-        // - Call query will have an callable resultSet for OUT parameters
-        //   this resultSet must be identified and not listed in JDBC statement.getResultSet()
-        //
-        // - after a callable resultSet, a OK packet is send,
-        //   but mysql before 5.7.4 doesn't send MORE_RESULTS_EXISTS flag
-        if (callableResult) {
-          serverStatus|= SERVER_MORE_RESULTS_EXIST;
-        }
+      if (callableResult) {
+        serverStatus|= SERVER_MORE_RESULTS_EXIST;
       }
       else {
-        // OK_Packet with a 0xFE header
-        // protocol->readOkPacket()?
-        mariadb_get_infov(capiStmtHandle->mysql, MARIADB_CONNECTION_SERVER_STATUS, (void*)&serverStatus);
-        warnings= warningCount();;
         callableResult= (serverStatus & SERVER_PS_OUT_PARAMS) != 0;
       }
 
       if ((serverStatus & SERVER_MORE_RESULTS_EXIST) == 0) {
-        //protocol->removeActiveStreamingResult();
+        //guard->removeActiveStreamingResult();
       }
       resetVariables();
       return false;
@@ -290,7 +274,7 @@ namespace mariadb
     *
     * @return row's raw bytes
     */
-  std::vector<mariadb::bytes>& ResultSetBin::getCurrentRowData() {
+  std::vector<mariadb::bytes_view>& ResultSetBin::getCurrentRowData() {
     return data[rowPointer];
   }
 
@@ -300,7 +284,7 @@ namespace mariadb
     *
     * @param rawData new row's raw data.
     */
-  void ResultSetBin::updateRowData(std::vector<mariadb::bytes>& rawData)
+  void ResultSetBin::updateRowData(std::vector<mariadb::bytes_view>& rawData)
   {
     data[rowPointer]= rawData;
     row->resetRow(data[rowPointer]);
@@ -319,7 +303,7 @@ namespace mariadb
     previous();
   }
 
-  void ResultSetBin::addRowData(std::vector<mariadb::bytes>& rawData) {
+  void ResultSetBin::addRowData(std::vector<mariadb::bytes_view>& rawData) {
     if (dataSize +1 >= data.size()) {
       growDataArray();
     }
@@ -488,7 +472,7 @@ namespace mariadb
   void ResultSetBin::resetRow() const
   {
     if (rowPointer > -1 && data.size() > static_cast<std::size_t>(rowPointer)) {
-      row->resetRow(const_cast<std::vector<mariadb::bytes> &>(data[rowPointer]));
+      row->resetRow(const_cast<std::vector<mariadb::bytes_view>&>(data[rowPointer]));
     }
     else {
       if (rowPointer != lastRowPointer + 1) {
@@ -785,7 +769,7 @@ namespace mariadb
     if (row->lastValueWasNull()) {
       return nullptr;
     }
-    blobBuffer[columnIndex].reset(new memBuf(row->fieldBuf.arr + row->pos, row->fieldBuf.arr + row->pos + row->getLengthMaxFieldSize()));
+    blobBuffer[columnIndex].reset(new memBuf(const_cast<char*>(row->fieldBuf.arr) + row->pos, const_cast<char*>(row->fieldBuf.arr) + row->pos + row->getLengthMaxFieldSize()));
     return new std::istream(blobBuffer[columnIndex].get());
   }
 

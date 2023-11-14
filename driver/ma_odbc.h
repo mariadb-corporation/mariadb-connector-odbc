@@ -345,10 +345,15 @@ struct MADB_Stmt
   SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true);
   SQLRETURN GetOutParams(int CurrentOffset);
   SQLRETURN DoExecuteBatch();
+  void AfterExecute();
+  void AfterPrepare();// Should go to private at some point
+  
   //const SQLString& OriginalQuery() { return Query.Original; }
 
 private:
   MADB_Stmt()= delete;
+  void ProcessRsMetadata();
+  
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);

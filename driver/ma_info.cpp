@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2017 MariaDB Corporation AB
+   Copyright (C) 2013, 2023 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,123 +16,216 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
+#include <vector>
 #include <ma_odbc.h>
+#include "PreparedStatement.h"
+#include "template/CArray.h"
 
-MADB_TypeInfo TypeInfoV3[]=
+#define BV(_STRCONST) mariadb::bytes_view(_STRCONST, sizeof(_STRCONST))
+#define XBV(_STRCONST) BV(#_STRCONST)
+
+static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), Null, ten("10", 3), empty(emptyStr),
+  sqlwchar("-8", 3), sqlwvarchar("-9", 3), sqlwlongvarchar("-10", 4), sqlbit("-7", 3), sqltinyint("-6", 3),
+  sqlbigint("-5", 3), sqllongvarbinary("-4", 3), sqlvarbinary("-3", 3), sqlbinary("-2", 3), sqllongvarchar("-1", 3); // They defined as (-8) etc, and that's not parsed well as int
+
+std::vector <std::vector<mariadb::bytes_view>> TypeInfoV3=
 {
-  {"BIT",SQL_BIT,1,"","","NULL",1,1,3,0,0,0,"BIT",0,0,0,0,10, SQL_BIT},
-  {"BOOL",SQL_BIT,1,"","","NULL",1,1,3,0,0,0,"BOOL",0,0,0,0,10, SQL_BIT},
-  {"TINYINT",SQL_TINYINT,3,"","","NULL",1,0,3,SQL_FALSE,0,1,"TINYINT",0,0,0,0,10, SQL_TINYINT},
-  {"TINYINT UNSIGNED",SQL_TINYINT,3,"","","NULL",1,0,3,SQL_TRUE,0,1,"TINYINT UNSIGNED",0,0,0,0,10, SQL_TINYINT},
-  {"BIGINT",SQL_BIGINT,19,"","","NULL",1,0,3,SQL_FALSE,0,1,"BIGINT",0,0,0,0,10, SQL_BIGINT},
-  {"BIGINT UNSIGNED",SQL_BIGINT,20,"","","NULL",1,0,3,1,0,1,"BIGINT UNSIGNED",0,0,0,0,10, SQL_BIGINT},
-  {"LONG VARBINARY",SQL_LONGVARBINARY,16777215,"''","''","NULL",1,1,3,0,0,0,"LONG VARBINARY",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"MEDIUMBLOB",SQL_LONGVARBINARY,16777215,"''","''","NULL",1,1,3,0,0,0,"MEDIUMBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"LONGBLOB",SQL_LONGVARBINARY,2147483647,"''","''","NULL",1,1,3,0,0,0,"LONGBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"BLOB",SQL_LONGVARBINARY,65535,"''","''","NULL",1,1,3,0,0,0,"BLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"TINYBLOB",SQL_LONGVARBINARY,255,"''","''","NULL",1,1,3,0,0,0,"TINYBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"VARBINARY",SQL_VARBINARY,255,"''","''","'length'",1,1,3,0,0,0,"VARBINARY",0,0,0,0,10, SQL_VARBINARY},
-  {"BINARY",SQL_BINARY,255,"''","''","'length'",1,1,3,0,0,0,"BINARY",0,0,0,0,10, SQL_BINARY},
-  {"LONG VARCHAR",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"MEDIUMTEXT",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"MEDIUMTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"LONGTEXT",SQL_LONGVARCHAR,2147483647,"''","''","NULL",1,0,3,0,0,0,"LONGTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"TEXT",SQL_LONGVARCHAR,65535,"''","''","NULL",1,0,3,0,0,0,"TEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"TINYTEXT",SQL_LONGVARCHAR,255,"''","''","NULL",1,0,3,0,0,0,"TINYTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"CHAR",SQL_CHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_CHAR},
-  {"NUMERIC",SQL_NUMERIC,65,"","","'precision,scale'",1,0,3,0,0,1,"NUMERIC", -308,308,0,0,10, SQL_NUMERIC}, /* Todo: ?? */
-  {"DECIMAL",SQL_DECIMAL,65,"","","'precision,scale'",1,0,3,0,0,1,"DECIMAL",-308,308,0,0,10, SQL_DECIMAL},
-  {"INTEGER",SQL_INTEGER,10,"","","NULL",1,0,3,SQL_FALSE,0,1,"INTEGER",0,0,0,0,10,SQL_INTEGER},
-  {"INTEGER UNSIGNED",SQL_INTEGER,10,"","","NULL",1,0,3,1,0,1,"INTEGER UNSIGNED",0,0,0,0,10, SQL_INTEGER},
-  {"INT",SQL_INTEGER,10,"","","NULL",1,0,3,SQL_FALSE,0,1,"INT",0,0,0,0,10, SQL_INTEGER},
-  {"INT UNSIGNED",SQL_INTEGER,10,"","","NULL",1,0,3,1,0,1,"INT UNSIGNED",0,0,0,0,10, SQL_INTEGER},
-  {"MEDIUMINT",SQL_INTEGER,7,"","","NULL",1,0,3,SQL_FALSE,0,1,"MEDIUMINT",0,0,0,0,10},
-  {"MEDIUMINT UNSIGNED",SQL_INTEGER,8,"","","NULL",1,0,3,1,0,1,"MEDIUMINT UNSIGNED",0,0,0,0,10, SQL_INTEGER},
-  {"SMALLINT",SQL_SMALLINT,5,"","","NULL",1,0,3,SQL_FALSE,0,1,"SMALLINT",0,0,0,0,10, SQL_SMALLINT},
-  {"SMALLINT UNSIGNED",SQL_SMALLINT,5,"","","NULL",1,0,3,1,0,1,"SMALLINT UNSIGNED",0,0,0,0,10, SQL_SMALLINT},
-  {"FLOAT",SQL_FLOAT,10,"","","'precision,scale'",1,0,3,0,0,1,"FLOAT",-38,38,0,0,10, SQL_FLOAT},
-  {"DOUBLE",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE",-308,308,0,0,10, SQL_DOUBLE},
-  {"DOUBLE PRECISION",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE PRECISION",-308,308,0,0,10, SQL_DOUBLE},
-  {"REAL",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"REAL",-308,308,0,0,10, SQL_DOUBLE},
-  {"VARCHAR",SQL_VARCHAR,255,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_VARCHAR},
-  {"ENUM",SQL_VARCHAR,65535,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
-  {"SET",SQL_VARCHAR,64,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
-  {"DATE",SQL_TYPE_DATE,10,"''","''","NULL",1,0,3,0,0,0,"DATE",0,0,0,0,10, SQL_DATETIME},
-  {"TIME",SQL_TYPE_TIME,8,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
-  {"DATETIME",SQL_TYPE_TIMESTAMP,16,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
-  {"TIMESTAMP",SQL_TYPE_TIMESTAMP,16,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
-  {"CHAR",SQL_WCHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_WCHAR},
-  {"VARCHAR",SQL_WVARCHAR,255,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
-  {"LONG VARCHAR",SQL_WLONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
-  {NULL,0,0,NULL,NULL,NULL,0,0,0,0,0,0,NULL,0,0,0,0,0}
+  {bytes_view(XBV(BIT), 4), sqlbit, one, empty, empty, Null, one, one, three, zero, zero, zero, zero, zero, zero, zero, zero,
+    ten, sqlbit},
+  {XBV(BOOL), sqlbit,one,empty,empty,Null,one,one,three,zero,zero,zero,XBV(BOOL),zero,zero,zero,zero,ten, sqlbit},
+  {XBV(TINYINT),sqltinyint,three,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(TINYINT),zero,zero,zero,zero,
+    ten, sqltinyint},
+  {XBV(TINYINT UNSIGNED),sqltinyint,three,empty,empty,Null,one,zero,three,BV(XSTR(SQL_TRUE)),zero,one,XBV(TINYINT UNSIGNED),zero,
+    zero,zero,zero,ten, sqltinyint},
+  {XBV(BIGINT),sqlbigint,XBV(19),empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(BIGINT),zero,zero,zero,zero,
+    ten, sqlbigint},
+  {XBV(BIGINT UNSIGNED),sqlbigint,XBV(20),empty,empty,Null,one,zero,three,one,zero,one,XBV(BIGINT UNSIGNED),zero,zero,zero,zero,
+    ten, sqlbigint},
+  {XBV(LONG VARBINARY),sqllongvarbinary,XBV(16777215),empty,empty,Null,one,one,three,zero,zero,zero, XBV(LONG VARBINARY),zero,
+    zero,zero,zero,ten, sqllongvarbinary},
+  {XBV(MEDIUMBLOB),sqllongvarbinary,XBV(16777215),empty,empty,Null,one,one,three,zero,zero,zero,XBV(MEDIUMBLOB),zero,zero,zero,
+    zero,ten, sqllongvarbinary},
+  {XBV(LONGBLOB),sqllongvarbinary,XBV(2147483647),empty,empty,Null,one,one,three,zero,zero,zero,XBV(LONGBLOB),zero,zero,zero,zero,
+    ten, sqllongvarbinary},
+  {XBV(BLOB),sqllongvarbinary,XBV(65535),empty,empty,Null,one,one,three,zero,zero,zero,XBV(BLOB),zero,zero,zero,zero,ten,
+    sqllongvarbinary},
+  {XBV(TINYBLOB),sqllongvarbinary,XBV(255),empty,empty,Null,one,one,three,zero,zero,zero,XBV(TINYBLOB),zero,zero,zero,zero,ten,
+    sqllongvarbinary},
+  {XBV(VARBINARY),sqlvarbinary,XBV(255),empty,empty,XBV(length),one,one,three,zero,zero,zero,XBV(VARBINARY),zero,zero,zero,zero,
+    ten, sqlvarbinary},
+  {XBV(BINARY),sqlbinary,XBV(255),empty,empty,XBV(length),one,one,three,zero,zero,zero,XBV(BINARY),zero,zero,zero,zero,ten,
+    sqlbinary},
+  {XBV(LONG VARCHAR),sqllongvarchar,XBV(16777215),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(LONG VARCHAR),zero,zero,zero,
+    zero,ten, sqllongvarchar},
+  {XBV(MEDIUMTEXT),sqllongvarchar,XBV(16777215),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(MEDIUMTEXT),zero,zero,zero,zero,
+    ten, sqllongvarchar},
+  {XBV(LONGTEXT),sqllongvarchar,XBV(2147483647),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(LONGTEXT),zero,zero,zero,zero,
+    ten, sqllongvarchar},
+  {XBV(TEXT),sqllongvarchar,XBV(65535),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TEXT),zero,zero,zero,zero,ten,
+    sqllongvarchar},
+  {XBV(TINYTEXT),sqllongvarchar,XBV(255),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TINYTEXT),zero,zero,zero,zero,ten,
+    sqllongvarchar},
+  {XBV(CHAR),BV(XSTR(SQL_CHAR)),XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(CHAR),zero,zero,zero,
+    zero,ten, BV(XSTR(SQL_CHAR))},
+  {XBV(NUMERIC),BV(XSTR(SQL_NUMERIC)),XBV(65),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(NUMERIC),XBV(-308),
+    XBV(308),zero,zero,ten, BV(XSTR(SQL_NUMERIC))},
+  {XBV(DECIMAL),BV(XSTR(SQL_DECIMAL)),XBV(65),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(DECIMAL),XBV(-308),
+    XBV(308),zero,zero,ten, BV(XSTR(SQL_DECIMAL))},
+  {XBV(INTEGER),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(INTEGER),zero,zero,zero,
+    zero,ten,BV(XSTR(SQL_INTEGER))},
+  {XBV(INTEGER UNSIGNED),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,one,zero,one,XBV(INTEGER UNSIGNED),zero,zero,zero,
+    zero,ten, BV(XSTR(SQL_INTEGER))},
+  {XBV(INT),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(INT),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(INT UNSIGNED),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,one,zero,one,XBV(INT UNSIGNED),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(MEDIUMINT),BV(XSTR(SQL_INTEGER)),XBV(7),empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(MEDIUMINT),zero,zero,
+    zero,zero,ten,BV(XSTR(SQL_INTEGER))},
+  {XBV(MEDIUMINT UNSIGNED),BV(XSTR(SQL_INTEGER)),XBV(8),empty,empty,Null,one,zero,three,one,zero,one,XBV(MEDIUMINT UNSIGNED),zero,zero,
+    zero,zero,ten, BV(XSTR(SQL_INTEGER))},
+  {XBV(SMALLINT),BV(XSTR(SQL_SMALLINT)),XBV(5),empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(SMALLINT),zero,zero,zero,
+    zero,ten, BV(XSTR(SQL_SMALLINT))},
+  {XBV(SMALLINT UNSIGNED),BV(XSTR(SQL_SMALLINT)),XBV(5),empty,empty,Null,one,zero,three,one,zero,one,XBV(SMALLINT UNSIGNED),zero,zero,
+    zero,zero,ten, BV(XSTR(SQL_SMALLINT))},
+  {XBV(FLOAT),BV(XSTR(SQL_FLOAT)),ten,empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(FLOAT),XBV(-38),XBV(38),zero,
+    zero,ten, BV(XSTR(SQL_FLOAT))},
+  {XBV(DOUBLE),BV(XSTR(SQL_DOUBLE)),XBV(17),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(DOUBLE),XBV(-308),
+    XBV(308),zero,zero,ten, BV(XSTR(SQL_DOUBLE))},
+  {XBV(DOUBLE PRECISION),BV(XSTR(SQL_DOUBLE)),XBV(17),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,
+    XBV(DOUBLE PRECISION),XBV(-308),XBV(308),zero,zero,ten, BV(XSTR(SQL_DOUBLE))},
+  {XBV(REAL),BV(XSTR(SQL_DOUBLE)),XBV(17),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(REAL),XBV(-308),XBV(308),
+    zero,zero,ten, BV(XSTR(SQL_DOUBLE))},
+  {XBV(VARCHAR),BV(XSTR(SQL_VARCHAR)),XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(VARCHAR),zero,zero,zero,
+    zero,ten, BV(XSTR(SQL_VARCHAR))},
+  {XBV(ENUM),BV(XSTR(SQL_VARCHAR)),XBV(65535),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(ENUM),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_VARCHAR))},
+  {XBV(SET),BV(XSTR(SQL_VARCHAR)),XBV(64),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(SET),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_VARCHAR))},
+  {XBV(DATE),BV(XSTR(SQL_TYPE_DATE)),ten,empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATE),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_DATETIME))},
+  {XBV(TIME),BV(XSTR(SQL_TYPE_TIME)),XBV(8),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TIME),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_DATETIME))},
+  {XBV(DATETIME),BV(XSTR(SQL_TYPE_TIMESTAMP)),XBV(16),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATETIME),zero,zero,zero,zero,
+    ten, BV(XSTR(SQL_DATETIME))},
+  {XBV(TIMESTAMP),BV(XSTR(SQL_TYPE_TIMESTAMP)),XBV(16),empty,empty,XBV(scale),one,zero,three,zero,zero,zero,XBV(TIMESTAMP),zero,zero,
+    zero,zero,ten, BV(XSTR(SQL_DATETIME))},
+  {XBV(CHAR),sqlwchar,XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(CHAR),zero,zero,zero,zero,ten,
+    sqlwchar},
+  {XBV(VARCHAR),sqlwvarchar,XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(VARCHAR),zero,zero,zero,zero,
+    ten, sqlwvarchar},
+  {XBV(LONG VARCHAR),sqlwlongvarchar,XBV(16777215),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(LONG VARCHAR),zero,zero,
+    zero,zero,ten, sqlwlongvarchar}
 };
 
-MADB_TypeInfo TypeInfoV2[]=
+std::vector<std::vector<mariadb::bytes_view>> TypeInfoV2=
 {
-  {"BIT",SQL_BIT,1,"","","NULL",1,1,3,0,0,0,"BIT",0,0,0,0,10, SQL_BIT},
-  {"BOOL",SQL_BIT,1,"","","NULL",1,1,3,0,0,0,"BOOL",0,0,0,0,10, SQL_BIT},
-  {"TINYINT",SQL_TINYINT,3,"","","NULL",1,0,3,SQL_FALSE,0,1,"TINYINT",0,0,0,0,10, SQL_TINYINT},
-  {"TINYINT UNSIGNED",SQL_TINYINT,3,"","","NULL",1,0,3,SQL_FALSE,0,1,"TINYINT UNSIGNED",0,0,0,0,10, SQL_TINYINT},
-  {"BIGINT",SQL_BIGINT,19,"","","NULL",1,0,3,SQL_FALSE,0,1,"BIGINT",0,0,0,0,10, SQL_BIGINT},
-  {"BIGINT UNSIGNED",SQL_BIGINT,20,"","","NULL",1,0,3,SQL_TRUE,0,1,"BIGINT UNSIGNED",0,0,0,0,10, SQL_BIGINT},
-  {"LONG VARBINARY",SQL_LONGVARBINARY,16777215,"''","''","NULL",1,1,3,0,0,0,"LONG VARBINARY",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"MEDIUMBLOB",SQL_LONGVARBINARY,16777215,"''","''","NULL",1,1,3,0,0,0,"MEDIUMBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"LONGBLOB",SQL_LONGVARBINARY,2147483647,"''","''","NULL",1,1,3,0,0,0,"LONGBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"BLOB",SQL_LONGVARBINARY,65535,"''","''","NULL",1,1,3,0,0,0,"BLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"TINYBLOB",SQL_LONGVARBINARY,255,"''","''","NULL",1,1,3,0,0,0,"TINYBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"VARBINARY",SQL_VARBINARY,255,"''","''","'length'",1,1,3,0,0,0,"VARBINARY",0,0,0,0,10, SQL_VARBINARY},
-  {"BINARY",SQL_BINARY,255,"''","''","'length'",1,1,3,0,0,0,"BINARY",0,0,0,0,10, SQL_BINARY},
-  {"LONG VARCHAR",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"MEDIUMTEXT",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"MEDIUMTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"LONGTEXT",SQL_LONGVARCHAR,2147483647,"''","''","NULL",1,0,3,0,0,0,"LONGTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"TEXT",SQL_LONGVARCHAR,65535,"''","''","NULL",1,0,3,0,0,0,"TEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"TINYTEXT",SQL_LONGVARCHAR,255,"''","''","NULL",1,0,3,0,0,0,"TINYTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
-  {"CHAR",SQL_CHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_CHAR},
-  {"NUMERIC",SQL_NUMERIC,65,"","","'precision,scale'",1,0,3,0,0,1,"NUMERIC", -308,308,0,0,10, SQL_NUMERIC}, /* Todo: ?? */
-  {"DECIMAL",SQL_DECIMAL,65,"","","'precision,scale'",1,0,3,0,0,1,"DECIMAL",-308,308,0,0,10, SQL_DECIMAL},
-  {"INTEGER",SQL_INTEGER,10,"","","NULL",1,0,3,SQL_FALSE,0,1,"INTEGER",0,0,0,0,10,SQL_INTEGER},
-  {"INTEGER UNSIGNED",SQL_INTEGER,10,"","","NULL",1,0,3,1,0,1,"INTEGER UNSIGNED",0,0,0,0,10, SQL_INTEGER},
-  {"INT",SQL_INTEGER,10,"","","NULL",1,0,3,SQL_FALSE,0,1,"INT",0,0,0,0,10, SQL_INTEGER},
-  {"INT UNSIGNED",SQL_INTEGER,10,"","","NULL",1,0,3,1,0,1,"INT UNSIGNED",0,0,0,0,10, SQL_INTEGER},
-  {"MEDIUMINT",SQL_INTEGER,7,"","","NULL",1,0,3,SQL_FALSE,0,1,"MEDIUMINT",0,0,0,0,10},
-  {"MEDIUMINT UNSIGNED",SQL_INTEGER,8,"","","NULL",1,0,3,1,0,1,"MEDIUMINT UNSIGNED",0,0,0,0,10, SQL_INTEGER},
-  {"SMALLINT",SQL_SMALLINT,5,"","","NULL",1,0,3,SQL_FALSE,0,1,"SMALLINT",0,0,0,0,10, SQL_SMALLINT},
-  {"SMALLINT UNSIGNED",SQL_SMALLINT,5,"","","NULL",1,0,3,1,0,1,"SMALLINT UNSIGNED",0,0,0,0,10, SQL_SMALLINT},
-  {"FLOAT",SQL_FLOAT,10,"","","'precision,scale'",1,0,3,0,0,1,"FLOAT",-38,38,0,0,10, SQL_FLOAT},
-  {"DOUBLE",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE",-308,308,0,0,10, SQL_DOUBLE},
-  {"DOUBLE PRECISION",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE PRECISION",-308,308,0,0,10, SQL_DOUBLE},
-  {"REAL",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"REAL",-308,308,0,0,10, SQL_DOUBLE},
-  {"VARCHAR",SQL_VARCHAR,255,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_VARCHAR},
-  {"ENUM",SQL_VARCHAR,65535,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
-  {"SET",SQL_VARCHAR,64,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
-  {"DATE",SQL_DATE,10,"''","''","NULL",1,0,3,0,0,0,"DATE",0,0,0,0,10, SQL_DATETIME},
-  {"TIME",SQL_TIME,18,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
-  {"DATETIME",SQL_TIMESTAMP,27,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
-  {"TIMESTAMP",SQL_TIMESTAMP,27,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
-  {"CHAR",SQL_WCHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_WCHAR},
-  {"VARCHAR",SQL_WVARCHAR,255,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
-  {"LONG VARCHAR",SQL_WLONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_WLONGVARCHAR},
-  {NULL,0,0,NULL,NULL,NULL,0,0,0,0,0,0,NULL,0,0,0,0,0}
+  {bytes_view(XBV(BIT), 4), sqlbit, one, empty, empty, Null, one, one, three, zero, zero, zero, zero, zero, zero,
+    zero, zero, ten, sqlbit},
+  {XBV(BIT),sqlbit,one,empty,empty,Null,one,one,three,zero,zero,zero,XBV(BIT),zero,zero,zero,zero,ten, sqlbit},
+  {XBV(BOOL),sqlbit,one,empty,empty,Null,one,one,three,zero,zero,zero,XBV(BOOL),zero,zero,zero,zero,ten, sqlbit},
+  {XBV(TINYINT),sqltinyint,three,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(TINYINT),zero,zero,zero,zero,ten,
+    sqltinyint},
+  {XBV(TINYINT UNSIGNED),sqltinyint,three,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(TINYINT UNSIGNED),zero,
+    zero,zero,zero,ten, sqltinyint},
+  {XBV(BIGINT),sqlbigint,XBV(19),empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(BIGINT),zero,zero,zero,zero,ten,
+  sqlbigint},
+  {XBV(BIGINT UNSIGNED),sqlbigint,XBV(20),empty,empty,Null,one,zero,three,BV(XSTR(SQL_TRUE)),zero,one,XBV(BIGINT UNSIGNED),zero,zero
+    ,zero,zero,ten, sqlbigint},
+  {XBV(LONG VARBINARY),sqllongvarbinary,XBV(16777215),empty,empty,Null,one,one,three,zero,zero,zero,XBV(LONG VARBINARY),zero,
+    zero,zero,zero,ten, sqllongvarbinary},
+  {XBV(MEDIUMBLOB),sqllongvarbinary,XBV(16777215),empty,empty,Null,one,one,three,zero,zero,zero,XBV(MEDIUMBLOB),zero,zero,zero,
+    zero,ten, sqllongvarbinary},
+  {XBV(LONGBLOB),sqllongvarbinary,XBV(2147483647),empty,empty,Null,one,one,three,zero,zero,zero,XBV(LONGBLOB),zero,zero,zero,
+    zero,ten, sqllongvarbinary},
+  {XBV(BLOB),sqllongvarbinary,XBV(65535),empty,empty,Null,one,one,three,zero,zero,zero,XBV(BLOB),zero,zero,zero,zero,ten,
+    sqllongvarbinary},
+  {XBV(TINYBLOB),sqllongvarbinary,XBV(255),empty,empty,Null,one,one,three,zero,zero,zero,XBV(TINYBLOB),zero,zero,zero,zero,ten,
+    sqllongvarbinary},
+  {XBV(VARBINARY),sqlvarbinary,XBV(255),empty,empty,XBV(length),one,one,three,zero,zero,zero,XBV(VARBINARY),zero,zero,zero,zero,
+    ten, sqlvarbinary},
+  {XBV(BINARY),sqlbinary,XBV(255),empty,empty,XBV(length),one,one,three,zero,zero,zero,XBV(BINARY),zero,zero,zero,zero,ten,
+    sqlbinary},
+  {XBV(LONG VARCHAR),sqllongvarchar,XBV(16777215),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(LONG VARCHAR),zero,zero,zero,
+    zero,ten, sqllongvarchar},
+  {XBV(MEDIUMTEXT),sqllongvarchar,XBV(16777215),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(MEDIUMTEXT),zero,zero,zero,zero,
+    ten, sqllongvarchar},
+  {XBV(LONGTEXT),sqllongvarchar,XBV(2147483647),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(LONGTEXT),zero,zero,zero,zero,
+    ten, sqllongvarchar},
+  {XBV(TEXT),sqllongvarchar,XBV(65535),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TEXT),zero,zero,zero,zero,ten,
+    sqllongvarchar},
+  {XBV(TINYTEXT),sqllongvarchar,XBV(255),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TINYTEXT),zero,zero,zero,zero,ten,
+    sqllongvarchar},
+  {XBV(CHAR),BV(XSTR(SQL_CHAR)),XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(CHAR),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_CHAR))},
+  {XBV(NUMERIC),BV(XSTR(SQL_NUMERIC)),XBV(65),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(NUMERIC),XBV(-308),XBV(308),zero,
+    zero,ten, BV(XSTR(SQL_NUMERIC))},
+  {XBV(DECIMAL),BV(XSTR(SQL_DECIMAL)),XBV(65),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(DECIMAL),XBV(-308),XBV(308),zero,
+    zero,ten, BV(XSTR(SQL_DECIMAL))},
+  {XBV(INTEGER),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(INTEGER),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(INTEGER UNSIGNED),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,one,zero,one,XBV(INTEGER UNSIGNED),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(INT),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(INT),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(INT UNSIGNED),BV(XSTR(SQL_INTEGER)),ten,empty,empty,Null,one,zero,three,one,zero,one,XBV(INT UNSIGNED),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(MEDIUMINT),BV(XSTR(SQL_INTEGER)),XBV(7),empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(MEDIUMINT),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_INTEGER))},
+  {XBV(MEDIUMINT UNSIGNED),BV(XSTR(SQL_INTEGER)),XBV(8),empty,empty,Null,one,zero,three,one,zero,one,XBV(MEDIUMINT UNSIGNED),zero,zero,zero,zero,
+    ten, BV(XSTR(SQL_INTEGER))},
+  {XBV(SMALLINT),BV(XSTR(SQL_SMALLINT)),XBV(5),empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(SMALLINT),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_SMALLINT))},
+  {XBV(SMALLINT UNSIGNED),BV(XSTR(SQL_SMALLINT)),XBV(5),empty,empty,Null,one,zero,three,one,zero,one,XBV(SMALLINT UNSIGNED),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_SMALLINT))},
+  {XBV(FLOAT),BV(XSTR(SQL_FLOAT)),ten,empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(FLOAT),XBV(-38),XBV(38),zero,zero,ten,
+    BV(XSTR(SQL_FLOAT))},
+  {XBV(DOUBLE),BV(XSTR(SQL_DOUBLE)),XBV(17),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(DOUBLE),XBV(-308),XBV(308),zero,zero,
+    ten, BV(XSTR(SQL_DOUBLE))},
+  {XBV(DOUBLE PRECISION),BV(XSTR(SQL_DOUBLE)),XBV(17),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(DOUBLE PRECISION),XBV(-308),
+    XBV(308),zero,zero,ten, BV(XSTR(SQL_DOUBLE))},
+  {XBV(REAL),BV(XSTR(SQL_DOUBLE)),XBV(17),empty,empty,BV("precision,scale"),one,zero,three,zero,zero,one,XBV(REAL),XBV(-308),XBV(308),zero,zero,ten,
+    BV(XSTR(SQL_DOUBLE))},
+  {XBV(VARCHAR),BV(XSTR(SQL_VARCHAR)),XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(VARCHAR),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_VARCHAR))},
+  {XBV(ENUM),BV(XSTR(SQL_VARCHAR)),XBV(65535),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(ENUM),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_VARCHAR))},
+  {XBV(SET),BV(XSTR(SQL_VARCHAR)),XBV(64),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(SET),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_VARCHAR))},
+  {XBV(DATE),BV(XSTR(SQL_DATE)),ten,empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATE),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_DATETIME))},
+  {XBV(TIME),BV(XSTR(SQL_TIME)),XBV(18),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TIME),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_DATETIME))},
+  {XBV(DATETIME),BV(XSTR(SQL_TIMESTAMP)),XBV(27),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATETIME),zero,zero,zero,zero,ten,
+    BV(XSTR(SQL_DATETIME))},
+  {XBV(TIMESTAMP),BV(XSTR(SQL_TIMESTAMP)),XBV(27),empty,empty,XBV(scale),one,zero,three,zero,zero,zero,XBV(TIMESTAMP),zero,zero,zero,zero,
+    ten, BV(XSTR(SQL_DATETIME))},
+  {XBV(CHAR),sqlwchar,XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(CHAR),zero,zero,zero,zero,ten, sqlwchar},
+  {XBV(VARCHAR),sqlwvarchar,XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(VARCHAR),zero,zero,zero,zero,ten, sqlwvarchar},
+  {XBV(LONG VARCHAR),sqlwlongvarchar,XBV(16777215),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(LONG VARCHAR),zero,zero,zero,zero,
+    ten, sqlwlongvarchar}
 };
 
-static MADB_ShortTypeInfo gtiDefType[19]= {{0, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_INTEGER, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0},
-                                 /*7*/     {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0},
-                                 /*11*/    {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {0, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0},
-                                 /*16*/    {SQL_SMALLINT, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0}, {SQL_INTEGER, 0, 0, 0}, {SQL_SMALLINT, 0, 0, 0} };
+static std::vector<SQLString> TypeInfoColumnName{"TYPE_NAME", "DATA_TYPE", "COLUMN_SIZE", "LITERAL_PREFIX",
+          "LITERAL_SUFFIX", "CREATE_PARAMS", "NULLABLE", "CASE_SENSITIVE", "SEARCHABLE", "UNSIGNED_ATTRIBUTE",
+          "FIXED_PREC_SCALE", "AUTO_UNIQUE_VALUE", "LOCAL_TYPE_NAME", "MINIMUM_SCALE", "MAXIMUM_SCALE", "SQL_DATA_TYPE",
+          "SQL_DATETIME_SUB", "NUM_PREC_RADIX", "INTERVAL_PRECISION"};
+
+#define MA_CONST_LEN(LITERALSTRCONST) sizeof(#LITERALSTRCONST) - 1
+static MADB_ShortTypeInfo gtiDefType[19]= {};
+static std::vector<const MYSQL_FIELD*> TypeInfoColumnType= {
+  &FIELDSTRING, &FIELDSHORT, &FIELDINT, &FIELDSTRING, &FIELDSTRING, &FIELDSTRING, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT,
+  &FIELDSHORT, &FIELDSHORT, &FIELDSTRING, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDINT, &FIELDSHORT };
+
 /* {{{ MADB_GetTypeInfo */
 SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
                            SQLSMALLINT DataType)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLRETURN ret;
-  my_bool   isFirst= TRUE;
-  char      StmtStr[5120];
-  char      *p= StmtStr;
-  int       i;
-  MADB_TypeInfo *TypeInfo= TypeInfoV3;
+  std::vector<std::vector<bytes_view>> *TypeInfo= &TypeInfoV3;
 
   if (Stmt->Connection->Environment->OdbcVersion == SQL_OV_ODBC2)
   {
-    TypeInfo= TypeInfoV2;
+    TypeInfo= &TypeInfoV2;
     /* We need to map time types */
     switch(DataType) {
       case SQL_TYPE_TIMESTAMP:
@@ -149,50 +242,30 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
     }
   }
 
-  StmtStr[0]= 0;
-  for (i=0;TypeInfo[i].TypeName; i++)
+  std::vector<std::vector<mariadb::bytes_view>> row;
+
+  Stmt->stmt.reset();
+  if (DataType == SQL_ALL_TYPES)
   {
-    if (DataType == SQL_ALL_TYPES ||
-       TypeInfo[i].DataType == DataType)
+    Stmt->rs.reset(ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, *TypeInfo));
+  }
+  else
+  {
+    std::string dataTypeAsStr(std::to_string(DataType));
+    for (const auto& cit : *TypeInfo)
     {
-      if(isFirst)
+      if (dataTypeAsStr.compare(cit[1].arr) == 0)
       {
-        isFirst= FALSE;
-        p+= _snprintf(p, 5120 - strlen(StmtStr),
-          "SELECT '%s' AS TYPE_NAME, %d AS DATA_TYPE, %lu AS COLUMN_SIZE, '%s' AS LITERAL_PREFIX, "
-          "'%s' AS LITERAL_SUFFIX, %s AS CREATE_PARAMS, %d AS NULLABLE, %d AS CASE_SENSITIVE, "
-          "%d AS SEARCHABLE, %d AS UNSIGNED_ATTRIBUTE, %d AS FIXED_PREC_SCALE, %d AS AUTO_UNIQUE_VALUE, "
-          "'%s' AS LOCAL_TYPE_NAME, %d AS MINIMUM_SCALE, %d AS MAXIMUM_SCALE, "
-          "%d AS SQL_DATA_TYPE, "
-          "%d AS SQL_DATETIME_SUB, %d AS NUM_PREC_RADIX, NULL AS INTERVAL_PRECISION ",
-         TypeInfo[i].TypeName,TypeInfo[i].DataType,TypeInfo[i].ColumnSize,TypeInfo[i].LiteralPrefix,
-         TypeInfo[i].LiteralSuffix,TypeInfo[i].CreateParams,TypeInfo[i].Nullable,TypeInfo[i].CaseSensitive,
-         TypeInfo[i].Searchable,TypeInfo[i].Unsigned,TypeInfo[i].FixedPrecScale,TypeInfo[i].AutoUniqueValue,
-         TypeInfo[i].LocalTypeName,TypeInfo[i].MinimumScale,TypeInfo[i].MaximumScale,
-         TypeInfo[i].SqlDataType,
-         TypeInfo[i].SqlDateTimeSub,TypeInfo[i].NumPrecRadix);
+        row.push_back(cit);
       }
-      else
-          p+= _snprintf(p, 5120 - strlen(StmtStr),
-          "UNION SELECT '%s', %d, %lu , '%s', "
-          "'%s', %s, %d, %d, "
-          "%d, %d, %d, %d, "
-          "'%s', %d, %d, "
-          "%d, "
-          "%d, %d, NULL ",
-         TypeInfo[i].TypeName,TypeInfo[i].DataType,TypeInfo[i].ColumnSize,TypeInfo[i].LiteralPrefix,
-         TypeInfo[i].LiteralSuffix,TypeInfo[i].CreateParams,TypeInfo[i].Nullable,TypeInfo[i].CaseSensitive,
-         TypeInfo[i].Searchable,TypeInfo[i].Unsigned,TypeInfo[i].FixedPrecScale,TypeInfo[i].AutoUniqueValue,
-         TypeInfo[i].LocalTypeName,TypeInfo[i].MinimumScale,TypeInfo[i].MaximumScale,
-         TypeInfo[i].SqlDataType,
-         TypeInfo[i].SqlDateTimeSub,TypeInfo[i].NumPrecRadix);
     }
+    Stmt->rs.reset(ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, row));
   }
-  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
-  if (SQL_SUCCEEDED(ret))
-  {
-    MADB_FixColumnDataTypes(Stmt, gtiDefType);
-  }
-  return ret;
+
+  Stmt->State= MADB_SS_EXECUTED;
+  Stmt->AfterExecute();
+
+  //MADB_FixColumnDataTypes(Stmt, gtiDefType);
+  return SQL_SUCCESS;
 }
 /* }}} */

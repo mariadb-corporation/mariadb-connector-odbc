@@ -24,8 +24,12 @@
 
 namespace mariadb
 {
-  const MYSQL_FIELD bigint{0,0,0,0,0,0,0, 21,0, 0,0,0,0,0,0,0, 0,0,0, MYSQL_TYPE_LONGLONG,0};
-  static std::vector<ColumnDefinition> INSERT_ID_COLUMNS{{"insert_id", &bigint, true}};
+  const MYSQL_FIELD FIELDBIGINT{0,0,0,0,0,0,0, 21, 0,0,0,0,0,0,0,0,0,0,0, MYSQL_TYPE_LONGLONG, 0};
+  const MYSQL_FIELD FIELDSTRING{0,0,0,0,0,0,0, 255,0,0,0,0,0,0,0,0,0,0,0, MYSQL_TYPE_STRING, 0};
+  const MYSQL_FIELD FIELDSHORT {0,0,0,0,0,0,0, 6,  0,0,0,0,0,0,0,0,0,0,0, MYSQL_TYPE_SHORT, 0};
+  const MYSQL_FIELD FIELDINT   {0,0,0,0,0,0,0, 11, 0,0,0,0,0,0,0,0,0,0,0, MYSQL_TYPE_LONG, 0};
+
+  static std::vector<ColumnDefinition> INSERT_ID_COLUMNS{{"insert_id", &FIELDBIGINT}};
 
   int32_t ResultSet::TINYINT1_IS_BIT= 1;
   int32_t ResultSet::YEAR_IS_DATE_TYPE= 2;
@@ -56,7 +60,7 @@ namespace mariadb
     */
   ResultSet* ResultSet::create(
     const MYSQL_FIELD* columnInformation,
-    std::vector<std::vector<mariadb::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     int32_t resultSetScrollType)
   {
     return new ResultSetText(columnInformation, resultSet, resultSetScrollType);
@@ -73,7 +77,7 @@ namespace mariadb
     */
   ResultSet* ResultSet::create(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<mariadb::bytes>>& resultSet,
+    const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     int32_t resultSetScrollType)
   {
     return new ResultSetText(columnInformation, resultSet, resultSetScrollType);
@@ -93,16 +97,15 @@ namespace mariadb
   ResultSet* ResultSet::createGeneratedData(std::vector<int64_t>& data, bool findColumnReturnsOne)
   {
     /*std::vector<ColumnDefinition> columns{ColumnDefinition::create("insert_id", &bigint)};*/
-    std::vector<std::vector<mariadb::bytes>> rows;
+    std::vector<std::vector<mariadb::bytes_view>> rows;
     std::string idAsStr;
 
 
     for (int64_t rowData : data) {
-      std::vector<mariadb::bytes> row;
+      std::vector<mariadb::bytes_view> row;
       if (rowData != 0) {
         idAsStr= std::to_string(rowData);
-        row.emplace_back();
-        BYTES_ASSIGN_STR(row[0], idAsStr);
+        row.emplace_back(idAsStr);
         rows.push_back(row);
       }
     }
@@ -117,37 +120,25 @@ namespace mariadb
   }
 
   ResultSet* ResultSet::createEmptyResultSet() {
-    static std::vector<std::vector<mariadb::bytes>> emptyRs;
+    static std::vector<std::vector<mariadb::bytes_view>> emptyRs;
 
     return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, emptyRs, TYPE_SCROLL_SENSITIVE);
   }
 
 
   ResultSet * ResultSet::createResultSet(const std::vector<SQLString>& columnNames,
-    const std::vector<MYSQL_FIELD*>& columnTypes,
-    std::vector<std::vector<mariadb::bytes>>& data)
+    const std::vector<const MYSQL_FIELD*>& columnTypes,
+    const std::vector<std::vector<mariadb::bytes_view>>& data)
   {
     std::size_t columnNameLength= columnNames.size();
 
     std::vector<ColumnDefinition> columns;
     columns.reserve(columnTypes.size());
 
-    for (std::size_t i= 0; i <columnNameLength; i++) {
-      columns.emplace_back(ColumnDefinition::create(columnNames[i], columnTypes[i]));
+    for (std::size_t i= 0; i < columnNameLength; i++) {
+      columns.emplace_back(columnNames[i], columnTypes[i]);
     }
 
-    /*std::vector<mariadb::bytes> rows;
-
-    for (auto& rowData : data) {
-      //assert(rowData.size() == columnNameLength);
-      //char* rowBytes[]= new char[rowData.size()][];
-      //for (size_t i= 0; i <rowData.size(); i++) {
-      //if (rowData[i].empty() != true) {
-      //memcpy(rowBytes[i], rowData[i].c_str(), rowData[i].length());
-      //}
-      //}
-      rows.push_back(StandardPacketInputStream::create<COLUMNSCOUNT>(rowData, columnTypes));
-    }*/
     return create(columns, data, TYPE_SCROLL_SENSITIVE);
   }
 

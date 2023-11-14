@@ -111,7 +111,8 @@ public:
   virtual bool isServerSide() const=0;
   virtual enum enum_field_types getPreferredParamType(enum enum_field_types appType) const=0;
   Results* getInternalResults() { return results.get(); }
-
+  inline void setFetchSize(int32_t _fetchSize) { fetchSize= _fetchSize; }
+  inline int32_t getFetchSize() { return fetchSize; }
   //void validateParamset(std::size_t paramCount);
   /**
   * Retrieves the number, types and properties of this <code>PreparedStatement</code> object's

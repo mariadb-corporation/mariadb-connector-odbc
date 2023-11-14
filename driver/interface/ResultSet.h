@@ -37,6 +37,11 @@ class RowProtocol;
 class ServerPrepareResult;
 class ResultSetMetaData;
 
+extern const MYSQL_FIELD FIELDBIGINT;
+extern const MYSQL_FIELD FIELDSTRING;
+extern const MYSQL_FIELD FIELDSHORT;
+extern const MYSQL_FIELD FIELDINT;
+
 class ResultSet
 {
   void operator=(ResultSet&) = delete;
@@ -72,12 +77,12 @@ public:
 
   static ResultSet* create(
     const MYSQL_FIELD* columnInformation,
-    std::vector<std::vector<bytes>>& resultSet,
+    std::vector<std::vector<bytes_view>>& resultSet,
     int32_t resultSetScrollType);
 
   static ResultSet* create(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<bytes>>& resultSet,
+    const std::vector<std::vector<bytes_view>>& resultSet,
     int32_t resultSetScrollType);
 
   static ResultSet* createGeneratedData(std::vector<int64_t>& data, bool findColumnReturnsOne);
@@ -96,8 +101,8 @@ public:
   * @return resultset
   */
 
-  static ResultSet* createResultSet(const std::vector<SQLString>& columnNames, const std::vector<MYSQL_FIELD*>& columnTypes,
-    std::vector<std::vector<bytes>>& data);
+  static ResultSet* createResultSet(const std::vector<SQLString>& columnNames, const std::vector<const MYSQL_FIELD*>& columnTypes,
+    const std::vector<std::vector<bytes_view>>& data);
 
   virtual ~ResultSet();
 
@@ -122,10 +127,10 @@ public:
   virtual bool previous()=0;
  
 protected:
-  virtual std::vector<bytes>& getCurrentRowData()=0;
-  virtual void updateRowData(std::vector<bytes>& rawData)=0;
+  virtual std::vector<bytes_view>& getCurrentRowData()=0;
+  virtual void updateRowData(std::vector<bytes_view>& rawData)=0;
   virtual void deleteCurrentRowData()=0;
-  virtual void addRowData(std::vector<bytes>& rawData)=0;
+  virtual void addRowData(std::vector<bytes_view>& rawData)=0;
   void addStreamingValue(bool cacheLocally= false);
   virtual bool readNextValue(bool cacheLocally= false)= 0;
 

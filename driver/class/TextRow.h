@@ -61,7 +61,7 @@ public:
   SQLString getInternalTimeString(const ColumnDefinition*  columnInfo);
 
   bool isBinaryEncoded();
-  void cacheCurrentRow(std::vector<mariadb::bytes>& rowData, std::size_t columnCount);
+  void cacheCurrentRow(std::vector<mariadb::bytes_view>& rowData, std::size_t columnCount);
 
   //bool get(MYSQL_BIND* bind, const ColumnDefinition* columnInfo, uint64_t offset);
 };

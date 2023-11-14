@@ -35,10 +35,12 @@ SQLUSMALLINT MADB_supported_api[]=
   SQL_API_SQLALLOCCONNECT,
   SQL_API_SQLALLOCENV,
   SQL_API_SQLALLOCHANDLE,
+//  SQL_API_SQLALLOCHANDLESTD,
   SQL_API_SQLALLOCSTMT,
   SQL_API_SQLBINDCOL,
   SQL_API_SQLBINDPARAM,
   SQL_API_SQLCANCEL,
+  SQL_API_SQLCANCELHANDLE,
   SQL_API_SQLCLOSECURSOR,
   SQL_API_SQLCOLATTRIBUTE,
   SQL_API_SQLCOLUMNS,
@@ -124,28 +126,6 @@ int MADB_Dbc_ErrorOnStreaming(MADB_Error *Error)
 }
 
 
-/* Main method for stream caching - i.e. cahing is desabled by default, and we are capable to store and operate the rest
-   of the RS.
-   Stmt - the statement, that has requested the operation, and where the error has to be set */
-int MADB_Dbc_CacheRestOfCurrentRsStream(MADB_Dbc* Dbc, MADB_Error *Error)
-{
-  if (Dbc->Streamer != NULL)
-  {
-    try
-    {
-      Dbc->Streamer->rs->fetchRemaining();
-    }
-    catch (SQLRETURN)
-    {
-      return MADB_Dbc_ErrorOnStreaming(Error);
-    }
-    Dbc->Streamer= nullptr;
-    return 0;
-  }
-  return 0;
-}
-
-
 bool MADB_Dbc::CheckConnection()
 {
   if (!mariadb)
@@ -161,14 +141,6 @@ bool MADB_Dbc::CheckConnection()
     return false;
   }
   return true;
-}
-
-
-bool HasMoreResults(MADB_Dbc* Dbc)
-{
-  unsigned int ServerStatus;
-  mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
-  return (ServerStatus & SERVER_MORE_RESULTS_EXIST) != 0;
 }
 
 /* {{{ SQLDisconnect */

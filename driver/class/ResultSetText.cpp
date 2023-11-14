@@ -45,7 +45,6 @@ namespace mariadb
       resultSetScrollType(results->getResultSetScrollType()),
       rowPointer(-1),
       callableResult(false),
-      eofDeprecated(eofDeprecated),
       isEof(false),
       capiConnHandle(capiConnHandle),
       forceAlias(false),
@@ -100,12 +99,12 @@ namespace mariadb
     */
   ResultSetText::ResultSetText(
     std::vector<ColumnDefinition>& columnInformation,
-    std::vector<std::vector<mariadb::bytes>>& resultSet,
+    const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     int32_t resultSetScrollType)
     : ResultSet(0),
       columnsInformation(std::move(columnInformation)),
       statement(nullptr),
-      data(std::move(resultSet)),
+      data(resultSet),
       dataSize(data.size()),
       isClosedFlag(false),
       columnInformationLength(static_cast<int32_t>(columnsInformation.size())),
@@ -115,8 +114,7 @@ namespace mariadb
       callableResult(false),
       capiConnHandle(nullptr),
       forceAlias(false),
-      lastRowPointer(-1),
-      eofDeprecated(false)
+      lastRowPointer(-1)
   {
     row.reset(new TextRow(nullptr));
   }
@@ -124,7 +122,7 @@ namespace mariadb
 
   ResultSetText::ResultSetText(
     const MYSQL_FIELD* field,
-    std::vector<std::vector<mariadb::bytes>>& resultSet,
+    std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     int32_t resultSetScrollType)
     : ResultSet(0),
     statement(nullptr),
@@ -138,8 +136,7 @@ namespace mariadb
     callableResult(false),
     capiConnHandle(nullptr),
     forceAlias(false),
-    lastRowPointer(-1),
-    eofDeprecated(false)
+    lastRowPointer(-1)
   {
     row.reset(new TextRow(nullptr));
 
@@ -352,7 +349,7 @@ namespace mariadb
     *
     * @return row's raw bytes
     */
-  std::vector<mariadb::bytes>& ResultSetText::getCurrentRowData() {
+  std::vector<mariadb::bytes_view>& ResultSetText::getCurrentRowData() {
     return data[rowPointer];
   }
 
@@ -362,7 +359,7 @@ namespace mariadb
     *
     * @param rawData new row's raw data.
     */
-  void ResultSetText::updateRowData(std::vector<mariadb::bytes>& rawData)
+  void ResultSetText::updateRowData(std::vector<mariadb::bytes_view>& rawData)
   {
     data[rowPointer]= rawData;
     row->resetRow(data[rowPointer]);
@@ -381,7 +378,7 @@ namespace mariadb
     previous();
   }
 
-  void ResultSetText::addRowData(std::vector<mariadb::bytes>& rawData) {
+  void ResultSetText::addRowData(std::vector<mariadb::bytes_view>& rawData) {
     if (dataSize + 1 >= data.size()) {
       growDataArray();
     }
@@ -516,7 +513,7 @@ namespace mariadb
   void ResultSetText::resetRow() const
   {
     if (data.size() > 0) {
-      row->resetRow(const_cast<std::vector<mariadb::bytes>&>(data[rowPointer]));
+      row->resetRow(const_cast<std::vector<mariadb::bytes_view>&>(data[rowPointer]));
     }
     else {
       if (rowPointer != lastRowPointer + 1) {
@@ -823,7 +820,7 @@ namespace mariadb
     if (row->lastValueWasNull()) {
       return nullptr;
     }
-    blobBuffer[columnIndex].reset(new memBuf(row->fieldBuf.arr + row->pos, row->fieldBuf.arr + row->pos + row->getLengthMaxFieldSize()));
+    blobBuffer[columnIndex].reset(new memBuf(const_cast<char*>(row->fieldBuf.arr) + row->pos, const_cast<char*>(row->fieldBuf.arr) + row->pos + row->getLengthMaxFieldSize()));
     return new std::istream(blobBuffer[columnIndex].get());
   }
 

@@ -62,9 +62,11 @@ static char Read_lower_case_table_names(MADB_Dbc *Dbc)
     MYSQL_RES *res;
     MYSQL_ROW row;
 
+    // TODO: should be done in new "normal" way
+    std::lock_guard<std::mutex> localScopeLock(Dbc->guard->getLock());
+    Dbc->lcTableNamesMode2= '\0';
     if (mysql_real_query(Dbc->mariadb, "SELECT @@lower_case_table_names", sizeof("SELECT @@lower_case_table_names") - 1))
     {
-      Dbc->lcTableNamesMode2= '\0';
       return Dbc->lcTableNamesMode2;
     }
     res= mysql_store_result(Dbc->mariadb);
@@ -72,10 +74,6 @@ static char Read_lower_case_table_names(MADB_Dbc *Dbc)
     if (row[0][0] == '2')
     {
       Dbc->lcTableNamesMode2= '\1';
-    }
-    else
-    {
-      Dbc->lcTableNamesMode2= '\0';
     }
     mysql_free_result(res);
   }

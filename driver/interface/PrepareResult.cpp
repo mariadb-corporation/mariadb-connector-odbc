@@ -24,6 +24,8 @@ namespace mariadb
 {
   void PrepareResult::init(MYSQL_FIELD* fields, std::size_t fieldCount)
   {
+    column.reserve(fieldCount);
+    field.reserve(fieldCount);
     for (std::size_t i = 0; i < fieldCount; ++i) {
       column.emplace_back(&fields[i]);
       field.push_back(column.back().getColumnRawData());
