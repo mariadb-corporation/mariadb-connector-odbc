@@ -126,5 +126,11 @@ ENDIF()
 
 IF(ODBC_LIB_DIR AND ODBC_INCLUDE_DIR)
   MESSAGE(STATUS "Found ODBC Driver Manager libraries: ${ODBC_LIB_DIR} ${ODBCINST_LIB_DIR}")
+  # Just to add automatically dependency on package containing DM headers to source RPM
+  FIND_FILE(ODBCHEADER sql.h
+            HINTS ${ODBC_INCLUDE_DIR})
+  IF(NOT ${ODBCHEADER} STREQUAL "ODBCHEADER-NOTFOUND")
+    MESSAGE(STATUS "Found DM header: ${ODBCHEADER}")
+  ENDIF()
   SET(DM_FOUND TRUE)
 ENDIF()

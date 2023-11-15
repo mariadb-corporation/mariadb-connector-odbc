@@ -672,12 +672,24 @@ ODBC_TEST(test_autocommit)
   OK_SIMPLE_STMT(Stmt, "SELECT @@autocommit");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   is_num(my_fetch_int(Stmt, 1), 1);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  if (SQL_SUCCEEDED(SQLExecDirect(Stmt, "SELECT @@session_track_system_variables", SQL_NTS)))
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_CHAR, tracked, sizeof(tracked), NULL));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    diag("Tracked: %s", tracked);
+    OK_SIMPLE_STMT(Stmt, "SET autocommit=0");
+    CHECK_DBC_RC(Dbc, SQLGetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)&ac, 0, NULL));
+    is_num(ac, SQL_AUTOCOMMIT_OFF);
+  }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
 
   CHECK_DBC_RC(Dbc, SQLSetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0));
-
+  /*----------- Now w/ multistatement -----------*/
   Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
   FAIL_IF(Stmt == NULL, "Connection error");
 

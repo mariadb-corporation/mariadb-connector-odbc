@@ -31,6 +31,9 @@ else
   if ! [ "$TRAVIS_OS_NAME" = "osx" ] ; then
     sudo apt install cmake
   fi
+  if [ "$TRAVIS_CPU_ARCH" = "s390x" ] ; then
+    sudo apt install unixodbc-dev
+  fi
 fi
 
 export TEST_DSN=maodbc_test
@@ -58,7 +61,11 @@ else
     export TEST_DRIVER="$PWD/libmaodbc.dylib"
     cmake -G Xcode -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DOPENSSL_LIBRARIES=/usr/local/opt/openssl/lib -DWITH_EXTERNAL_ZLIB=On .
   else
-    cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL .
+    if [ "$TRAVIS_CPU_ARCH" = "s390x" ] ; then
+      cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_OPENSSL=ON -DWITH_SSL=OPENSSL -DODBC_LIB_DIR=/usr/lib/s390x-linux-gnu/ .
+    else
+      cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL .
+    fi
   fi
 fi
 

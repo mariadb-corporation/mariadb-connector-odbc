@@ -22,6 +22,8 @@ cmake_minimum_required(VERSION 2.8.12)
 CMAKE_POLICY(SET CMP0048 NEW)
 CMAKE_POLICY(SET CMP0040 OLD)
 #CMAKE_POLICY(SET CMP0057 NEW)
+CMAKE_POLICY(SET CMP0054 NEW)
+
 PROJECT(mariadb_connector_odbc 
         VERSION 3.2.1
         LANGUAGES CXX C)
@@ -34,7 +36,7 @@ GET_PROPERTY(MAODBC_LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
 # We don't need RC for what we need MAODBC_LANGUAGES for
 LIST(REMOVE_ITEM MAODBC_LANGUAGES "RC")
 
-SET(MARIADB_ODBC_VERSION_QUALITY "beta")
+SET(MARIADB_ODBC_VERSION_QUALITY "rc")
 SET(MARIADB_ODBC_VERSION "03.02.0001")
 IF(CMAKE_VERSION VERSION_LESS "3.1")
   IF(CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -42,7 +44,7 @@ IF(CMAKE_VERSION VERSION_LESS "3.1")
   ENDIF()
 ELSE()
   SET(CMAKE_C_STANDARD 99)
-endif()
+ENDIF()
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -185,7 +187,7 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
   ELSE()
     INSTALL(FILES
             $<TARGET_FILE:libmariadb>
-            DESTINATION ${INSTALL_LIBDIR}
+            DESTINATION "${INSTALL_LIBDIR}"
             COMPONENT ConCLib)
     MESSAGE(STATUS "Configuring to install libmariadb to ${INSTALL_LIBDIR}")
     IF(NOT ALL_PLUGINS_STATIC)
@@ -210,8 +212,8 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
   ENDIF()
 ELSE()
   # Adding mariadb subdirs of standard include locations
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/local/include/mariadb")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR} "/usr/include/mariadb")
+  INCLUDE_DIRECTORIES("/usr/local/include/mariadb")
   MESSAGE(STATUS "Linking against libmariadb installed on the system")
 ENDIF()
 
@@ -338,24 +340,91 @@ ADD_SUBDIRECTORY(dsn)
 ADD_SUBDIRECTORY("dsn_test")
 
 SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
+
+# "set/append array" - append a set of strings, separated by a space
+MACRO(SETA var)
+  FOREACH(v ${ARGN})
+    SET(${var} "${${var}} ${v}")
+  ENDFOREACH()
+ENDMACRO(SETA)
+
 IF(WIN32)
   IF(WITH_MSI)
-    ADD_SUBDIRECTORY(wininstall)
+    ADD_SUBDIRECTORY(packaging/windows)
   ELSE()
     MESSAGE(STATUS "MSI package won't be generated - WITH_MSI=${WITH_MSI}")
   ENDIF()
-  ADD_EXECUTABLE(install_driver osxinstall/install_driver.c)
+  ADD_EXECUTABLE(install_driver packaging/macos/install_driver.c)
   TARGET_LINK_LIBRARIES(install_driver ${PLATFORM_DEPENDENCIES} ${ODBC_INSTLIBS})
 ELSE()
   IF(APPLE)
     MESSAGE(STATUS "Configuring to generate PKG package")
-    ADD_SUBDIRECTORY(osxinstall)
+    ADD_SUBDIRECTORY(packaging/macos)
   ELSE()
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libmaodbc.pc.in
                    ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc @ONLY)
+    # RPM adds dependency on pkg-config, that we do not want. With later versions of cmake looks like we can deal with that            
+    MESSAGE(STATUS "Configuring to install libmaodbc.pc")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libmaodbc.pc
             DESTINATION "${INSTALL_PCDIR}"
             COMPONENT Development)
+    # Not doing this with MacOS(iOdbc). So far, at least
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/packaging/linux/maodbc.ini.in
+                   ${CMAKE_BINARY_DIR}/packaging/linux/maodbc.ini @ONLY)
+    INSTALL(FILES
+            ${CMAKE_BINARY_DIR}/packaging/linux/maodbc.ini
+            DESTINATION
+            "${INSTALL_DOCDIR}"
+            COMPONENT Documentation)
+    IF(RPM OR DEB)
+      CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/packaging/linux/postinstall.in
+                     ${CMAKE_BINARY_DIR}/packaging/linux/postinstall @ONLY)
+
+      IF(RPM)
+        SET(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_BINARY_DIR}/packaging/linux/postinstall)
+        SET(CPACK_RPM_SPEC_MORE_DEFINE "
+%define __requires_exclude .*pkg-config
+")
+        SET(CPACK_RPM_Development_USER_FILELIST "%ignore ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR}")
+        # I guess this line works, and the previous does not. Keeping both as I am not sure
+        SET(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR})
+
+        IF(CMAKE_VERSION VERSION_GREATER "3.21.99")
+          MESSAGE(STATUS "Excluding ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR} from RPM filelist")
+          SET(CPACK_RPM_REQUIRES_EXCLUDE_FROM ".*pkg-config")
+          
+          MESSAGE(STATUS "Excluding pkg-config from RPM dependencies")
+        ENDIF()
+
+        IF(CMAKE_VERSION VERSION_GREATER "3.9.99")
+
+          SET(CPACK_SOURCE_GENERATOR "RPM")
+          #SET(CPACK_RPM_BUILDREQUIRES "cmake;unixODBC-devel;mariadb-connector-c")
+          SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-DRPM=${RPM}")
+
+          MACRO(ADDIF var)
+            IF(DEFINED ${var})
+              SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-D${var}=${${var}}")
+            ENDIF()
+          ENDMACRO()
+
+          ADDIF(CMAKE_BUILD_TYPE)
+          ADDIF(BUILD_CONFIG)
+          ADDIF(MARIADB_LINK_DYNAMIC)
+          #ADDIF(CMAKE_C_FLAGS_RELWITHDEBINFO)
+          #ADDIF(DCMAKE_CXX_FLAGS_RELWITHDEBINFO)
+          #ADDIF(WITH_SSL)
+
+          INCLUDE(build_depends)
+          MESSAGE(STATUS "Build dependencies of the source RPM are: ${CPACK_RPM_BUILDREQUIRES}")
+          MESSAGE(STATUS "Cmake params for build from source RPM: ${CPACK_RPM_SOURCE_PKG_BUILD_PARAMS}")
+
+        ENDIF()
+      ELSE()
+        SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_BINARY_DIR}/packaging/linux/postinstall")
+      ENDIF()
+
+    ENDIF()
   ENDIF()
 
   INSTALL(FILES
@@ -363,6 +432,7 @@ ELSE()
           DESTINATION
           "${INSTALL_DOCDIR}"
           COMPONENT Documentation)
+
   INSTALL(FILES
           ${CMAKE_SOURCE_DIR}/COPYING
           DESTINATION
@@ -375,6 +445,59 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
   IF(WITH_UNIT_TESTS)
     ADD_SUBDIRECTORY(test)
     #!!! Creation of ini files for testing is configured in the driver's cmake, as that is custom command for that target
+    IF(NOT WIN32)
+      # Configuring ini files for testing with UnixODBC
+      MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
+
+      # If deb or rpm package is built, we configure tests to use the driver installed with the packages
+      IF(DEB OR RPM)
+        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}/lib${LIBRARY_NAME}.so
+                                        -DTEST_DRIVER=${TEST_DRIVER}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
+
+        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}/lib${LIBRARY_NAME}.so
+                                        -DTEST_DSN=${TEST_DSN}
+                                        -DTEST_PORT=${TEST_PORT}
+                                        -DTEST_SERVER=${TEST_SERVER}
+                                        -DTEST_SOCKET=${TEST_SOCKET}
+                                        -DTEST_SCHEMA=${TEST_SCHEMA}
+                                        -DTEST_UID=${TEST_UID}
+                                        -DTEST_PASSWORD="${TEST_PASSWORD}"
+                                        -DTEST_USETLS=${TEST_USETLS}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
+      ELSE()
+        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
+                                        -DTEST_DRIVER=${TEST_DRIVER}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
+
+        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=$<TARGET_FILE:maodbc>
+                                        -DTEST_DSN=${TEST_DSN}
+                                        -DTEST_PORT=${TEST_PORT}
+                                        -DTEST_SERVER=${TEST_SERVER}
+                                        -DTEST_SOCKET=${TEST_SOCKET}
+                                        -DTEST_SCHEMA=${TEST_SCHEMA}
+                                        -DTEST_UID=${TEST_UID}
+                                        -DTEST_PASSWORD="${TEST_PASSWORD}"
+                                        -DTEST_USETLS=${TEST_USETLS}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
+      ENDIF()
+    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -398,7 +521,7 @@ SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-src")
 SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
-SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation AB")
+SET(CPACK_PACKAGE_VENDOR "MariaDB plc")
 SET(CPACK_SOURCE_IGNORE_FILES
 /test/
 /.git/

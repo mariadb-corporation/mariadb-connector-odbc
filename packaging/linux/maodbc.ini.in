@@ -1,0 +1,9 @@
+[MariaDB]
+Driver      = @CMAKE_INSTALL_PREFIX@/@INSTALL_LIBDIR@/libmaodbc.so
+DESCRIPTION = MariaDB ODBC Connector
+Threading   = 0
+
+[@CMAKE_INSTALL_PREFIX@/@INSTALL_LIBDIR@/libmaodbc.so]
+Driver      = @CMAKE_INSTALL_PREFIX@/@INSTALL_LIBDIR@/libmaodbc.so
+DESCRIPTION = MariaDB ODBC Connector
+Threading   = 0

@@ -1008,6 +1008,7 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
 
   guard.reset(new Protocol(mariadb, defaultSchema ? defaultSchema : emptyStr, psCache, MADB_GetTxIsolationVarName(this),
     TxnIsolation ? static_cast<enum IsolationLevel>(TxnIsolation) : TRANSACTION_REPEATABLE_READ));
+
   goto end;
 
 err:

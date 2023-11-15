@@ -1,4 +1,4 @@
-SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/wininstall)
+SET(ODBC_SOURCE_WIX_DIR ${CMAKE_SOURCE_DIR}/packaging/windows)
 
 # Get revision number
 IF(WITH_REVNO)

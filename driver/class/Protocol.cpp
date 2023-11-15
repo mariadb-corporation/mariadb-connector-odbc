@@ -164,10 +164,10 @@ namespace mariadb
 
     SQLString sessionOption("SET session_track_schema=1,session_track_system_variables='auto_increment_increment,");
 
-    if ((serverCapabilities & CLIENT_MULTI_STATEMENTS) != 0) {
-      sessionOption.append(trIsolVarName);
-      sessionOption.append("'");
-    }
+//    if ((serverCapabilities & CLIENT_MULTI_STATEMENTS) != 0) {
+    sessionOption.append(trIsolVarName);
+    sessionOption.append("'");
+//    }
     realQuery(sessionOption);
   }
 
