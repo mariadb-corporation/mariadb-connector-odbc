@@ -21,6 +21,7 @@
 *****************************************************************************/
 
 
+#include <stdio.h>
 #ifndef _WIN32
 #include <strings.h>
 #include <string.h>
@@ -29,7 +30,7 @@
 #else
 #include <string.h>
 #endif
-#include "ma_odbc.h"
+#include "mysql.h"
 
 #if defined(SOLARIS) || defined(__sun)
 #define IF_SOLARIS(A,B) A

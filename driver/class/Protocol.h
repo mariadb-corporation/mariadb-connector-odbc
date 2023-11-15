@@ -182,7 +182,7 @@ public:
   void forceReleaseWaitingPrepareStatement();
   //Cache* prepareStatementCache();
   void prolog(int64_t maxRows, bool hasProxy, PreparedStatement* statement);
-  inline Results* getActiveStreamingResult();
+  Results* getActiveStreamingResult();
   void setActiveStreamingResult(Results* mariaSelectResultSet);
   std::mutex& getLock();
   bool hasMoreResults();
@@ -201,7 +201,7 @@ public:
   bool sessionStateAware();
   bool isInterrupted();
   void stopIfInterrupted();
-  Cache<std::string, ServerPrepareResult>* Protocol::prepareStatementCache();
+  Cache<std::string, ServerPrepareResult>* prepareStatementCache();
   inline MYSQL* getCHandle() { return connection.get(); }
   void setTransactionIsolation(enum IsolationLevel level);
   inline bool sessionStateChanged() { return (serverStatus & SERVER_SESSION_STATE_CHANGED) != 0; }

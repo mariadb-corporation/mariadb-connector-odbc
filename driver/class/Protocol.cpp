@@ -57,7 +57,7 @@ namespace mariadb
 
   enum IsolationLevel mapStr2TxIsolation(const char* txIsolation, size_t len)
   {
-    auto& cit= Str2TxIsolationLevel.find({txIsolation, len});
+    const auto& cit= Str2TxIsolationLevel.find({txIsolation, len});
     if (cit != Str2TxIsolationLevel.end()) {
       return cit->second;
     }
@@ -66,7 +66,7 @@ namespace mariadb
 
   SQLString& addTxIsolationName2Query(SQLString& query, enum IsolationLevel txIsolation)
   {
-    auto& cit= TxIsolationLevel2Name.find(txIsolation);
+    const auto& cit= TxIsolationLevel2Name.find(txIsolation);
     if (cit != TxIsolationLevel2Name.end()) {
       query.append(cit->second);
     }

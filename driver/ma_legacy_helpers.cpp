@@ -27,7 +27,7 @@
   *************** Code for handling dubble-linked lists in C *********
 */
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 /*
 How much overhead does malloc have. The code often allocates

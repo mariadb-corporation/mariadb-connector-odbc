@@ -21,7 +21,7 @@
 #ifndef _ma_catalog_h_
 #define _ma_catalog_h_
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 
 SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,

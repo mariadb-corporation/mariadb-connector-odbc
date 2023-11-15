@@ -10,6 +10,7 @@ SQLBrowseConnect;
 SQLBrowseConnectW;
 SQLBulkOperations;
 SQLCancel;
+SQLCancelHandle;
 SQLCloseCursor;
 SQLColAttribute;
 SQLColAttributeW;

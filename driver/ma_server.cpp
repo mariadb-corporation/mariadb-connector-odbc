@@ -19,7 +19,7 @@
 
 /* Server-dependent functionality and helpers to use that functionality */
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT},
                                           {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES},

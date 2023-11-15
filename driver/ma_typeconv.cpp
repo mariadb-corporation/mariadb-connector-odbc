@@ -19,7 +19,7 @@
 
 /* ODBC C->SQL and SQL->C type conversion functions */
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 /* Borrowed from C/C and adapted */
 SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Interval, MADB_Error *Error, BOOL *isTime)

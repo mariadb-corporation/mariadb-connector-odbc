@@ -20,9 +20,10 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 CMAKE_POLICY(SET CMP0048 NEW)
-CMAKE_POLICY(SET CMP0040 OLD)
-#CMAKE_POLICY(SET CMP0057 NEW)
+CMAKE_POLICY(SET CMP0040 NEW)
+CMAKE_POLICY(SET CMP0057 NEW)
 CMAKE_POLICY(SET CMP0054 NEW)
+CMAKE_POLICY(SET CMP0115 NEW)
 
 PROJECT(mariadb_connector_odbc 
         VERSION 3.2.1
@@ -445,59 +446,6 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
   IF(WITH_UNIT_TESTS)
     ADD_SUBDIRECTORY(test)
     #!!! Creation of ini files for testing is configured in the driver's cmake, as that is custom command for that target
-    IF(NOT WIN32)
-      # Configuring ini files for testing with UnixODBC
-      MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
-
-      # If deb or rpm package is built, we configure tests to use the driver installed with the packages
-      IF(DEB OR RPM)
-        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-          COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}/lib${LIBRARY_NAME}.so
-                                        -DTEST_DRIVER=${TEST_DRIVER}
-                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
-                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                           )
-
-        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-          COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}/lib${LIBRARY_NAME}.so
-                                        -DTEST_DSN=${TEST_DSN}
-                                        -DTEST_PORT=${TEST_PORT}
-                                        -DTEST_SERVER=${TEST_SERVER}
-                                        -DTEST_SOCKET=${TEST_SOCKET}
-                                        -DTEST_SCHEMA=${TEST_SCHEMA}
-                                        -DTEST_UID=${TEST_UID}
-                                        -DTEST_PASSWORD="${TEST_PASSWORD}"
-                                        -DTEST_USETLS=${TEST_USETLS}
-                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
-                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                           )
-      ELSE()
-        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-          COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:maodbc>
-                                        -DTEST_DRIVER=${TEST_DRIVER}
-                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
-                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                           )
-
-        ADD_CUSTOM_COMMAND(TARGET maodbc POST_BUILD
-          COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=$<TARGET_FILE:maodbc>
-                                        -DTEST_DSN=${TEST_DSN}
-                                        -DTEST_PORT=${TEST_PORT}
-                                        -DTEST_SERVER=${TEST_SERVER}
-                                        -DTEST_SOCKET=${TEST_SOCKET}
-                                        -DTEST_SCHEMA=${TEST_SCHEMA}
-                                        -DTEST_UID=${TEST_UID}
-                                        -DTEST_PASSWORD="${TEST_PASSWORD}"
-                                        -DTEST_USETLS=${TEST_USETLS}
-                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
-                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                           )
-      ENDIF()
-    ENDIF()
   ENDIF()
 ENDIF()
 

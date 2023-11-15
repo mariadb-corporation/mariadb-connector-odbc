@@ -17,7 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 #include "interface/ResultSet.h"
 #include "ServerPrepareResult.h"
 #include <limits.h>
@@ -852,44 +852,45 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
   }
   mysql_optionsv(mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
 
-  /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
-      to have this paranoid check to make sure we dont' them */
-  const char *SslKey=    ltrim(Dsn->SslKey);
-  const char *SslCert=   ltrim(Dsn->SslCert);
-  const char *SslCa=     ltrim(Dsn->SslCa);
-  const char *SslCaPath= ltrim(Dsn->SslCaPath);
-  const char *SslCipher= ltrim(Dsn->SslCipher);
+  { //The block is needed because of all goto's
+    /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
+        to have this paranoid check to make sure we dont' have them */
+    const char *SslKey=    ltrim(Dsn->SslKey);
+    const char *SslCert=   ltrim(Dsn->SslCert);
+    const char *SslCa=     ltrim(Dsn->SslCa);
+    const char *SslCaPath= ltrim(Dsn->SslCaPath);
+    const char *SslCipher= ltrim(Dsn->SslCipher);
 
-  if (!MADB_IS_EMPTY(SslCa)
-    || !MADB_IS_EMPTY(SslCaPath)
-    || !MADB_IS_EMPTY(SslCipher)
-    || !MADB_IS_EMPTY(SslCert)
-    || !MADB_IS_EMPTY(SslKey))
-  {
-    char Enable= 1;
-    mysql_optionsv(mariadb, MYSQL_OPT_SSL_ENFORCE, &Enable);
+    if (!MADB_IS_EMPTY(SslCa)
+      || !MADB_IS_EMPTY(SslCaPath)
+      || !MADB_IS_EMPTY(SslCipher)
+      || !MADB_IS_EMPTY(SslCert)
+      || !MADB_IS_EMPTY(SslKey))
+    {
+      char Enable= 1;
+      mysql_optionsv(mariadb, MYSQL_OPT_SSL_ENFORCE, &Enable);
 
-    if (!MADB_IS_EMPTY(SslKey))
-    {
-      mysql_optionsv(mariadb, MYSQL_OPT_SSL_KEY, SslKey);
+      if (!MADB_IS_EMPTY(SslKey))
+      {
+        mysql_optionsv(mariadb, MYSQL_OPT_SSL_KEY, SslKey);
+      }
+      if (!MADB_IS_EMPTY(SslCert))
+      {
+        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CERT, SslCert);
+      }
+      if (!MADB_IS_EMPTY(SslCa))
+      {
+        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CA, SslCa);
+      }
+      if (!MADB_IS_EMPTY(SslCaPath))
+      {
+        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
+      }
+      if (!MADB_IS_EMPTY(SslCipher))
+      {
+        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
+      }
     }
-    if (!MADB_IS_EMPTY(SslCert))
-    {
-      mysql_optionsv(mariadb, MYSQL_OPT_SSL_CERT, SslCert);
-    }
-    if (!MADB_IS_EMPTY(SslCa))
-    {
-      mysql_optionsv(mariadb, MYSQL_OPT_SSL_CA, SslCa);
-    }
-    if (!MADB_IS_EMPTY(SslCaPath))
-    {
-      mysql_optionsv(mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
-    }
-    if (!MADB_IS_EMPTY(SslCipher))
-    {
-      mysql_optionsv(mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
-    }
-
     if (Dsn->TlsVersion > 0)
     {
       char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
@@ -996,18 +997,20 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
 
   MADB_SetCapabilities(this, mysql_get_server_version(mariadb), mysql_get_server_name(mariadb));
 
-  Cache<std::string, ServerPrepareResult> *psCache= nullptr;
-  if (Dsn->PsCacheSize > 0 && Dsn->PsCacheMaxKeyLen > 0)
   {
-    psCache= new odbc::PsCache(Dsn->PsCacheSize, Dsn->PsCacheMaxKeyLen);
-  }
-  else
-  {
-    psCache= new Cache<std::string, ServerPrepareResult>();
-  }
+    Cache<std::string, ServerPrepareResult> *psCache= nullptr;
+    if (Dsn->PsCacheSize > 0 && Dsn->PsCacheMaxKeyLen > 0)
+    {
+      psCache= new odbc::PsCache(Dsn->PsCacheSize, Dsn->PsCacheMaxKeyLen);
+    }
+    else
+    {
+      psCache= new Cache<std::string, ServerPrepareResult>();
+    }
 
-  guard.reset(new Protocol(mariadb, defaultSchema ? defaultSchema : emptyStr, psCache, MADB_GetTxIsolationVarName(this),
-    TxnIsolation ? static_cast<enum IsolationLevel>(TxnIsolation) : TRANSACTION_REPEATABLE_READ));
+    guard.reset(new Protocol(mariadb, defaultSchema ? defaultSchema : emptyStr, psCache, MADB_GetTxIsolationVarName(this),
+      TxnIsolation ? static_cast<enum IsolationLevel>(TxnIsolation) : TRANSACTION_REPEATABLE_READ));
+  }
 
   goto end;
 

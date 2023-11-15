@@ -18,6 +18,7 @@
 # *************************************************************************************/
 
 
+CMAKE_POLICY(SET CMP0115 NEW)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/ma_odbc_version.h)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/maodbcu.rc.in
@@ -133,7 +134,7 @@ ELSE()
                         ma_conv_charset.cpp)
 ENDIF()
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/interface ${CMAKE_CURRENT_SOURCE_DIR}/template ${CMAKE_CURRENT_SOURCE_DIR}/class)
+INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/interface" "${CMAKE_CURRENT_SOURCE_DIR}/template" "${CMAKE_CURRENT_SOURCE_DIR}/class" "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/class)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/mariadb-odbc-driver.def.in
@@ -256,30 +257,57 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
       SET_VALUE(TEST_UID "root")
       SET_VALUE(TEST_PASSWORD "")
 
+      # Configuring ini files for testing with UnixODBC
       MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")
 
-      ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:${LIBRARY_NAME}>
-                                      -DTEST_DRIVER=${TEST_DRIVER}
-                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
-                                      -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
-                                      -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                         )
+      # If deb or rpm package is built, we configure tests to use the driver installed with the packages
+      IF(DEB OR RPM)
+        ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}/lib${LIBRARY_NAME}.so
+                                        -DTEST_DRIVER=${TEST_DRIVER}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
 
-      ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=$<TARGET_FILE:${LIBRARY_NAME}>
-                                      -DTEST_DSN=${TEST_DSN}
-                                      -DTEST_PORT=${TEST_PORT}
-                                      -DTEST_SERVER=${TEST_SERVER}
-                                      -DTEST_SOCKET=${TEST_SOCKET}
-                                      -DTEST_SCHEMA=${TEST_SCHEMA}
-                                      -DTEST_UID=${TEST_UID}
-                                      -DTEST_PASSWORD=${TEST_PASSWORD}
-                                      -DTEST_USETLS=${TEST_USETLS}
-                                      -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
-                                      -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
-                                      -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
-                         )
+        ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}/lib${LIBRARY_NAME}.so
+                                        -DTEST_DSN=${TEST_DSN}
+                                        -DTEST_PORT=${TEST_PORT}
+                                        -DTEST_SERVER=${TEST_SERVER}
+                                        -DTEST_SOCKET=${TEST_SOCKET}
+                                        -DTEST_SCHEMA=${TEST_SCHEMA}
+                                        -DTEST_UID=${TEST_UID}
+                                        -DTEST_PASSWORD="${TEST_PASSWORD}"
+                                        -DTEST_USETLS=${TEST_USETLS}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
+      ELSE()
+        ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DDRIVER_LIB_LOCATION=$<TARGET_FILE:${LIBRARY_NAME}>
+                                        -DTEST_DRIVER=${TEST_DRIVER}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbcinst.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbcinst.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                           )
+
+        ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -DTEST_DRIVER=$<TARGET_FILE:${LIBRARY_NAME}>
+                                        -DTEST_DSN=${TEST_DSN}
+                                        -DTEST_PORT=${TEST_PORT}
+                                        -DTEST_SERVER=${TEST_SERVER}
+                                        -DTEST_SOCKET=${TEST_SOCKET}
+                                        -DTEST_SCHEMA=${TEST_SCHEMA}
+                                        -DTEST_UID=${TEST_UID}
+                                        -DTEST_PASSWORD=${TEST_PASSWORD}
+                                        -DTEST_USETLS=${TEST_USETLS}
+                                        -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
+                                        -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
+                                        -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
+                        )
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDIF()

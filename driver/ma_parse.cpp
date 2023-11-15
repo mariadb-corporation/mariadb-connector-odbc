@@ -17,7 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 /* Minimal query length when we tried to avoid full parsing */
 #define QUERY_LEN_FOR_POOR_MAN_PARSING 32768

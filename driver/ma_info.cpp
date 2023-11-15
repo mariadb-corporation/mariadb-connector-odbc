@@ -17,7 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include <vector>
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 #include "class/ResultSetMetaData.h"
 #include "interface/ResultSet.h"
 #include "interface/PreparedStatement.h"

@@ -343,10 +343,10 @@ if (size > 0)
 return static_cast<T*>(arr) + offset;
 }*/
 
-extern template struct CArray<char>;
+/*extern template struct CArray<char>;
 extern template struct CArray<int32_t>;
 extern template struct CArray<int64_t>;
-extern template struct CArrView<char>;
+extern template struct CArrView<char>;*/
 
 namespace mariadb
 {

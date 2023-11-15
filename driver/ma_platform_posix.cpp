@@ -87,15 +87,6 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 }
 #endif
 
-void InitializeCriticalSection(CRITICAL_SECTION *cs)
-{
-  pthread_mutexattr_t attr;
-
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(cs, &attr);
-}
-
 int DSNPrompt_Lookup(MADB_Prompt *prompt, const char * SetupLibName)
 {
   return MADB_PROMPT_NOT_SUPPORTED;

@@ -20,7 +20,7 @@
 /* Code allowing to deploy MariaDB bulk operation functionality.
  * i.e. adapting ODBC param arrays to MariaDB arrays */
 
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 #include "class/ResultSetMetaData.h"
 #include "class/ClientSidePreparedStatement.h"

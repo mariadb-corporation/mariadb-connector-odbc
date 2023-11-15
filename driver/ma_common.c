@@ -23,6 +23,7 @@
 #include <wctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #ifdef _WIN32
 # include "ma_platform_win32.h"
 #else

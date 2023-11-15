@@ -921,7 +921,7 @@ void *cancel_dbc(void *arg)
   HDBC Dbc= (HDBC)arg;
   sleep(1);
 
-  if (SQLCancelHandle(Dbc) != SQL_SUCCESS)
+  if (SQLCancelHandle(SQL_HANDLE_DBC, Dbc) != SQL_SUCCESS)
     diag("SQLCancel failed!");
 
   return NULL;

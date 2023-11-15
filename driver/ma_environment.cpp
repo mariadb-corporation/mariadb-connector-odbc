@@ -16,7 +16,7 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 Client_Charset utf8 = { CP_UTF8, NULL };
 MARIADB_CHARSET_INFO* DmUnicodeCs = NULL;;
