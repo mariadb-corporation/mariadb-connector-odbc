@@ -22,16 +22,12 @@
 
 #include <deque>
 
+#include "SQLString.h"
 #include "CmdInformation.h"
-#include "ResultSet.h"
-
+#include "pimpls.h"
 
 namespace mariadb
 {
-class ClientSidePreparedStatement;
-class ServerSidePreparedStatement;
-class PreparedStatement;
-class Protocol;
 
 class Results  {
 
@@ -119,11 +115,6 @@ public:
   void setRewritten(bool rewritten);
   void checkOut(ResultSet* iamleaving);
 };
-
-namespace Unique
-{
-  typedef std::unique_ptr<mariadb::Results> Results;
-}
 
 } // namespace mariadb
 #endif

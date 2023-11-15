@@ -1138,7 +1138,7 @@ namespace mariadb
         rowDataCache.emplace_back();
       }
       else {
-        rowDataCache.emplace_back(static_cast<const char*>(bind[i].buffer), bind[i].length_value);
+        rowDataCache.emplace_back(bind[i].length_value, static_cast<const char*>(bind[i].buffer));
       }
     }
   }

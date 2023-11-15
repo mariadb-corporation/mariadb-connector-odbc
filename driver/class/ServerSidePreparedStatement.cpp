@@ -26,6 +26,7 @@
 #include "ServerPrepareResult.h"
 #include "interface/Exception.h"
 #include "Protocol.h"
+#include "interface/ResultSet.h"
 
 
 namespace mariadb
@@ -221,7 +222,7 @@ namespace mariadb
     }
     else {
       serverPrepareResult->reReadColumnInfo();
-      ResultSet *rs= ResultSet::create(results.get(), serverPrepareResult);
+      ResultSet *rs= ResultSet::create(results.get(), guard, serverPrepareResult);
       results->addResultSet(rs, hasMoreResults() || results->getFetchSize() > 0);
     }
   }

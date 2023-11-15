@@ -22,13 +22,11 @@
 #define _PREPARESTATEMENT_H_
 
 #include "PrepareResult.h"
-#include "ResultSet.h"
-#include "Results.h"
-#include "ResultSetMetaData.h"
+#include "CArray.h"
+#include "pimpls.h"
 
 namespace mariadb
 {
-class Protocol;
 
 class PreparedStatement
 {
@@ -44,7 +42,7 @@ protected:
   bool closed= false;
   Longs batchRes;
   Unique::ResultSetMetaData metadata;
-  Unique::Results results;
+  Unique::Results results; // Should be shared because of activeStreamingResult in Protocol guard
   MYSQL_BIND* param= nullptr;
   uint32_t batchArraySize= 0;
   bool continueBatchOnError= false;
@@ -86,6 +84,7 @@ protected:
 
 public:
   int64_t getServerThreadId();
+  inline Protocol* getProtocol() { return guard; }
   void    clearBatch();
   int64_t    executeUpdate();
   bool       execute();

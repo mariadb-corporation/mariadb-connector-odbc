@@ -18,7 +18,10 @@
 *************************************************************************************/
 #include <vector>
 #include <ma_odbc.h>
-#include "PreparedStatement.h"
+#include "class/ResultSetMetaData.h"
+#include "interface/ResultSet.h"
+#include "interface/PreparedStatement.h"
+
 #include "template/CArray.h"
 
 #define BV(_STRCONST) mariadb::bytes_view(_STRCONST, sizeof(_STRCONST))

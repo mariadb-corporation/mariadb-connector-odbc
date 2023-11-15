@@ -18,6 +18,7 @@
 *************************************************************************************/
 #include <ma_odbc.h>
 
+#include "class/Protocol.h"
 /*
  * Group of helper functions to add condition to the query based on SQL_ATTR_METADATA_ID attribute value
  * Pv - pattern value

@@ -25,27 +25,28 @@
 
 #include "ResultSetText.h"
 #include "Results.h"
-
+#include "Protocol.h"
 #include "ColumnDefinition.h"
 #include "interface/Row.h"
 #include "Exception.h"
 #include "class/BinRow.h"
 #include "class/TextRow.h"
 #include "interface/PreparedStatement.h"
+#include "ResultSetMetaData.h"
 
 
 namespace mariadb
 {
-  ResultSetText::ResultSetText(Results * results,
+  ResultSetText::ResultSetText(Results* results,
+                               Protocol * _protocol,
                                MYSQL* capiConnHandle)
-    : ResultSet(results->getFetchSize()),
+    : ResultSet(_protocol, results->getFetchSize()),
       statement(results->getStatement()),
       isClosedFlag(false),
       dataSize(0),
       resultSetScrollType(results->getResultSetScrollType()),
       rowPointer(-1),
       callableResult(false),
-      isEof(false),
       capiConnHandle(capiConnHandle),
       forceAlias(false),
       lastRowPointer(-1)
@@ -64,7 +65,7 @@ namespace mariadb
     }
     else {
 
-      //MADB_STMT_SET_CURRENT_STREAMER(statement);
+      protocol->setActiveStreamingResult(results);
 
       data.reserve(std::max(10, fetchSize)); // Same
       textNativeResults= mysql_use_result(capiConnHandle);
@@ -100,15 +101,15 @@ namespace mariadb
   ResultSetText::ResultSetText(
     std::vector<ColumnDefinition>& columnInformation,
     const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    Protocol * _protocol,
     int32_t resultSetScrollType)
-    : ResultSet(0),
+    : ResultSet(_protocol, 0),
       columnsInformation(std::move(columnInformation)),
       statement(nullptr),
       data(resultSet),
       dataSize(data.size()),
       isClosedFlag(false),
       columnInformationLength(static_cast<int32_t>(columnsInformation.size())),
-      isEof(true),
       resultSetScrollType(resultSetScrollType),
       rowPointer(-1),
       callableResult(false),
@@ -116,6 +117,7 @@ namespace mariadb
       forceAlias(false),
       lastRowPointer(-1)
   {
+    isEof= true;
     row.reset(new TextRow(nullptr));
   }
 
@@ -123,14 +125,14 @@ namespace mariadb
   ResultSetText::ResultSetText(
     const MYSQL_FIELD* field,
     std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    Protocol * _protocol,
     int32_t resultSetScrollType)
-    : ResultSet(0),
+    : ResultSet(_protocol, 0),
     statement(nullptr),
     data(std::move(resultSet)),
     dataSize(data.size()),
     isClosedFlag(false),
     columnInformationLength(static_cast<int32_t>(data.size())),
-    isEof(true),
     resultSetScrollType(resultSetScrollType),
     rowPointer(-1),
     callableResult(false),
@@ -138,6 +140,7 @@ namespace mariadb
     forceAlias(false),
     lastRowPointer(-1)
   {
+    isEof= true;
     row.reset(new TextRow(nullptr));
 
     for (int32_t i= 0; i < columnInformationLength; ++i) {
@@ -228,8 +231,12 @@ namespace mariadb
           growDataArray();
           // Since index of the last row is smaller from dataSize by 1, we have correct index
           row->cacheCurrentRow(data[dataSize], columnsInformation.size());
-          rowPointer= 0;
-          resetRow();
+          // If we were at some position - it becomes 0, if we were not - then we are not
+          if (rowPointer > 0) {
+            rowPointer= 0;
+            resetRow();
+          }
+          
           ++dataSize;
         }
         while (!isEof) {
@@ -284,8 +291,8 @@ namespace mariadb
   {
     switch (row->fetchNext()) {
     case MYSQL_DATA_TRUNCATED: {
-      /*protocol->removeActiveStreamingResult();
-      protocol->removeHasMoreResults();*/
+      protocol->removeActiveStreamingResult();
+      protocol->removeHasMoreResults();
       break;
 
       /*resetVariables();
@@ -326,7 +333,7 @@ namespace mariadb
       protocol->setHasWarnings(warningCount() > 0);*/
 
       if ((serverStatus & SERVER_MORE_RESULTS_EXIST) == 0) {
-        //protocol->removeActiveStreamingResult();
+        protocol->removeActiveStreamingResult();
       }
       resetVariables();
       return false;

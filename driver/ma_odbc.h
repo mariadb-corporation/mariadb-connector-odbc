@@ -27,24 +27,16 @@
 #include "lru/pscache.h"
 #include "class/SQLString.h"
 #include "template/CArray.h"
-#include "class/Protocol.h"
-
+#include "class/pimpls.h"
+#include "class/Results.h"
 
 namespace mariadb
 {
-  //class PreparedStatement;
-  class ResultSet;
-  class ResultSetMetaData;
-  //class ServerPrepareResult;
-  //class Protocol;
-
   namespace Unique
   {
     typedef std::unique_ptr<mariadb::PsCache<mariadb::ServerPrepareResult>> PsCache;
     typedef std::unique_ptr<mariadb::PreparedStatement> PreparedStatement;
-    typedef std::unique_ptr<mariadb::ResultSet> ResultSet;
     //typedef std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
-    typedef std::unique_ptr<mariadb::ResultSetMetaData> ResultSetMetaData;
     typedef std::unique_ptr<mariadb::Protocol> Protocol;
   }
 }

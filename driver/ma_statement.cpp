@@ -91,21 +91,20 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       if (Stmt->State > MADB_SS_PREPARED)
       {
         MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
-        Stmt->rs.reset();
-        while (Stmt->stmt->hasMoreResults())
+        try
         {
-          try
+          Stmt->rs.reset();
+          while (Stmt->stmt->hasMoreResults())
           {
             Stmt->stmt->moveToNextResult();
           }
-          catch (int)
-          {
-            break;
-          }
-          catch (SQLException&)
-          {
-            break;
-          }
+        }
+        catch (int)
+        {
+          // eating errors
+        }
+        catch (SQLException&)
+        {
         }
       }
 
@@ -2022,31 +2021,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     /* Skipping current row for for reading now, it will be read when the Cursor is returned to it */
     MoveNext(Stmt, 1LL);
   }
-
-  /* In case or streaming we need to guard fetch as well. It's actually can be that keeping mutex locked all the time the RS being fetched */
-  /* But we don't want to lock here each time, even when streaming is not an option.
-     What basically can happen if  we read current streamer not under the lock
-     1) We read NULL or other Stmt, and do not lock. Even if this Stmt was a streamer, and other thread has changed that - means it has initiated caching of
-        this Stmt data, and lock is not needed
-     2) We read this Stmt is a streamer, while it's been changed by other thread - basically this is like 1), but due to race condition, it's not finished, and
-        this thread thinks this Stmt is still the streamer. It tries to lock, and maybe will have to wait till its release. By the time of obtaining the lock,
-        caching is finished, and we are safe to read our row(s). One unnecessary locking
-     3) We read, we are not the streamer, and do not lock, and other thread changes that - up to releasing the handle. Uh... oh... so, threads share Stmt, other
-        thread finishes reading, issue another query, that makes this a streamer, or this fetch was started even before other stream finished execution of the
-        query. Hmm... Well, does not look possible/probable. If happens - syncing is on application. And third - don't share statement handle between threads :)
-     Looks like reading Streamer before locking is safe. While we can have MADB_STMT_SHOULD_STREAM true after the result has been cached, and no lock is needed.
-     4) TODO: Do we really need to LOCK if this Stmt is a streamer? Ok,it can save the day, if that is the last fetch for the RS, otherwise if other Stmt wants
-     the lock, it will break the protocol after this row fetched and lock released. Letting along the fact, that it shouldn't even supposed to get to the point
-     of lock requesting. Once we have caching of the rest of the streamed RS in place, maybe this syncing will be needed.
-   */
-    
-  /*if (MADB_STMT_IS_STREAMING(Stmt))
-  {
-    LOCK_MARIADB(Stmt->Connection);*/
-    /* We need this local flag while MADB_STMT_IS_STREAMING(Stmt) value may change due to item 2 from above, or even this function can change it, if fetch
-       returns no */
-    /*Streaming= TRUE;
-  }*/
 
   for (j= 0; j < Rows2Fetch; ++j)
   {

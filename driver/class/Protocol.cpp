@@ -30,6 +30,8 @@
 #include "ClientPrepareResult.h"
 #include "ServerPrepareResult.h"
 #include "Exception.h"
+#include "interface/ResultSet.h"
+#include "Results.h"
 
 #define DEFAULT_TRX_ISOL_VARNAME "tx_isolation"
 
@@ -182,6 +184,7 @@ namespace mariadb
     Results res;
     executeQuery(&res, sql);
   }
+
 
   void Protocol::executeQuery(Results* results, const SQLString& sql)
   {
@@ -1464,11 +1467,11 @@ namespace mariadb
 
       if (pr == nullptr)
       {
-        selectResultSet= ResultSet::create(results, /*this,*/ connection.get());
+        selectResultSet= ResultSet::create(results, this, connection.get());
       }
       else {
         pr->reReadColumnInfo();
-        selectResultSet= ResultSet::create(results, /*this,*/ pr/*, callableResult*/);
+        selectResultSet= ResultSet::create(results, this, pr/*, callableResult*/);
 
       }
       results->addResultSet(selectResultSet, hasMoreResults() || results->getFetchSize() > 0);
@@ -1510,10 +1513,10 @@ namespace mariadb
       this->unsyncedReset();
       mustReset= false;
     }
-    Shared::Results activeStream= getActiveStreamingResult();
+    Results* activeStream= getActiveStreamingResult();
     if (activeStream) {
       activeStream->loadFully(false, this);
-      activeStreamingResult.reset();
+      activeStreamingResult= nullptr;
     }
 
     forceReleaseWaitingPrepareStatement();
@@ -1631,10 +1634,10 @@ namespace mariadb
   void Protocol::abortActiveStream()
   {
     try {
-      Shared::Results activeStream= activeStreamingResult.lock();
+      Results* activeStream= getActiveStreamingResult();
       if (activeStream) {
         activeStream->abort();
-        activeStreamingResult.reset();
+        activeStreamingResult= nullptr;
       }
     }catch (std::runtime_error& ){
 
@@ -1650,10 +1653,10 @@ namespace mariadb
    */
   void Protocol::skip()
   {
-    Shared::Results activeStream = activeStreamingResult.lock();
+    Results* activeStream = getActiveStreamingResult();
     if (activeStream) {
       activeStream->loadFully(true, this);
-      activeStreamingResult.reset();
+      activeStreamingResult= nullptr;
     }
   }
 
@@ -1874,12 +1877,12 @@ namespace mariadb
     this->hasWarningsFlag= _hasWarnings;
   }
 
-  Shared::Results Protocol::getActiveStreamingResult()
+  Results* Protocol::getActiveStreamingResult()
   {
-    return activeStreamingResult.lock();
+    return activeStreamingResult;
   }
 
-  void Protocol::setActiveStreamingResult(Shared::Results& _activeStreamingResult)
+  void Protocol::setActiveStreamingResult(Results* _activeStreamingResult)
   {
     this->activeStreamingResult= _activeStreamingResult;
   }
@@ -1887,10 +1890,10 @@ namespace mariadb
   /** Remove exception result and since totally fetched, set fetch size to 0. */
   void Protocol::removeActiveStreamingResult()
   {
-    Shared::Results activeStream = getActiveStreamingResult();
+    Results* activeStream = getActiveStreamingResult();
     if (activeStream) {
       activeStream->removeFetchSize();
-      this->activeStreamingResult.reset();
+      activeStreamingResult= nullptr;
     }
   }
 

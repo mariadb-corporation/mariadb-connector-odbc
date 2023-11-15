@@ -19,7 +19,10 @@
 
 
 #include "PreparedStatement.h"
-#include "Protocol.h"
+#include "class/Protocol.h"
+#include "class/Results.h"
+#include "ResultSet.h"
+#include "class/ResultSetMetaData.h"
 
 namespace mariadb
 {

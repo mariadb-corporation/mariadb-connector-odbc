@@ -37,16 +37,19 @@ namespace mariadb
   uint64_t ResultSet::MAX_ARRAY_SIZE= INT32_MAX - 8;
 
 
-  ResultSet* ResultSet::create(Results * results, ServerPrepareResult * spr/*, bool callableResult*/)
+  ResultSet* ResultSet::create(Results* results,
+                               Protocol* _protocol,
+                               ServerPrepareResult * spr/*, bool callableResult*/)
   {
-    return new ResultSetBin(results, spr/*, callableResult*/);
+    return new ResultSetBin(results, _protocol, spr/*, callableResult*/);
   }
 
 
   ResultSet* ResultSet::create(Results* results,
+                               Protocol* _protocol,
                                MYSQL* connection)
   {
-    return new ResultSetText(results, connection);
+    return new ResultSetText(results, _protocol, connection);
   }
 
   /**
@@ -61,9 +64,10 @@ namespace mariadb
   ResultSet* ResultSet::create(
     const MYSQL_FIELD* columnInformation,
     std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    Protocol* _protocol,
     int32_t resultSetScrollType)
   {
-    return new ResultSetText(columnInformation, resultSet, resultSetScrollType);
+    return new ResultSetText(columnInformation, resultSet, _protocol, resultSetScrollType);
   }
 
   /**
@@ -78,9 +82,10 @@ namespace mariadb
   ResultSet* ResultSet::create(
     std::vector<ColumnDefinition>& columnInformation,
     const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    Protocol* _protocol,
     int32_t resultSetScrollType)
   {
-    return new ResultSetText(columnInformation, resultSet, resultSetScrollType);
+    return new ResultSetText(columnInformation, resultSet, _protocol, resultSetScrollType);
   }
 
   /**
@@ -110,19 +115,19 @@ namespace mariadb
       }
     }
     if (findColumnReturnsOne) {
-      return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, rows, TYPE_SCROLL_SENSITIVE);
+      return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, rows, nullptr, TYPE_SCROLL_SENSITIVE);
       /*int32_t ResultSet::findColumn(const SQLString& name) {
         return 1;
       }*/
     }
 
-    return new ResultSetText(INSERT_ID_COLUMNS, rows, TYPE_SCROLL_SENSITIVE);
+    return new ResultSetText(INSERT_ID_COLUMNS, rows, nullptr, TYPE_SCROLL_SENSITIVE);
   }
 
   ResultSet* ResultSet::createEmptyResultSet() {
     static std::vector<std::vector<mariadb::bytes_view>> emptyRs;
 
-    return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, emptyRs, TYPE_SCROLL_SENSITIVE);
+    return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, emptyRs, nullptr, TYPE_SCROLL_SENSITIVE);
   }
 
 
@@ -139,7 +144,7 @@ namespace mariadb
       columns.emplace_back(columnNames[i], columnTypes[i]);
     }
 
-    return create(columns, data, TYPE_SCROLL_SENSITIVE);
+    return create(columns, data, nullptr, TYPE_SCROLL_SENSITIVE);
   }
 
 

@@ -25,6 +25,8 @@
 #include "CmdInformationMultiple.h"
 #include "CmdInformationBatch.h"
 #include "Protocol.h"
+#include "interface/ResultSet.h"
+#include "ResultSetMetaData.h"
 
 namespace mariadb
 {
@@ -145,6 +147,9 @@ namespace mariadb
       resultSet->close();
       // Mutually forgetting each other. While we should probably just close the RS
       //resultSet->setStatement(nullptr);
+    }
+    if (statement && statement->getProtocol()->getActiveStreamingResult() == this) {
+      statement->getProtocol()->removeActiveStreamingResult();
     }
   }
 

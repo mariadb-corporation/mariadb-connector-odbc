@@ -33,6 +33,8 @@
 #include "ServerPrepareResult.h"
 #include "Exception.h"
 #include "PreparedStatement.h"
+#include "ResultSetMetaData.h"
+#include "Protocol.h"
 
 #ifdef max
 # undef max
@@ -50,8 +52,9 @@ namespace mariadb
     * @param eofDeprecated is EOF deprecated
     */
   ResultSetBin::ResultSetBin(Results* results,
+                             Protocol* guard,
                              ServerPrepareResult* spr)
-    : ResultSet(results->getFetchSize()),
+    : ResultSet(guard, results->getFetchSize()),
       columnsInformation(spr->getColumns()),
       statement(results->getStatement()),
       isClosedFlag(false),
@@ -61,7 +64,6 @@ namespace mariadb
       resultSetScrollType(results->getResultSetScrollType()),
       rowPointer(-1),
       callableResult(callableResult),
-      isEof(false),
       capiStmtHandle(spr->getStatementId()),
       forceAlias(false),
       lastRowPointer(-1),
@@ -79,7 +81,7 @@ namespace mariadb
     }
     else {
 
-      //protocol->setActiveStreamingResult(statement->getInternalResults());
+      protocol->setActiveStreamingResult(results);
       //protocol->removeHasMoreResults();
 
       data.reserve(std::max(10, fetchSize)); // Same
@@ -252,7 +254,7 @@ namespace mariadb
       }
 
       if ((serverStatus & SERVER_MORE_RESULTS_EXIST) == 0) {
-        //guard->removeActiveStreamingResult();
+        protocol->removeActiveStreamingResult();
       }
       resetVariables();
       return false;

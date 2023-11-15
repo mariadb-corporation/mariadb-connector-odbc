@@ -70,10 +70,5 @@ private:
   const ColumnDefinition& getColumnDefinition(uint32_t column) const;
 };
 
-namespace Unique
-{
-  typedef std::unique_ptr<mariadb::ResultSetMetaData> ResultSetMetaData;
-}
-
 } // namespace mariadb
 #endif

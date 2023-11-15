@@ -711,8 +711,12 @@ namespace mariadb
  {
    //Assuming it is called only for the case of the data from server, and not constructed text results
    rowData= mysql_fetch_row(this->capiResults.get());
-   lengthArr= mysql_fetch_lengths(this->capiResults.get());
-
+   if (rowData)
+   {
+     lengthArr= mysql_fetch_lengths(this->capiResults.get());
+     return 0;
+   }
+   lengthArr= nullptr;
    return 1;
  }
 
@@ -737,7 +741,7 @@ namespace mariadb
  {
    rowDataCache.clear();
    for (std::size_t i = 0; i < columnCount; ++i) {
-     rowDataCache.emplace_back(const_cast<const char*>(rowData[i]), lengthArr[i]);
+     rowDataCache.emplace_back(lengthArr[i], rowData[i]);
    }
  }
 } // namespace mariadb

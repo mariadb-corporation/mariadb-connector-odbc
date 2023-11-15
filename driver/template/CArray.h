@@ -80,10 +80,11 @@ template <class T> struct CArray
 #define BYTES_ASSIGN_STR(BYTES, STR) BYTES.assign(STR.c_str(), STR.length())
 #define BYTES_FROM_CSTR(CSTR) CSTR, std::strlen(CSTR)
 
+//-------------------- <CArrView - Begin> --------------------
 template <class T> struct CArrView
 {
+  int64_t length;
   const T* arr;
-  std::size_t length;
 
   operator const T*() const
   {
@@ -96,20 +97,34 @@ template <class T> struct CArrView
   }
 
 
-  CArrView(const T _arr[], size_t len)
-    : arr(_arr)
-    , length(len)
+  CArrView(const T _arr[], std::size_t len)
+    : length(static_cast<int64_t>(len))
+    , arr(_arr)
   {}
 
-  ~CArrView() {}
+  // Switched parameter places just for compiler to have less doubts what constructor to use
+  CArrView(int64_t len, const T _arr[] )
+    : length(len < 0 ? len : -len)
+  {
+    T* tmp= new T[static_cast<std::size_t>(-length)];
+    arr= tmp;
+    std::memcpy(tmp, _arr, static_cast<std::size_t>(-length));
+  }
 
-   std::size_t size() const { return length; }
+  ~CArrView()
+  {
+    if (length < 0 && arr)
+    {
+      delete[] arr;
+    }
+  }
+
+  std::size_t size() const { return static_cast<std::size_t>(length < 0 ? -length : length); }
   const T* begin() const { return arr; }
-  const T* end() const { return arr + length; }
+  const T* end() const { return arr + size(); }
 
   CArrView(const CArrView& rhs)
-    : arr(rhs.arr)
-    , length(rhs.length)
+    : CArrView(rhs.arr, rhs.length)
   {
   }
 
@@ -143,6 +158,7 @@ template <class T> struct CArrView
     return *this;
   }
 };
+//--------------------- <CArrView - End> ---------------------
 
 template <class T>
 CArray<T>::CArray(int64_t len) : arr(nullptr), length(len)
@@ -184,7 +200,7 @@ template <class T>
 CArray<T>::CArray(const T _arr[], size_t len)
 : CArray(len)
 {
-std::memcpy(arr, _arr, len*sizeof(T));
+  std::memcpy(arr, _arr, len*sizeof(T));
 }
 
 

@@ -44,7 +44,6 @@ class ResultSetText : public ResultSet
   // we don't create buffers for all columns without call. Thus has to be mutable while getters are const
   mutable std::map<int32_t, std::unique_ptr<memBuf>> blobBuffer;
 
-  bool isEof;
   bool callableResult;
   PreparedStatement* statement;
   MYSQL *capiConnHandle;
@@ -67,16 +66,19 @@ public:
 
   ResultSetText(
     Results* results,
+    Protocol* _protocol,
     MYSQL* connection);
 
   ResultSetText(
     std::vector<ColumnDefinition>& columnInformation,
     const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    Protocol * _protocol,
     int32_t resultSetScrollType);
 
   ResultSetText(
     const MYSQL_FIELD *columnInformation,
     std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    Protocol * _protocol,
     int32_t resultSetScrollType);
   
   ~ResultSetText();

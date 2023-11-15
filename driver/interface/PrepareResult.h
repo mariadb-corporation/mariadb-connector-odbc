@@ -26,10 +26,10 @@
 
 #include "SQLString.h"
 #include "ColumnDefinition.h"
+#include "pimpls.h"
 
 namespace mariadb
 {
-class ResultSetMetaData;
 
 class PrepareResult
 {

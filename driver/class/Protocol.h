@@ -30,13 +30,10 @@
 #include "lru/pscache.h"
 #include "SQLString.h"
 #include "Exception.h"
+#include "pimpls.h"
 
 namespace mariadb
 {
-class ServerPrepareResult;
-class ClientPrepareResult;
-class Results;
-class PreparedStatement;
 
 enum IsolationLevel {
   TRANSACTION_NONE= 0,
@@ -46,16 +43,7 @@ enum IsolationLevel {
   TRANSACTION_SERIALIZABLE =8
 };
 
-namespace Shared
-{
-  typedef std::shared_ptr<mariadb::Results> Results;
-}
 
-namespace Unique
-{
-  typedef std::unique_ptr<::MYSQL, decltype(&mysql_close)> MYSQL;
-  typedef std::unique_ptr<::MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
-}
 // Some independent helper functions
 SQLException fromStmtError(MYSQL_STMT* stmt);
 void         throwStmtError(MYSQL_STMT* stmt);
@@ -76,7 +64,7 @@ class Protocol
   bool interrupted= false;
   bool hasWarningsFlag= false;
   /* This cannot be Shared as long as C/C stmt handle is owned by statement(SSPS class in this case) object */
-  std::weak_ptr<Results> activeStreamingResult;
+  Results* activeStreamingResult= nullptr;
   uint32_t serverStatus= 0;
 
   int32_t autoIncrementIncrement= 1;
@@ -102,13 +90,13 @@ class Protocol
   // ----- private methods -----
   void cmdPrologue();
   void cmdEpilog();
-  void executeBatch(Results* results, const std::vector<SQLString>& queries);
-  void executeBatchAggregateSemiColon(Results* results, const std::vector<SQLString>& queries, std::size_t totalLenEstimation);
+  void executeBatch(Results*, const std::vector<SQLString>& queries);
+  void executeBatchAggregateSemiColon(Results*, const std::vector<SQLString>& queries, std::size_t totalLenEstimation);
   void changeReadTimeout(int32_t millis);
   void checkClose();
-  void processResult(Results* results, ServerPrepareResult *pr);
-  void readResultSet(Results* results, ServerPrepareResult *pr);
-  void readOk(Results* results, ServerPrepareResult *pr);
+  void processResult(Results*, ServerPrepareResult *pr);
+  void readResultSet(Results*, ServerPrepareResult *pr);
+  void readOk(Results*, ServerPrepareResult *pr);
   void handleStateChange();
   void closeSocket();
   void cleanMemory();
@@ -117,7 +105,7 @@ class Protocol
   void abortActiveStream();
   void sendSessionInfos(const char *trIsolVarName);
   uint32_t errorOccurred(ServerPrepareResult *pr);
-  SQLException processError(Results* results, ServerPrepareResult *pr);
+  SQLException processError(Results*, ServerPrepareResult *pr);
   ServerPrepareResult* prepareInternal(const SQLString& sql);
   Protocol() = delete;
   void unsyncedReset();
@@ -158,7 +146,7 @@ public:
   bool ping();
   bool isValid(int32_t timeout);
   void executeQuery(const SQLString& sql);
-  void executeQuery(Results* results, const SQLString& sql);
+  void executeQuery(Results*, const SQLString& sql);
   /*void executeQuery(Results* results, const SQLString& sql, const Charset* charset);
   void executeQuery(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* clientPrepareResult,
     std::vector<Unique::ParameterHolder>& parameters);
@@ -167,12 +155,12 @@ public:
     int32_t timeout);
   bool executeBatchClient(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* prepareResult,
     std::vector<std::vector<Unique::ParameterHolder>>& parametersList, bool hasLongData);*/
-  void executeBatchStmt(bool mustExecuteOnMaster, Results* results, const std::vector<SQLString>& queries);
-  void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results* results);
+  void executeBatchStmt(bool mustExecuteOnMaster, Results*, const std::vector<SQLString>& queries);
+  void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
   /*bool executeBatchServer(bool mustExecuteOnMaster, ServerPrepareResult* serverPrepareResult, Results* results, const SQLString& sql,
                                   std::vector<std::vector<Unique::ParameterHolder>>& parameterList, bool hasLongData);*/
-  void moveToNextResult(Results* results, ServerPrepareResult* spr= nullptr);
-  void getResult(Results* results, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
+  void moveToNextResult(Results*, ServerPrepareResult* spr= nullptr);
+  void getResult(Results*, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
   //void cancelCurrentQuery();
   void interrupt();
   void skip();
@@ -194,8 +182,8 @@ public:
   void forceReleaseWaitingPrepareStatement();
   //Cache* prepareStatementCache();
   void prolog(int64_t maxRows, bool hasProxy, PreparedStatement* statement);
-  Shared::Results getActiveStreamingResult();
-  void setActiveStreamingResult(Shared::Results& mariaSelectResultSet);
+  inline Results* getActiveStreamingResult();
+  void setActiveStreamingResult(Results* mariaSelectResultSet);
   std::mutex& getLock();
   bool hasMoreResults();
   bool hasSpOutparams();

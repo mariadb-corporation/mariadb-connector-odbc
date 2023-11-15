@@ -21,6 +21,8 @@
 #include "CmdInformationBatch.h"
 #include "ResultSet.h"
 #include "PreparedStatement.h"
+#include "ResultSetMetaData.h"
+#include "Results.h"
 
 namespace mariadb
 {

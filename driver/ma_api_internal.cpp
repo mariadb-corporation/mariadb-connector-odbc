@@ -25,10 +25,11 @@
  * in the driver manager function instead of our own function.
  */
 
+#include "interface/PreparedStatement.h"
+#include "interface/ResultSet.h"
 #include <ma_odbc.h>
-#include "ResultSetMetaData.h"
-#include "ResultSet.h"
-#include "PreparedStatement.h"
+#include "class/ResultSetMetaData.h"
+#include "class/Protocol.h"
 
 extern Client_Charset utf8;
 

@@ -29,13 +29,10 @@
 #include "CArray.h"
 #include "Row.h"
 #include "ColumnDefinition.h"
+#include "pimpls.h"
 
 namespace mariadb
 {
-class Results;
-class RowProtocol;
-class ServerPrepareResult;
-class ResultSetMetaData;
 
 extern const MYSQL_FIELD FIELDBIGINT;
 extern const MYSQL_FIELD FIELDSTRING;
@@ -51,12 +48,16 @@ protected:
 
   static int32_t TINYINT1_IS_BIT; /*1*/
   static int32_t YEAR_IS_DATE_TYPE; /*2*/
+  Protocol *protocol= nullptr;
   int32_t dataFetchTime= 0;
   bool streaming= false;
-  int32_t fetchSize;
+  int32_t fetchSize= 0;
   mutable Unique::Row row;
+  bool isEof= false;
+  
 
-  ResultSet(int32_t _fetchSize) :
+  ResultSet(Protocol* guard, int32_t _fetchSize) :
+    protocol(guard),
     fetchSize(_fetchSize) 
   {}
 public:
@@ -68,21 +69,25 @@ public:
   };
 
   static ResultSet* create(
-    Results* results,
+    Results*,
+    Protocol* _protocol,
     ServerPrepareResult* pr);
 
   static ResultSet* create(
-    Results* results,
+    Results*,
+    Protocol* _protocol,
     MYSQL* capiConnHandle);
 
   static ResultSet* create(
     const MYSQL_FIELD* columnInformation,
     std::vector<std::vector<bytes_view>>& resultSet,
+    Protocol* _protocol,
     int32_t resultSetScrollType);
 
   static ResultSet* create(
     std::vector<ColumnDefinition>& columnInformation,
     const std::vector<std::vector<bytes_view>>& resultSet,
+    Protocol* _protocol,
     int32_t resultSetScrollType);
 
   static ResultSet* createGeneratedData(std::vector<int64_t>& data, bool findColumnReturnsOne);
@@ -159,11 +164,6 @@ public:
   virtual bool isBinaryEncoded()=0;
   virtual void realClose(bool noLock=true)=0;
 };
-
-namespace Unique
-{
-  typedef std::unique_ptr<::mariadb::ResultSet> ResultSet;
-}
 
 } // namespace mariadb
 #endif

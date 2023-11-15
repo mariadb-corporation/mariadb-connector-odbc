@@ -22,6 +22,7 @@
 
 #include <ma_odbc.h>
 
+#include "class/ResultSetMetaData.h"
 #include "class/ClientSidePreparedStatement.h"
 #include "class/ServerSidePreparedStatement.h"
 
