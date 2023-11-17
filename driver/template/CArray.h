@@ -81,10 +81,18 @@ template <class T> struct CArray
 #define BYTES_FROM_CSTR(CSTR) CSTR, std::strlen(CSTR)
 
 //-------------------- <CArrView - Begin> --------------------
-template <class T> struct CArrView
+template <class T> class CArrView
 {
-  int64_t length;
-  const T* arr;
+  void make_copy(const T _arr[], std::size_t len)
+  {
+    T* tmp= new T[len];
+    arr= tmp;
+    std::memcpy(tmp, _arr, len);
+  }
+
+public:
+  int64_t length= 0;
+  const T* arr= nullptr;
 
   operator const T*() const
   {
@@ -106,10 +114,12 @@ template <class T> struct CArrView
   CArrView(int64_t len, const T _arr[] )
     : length(len < 0 ? len : -len)
   {
-    T* tmp= new T[static_cast<std::size_t>(-length)];
-    arr= tmp;
-    std::memcpy(tmp, _arr, static_cast<std::size_t>(-length));
+    if (length < 0)
+    {
+      make_copy(_arr, static_cast<std::size_t>(-length));
+    }
   }
+
 
   ~CArrView()
   {
@@ -119,17 +129,42 @@ template <class T> struct CArrView
     }
   }
 
+
   std::size_t size() const { return static_cast<std::size_t>(length < 0 ? -length : length); }
   const T* begin() const { return arr; }
   const T* end() const { return arr + size(); }
 
+
   CArrView(const CArrView& rhs)
-    : CArrView(rhs.arr, rhs.length)
   {
+    *this= rhs;
   }
 
-  CArrView() : arr(nullptr), length(0)
+  CArrView& operator =(const CArrView& rhs)
+  {
+    length= rhs.length;
+    if (length >= 0)
+    {
+      arr= rhs.arr;
+    }
+    else
+    {
+      make_copy(rhs.arr, static_cast<std::size_t>(-length));
+    }
+    return *this;
+  }
+
+  CArrView(CArrView&& rhs)
+    : length(rhs.length)
+    , arr(rhs.arr)
+  {
+    rhs.length= 0;
+    rhs.arr= nullptr;
+  }
+
+  CArrView()
   {}
+
 
   CArrView(const std::vector<T>& _vector)
     : arr(_vector.data())
@@ -144,17 +179,18 @@ template <class T> struct CArrView
   {
   }
 
+
   CArrView<T>& wrap(const T* _arr, std::size_t size)
   {
     arr= _arr;
-    length= size;
+    length= static_cast<int64_t>(size);
     return *this;
   }
 
   CArrView<T>& wrap(const std::vector<T>& _vector)
   {
     arr= _vector.data();
-    length= _vector.size();
+    length= static_cast<int64_t>(_vector.size());
     return *this;
   }
 };
@@ -337,16 +373,7 @@ if (size > 0)
 }
 // else deallocate?
 }
-/*template <class T> T* operator+(CArray<T>& arr, size_t offset)
-{
-// Should check the range? and return no further than the end of the array?
-return static_cast<T*>(arr) + offset;
-}*/
 
-/*extern template struct CArray<char>;
-extern template struct CArray<int32_t>;
-extern template struct CArray<int64_t>;
-extern template struct CArrView<char>;*/
 
 namespace mariadb
 {

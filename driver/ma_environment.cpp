@@ -211,7 +211,7 @@ SQLRETURN MADB_EnvGetAttr(MADB_Env *Env, SQLINTEGER Attribute, SQLPOINTER ValueP
 MADB_Env::ListIterator MADB_Env::addConnection(MADB_Dbc* conn)
 {
   std::lock_guard<std::mutex> localScopeLock(cs);
-  return Dbcs.insert(Dbcs.cbegin(), conn);
+  return Dbcs.insert(Dbcs.begin(), conn);
 }
 
 

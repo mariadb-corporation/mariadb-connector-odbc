@@ -979,6 +979,7 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
   if (!SQL_SUCCEEDED(CoreConnect(mariadb, Dsn, &Error, client_flags)))
   {
     mysql_close(mariadb);
+    mariadb= nullptr;
     return Error.ReturnValue;
   }
   

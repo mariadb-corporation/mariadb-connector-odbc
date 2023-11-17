@@ -354,18 +354,24 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%",
      if that is not the special case of call for schemas list or tables w/out schema(empty string in schema name) - empty resultsets then. */
   else if (SchemaName &&
-     (!strcmp(SchemaName,SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0 || *SchemaName == '\0'))
+    (!strcmp(SchemaName, SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0 || *SchemaName == '\0'))
   {
-    MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+    if (MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
       "NULL AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
-      "FROM DUAL WHERE 1=0", 8192, 512);
+      "FROM DUAL WHERE 1=0", 8192, 512))
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    }
   }
   else
   {
-    MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
-                                  "if(TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='SYSTEM VERSIONED','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
-                                  "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
-                                  8192, 512);
+    if (MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+      "if(TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='SYSTEM VERSIONED','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
+      "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
+      8192, 512))
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    }
 
 
     if (CatalogName != NULL)
