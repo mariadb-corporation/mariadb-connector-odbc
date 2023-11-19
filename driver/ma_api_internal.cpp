@@ -295,7 +295,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
   else
   {
     // There is nothing, that can throw here
-    MYSQL *MariaDb, *Kill=Stmt->Connection->mariadb;
+    MYSQL *MariaDb;
     
     char StmtStr[30];
 
@@ -304,14 +304,13 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       ret= SQL_ERROR;
       goto end;
     }
-    if (!(mysql_real_connect(MariaDb, Kill->host, Kill->user, Kill->passwd,
-                             "", Kill->port, Kill->unix_socket, 0)))
+    if (!SQL_SUCCEEDED(Stmt->Connection->CoreConnect(MariaDb, Stmt->Connection->Dsn, &Stmt->Error)))
     {
       mysql_close(MariaDb);
       goto end;
     }
     
-    unsigned long len= static_cast<unsigned long>(_snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill)));
+    unsigned long len= static_cast<unsigned long>(_snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Stmt->Connection->mariadb)));
     if (!mysql_real_query(MariaDb, StmtStr, len))
     {
       ret= SQL_SUCCESS;

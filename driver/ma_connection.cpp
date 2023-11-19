@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
+#include <sstream>
 #include "ma_odbc.h"
 #include "interface/ResultSet.h"
 #include "ServerPrepareResult.h"
@@ -24,8 +25,9 @@
 #include "Protocol.h"
 
 extern const char* DefaultPluginLocation;
-static const char* utf8mb3 = "utf8mb3";
+static const char* utf8mb3= "utf8mb3";
 static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
+static const my_bool selectedBoolOption= '\1', unselectedBoolOption= '\0';
 const char *AttrPairSeparators= ",", *AttrKeyValueSeparators= "=:";
 
 
@@ -116,16 +118,6 @@ SQLUSMALLINT MADB_supported_api[]=
 };
 
 
-/* Stub for stream caching - i.e. cahing is desabled by default, and we just raise the error, if some stmt is streaming atm
- * Stmt - the statement, that has requested the operation, and where the error has to be set 
- */
-int MADB_Dbc_ErrorOnStreaming(MADB_Error *Error)
-{
-  MADB_SetError(Error, MADB_ERR_HY000, "The requested operation is blocked by another streaming operation", 0);
-  return 1;
-}
-
-
 bool MADB_Dbc::CheckConnection()
 {
   if (!mariadb)
@@ -146,29 +138,29 @@ bool MADB_Dbc::CheckConnection()
 /* {{{ SQLDisconnect */
 SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
 {
-  SQLRETURN ret = SQL_ERROR;
-  MADB_Dbc* Connection = (MADB_Dbc*)ConnectionHandle;
+  SQLRETURN ret= SQL_ERROR;
+  MADB_Dbc* Connection= (MADB_Dbc*)ConnectionHandle;
   MADB_List* Element, * NextElement;
 
   MDBUG_C_ENTER(Connection, "SQLDisconnect");
   MDBUG_C_DUMP(Connection, ConnectionHandle, 0x);
 
   /* Close all statements */
-  for (Element = Connection->Stmts; Element; Element = NextElement)
+  for (Element= Connection->Stmts; Element; Element= NextElement)
   {
-    MADB_Stmt* Stmt = (MADB_Stmt*)Element->data;
-    NextElement = Element->next;
+    MADB_Stmt* Stmt= (MADB_Stmt*)Element->data;
+    NextElement= Element->next;
     Stmt->Methods->StmtFree(Stmt, SQL_DROP);
   }
 
   /* Close all explicitly allocated descriptors */
-  for (Element = Connection->Descrs; Element; Element = NextElement)
+  for (Element= Connection->Descrs; Element; Element= NextElement)
   {
-    NextElement = Element->next;
+    NextElement= Element->next;
     MADB_DescFree((MADB_Desc*)Element->data, FALSE);
   }
 
-  Connection->mariadb = nullptr;
+  Connection->mariadb= nullptr;
   if (Connection->guard && !Connection->guard->isClosed())
   {
     Connection->guard->close();
@@ -176,10 +168,10 @@ SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
   }
   else
   {
-    MADB_SetError(&Connection->Error, MADB_ERR_08003, NULL, 0);
+    MADB_SetError(&Connection->Error, MADB_ERR_08003, nullptr, 0);
     ret= Connection->Error.ReturnValue;
   }
-  Connection->ConnOrSrcCharset = NULL;
+  Connection->ConnOrSrcCharset= nullptr;
 
   MDBUG_C_RETURN(Connection, ret, &Connection->Error);
 }
@@ -199,12 +191,12 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   switch(Attribute) {
   case SQL_ATTR_ACCESS_MODE:
     if ((SQLPOINTER)SQL_MODE_READ_WRITE != ValuePtr)
-      MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
+      MADB_SetError(&Error, MADB_ERR_01S02, nullptr, 0);
     AccessMode= SQL_MODE_READ_WRITE;
     break;
 //#if (ODBCVER >= 0x0351)
   case SQL_ATTR_ANSI_APP:
-    if (ValuePtr != NULL)
+    if (ValuePtr != nullptr)
     {
       IsAnsi= 1;
       ConnOrSrcCharset= &SourceAnsiCs;
@@ -218,12 +210,12 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
 //#endif
   case SQL_ATTR_ASYNC_ENABLE:
      if ((SQLPOINTER)SQL_ASYNC_ENABLE_OFF != ValuePtr)
-       MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
+       MADB_SetError(&Error, MADB_ERR_01S02, nullptr, 0);
      AsyncEnable= SQL_ASYNC_ENABLE_OFF;
     break;
   case SQL_ATTR_AUTO_IPD:
     /* read only */
-    MADB_SetError(&Error, MADB_ERR_HY092, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_HY092, nullptr, 0);
     break;
   case SQL_ATTR_AUTOCOMMIT:
     {
@@ -233,7 +225,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
       if (mariadb)
       {
         if (EnlistInDtc) {
-          return MADB_SetError(&Error, MADB_ERR_25000, NULL, 0);
+          return MADB_SetError(&Error, MADB_ERR_25000, nullptr, 0);
         }
         if (mysql_autocommit(mariadb, (my_bool)(size_t)ValuePtr))
         {
@@ -245,7 +237,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     break;
   case SQL_ATTR_CONNECTION_DEAD:
     /* read only! */
-    return MADB_SetError(&Error, MADB_ERR_HY092, NULL, 0);
+    return MADB_SetError(&Error, MADB_ERR_HY092, nullptr, 0);
   case SQL_ATTR_CURRENT_CATALOG:
     {
       MADB_FREE(CatalogName);
@@ -253,7 +245,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
       {
         /* IsAnsi will be set before this, even if it is set before connection
            StringLength from DM here is octets length */
-        CatalogName= MADB_ConvertFromWCharEx((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), NULL, ConnOrSrcCharset, NULL, TRUE);
+        CatalogName= MADB_ConvertFromWCharEx((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), nullptr, ConnOrSrcCharset, nullptr, TRUE);
       }
       else
       {
@@ -268,9 +260,9 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
           }
         }
       }
-      if (CatalogName == NULL)
+      if (CatalogName == nullptr)
       {
-        MADB_SetError(&Error, MADB_ERR_HY001, NULL, 0);
+        MADB_SetError(&Error, MADB_ERR_HY001, nullptr, 0);
       }
       if (mariadb)
       {
@@ -282,7 +274,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   {
     long long value= (SQLUINTEGER)(SQLULEN)ValuePtr;
     if (value > UINT_MAX) {
-      MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
+      MADB_SetError(&Error, MADB_ERR_01S02, nullptr, 0);
       value= UINT_MAX;
     }
     LoginTimeout= (SQLUINTEGER)value;
@@ -292,7 +284,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     MetadataId= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
   case SQL_ATTR_CONNECTION_TIMEOUT:
-    return MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
+    return MADB_SetError(&Error, MADB_ERR_01S02, nullptr, 0);
   case SQL_ATTR_ODBC_CURSORS:
     {
 #pragma warning(disable:4995)
@@ -300,19 +292,19 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
       SQLULEN ValidAttrs[]= {3, SQL_CUR_USE_IF_NEEDED, SQL_CUR_USE_ODBC, SQL_CUR_USE_DRIVER};
       MADB_CHECK_ATTRIBUTE(this, ValuePtr, ValidAttrs);
       if ((SQLULEN)ValuePtr != SQL_CUR_USE_ODBC)
-        MADB_SetError(&Error, MADB_ERR_01S02, NULL, 0);
+        MADB_SetError(&Error, MADB_ERR_01S02, nullptr, 0);
       OdbcCursors= SQL_CUR_USE_ODBC;
 #pragma warning(pop)
     }
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
-    return MADB_SetError(&Error, MADB_ERR_HYC00, NULL, 0);
+    return MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
   case SQL_ATTR_PACKET_SIZE:
     /* if connection was made, return HY001 */
     if (mariadb)
     {
-      return MADB_SetError(&Error, MADB_ERR_HY001, NULL, 0);
+      return MADB_SetError(&Error, MADB_ERR_HY001, nullptr, 0);
     }
     PacketSize= (SQLUINTEGER)(SQLULEN)ValuePtr;
     break;
@@ -324,7 +316,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     SQLUINTEGER uiValue= (SQLUINTEGER)(SQLULEN)ValuePtr;
     if (uiValue != SQL_RESET_CONNECTION_YES)
     {
-      return MADB_SetError(&Error, MADB_ERR_HY024, NULL, 0);
+      return MADB_SetError(&Error, MADB_ERR_HY024, nullptr, 0);
     }
 
   }
@@ -345,7 +337,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
       }
       catch(int)
       {
-        return MADB_SetError(&Error, MADB_ERR_HY024, NULL, 0);
+        return MADB_SetError(&Error, MADB_ERR_HY024, nullptr, 0);
       }
     }
     TxnIsolation= (SQLINTEGER)(SQLLEN)ValuePtr;
@@ -367,7 +359,7 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   if (Attribute == SQL_ATTR_CURRENT_CATALOG && !StringLengthPtr && 
       (!ValuePtr || !BufferLength))
   {
-    return MADB_SetError(&Error, MADB_ERR_01004, NULL, 0);
+    return MADB_SetError(&Error, MADB_ERR_01004, nullptr, 0);
   }
 
   switch(Attribute) {
@@ -406,7 +398,7 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
         CatalogName, strlen(CatalogName), &Error);
       ret= SQL_SUCCESS;
     }
-    if (StringLengthPtr != NULL)
+    if (StringLengthPtr != nullptr)
     {
       *StringLengthPtr= (SQLINTEGER)StrLen;
     }
@@ -429,7 +421,7 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
-    MADB_SetError(&Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
     break;
   case SQL_ATTR_PACKET_SIZE:
     {
@@ -470,7 +462,7 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     break;
 
   default:
-    MADB_SetError(&Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
     break;
   }
   return Error.ReturnValue;
@@ -506,7 +498,7 @@ SQLRETURN MADB_Dbc::GetCurrentDB(SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLengt
   MADB_CLEAR_ERROR(&Error);
   if (CheckConnection() == FALSE)
   {
-    return MADB_SetError(&Error, MADB_ERR_08003, NULL, 0);
+    return MADB_SetError(&Error, MADB_ERR_08003, nullptr, 0);
   }
   try
   {
@@ -568,7 +560,7 @@ SQLRETURN MADB_Dbc::EndTran(SQLSMALLINT CompletionType)
     guard->commit();
     break;
   default:
-    MADB_SetError(&Error, MADB_ERR_HY012, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_HY012, nullptr, 0);
   }
 
   return Error.ReturnValue;
@@ -577,23 +569,19 @@ SQLRETURN MADB_Dbc::EndTran(SQLSMALLINT CompletionType)
 
 /* {{{ MADB_AddInitCommand
 */
-static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned long MultiStmtAllowed, const char *StmtToAdd)
+static void MADB_AddInitCommand(MYSQL* mariadb, std::ostringstream &InitCmd, bool MultiStmtAllowed, const char *StmtToAdd)
 {
-  if (MultiStmtAllowed == 0)
+  if (!MultiStmtAllowed)
   {
     mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, StmtToAdd);
-    return 0;
   }
   else
   {
-    if (InitCmd->length != 0)
+    if (InitCmd.tellp() != 0)
     {
-      if (MADB_DynstrAppendMem(InitCmd, ";", 1))
-      {
-        return 1;
-      }
+      InitCmd << ";";
     }
-    return MADB_DynstrAppend(InitCmd, StmtToAdd);
+    InitCmd << StmtToAdd;
   }
 }
 
@@ -658,179 +646,68 @@ bool MADB_SetAttributes(MYSQL* mariadb, const char* Attributes)
 }
 /* }}} */
 
-/* {{{ MADB_Dbc_ConnectDB
-       Mind that this function is used for establishing connection from the setup lib
-*/
-SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
+const char* MADB_Dbc::getDefaultSchema(MADB_Dsn *Dsn)
 {
-  my_bool ReportDataTruncation= 1;
-  unsigned long client_flags= CLIENT_MULTI_RESULTS;
-  my_bool my_reconnect= 1;
-  int protocol = MYSQL_PROTOCOL_TCP;
-  MADB_DynString InitCmd;
-  const char* defaultSchema= NULL;
-
-  MADB_CLEAR_ERROR(&Error);
-
-  if (mariadb == NULL)
+  /* set default catalog. If we have value set via SQL_ATTR_CURRENT_CATALOG - it takes priority. Otherwise - DSN */
+  if (CatalogName && CatalogName[0])
   {
-    if (!(mariadb= mysql_init(NULL)))
-    {
-      MADB_SetError(&Error, MADB_ERR_HY001, NULL, 0);
-      goto end;
-    }
+    return CatalogName;
   }
+  else if (Dsn->Catalog && Dsn->Catalog[0])
+  {
+    return Dsn->Catalog;
+  }
+  return nullptr;
+}
+
+/* {{{ MADB_Dbc::CoreConnect
+       Minimal connect function to re-create functional connection from Dsn without any "extras".
+       It's mainly to be used by Cancel functions, that need to open additional connection to run query on the server
+*/
+SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Error, unsigned long clientFlags)
+{
+  int protocol= MYSQL_PROTOCOL_TCP;
 
   if (!MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
   {
-    mysql_optionsv(mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
+    mysql_optionsv(_mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
   }
   else
   {
-    if (DefaultPluginLocation != NULL)
+    if (DefaultPluginLocation != nullptr)
     {
-      mysql_optionsv(mariadb, MYSQL_PLUGIN_DIR, DefaultPluginLocation);
+      mysql_optionsv(_mariadb, MYSQL_PLUGIN_DIR, DefaultPluginLocation);
     }
   }
 
   if (Dsn->ReadMycnf != '\0')
   {
-    mysql_optionsv(mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
-  }
-  /* If a client character set was specified in DSN, we will always use it.
-     Otherwise for ANSI applications we will use the current character set,
-     for unicode connections we use utf8
-  */
-  {
-    const char* cs_name= NULL;
-
-    if (!MADB_IS_EMPTY(Dsn->CharacterSet))
-    {
-      if (strcmp(Dsn->CharacterSet, "utf8") == 0)
-      {
-        cs_name= utf8mb3;
-      }
-      cs_name= Dsn->CharacterSet;
-    }
-    else if (IsAnsi)
-    {
-      MARIADB_CHARSET_INFO *cs= mariadb_get_charset_by_name("auto");
-      cs_name= cs->csname;
-    }
-
-    if (InitClientCharset(&Charset, MADB_IS_EMPTY(cs_name) ? "utf8mb4" : cs_name))
-    {
-      /* Memory allocation error */
-      MADB_SetError(&Error, MADB_ERR_HY001, NULL, 0);
-      goto end;
-    }
-    if (iOdbc() && strcmp(Charset.cs_info->csname, "swe7") == 0)
-    {
-      MADB_SetError(&Error, MADB_ERR_HY000, "Charset SWE7 is not supported with iODBC", 0);
-      goto end;
-
-    }
-    if (!IsAnsi || iOdbc())
-    {
-      /* If application is not ansi, we should convert wchar into connection string */
-      ConnOrSrcCharset= &Charset;
-    }
-  }
-
-  /* todo: error handling */
-  mysql_optionsv(mariadb, MYSQL_SET_CHARSET_NAME, Charset.cs_info->csname);
-
-  /* This should go before any DSN_OPTION macro use. I don't know why can't we use Dsn directly, though */
-  Options = Dsn->Options;
-
-  if (DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS))
-  {
-    client_flags|= CLIENT_MULTI_STATEMENTS;
-    MADB_InitDynamicString(&InitCmd, "", 1024, 1024);
-  }
-
-  if (Dsn->InitCommand && Dsn->InitCommand[0])
-  {
-    MADB_AddInitCommand(mariadb, &InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), Dsn->InitCommand);
-  }
-  /* Turn sql_auto_is_null behavior off.
-    For more details see: http://bugs.mysql.com/bug.php?id=47005 */
-  MADB_AddInitCommand(mariadb, &InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION SQL_AUTO_IS_NULL=0");
-
-  /* set autocommit behavior */
-  if (AutoCommit != 0)
-  {
-    MADB_AddInitCommand(mariadb, &InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=1");
-  }
-  else
-  {
-    MADB_AddInitCommand(mariadb, &InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=0");
-  }
-
-  /* Set isolation level */
-  if (TxnIsolation)
-  {
-    SQLString query("SET SESSION TRANSACTION ISOLATION LEVEL ");
-    MADB_AddInitCommand(mariadb, &InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS),
-      addTxIsolationName2Query(query, static_cast<enum IsolationLevel>(TxnIsolation)).c_str());
-  }
-
-  /* If multistmts allowed - we've put all queries to run in InitCmd. Now need to set it to MYSQL_INIT_COMMAND option */
-  if (DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS))
-  {
-    mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, InitCmd.str);
-    MADB_DynstrFree(&InitCmd);
+    mysql_optionsv(_mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
   }
 
   /* Connstring's option value takes precedence*/
   if (Dsn->ConnectionTimeout)
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Dsn->ConnectionTimeout);
+    mysql_optionsv(_mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Dsn->ConnectionTimeout);
   }
   else if (LoginTimeout > 0)
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&LoginTimeout);
+    mysql_optionsv(_mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&LoginTimeout);
   }
 
   if (Dsn->ReadTimeout)
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_READ_TIMEOUT, (const void *)&Dsn->ReadTimeout);
+    mysql_optionsv(_mariadb, MYSQL_OPT_READ_TIMEOUT, (const void *)&Dsn->ReadTimeout);
   }
-  //else if ()
 
   if (Dsn->WriteTimeout)
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const void *)&Dsn->WriteTimeout);
+    mysql_optionsv(_mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const void *)&Dsn->WriteTimeout);
   }
 
-  if (DSN_OPTION(this, MADB_OPT_FLAG_AUTO_RECONNECT))
-    mysql_optionsv(mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
-
-  if (DSN_OPTION(this, MADB_OPT_FLAG_NO_SCHEMA))
-    client_flags|= CLIENT_NO_SCHEMA;
-  if (DSN_OPTION(this, MADB_OPT_FLAG_IGNORE_SPACE))
-    client_flags|= CLIENT_IGNORE_SPACE;
-
-  if (DSN_OPTION(this, MADB_OPT_FLAG_FOUND_ROWS))
-    client_flags|= CLIENT_FOUND_ROWS;
-  if (DSN_OPTION(this, MADB_OPT_FLAG_COMPRESSED_PROTO))
-    client_flags|= CLIENT_COMPRESS;
-  
-
-  if (MADB_SetAttributes(mariadb, Dsn->Attributes))
+  if (Dsn->IsNamedPipe)
   {
-    MADB_SetError(&Error, MADB_ERR_01S00, "Perfschema connection attributes(ATTR) could not be parsed", 0);
-  }
-  if (Dsn->InteractiveClient)
-  {
-    mysql_optionsv(mariadb, MARIADB_OPT_INTERACTIVE, 1);
-  }
-  /* enable truncation reporting */
-  mysql_optionsv(mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
-
-  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
-  {
-    mysql_optionsv(mariadb, MYSQL_OPT_NAMED_PIPE, NULL);
+    mysql_optionsv(_mariadb, MYSQL_OPT_NAMED_PIPE, nullptr);
     protocol= MYSQL_PROTOCOL_PIPE;
   }
   else if (Dsn->Socket)
@@ -850,7 +727,7 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
       Dsn->Port= 3306;
     }
   }
-  mysql_optionsv(mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+  mysql_optionsv(_mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
 
   { //The block is needed because of all goto's
     /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
@@ -867,28 +744,27 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
       || !MADB_IS_EMPTY(SslCert)
       || !MADB_IS_EMPTY(SslKey))
     {
-      char Enable= 1;
-      mysql_optionsv(mariadb, MYSQL_OPT_SSL_ENFORCE, &Enable);
+      mysql_optionsv(_mariadb, MYSQL_OPT_SSL_ENFORCE, &selectedBoolOption);
 
       if (!MADB_IS_EMPTY(SslKey))
       {
-        mysql_optionsv(mariadb, MYSQL_OPT_SSL_KEY, SslKey);
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_KEY, SslKey);
       }
       if (!MADB_IS_EMPTY(SslCert))
       {
-        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CERT, SslCert);
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CERT, SslCert);
       }
       if (!MADB_IS_EMPTY(SslCa))
       {
-        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CA, SslCa);
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CA, SslCa);
       }
       if (!MADB_IS_EMPTY(SslCaPath))
       {
-        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
       }
       if (!MADB_IS_EMPTY(SslCipher))
       {
-        mysql_optionsv(mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
       }
     }
     if (Dsn->TlsVersion > 0)
@@ -912,54 +788,182 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
           Ptr += strlen(TlsVersionName[i]);
         }
       }
-      mysql_optionsv(mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
+      mysql_optionsv(_mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
     }
   }
 
   if (Dsn->SslVerify)
   {
-    const unsigned int verify= 0x01010101;
-    mysql_optionsv(mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&selectedBoolOption);
   }
   else
   {
-    const unsigned int verify= 0;
-    mysql_optionsv(mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&unselectedBoolOption);
   }
- 
+
   if (Dsn->ForceTls != '\0')
   {
-    const unsigned int ForceTls= 0x01010101;
-    mysql_optionsv(mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&ForceTls);
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&selectedBoolOption);
   }
 
   if (!MADB_IS_EMPTY(Dsn->SslCrl))
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_SSL_CRL, Dsn->SslCrl);
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CRL, Dsn->SslCrl);
   }
   if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
   }
 
   if (!MADB_IS_EMPTY(Dsn->ServerKey))
   {
-    mysql_optionsv(mariadb, MYSQL_SERVER_PUBLIC_KEY, Dsn->ServerKey);
+    mysql_optionsv(_mariadb, MYSQL_SERVER_PUBLIC_KEY, Dsn->ServerKey);
   }
 
   if (!MADB_IS_EMPTY(Dsn->TlsPeerFp))
   {
-    mysql_optionsv(mariadb, MARIADB_OPT_TLS_PEER_FP, (void*)Dsn->TlsPeerFp);
+    mysql_optionsv(_mariadb, MARIADB_OPT_TLS_PEER_FP, (void*)Dsn->TlsPeerFp);
   }
   if (!MADB_IS_EMPTY(Dsn->TlsPeerFpList))
   {
-    mysql_optionsv(mariadb, MARIADB_OPT_TLS_PEER_FP_LIST, (void*)Dsn->TlsPeerFpList);
+    mysql_optionsv(_mariadb, MARIADB_OPT_TLS_PEER_FP_LIST, (void*)Dsn->TlsPeerFpList);
   }
 
   if (!MADB_IS_EMPTY(Dsn->TlsKeyPwd))
   {
-    mysql_optionsv(mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
+    mysql_optionsv(_mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
   }
+
+  if (!mysql_real_connect(_mariadb,
+    Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password, getDefaultSchema(Dsn), Dsn->Port, Dsn->Socket, clientFlags))
+  {
+    MADB_SetNativeError(_Error, SQL_HANDLE_DBC, _mariadb);
+    if ((LoginTimeout > 0 || Dsn->ConnectionTimeout > 0) && strcmp(_Error->SqlState, "08S01") == 0)
+    {
+      strcpy_s(_Error->SqlState, SQLSTATE_LENGTH + 1, "HYT00");
+    }
+  }
+  return _Error->ReturnValue;
+}
+/* }}} */
+
+/* {{{ MADB_Dbc_ConnectDB
+       Mind that this function is used for establishing connection from the setup lib
+*/
+SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
+{
+  unsigned long client_flags= CLIENT_MULTI_RESULTS;
+  std::ostringstream InitCmd;
+
+  MADB_CLEAR_ERROR(&Error);
+
+  if (mariadb == nullptr)
+  {
+    if (!(mariadb= mysql_init(nullptr)))
+    {
+      return MADB_SetError(&Error, MADB_ERR_HY001, nullptr, 0);
+    }
+  }
+
+  const char* cs_name= nullptr;
+
+  if (!MADB_IS_EMPTY(Dsn->CharacterSet))
+  {
+    if (strcmp(Dsn->CharacterSet, "utf8") == 0)
+    {
+      cs_name= utf8mb3;
+    }
+    cs_name= Dsn->CharacterSet;
+  }
+  else if (IsAnsi)
+  {
+    MARIADB_CHARSET_INFO *cs= mariadb_get_charset_by_name("auto");
+    cs_name= cs->csname;
+  }
+
+  if (InitClientCharset(&Charset, MADB_IS_EMPTY(cs_name) ? "utf8mb4" : cs_name))
+  {
+    /* Memory allocation error */
+    return MADB_SetError(&Error, MADB_ERR_HY001, nullptr, 0);
+  }
+  if (iOdbc() && strcmp(Charset.cs_info->csname, "swe7") == 0)
+  {
+    return MADB_SetError(&Error, MADB_ERR_HY000, "Charset SWE7 is not supported with iODBC", 0);
+  }
+  if (!IsAnsi || iOdbc())
+  {
+    /* If application is not ansi, we should convert wchar into connection string */
+    ConnOrSrcCharset= &Charset;
+  }
+
+  /* todo: error handling */
+  mysql_optionsv(mariadb, MYSQL_SET_CHARSET_NAME, Charset.cs_info->csname);
+
+  /* This should go before any DSN_OPTION macro use. I don't know why can't we use Dsn directly, though */
+  Options= Dsn->Options;
+
+  if (DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS))
+  {
+    client_flags|= CLIENT_MULTI_STATEMENTS;
+  }
+
+  if (Dsn->InitCommand && Dsn->InitCommand[0])
+  {
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), Dsn->InitCommand);
+  }
+  /* Turn sql_auto_is_null behavior off.
+    For more details see: http://bugs.mysql.com/bug.php?id=47005 */
+  MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION SQL_AUTO_IS_NULL=0");
+
+  /* set autocommit behavior */
+  if (AutoCommit != 0)
+  {
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=1");
+  }
+  else
+  {
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=0");
+  }
+
+  /* Set isolation level */
+  if (TxnIsolation)
+  {
+    SQLString query("SET SESSION TRANSACTION ISOLATION LEVEL ");
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS),
+      addTxIsolationName2Query(query, static_cast<enum IsolationLevel>(TxnIsolation)).c_str());
+  }
+
+  /* If multistmts allowed - we've put all queries to run in InitCmd. Now need to set it to MYSQL_INIT_COMMAND option */
+  if (DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS))
+  {
+    mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, InitCmd.str().c_str());
+  }
+
+  // Timeouts go in CoreConnect()
+
+  if (DSN_OPTION(this, MADB_OPT_FLAG_AUTO_RECONNECT))
+    mysql_optionsv(mariadb, MYSQL_OPT_RECONNECT, &selectedBoolOption);
+
+  if (DSN_OPTION(this, MADB_OPT_FLAG_NO_SCHEMA))
+    client_flags|= CLIENT_NO_SCHEMA;
+  if (DSN_OPTION(this, MADB_OPT_FLAG_IGNORE_SPACE))
+    client_flags|= CLIENT_IGNORE_SPACE;
+
+  if (DSN_OPTION(this, MADB_OPT_FLAG_FOUND_ROWS))
+    client_flags|= CLIENT_FOUND_ROWS;
+  if (DSN_OPTION(this, MADB_OPT_FLAG_COMPRESSED_PROTO))
+    client_flags|= CLIENT_COMPRESS;
+  
+  if (MADB_SetAttributes(mariadb, Dsn->Attributes))
+  {
+    MADB_SetError(&Error, MADB_ERR_01S00, "Perfschema connection attributes(ATTR) could not be parsed", 0);
+  }
+  if (Dsn->InteractiveClient)
+  {
+    mysql_optionsv(mariadb, MARIADB_OPT_INTERACTIVE, 1);
+  }
+  /* enable truncation reporting */
+  mysql_optionsv(mariadb, MYSQL_REPORT_DATA_TRUNCATION, &selectedBoolOption);
 
   if (Dsn->DisableLocalInfile != '\0')
   {
@@ -970,21 +974,12 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
     mysql_optionsv(mariadb, MYSQL_OPT_LOCAL_INFILE, &selectedIntOption);
   }
 
-  /* set default catalog. If we have value set via SQL_ATTR_CURRENT_CATALOG - it takes priority. Otherwise - DSN */
-  if (CatalogName && CatalogName[0])
+  // Protocol and encryption settings go in CoreConnect()
+  /////---------------------- Connecting -------------------------/////
+  if (!SQL_SUCCEEDED(CoreConnect(mariadb, Dsn, &Error, client_flags)))
   {
-    defaultSchema= CatalogName;
-  }
-  else if (Dsn->Catalog && Dsn->Catalog[0])
-  {
-    //MADB_RESET(CatalogName, Dsn->Catalog);
-    defaultSchema= Dsn->Catalog;
-  }
-
-  if (!mysql_real_connect(mariadb,
-      Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password, defaultSchema, Dsn->Port, Dsn->Socket, client_flags))
-  {
-    goto err;
+    mysql_close(mariadb);
+    return Error.ReturnValue;
   }
   
   /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
@@ -1007,20 +1002,11 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
     {
       psCache= new Cache<std::string, ServerPrepareResult>();
     }
-
+    const char* defaultSchema= getDefaultSchema(Dsn);
     guard.reset(new Protocol(mariadb, defaultSchema ? defaultSchema : emptyStr, psCache, MADB_GetTxIsolationVarName(this),
       TxnIsolation ? static_cast<enum IsolationLevel>(TxnIsolation) : TRANSACTION_REPEATABLE_READ));
   }
 
-  goto end;
-
-err:
-  MADB_SetNativeError(&Error, SQL_HANDLE_DBC, mariadb);
-  if ((LoginTimeout > 0 || Dsn->ConnectionTimeout > 0) && strcmp(Error.SqlState, "08S01") == 0)
-  {
-    strcpy_s(Error.SqlState, SQLSTATE_LENGTH + 1, "HYT00");
-  }
-end:
   if (Error.ReturnValue == SQL_ERROR && mariadb)
   {
     mysql_close(mariadb);
@@ -1125,10 +1111,10 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
   if (!InfoValuePtr && !StringLengthPtr)
     return SQL_SUCCESS;
 
-  /* Prety special case - on Windows DM passes NULL instead of InfoValuePtr and own pointer instead of StringLengthPtr.
+  /* Prety special case - on Windows DM passes nullptr instead of InfoValuePtr and own pointer instead of StringLengthPtr.
      The logic here is not quite clear - I would imagine that truncated status is more appropriate.
      But UnixODBC does not do so, and we are making connector's behavior consistent */
-  if (InfoValuePtr != NULL && BufferLength == 0 && StringLengthPtr == NULL && IsStringInfoType(InfoType))
+  if (InfoValuePtr != nullptr && BufferLength == 0 && StringLengthPtr == nullptr && IsStringInfoType(InfoType))
   {
     return SQL_SUCCESS;
   }
@@ -1136,11 +1122,11 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
   MADB_CLEAR_ERROR(&Error);
   switch(InfoType) {
   case SQL_ACCESSIBLE_PROCEDURES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "N", SQL_NTS, &Error);
     break;
   case SQL_ACCESSIBLE_TABLES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "N", SQL_NTS, &Error);
     break;
   case SQL_ACTIVE_ENVIRONMENTS:
@@ -1189,16 +1175,16 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
   case SQL_CATALOG_NAME:
     /* Todo: MyODBC Driver has a DSN configuration for diabling catalog usage:
        but it's not implemented in MAODBC */
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Error);
     break;
   case SQL_CATALOG_NAME_SEPARATOR:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), ".", SQL_NTS, &Error);
     break;
   case SQL_CATALOG_TERM:
     /* todo: See comment for SQL_CATALOG_NAME */
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "database", SQL_NTS, &Error);
     break;
   case SQL_CATALOG_USAGE:
@@ -1213,13 +1199,13 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
   {
     MY_CHARSET_INFO cs;
     mariadb_get_infov(mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr,
       (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
       cs.name, SQL_NTS, &Error);
     break;
   }
   case SQL_COLUMN_ALIAS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, 
                            (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Error);
     break;
   case SQL_CONCAT_NULL_BEHAVIOR:
@@ -1346,7 +1332,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_UNSPECIFIED, StringLengthPtr);
     break;
   case SQL_DATA_SOURCE_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      Dsn ? Dsn->DSNName : "", SQL_NTS, &Error);
     break;
   case SQL_DATABASE_NAME:
@@ -1357,7 +1343,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                                                 SQL_DL_SQL92_TIMESTAMP, StringLengthPtr);
     break;
   case SQL_DBMS_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      mariadb ? (char *)mysql_get_server_name(mariadb) : "MariaDB",
                                      SQL_NTS, &Error);
     break;
@@ -1385,7 +1371,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_DESCRIBE_PARAMETER:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Error);
     break;
 #ifdef SQL_DRIVER_AWARE_POOLING_SUPPORTED
@@ -1403,7 +1389,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
   case SQL_DRIVER_HSTMT:
     break;
   case SQL_DRIVER_NAME:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      MADB_DRIVER_NAME, SQL_NTS, &Error);
     break;
@@ -1412,13 +1398,13 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
       const char *OdbcVersion= "03.80";
       /* DM requests this info before Charset initialized. Thus checking if it is, and use utf8 by default
          The other way would be to use utf8 when Dbc initialized */
-      SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Charset.cs_info ? &Charset : &utf8 ): NULL,
+      SLen= (SQLSMALLINT)MADB_SetString(isWChar ? (Charset.cs_info ? &Charset : &utf8 ): nullptr,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      OdbcVersion, SQL_NTS, &Error);
     }
     break;
   case SQL_DRIVER_VER:
-     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL,
+     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr,
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      MARIADB_ODBC_VERSION, SQL_NTS, &Error);
     break;
@@ -1474,7 +1460,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                                                 SQL_CA2_SIMULATE_TRY_UNIQUE, StringLengthPtr);
     break;
   case SQL_EXPRESSIONS_IN_ORDERBY:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Error);
     break;
   case SQL_FILE_USAGE:
@@ -1513,7 +1499,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_IC_MIXED, StringLengthPtr);
     break;
   case SQL_IDENTIFIER_QUOTE_CHAR:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
       MADB_SqlMode(this, MADB_ANSI_QUOTES) ? "\"" : "`", SQL_NTS, &Error);
     break;
   case SQL_INDEX_KEYWORDS:
@@ -1531,7 +1517,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                                                 SQL_IS_SELECT_INTO, StringLengthPtr);
     break;
   case SQL_INTEGRITY:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Error);
     break;
   case SQL_KEYSET_CURSOR_ATTRIBUTES1:
@@ -1541,7 +1527,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_KEYWORDS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "ACCESSIBLE,ANALYZE,ASENSITIVE,BEFORE,BIGINT,BINARY,BLOB,CALL,"
                                      "CHANGE,CONDITION,DATABASE,DATABASES,DAY_HOUR,DAY_MICROSECOND,"
                                      "DAY_MINUTE,DAY_SECOND,DELAYED,DETERMINISTIC,DISTINCTROW,DIV,"
@@ -1563,7 +1549,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                                      "SLOW", SQL_NTS, &Error);
     break;
   case SQL_LIKE_ESCAPE_CLAUSE:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Error);
     break;
   case SQL_MAX_ASYNC_CONCURRENT_STATEMENTS:
@@ -1618,7 +1604,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, 0, StringLengthPtr);
     break;
   case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Error);
     break;
   case SQL_MAX_SCHEMA_NAME_LEN:
@@ -1641,15 +1627,15 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
      MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, USERNAME_LENGTH, StringLengthPtr);
     break;
   case SQL_MULT_RESULT_SETS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Error);
     break;
   case SQL_MULTIPLE_ACTIVE_TXN:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Error);
     break;
   case SQL_NEED_LONG_DATA_LEN:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Error);
     break;
   case SQL_NON_NULLABLE_COLUMNS:
@@ -1681,7 +1667,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
   case SQL_ODBC_VER:
     break;
   case SQL_OUTER_JOINS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, 
                                      (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), "Y", SQL_NTS, &Error);
     break;
   case SQL_OJ_CAPABILITIES:
@@ -1689,7 +1675,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                                                 SQL_OJ_NESTED | SQL_OJ_INNER, StringLengthPtr);
     break;
   case SQL_ORDER_BY_COLUMNS_IN_SELECT:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "N", SQL_NTS, &Error);
     break;
   case SQL_PARAM_ARRAY_ROW_COUNTS:
@@ -1699,23 +1685,23 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_PAS_NO_BATCH, StringLengthPtr);
     break;
   case SQL_PROCEDURE_TERM:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "stored procedure", SQL_NTS, &Error);
     break;
   case SQL_PROCEDURES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "Y", SQL_NTS, &Error);
     break;
   case SQL_QUOTED_IDENTIFIER_CASE:  
     MADB_SET_NUM_VAL(SQLUSMALLINT, InfoValuePtr, SQL_IC_SENSITIVE, StringLengthPtr);
     break;
   case SQL_ROW_UPDATES:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, 
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "N", SQL_NTS, &Error);
     break;
   case SQL_SCHEMA_TERM:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "", SQL_NTS, &Error);
     break;
@@ -1733,7 +1719,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     }
     break;
   case SQL_SEARCH_PATTERN_ESCAPE:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "\\", SQL_NTS, &Error);
     break;
@@ -1744,13 +1730,13 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     {
       mariadb_get_infov(mariadb, MARIADB_CONNECTION_HOST, (void*)&Host);
     }
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
       BUFFER_CHAR_LEN(BufferLength, isWChar),
       Host, SQL_NTS, &Error);
     break;
   }
   case SQL_SPECIAL_CHARACTERS:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr, 
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, 
                                       BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "\"\\/", SQL_NTS, &Error);
     break;
@@ -1850,7 +1836,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
                                                 SQL_FN_SYS_USERNAME, StringLengthPtr);
     break;
   case SQL_TABLE_TERM:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
                                       BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                      "table", SQL_NTS, &Error);
     break;
@@ -1891,18 +1877,18 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     {
       mariadb_get_infov(mariadb, MARIADB_CONNECTION_USER, (void *)&User);
     }
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar), 
                                       User, SQL_NTS, &Error);
     break;
   }
   case SQL_XOPEN_CLI_YEAR:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "1992", SQL_NTS, &Error);
     break;
   case SQL_DATA_SOURCE_READ_ONLY:
-    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : NULL, (void *)InfoValuePtr,
+    SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr,
                                      BUFFER_CHAR_LEN(BufferLength, isWChar),
                                      "N", SQL_NTS, &Error);
     break;
@@ -1922,7 +1908,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES, StringLengthPtr);
     break;  
 default:
-    MADB_SetError(&Error, MADB_ERR_HY096, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_HY096, nullptr, 0);
     return Error.ReturnValue;
   }
   if (isWChar && SLen)
@@ -1962,14 +1948,14 @@ SQLRETURN MADB_Dbc::DriverConnect(SQLHWND WindowHandle, SQLCHAR *InConnectionStr
                              SQLUSMALLINT DriverCompletion)
 {
   MADB_Dsn   *Dsn;
-  MADB_Drv   *Drv=       NULL;
+  MADB_Drv   *Drv=       nullptr;
   SQLRETURN   ret=       SQL_SUCCESS;
-  MADB_Prompt DSNPrompt= { NULL, NULL };
+  MADB_Prompt DSNPrompt= { nullptr, nullptr };
   SQLULEN     Length;
 
   MADB_CLEAR_ERROR(&Error);
 
-  Dsn= MADB_DSN_Init(NULL);
+  Dsn= MADB_DSN_Init(nullptr);
 
   if (!MADB_ReadConnString(Dsn, (char *)InConnectionString, StringLength1, ';'))
   {
@@ -2003,7 +1989,7 @@ SQLRETURN MADB_Dbc::DriverConnect(SQLHWND WindowHandle, SQLCHAR *InConnectionStr
   case SQL_DRIVER_PROMPT:
     break;
   default:
-    MADB_SetError(&Error, MADB_ERR_HY110, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_HY110, nullptr, 0);
     goto error;
     break;
   }
@@ -2011,7 +1997,7 @@ SQLRETURN MADB_Dbc::DriverConnect(SQLHWND WindowHandle, SQLCHAR *InConnectionStr
   /* Without window handle we can't show a dialog */
   if (DriverCompletion != SQL_DRIVER_NOPROMPT && !WindowHandle)
   {
-    MADB_SetError(&Error, MADB_ERR_IM008, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_IM008, nullptr, 0);
     goto error;
   }
   
@@ -2024,13 +2010,13 @@ SQLRETURN MADB_Dbc::DriverConnect(SQLHWND WindowHandle, SQLCHAR *InConnectionStr
      error IM007 (dialog prohibited) will be returned */
   if (!Dsn->Driver)
   {
-    MADB_SetError(&Error, MADB_ERR_IM007, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_IM007, nullptr, 0);
     goto error;
   }
   
   if (!(Drv= MADB_DriverGet(Dsn->Driver)))
   {
-    MADB_SetError(&Error, MADB_ERR_IM003, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_IM003, nullptr, 0);
     goto error;
   }
   if (!Drv->SetupLibrary)
@@ -2077,15 +2063,15 @@ end:
     char *PreservePwd;
 
     /* DM should do that on its own, but we still better also remove pwd from the string being saved in the file DSN */
-    if (Dsn->SaveFile != NULL)
+    if (Dsn->SaveFile != nullptr)
     {
       PreservePwd= Dsn->Password;
-      Dsn->Password= NULL;
+      Dsn->Password= nullptr;
     }
     /* If prompt/complete(_required), and dialog was succusefully showed - we generate string from the result DSN */
     Length= MADB_DsnToString(Dsn, (char *)OutConnectionString, BufferLength);
 
-    if (Dsn->SaveFile != NULL)
+    if (Dsn->SaveFile != nullptr)
     {
       Dsn->Password= PreservePwd;
     }
@@ -2108,7 +2094,7 @@ end:
 
   if (OutConnectionString && BufferLength && Length > BufferLength)
   {
-    MADB_SetError(&Error, MADB_ERR_01004, NULL, 0);
+    MADB_SetError(&Error, MADB_ERR_01004, nullptr, 0);
     return Error.ReturnValue;
   }
   return ret;
@@ -2140,14 +2126,14 @@ MADB_Dbc* MADB_DbcInit(MADB_Env* Env)
   }
   catch (std::bad_alloc &/*e*/)
   {
-    MADB_SetError(&Env->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Env->Error, MADB_ERR_HY001, nullptr, 0);
     return nullptr;
   }
 
   /* Save connection in Environment list */
   Connection->ListItem= Connection->Environment->addConnection(Connection);
 
-  MADB_PutErrorPrefix(NULL, &Connection->Error);
+  MADB_PutErrorPrefix(nullptr, &Connection->Error);
 
   return Connection;
 }

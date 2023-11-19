@@ -17,8 +17,9 @@
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 
-
-CMAKE_POLICY(SET CMP0115 NEW)
+IF(NOT ${CMAKE_VERSION} VERSION_LESS "3.20.0")
+  CMAKE_POLICY(SET CMP0115 NEW)
+ENDIF()
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ma_odbc_version.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/ma_odbc_version.h)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/maodbcu.rc.in

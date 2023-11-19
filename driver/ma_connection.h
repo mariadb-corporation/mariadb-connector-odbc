@@ -80,6 +80,7 @@ struct MADB_Dbc
   SQLRETURN EndTran(SQLSMALLINT CompletionType);
   SQLRETURN SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength, bool isWChar);
   SQLRETURN GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength, SQLINTEGER *StringLengthPtr, bool isWChar);
+  SQLRETURN CoreConnect(MYSQL* mariadb, MADB_Dsn *Dsn, MADB_Error* _Error, unsigned long clientFlags= 0);
   SQLRETURN ConnectDB(MADB_Dsn *Dsn);
   SQLRETURN GetFunctions(SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr);
   SQLRETURN GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr, SQLSMALLINT BufferLength, SQLSMALLINT *StringLengthPtr, bool isWChar);
@@ -89,7 +90,7 @@ struct MADB_Dbc
   bool CheckConnection();
 private:
   SQLRETURN GetCurrentDB(SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLength, SQLSMALLINT *StringLengthPtr, bool isWChar);
-  
+  const char* getDefaultSchema(MADB_Dsn *Dsn);
 };
 
 bool CheckConnection(MADB_Dbc *Dbc);

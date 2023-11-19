@@ -21,6 +21,25 @@ IF (DIRECT_LINK_TESTS)
   MESSAGE(STATUS "Configuring tests for direct linking against the connector")
 ELSE()
   MESSAGE(STATUS "Configuring tests for linking against the DM library")
+
+  # We don't need(to check if) DM to support SQLCancelHandle if tests are directly linked, or on Windows,
+  # where there is no problem with that
+  IF(NOT WIN32)
+    TRY_COMPILE(COMPILE_OK ${CMAKE_CURRENT_BINARY_DIR}
+                SOURCES ${CMAKE_SOURCE_DIR}/cmake/sqlcancelhandle.c
+                LINK_LIBRARIES ${ODBC_LIBS}
+                OUTPUT_VARIABLE TRYCOMPILEOUTPUT)
+
+    #STRING(FIND "${TRYCOMPILEOUTPUT}" "" WARNINGFOUND)
+    #IF (NOT WARNINGFOUND EQUAL -1)
+    #  SET(COMPILE_OK FALSE)
+    #ENDIF()
+    MESSAGE(STATUS "Checking if DM has SQLCancelHandle ${COMPILE_OK}")
+    IF(NOT COMPILE_OK)
+      MESSAGE(STATUS "Compilation try output ${TRYCOMPILEOUTPUT}")
+      ADD_DEFINITIONS(-DHAVE_NOT_SQLCANCELHANDLE)
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/driver)

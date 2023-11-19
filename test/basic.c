@@ -915,18 +915,6 @@ void *cancel_in_one_second(void *arg)
   return NULL;
 }
 
-
-void *cancel_dbc(void *arg)
-{
-  HDBC Dbc= (HDBC)arg;
-  sleep(1);
-
-  if (SQLCancelHandle(SQL_HANDLE_DBC, Dbc) != SQL_SUCCESS)
-    diag("SQLCancel failed!");
-
-  return NULL;
-}
-
 #include <pthread.h>
 
 ODBC_TEST(sqlcancel_threaded)
@@ -944,6 +932,18 @@ ODBC_TEST(sqlcancel_threaded)
   return OK;
 }
 
+#ifndef HAVE_NOT_SQLCANCELHANDLE
+void *cancel_dbc(void *arg)
+{
+  HDBC Dbc= (HDBC)arg;
+  sleep(1);
+
+  if (SQLCancelHandle(SQL_HANDLE_DBC, Dbc) != SQL_SUCCESS)
+    diag("SQLCancel failed!");
+
+  return NULL;
+}
+
 
 ODBC_TEST(sqlcancelhandle)
 {
@@ -957,6 +957,7 @@ ODBC_TEST(sqlcancelhandle)
 
   return OK;
 }
+#endif  // ifndef HAVE_NOT_SQLCANCELHANDLE
 #endif  // ifdef _WIN32
 
 
@@ -2109,7 +2110,9 @@ MA_ODBC_TESTS my_tests[]=
 #endif
   {t_odbc377,     "odbc377_timeout_attrs",    NORMAL},
   {t_odbc388,     "odbc388_perfschema_attrs",    NORMAL},
+#ifndef HAVE_NOT_SQLCANCELHANDLE
   {sqlcancelhandle, "sqlcancelhandle", NORMAL},
+#endif
   {connection_reset, "test_SQL_ATTR_RESET_CONNECTION", NORMAL},
   {NULL, NULL, 0}
 };
