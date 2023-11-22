@@ -17,6 +17,10 @@
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # ************************************************************************************
 
+
+IF(NOT ${CMAKE_VERSION} VERSION_LESS "3.20.0")
+  CMAKE_POLICY(SET CMP0115 NEW)
+ENDIF()
 CMAKE_POLICY(SET CMP0048 NEW)
 #CMAKE_POLICY(SET CMP0057 NEW)
 CMAKE_POLICY(SET CMP0054 NEW)

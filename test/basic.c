@@ -819,12 +819,11 @@ ODBC_TEST(setnames_conn)
 /**
  Bug #15601: SQLCancel does not work to stop a query on the database server
 */
-#ifndef THREAD
-ODBC_TEST(sqlcancel)
+ODBC_TEST(sqlcancel_basic)
 {
   SQLLEN     pcbLength= SQL_LEN_DATA_AT_EXEC(0);
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT ?", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1,SQL_PARAM_INPUT,SQL_C_CHAR,
                           SQL_VARCHAR,0,0,(SQLPOINTER)1,0,&pcbLength));
@@ -834,13 +833,12 @@ ODBC_TEST(sqlcancel)
   /* Without SQLCancel we would get "out of sequence" DM error */
   CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"select 1", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT 1", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
 
   return OK;
 }
-#else
 
 #ifdef _WIN32
 DWORD WINAPI cancel_in_one_second(LPVOID arg)
@@ -863,10 +861,11 @@ ODBC_TEST(sqlcancel)
 
   thread= CreateThread(NULL, 0, cancel_in_one_second, Stmt, 0, NULL);
 
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
   /* SLEEP(n) returns 1 when it is killed. */
-  OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+  /*OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 1);
+  is_num(my_fetch_int(Stmt, 1), 1);*/
 
   waitrc= WaitForSingleObject(thread, 10000);
   IS(!(waitrc == WAIT_TIMEOUT));
@@ -894,17 +893,15 @@ ODBC_TEST(sqlcancel)
 
   pthread_create(&thread, NULL, cancel_in_one_second, Stmt);
 
-  /* SLEEP(n) returns 1 when it is killed. */
-  OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(10)");
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 1);
+  /* Error "execution was interrupted" is returned when it's killed,
+     "SLEEP(n) returns 1 when it is killed" - that is probably for older versions. Need to verify. */
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
 
   pthread_join(thread, NULL);
 
   return OK;
 }
 #endif  // ifdef _WIN32
-#endif  // ifndef THREAD
 
 ODBC_TEST(t_describe_nulti)
 {
@@ -1894,6 +1891,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_driverconnect_outstring, "t_driverconnect_outstring", NORMAL},
   {setnames,       "setnames",       NORMAL},
   {setnames_conn,  "setnames_conn",  NORMAL},
+  {sqlcancel_basic,"sqlcancel_basic_use", NORMAL},
   {sqlcancel,      "sqlcancel",      NORMAL}, 
   {t_bug32014,     "t_bug32014",     NORMAL},
   {t_bug10128,     "t_bug10128",     NORMAL},

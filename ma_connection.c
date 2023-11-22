@@ -22,6 +22,7 @@
 extern const char* DefaultPluginLocation;
 static const char* utf8mb3 = "utf8mb3";
 static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
+static const my_bool selectedBoolOption= '\1', unselectedBoolOption= '\0';
 
 struct st_madb_isolation MADB_IsolationLevel[] =
 {
@@ -584,7 +585,7 @@ SQLRETURN MADB_DbcGetCurrentDB(MADB_Dbc *Connection, SQLPOINTER CurrentDB, SQLIN
 
   if (mysql_real_query(Connection->mariadb, "SELECT DATABASE()", 17) || (res= mysql_store_result(Connection->mariadb)) == NULL)
   {
-    MADB_SetNativeError(&Connection->Error, SQL_HANDLE_DBC, Connection->mariadb);;
+    MADB_SetNativeError(&Connection->Error, SQL_HANDLE_DBC, Connection->mariadb);
     goto end;
   }
   
@@ -700,6 +701,207 @@ static int MADB_AddInitCommand(MYSQL* mariadb, MADB_DynString *InitCmd, unsigned
 }
 /* }}} */
 
+static const char* MADB_DbcGetDefaultSchema(MADB_Dbc* this, MADB_Dsn *Dsn)
+{
+  /* set default catalog. If we have value set via SQL_ATTR_CURRENT_CATALOG - it takes priority. Otherwise - DSN */
+  if (this->CatalogName && this->CatalogName[0])
+  {
+    return this->CatalogName;
+  }
+  else if (Dsn->Catalog && Dsn->Catalog[0])
+  {
+    return Dsn->Catalog;
+  }
+  return NULL;
+}
+
+/* {{{ MADB_Dbc::CoreConnect
+       Minimal connect function to re-create functional connection from Dsn without any "extras".
+       It's mainly to be used by Cancel functions, that need to open additional connection to run query on the server
+*/
+SQLRETURN MADB_DbcCoreConnect(MADB_Dbc* this, MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Error, unsigned long clientFlags)
+{
+  int protocol = MYSQL_PROTOCOL_TCP;
+
+  if (!MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
+  {
+    mysql_optionsv(_mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
+  }
+  else
+  {
+    if (DefaultPluginLocation != NULL)
+    {
+      mysql_optionsv(_mariadb, MYSQL_PLUGIN_DIR, DefaultPluginLocation);
+    }
+  }
+
+  if (Dsn->ReadMycnf != '\0')
+  {
+    mysql_optionsv(_mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
+  }
+
+  /* Connstring's option value takes precedence*/
+  if (Dsn->ConnectionTimeout)
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Dsn->ConnectionTimeout);
+  }
+  else if (this->LoginTimeout > 0)
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&this->LoginTimeout);
+  }
+
+  if (Dsn->ReadTimeout)
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_READ_TIMEOUT, (const void *)&Dsn->ReadTimeout);
+  }
+
+  if (Dsn->WriteTimeout)
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const void *)&Dsn->WriteTimeout);
+  }
+
+  if (Dsn->IsNamedPipe)
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_NAMED_PIPE, NULL);
+    protocol= MYSQL_PROTOCOL_PIPE;
+  }
+  else if (Dsn->Socket)
+  {
+#ifdef _WIN32
+    /* Technically this could break existing application, that has SOCKET in connstring on Windows, and it resulted in TCP connection */
+    /*protocol= MYSQL_PROTOCOL_PIPE;*/
+#else
+    protocol= MYSQL_PROTOCOL_SOCKET;
+#endif
+  }
+  else if (Dsn->Port > 0 || Dsn->IsTcpIp)
+  {
+    protocol= MYSQL_PROTOCOL_TCP;
+    if (Dsn->Port == 0)
+    {
+      Dsn->Port= 3306;
+    }
+  }
+  mysql_optionsv(_mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
+
+  { //The block is needed because of all goto's
+    /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
+        to have this paranoid check to make sure we dont' have them */
+    const char *SslKey=    ltrim(Dsn->SslKey);
+    const char *SslCert=   ltrim(Dsn->SslCert);
+    const char *SslCa=     ltrim(Dsn->SslCa);
+    const char *SslCaPath= ltrim(Dsn->SslCaPath);
+    const char *SslCipher= ltrim(Dsn->SslCipher);
+
+    if (!MADB_IS_EMPTY(SslCa)
+      || !MADB_IS_EMPTY(SslCaPath)
+      || !MADB_IS_EMPTY(SslCipher)
+      || !MADB_IS_EMPTY(SslCert)
+      || !MADB_IS_EMPTY(SslKey))
+    {
+      mysql_optionsv(_mariadb, MYSQL_OPT_SSL_ENFORCE, &selectedBoolOption);
+
+      if (!MADB_IS_EMPTY(SslKey))
+      {
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_KEY, SslKey);
+      }
+      if (!MADB_IS_EMPTY(SslCert))
+      {
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CERT, SslCert);
+      }
+      if (!MADB_IS_EMPTY(SslCa))
+      {
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CA, SslCa);
+      }
+      if (!MADB_IS_EMPTY(SslCaPath))
+      {
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
+      }
+      if (!MADB_IS_EMPTY(SslCipher))
+      {
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
+      }
+    }
+    if (Dsn->TlsVersion > 0)
+    {
+      char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
+      unsigned int i, NeedComma= 0;
+
+      for (i= 0; i < sizeof(TlsVersionBits); ++i)
+      {
+        if (Dsn->TlsVersion & TlsVersionBits[i])
+        {
+          if (NeedComma != 0)
+          {
+            *Ptr++= ',';
+          }
+          else
+          {
+            NeedComma= 1;
+          }
+          strcpy(Ptr, TlsVersionName[i]);
+          Ptr += strlen(TlsVersionName[i]);
+        }
+      }
+      mysql_optionsv(_mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
+    }
+  }
+
+  if (Dsn->SslVerify)
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&selectedBoolOption);
+  }
+  else
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&unselectedBoolOption);
+  }
+
+  if (Dsn->ForceTls != '\0')
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&selectedBoolOption);
+  }
+
+  if (!MADB_IS_EMPTY(Dsn->SslCrl))
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CRL, Dsn->SslCrl);
+  }
+  if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
+  {
+    mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
+  }
+
+  if (!MADB_IS_EMPTY(Dsn->ServerKey))
+  {
+    mysql_optionsv(_mariadb, MYSQL_SERVER_PUBLIC_KEY, Dsn->ServerKey);
+  }
+
+  if (!MADB_IS_EMPTY(Dsn->TlsPeerFp))
+  {
+    mysql_optionsv(_mariadb, MARIADB_OPT_TLS_PEER_FP, (void*)Dsn->TlsPeerFp);
+  }
+  if (!MADB_IS_EMPTY(Dsn->TlsPeerFpList))
+  {
+    mysql_optionsv(_mariadb, MARIADB_OPT_TLS_PEER_FP_LIST, (void*)Dsn->TlsPeerFpList);
+  }
+
+  if (!MADB_IS_EMPTY(Dsn->TlsKeyPwd))
+  {
+    mysql_optionsv(_mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
+  }
+
+  if (!mysql_real_connect(_mariadb,
+    Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password, MADB_DbcGetDefaultSchema(this, Dsn), Dsn->Port, Dsn->Socket, clientFlags))
+  {
+    MADB_SetNativeError(_Error, SQL_HANDLE_DBC, _mariadb);
+    if ((this->LoginTimeout > 0 || Dsn->ConnectionTimeout > 0) && strcmp(_Error->SqlState, "08S01") == 0)
+    {
+      strcpy_s(_Error->SqlState, SQLSTATE_LENGTH + 1, "HYT00");
+    }
+  }
+  return _Error->ReturnValue;
+}
+/* }}} */
+
 /* {{{ MADB_Dbc_ConnectDB
        Mind that this function is used for establishing connection from the setup lib
 */
@@ -707,13 +909,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   MADB_Dsn *Dsn)
 {
   char StmtStr[128];
-  my_bool ReportDataTruncation= 1;
   unsigned int i;
   unsigned long client_flags= CLIENT_MULTI_RESULTS;
-  my_bool my_reconnect= 1;
-  int protocol = MYSQL_PROTOCOL_TCP;
   MADB_DynString InitCmd;
-  const char* defaultSchema= NULL;
+  const char* defaultSchema= MADB_DbcGetDefaultSchema(Connection, Dsn);
 
   if (!Connection || !Dsn)
     return SQL_ERROR;
@@ -727,23 +926,6 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
       MADB_SetError(&Connection->Error, MADB_ERR_HY001, NULL, 0);
       goto end;
     }
-  }
-
-  if (!MADB_IS_EMPTY(Dsn->ConnCPluginsDir))
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, Dsn->ConnCPluginsDir);
-  }
-  else
-  {
-    if (DefaultPluginLocation != NULL)
-    {
-      mysql_optionsv(Connection->mariadb, MYSQL_PLUGIN_DIR, DefaultPluginLocation);
-    }
-  }
-
-  if (Dsn->ReadMycnf != '\0')
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
   }
   /* If a client character set was specified in DSN, we will always use it.
      Otherwise for ANSI applications we will use the current character set,
@@ -837,29 +1019,8 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     MADB_DynstrFree(&InitCmd);
   }
 
-  /* Connstring's option value takes precedence*/
-  if (Dsn->ConnectionTimeout)
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Dsn->ConnectionTimeout);
-  }
-  else if (Connection->LoginTimeout > 0)
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_CONNECT_TIMEOUT, (const void *)&Connection->LoginTimeout);
-  }
-
-  if (Dsn->ReadTimeout)
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_READ_TIMEOUT, (const void *)&Dsn->ReadTimeout);
-  }
-  //else if (Connection->)
-
-  if (Dsn->WriteTimeout)
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_WRITE_TIMEOUT, (const void *)&Dsn->WriteTimeout);
-  }
-
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_RECONNECT))
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &my_reconnect);
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_RECONNECT, &selectedBoolOption);
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_SCHEMA))
     client_flags|= CLIENT_NO_SCHEMA;
@@ -877,141 +1038,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MARIADB_OPT_INTERACTIVE, 1);
   }
   /* enable truncation reporting */
-  mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &ReportDataTruncation);
-
-  if (Dsn->IsNamedPipe) /* DSN_OPTION(Connection, MADB_OPT_FLAG_NAMED_PIPE) */
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_NAMED_PIPE, NULL);
-    protocol= MYSQL_PROTOCOL_PIPE;
-  }
-  else if (Dsn->Socket)
-  {
-#ifdef _WIN32
-    /* Technically this could break existing application, that has SOCKET in connstring on Windows, and it resulted in TCP connection */
-    /*protocol= MYSQL_PROTOCOL_PIPE;*/
-#else
-    protocol= MYSQL_PROTOCOL_SOCKET;
-#endif
-  }
-  else if (Dsn->Port > 0 || Dsn->IsTcpIp)
-  {
-    protocol= MYSQL_PROTOCOL_TCP;
-    if (Dsn->Port == 0)
-    {
-      Dsn->Port= 3306;
-    }
-  }
-  mysql_optionsv(Connection->mariadb, MYSQL_OPT_PROTOCOL, (void*)&protocol);
-
-  {
-    /* I don't think it's possible to have empty strings or only spaces in the string here, but I prefer
-       to have this paranoid check to make sure we dont' them */
-    const char *SslKey=    ltrim(Dsn->SslKey);
-    const char *SslCert=   ltrim(Dsn->SslCert);
-    const char *SslCa=     ltrim(Dsn->SslCa);
-    const char *SslCaPath= ltrim(Dsn->SslCaPath);
-    const char *SslCipher= ltrim(Dsn->SslCipher);
-
-    if (!MADB_IS_EMPTY(SslCa)
-     || !MADB_IS_EMPTY(SslCaPath)
-     || !MADB_IS_EMPTY(SslCipher)
-     || !MADB_IS_EMPTY(SslCert)
-     || !MADB_IS_EMPTY(SslKey))
-    {
-      char Enable= 1;
-      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_ENFORCE, &Enable);
-
-      if (!MADB_IS_EMPTY(SslKey))
-      {
-        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_KEY, SslKey);
-      }
-      if (!MADB_IS_EMPTY(SslCert))
-      {
-        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CERT, SslCert);
-      }
-      if (!MADB_IS_EMPTY(SslCa))
-      {
-        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CA, SslCa);
-      }
-      if (!MADB_IS_EMPTY(SslCaPath))
-      {
-        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CAPATH, SslCaPath);
-      }
-      if (!MADB_IS_EMPTY(SslCipher))
-      {
-        mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
-      }
-
-      if (Dsn->TlsVersion > 0)
-      {
-        char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
-        unsigned int i, NeedComma= 0;
-
-        for (i= 0; i < sizeof(TlsVersionBits); ++i)
-        {
-          if (Dsn->TlsVersion & TlsVersionBits[i])
-          {
-            if (NeedComma != 0)
-            {
-              *Ptr++= ',';
-            }
-            else
-            {
-              NeedComma= 1;
-            }
-            strcpy(Ptr, TlsVersionName[i]);
-            Ptr += strlen(TlsVersionName[i]);
-          }
-        }
-        mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);
-      }
-    }
-
-    if (Dsn->SslVerify)
-    {
-      const unsigned int verify= 0x01010101;
-      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
-    }
-    else
-    {
-      const unsigned int verify= 0;
-      mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&verify);
-    }
-  }
-  
-  if (Dsn->ForceTls != '\0')
-  {
-    const unsigned int ForceTls= 0x01010101;
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&ForceTls);
-  }
-
-  if (!MADB_IS_EMPTY(Dsn->SslCrl))
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRL, Dsn->SslCrl);
-  }
-  if (!MADB_IS_EMPTY(Dsn->SslCrlPath))
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_SSL_CRLPATH, Dsn->SslCrlPath);
-  }
-
-  if (!MADB_IS_EMPTY(Dsn->ServerKey))
-  {
-    mysql_optionsv(Connection->mariadb, MYSQL_SERVER_PUBLIC_KEY, Dsn->ServerKey);
-  }
-
-  if (!MADB_IS_EMPTY(Dsn->TlsPeerFp))
-  {
-    mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PEER_FP, (void*)Dsn->TlsPeerFp);
-  }
-  if (!MADB_IS_EMPTY(Dsn->TlsPeerFpList))
-  {
-    mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PEER_FP_LIST, (void*)Dsn->TlsPeerFpList);
-  }
-
-  if (!MADB_IS_EMPTY(Dsn->TlsKeyPwd))
-  {
-    mysql_optionsv(Connection->mariadb, MARIADB_OPT_TLS_PASSPHRASE, (void*)Dsn->TlsKeyPwd);
-  }
+  mysql_optionsv(Connection->mariadb, MYSQL_REPORT_DATA_TRUNCATION, &selectedBoolOption);
 
   if (Dsn->DisableLocalInfile != '\0')
   {
@@ -1022,19 +1049,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &selectedIntOption);
   }
 
-  /* set default catalog. If we have value set via SQL_ATTR_CURRENT_CATALOG - it takes priority. Otherwise - DSN */
-  if (Connection->CatalogName && Connection->CatalogName[0])
-  {
-    defaultSchema= Connection->CatalogName;
-  }
-  else if (Dsn->Catalog && Dsn->Catalog[0])
-  {
-    //MADB_RESET(Connection->CatalogName, Dsn->Catalog);
-    defaultSchema= Dsn->Catalog;
-  }
-
-  if (!mysql_real_connect(Connection->mariadb,
-      Dsn->Socket ? "localhost" : Dsn->ServerName, Dsn->UserName, Dsn->Password, defaultSchema, Dsn->Port, Dsn->Socket, client_flags))
+  if (!SQL_SUCCEEDED(MADB_DbcCoreConnect(Connection, Connection->mariadb, Dsn, &Connection->Error, client_flags)))
   {
     goto err;
   }

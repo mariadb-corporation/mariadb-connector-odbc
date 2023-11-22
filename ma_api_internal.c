@@ -158,8 +158,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       ret= SQL_ERROR;
       goto end;
     }
-    if (!(mysql_real_connect(MariaDb, Kill->host, Kill->user, Kill->passwd,
-                             "", Kill->port, Kill->unix_socket, 0)))
+    if (!SQL_SUCCEEDED(MADB_DbcCoreConnect(Stmt->Connection, MariaDb, Stmt->Connection->Dsn, &Stmt->Error, 0)))
     {
       mysql_close(MariaDb);
       goto end;
