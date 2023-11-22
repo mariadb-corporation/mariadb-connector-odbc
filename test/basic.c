@@ -1866,6 +1866,13 @@ ODBC_TEST(t_odbc377)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc399)
+{
+  OK_SIMPLE_STMT(Stmt, "/*!80019 SELECT * FROM information_schema.applicable_roles ORDER BY host, user */");
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_disconnect, "t_disconnect",      NORMAL},
@@ -1918,6 +1925,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc384,     "odbc384_namedpipe_plugin", NORMAL},
 #endif
   {t_odbc377,     "odbc377_timeout_attrs",    NORMAL},
+  {t_odbc399,     "odbc399_comment_only",    NORMAL},
   {NULL, NULL, 0}
 };
 
