@@ -373,7 +373,6 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
       return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
     }
 
-
     if (CatalogName != NULL)
     {
       MADB_DYNAPPENDCONST(&StmtStr, " AND TABLE_SCHEMA");
@@ -414,7 +413,16 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   }
   MDBUG_C_PRINT(Stmt->Connection, "SQL Statement: %s", StmtStr.str);
 
-  ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
+  try
+  {
+    ret= Stmt->Methods->ExecDirect(Stmt, StmtStr.str, SQL_NTS);
+  }
+  catch (SQLException &e)
+  {
+    // We need to intercept exception here to be able to free the memory.
+    // TODO: change it so there is no need to intercept - i.e. remove DynStr and substitute it w/ smth c++ish
+    ret= MADB_FromException(Stmt->Error, e);
+  }
 
   MADB_DynstrFree(&StmtStr);
 

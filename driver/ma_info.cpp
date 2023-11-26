@@ -27,7 +27,7 @@
 #define BV(_STRCONST) mariadb::bytes_view(_STRCONST, sizeof(_STRCONST))
 #define XBV(_STRCONST) BV(#_STRCONST)
 
-static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), Null, ten("10", 3), empty(emptyStr),
+static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), Null, ten("10", 3), empty("",1),
   sqlwchar("-8", 3), sqlwvarchar("-9", 3), sqlwlongvarchar("-10", 4), sqlbit("-7", 3), sqltinyint("-6", 3),
   sqlbigint("-5", 3), sqllongvarbinary("-4", 3), sqlvarbinary("-3", 3), sqlbinary("-2", 3), sqllongvarchar("-1", 3); // They defined as (-8) etc, and that's not parsed well as int
 

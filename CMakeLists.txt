@@ -228,7 +228,7 @@ IF(WITH_SIGNCODE)
   MARK_AS_ADVANCED(SIGN_OPTIONS)
 ENDIF()
 
-#Debug log is controlled by conenction option solely
+#Debug log is controlled by connection option solely
 ADD_DEFINITIONS(-DMAODBC_DEBUG)
 
 IF(WIN32)
@@ -423,6 +423,9 @@ ELSE()
 
         ENDIF()
       ELSE()
+        #SET(CPACK_DEBIAN_ODBCLibs_PACKAGE_SHLIBDEPS ON)
+        #SET(CPACK_DEBIAN_PACKAGE_DEPENDS "unixodbc-dev")
+        SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
         SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_BINARY_DIR}/packaging/linux/postinstall")
       ENDIF()
 

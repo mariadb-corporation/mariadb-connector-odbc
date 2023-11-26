@@ -37,6 +37,7 @@
 
 namespace mariadb
 {
+  const int64_t Protocol::MAX_PACKET_LENGTH= 0x00ffffff + 4;
   static const char OptionSelected= 1, OptionNotSelected= 0;
   static const unsigned int uintOptionSelected= 1, uintOptionNotSelected= 0;
   static const SQLString MARIADB_RPL_HACK_PREFIX("5.5.5-");

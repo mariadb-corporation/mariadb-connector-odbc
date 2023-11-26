@@ -111,7 +111,7 @@ class Protocol
   void unsyncedReset();
 
 public:
-  static const int64_t MAX_PACKET_LENGTH= 0x00ffffff + 4;
+  static const int64_t MAX_PACKET_LENGTH;
   static bool checkRemainingSize(int64_t newQueryLen);
 
   ~Protocol() {}
