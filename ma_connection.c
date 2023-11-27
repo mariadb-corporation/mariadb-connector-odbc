@@ -129,8 +129,8 @@ SQLUSMALLINT MADB_supported_api[]=
   SQL_API_SQLSETPOS,
   SQL_API_SQLSETSCROLLOPTIONS,
   SQL_API_SQLTABLES,
-  SQL_API_SQLTABLEPRIVILEGES
-
+  SQL_API_SQLTABLEPRIVILEGES,
+  0
 };
 
 
@@ -1116,13 +1116,13 @@ end:
 /* {{{ MADB_DbcGetFunctions */
 SQLRETURN MADB_DbcGetFunctions(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr)
 {
-  unsigned int i, Elements= sizeof(MADB_supported_api) / sizeof(SQLUSMALLINT);
+  unsigned int i;
   
   switch(FunctionId) {
   case SQL_API_ODBC3_ALL_FUNCTIONS:
     /* clear ptr */ 
     memset(SupportedPtr, 0, sizeof(SQLUSMALLINT) * SQL_API_ODBC3_ALL_FUNCTIONS_SIZE);
-    for (i=0; i < Elements; ++i)
+    for (i=0; MADB_supported_api[i] != 0; ++i)
     {
       SQLUSMALLINT function= MADB_supported_api[i]; 
       SupportedPtr[function >> 4]|= (1 << (function & 0x000F));
@@ -1131,13 +1131,13 @@ SQLRETURN MADB_DbcGetFunctions(MADB_Dbc *Dbc, SQLUSMALLINT FunctionId, SQLUSMALL
   case SQL_API_ALL_FUNCTIONS:
     /* Set all to SQL_FALSE (0) */
     memset(SupportedPtr, 0, sizeof(SQLUSMALLINT) * 100);
-    for (i=0; i < Elements; i++)
+    for (i=0; MADB_supported_api[i] != 0; ++i)
       if (MADB_supported_api[i] < 100)
         SupportedPtr[MADB_supported_api[i]]= SQL_TRUE;
     break;
   default:
     *SupportedPtr= SQL_FALSE;
-    for (i=0; i < Elements; i++)
+    for (i=0; MADB_supported_api[i] != 0; i++)
       if (MADB_supported_api[i] == FunctionId)
       {
         *SupportedPtr= SQL_TRUE;

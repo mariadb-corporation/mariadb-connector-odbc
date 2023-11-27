@@ -297,6 +297,7 @@ ODBC_TEST(t_nobigint)
   SQLLEN nlen= 0;
   SQLSMALLINT type= 0;
   SQLULEN     size= 0;
+  SQLCHAR* name[4];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_nobigint");
 
@@ -309,7 +310,7 @@ ODBC_TEST(t_nobigint)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_nobigint VALUES(15)");
 
   CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, "SELECT id FROM t_nobigint", SQL_NTS));
-  CHECK_STMT_RC(hstmt, SQLDescribeCol(hstmt, 1, NULL, 0, NULL, &type, &size, NULL, NULL));
+  CHECK_STMT_RC(hstmt, SQLDescribeCol(hstmt, 1, name, sizeof(name), NULL, &type, &size, NULL, NULL));
   is_num(SQL_INTEGER, type);
   is_num(10, size);
   CHECK_STMT_RC(hstmt, SQLExecute(hstmt));

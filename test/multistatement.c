@@ -708,10 +708,18 @@ ODBC_TEST(test_autocommit)
   }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   CHECK_DBC_RC(Dbc, SQLDisconnect(Dbc));
-// Leaving couple of deprecated function calls to test them
+/* Leaving couple of deprecated function calls to test them */
 #pragma warning(disable: 4996)
 #pragma warning(push)
-  CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+  /* iOdbc does not do good job on mapping SQLSetConnectOption */
+  if (iOdbc())
+  {
+    CHECK_DBC_RC(Dbc, SQLSetConnectAttr(Dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0));
+  }
+  else
+  {
+    CHECK_DBC_RC(Dbc, SQLSetConnectOption(Dbc, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON));
+  }
 
   Stmt = DoConnect(Dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT 1}");
   FAIL_IF(Stmt == NULL, "Connection error");

@@ -4293,7 +4293,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   {
     Stmt->Cursor.Position= (SQLLEN)MIN((my_ulonglong)Position, mysql_stmt_num_rows(Stmt->stmt));
   }
-  if (Position < 0 || !MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > mysql_stmt_num_rows(Stmt->stmt) - 1)
+  if (Position < 0 || (!MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > mysql_stmt_num_rows(Stmt->stmt) - 1))
   {
     /* We need to put cursor before RS start, not only return error */
     if (Position < 0)
