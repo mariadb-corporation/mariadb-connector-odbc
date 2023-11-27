@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2016 MariaDB Corporation AB
+   Copyright (C) 2013,2023 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,6 +26,14 @@ const char* DefaultPluginLocation= NULL;
 # define _MAX_PATH 260
 #endif
 static char PluginLocationBuf[_MAX_PATH];
+
+// iOdbc does not have any support of 3.80 and does not define SQL_OV_ODBC3_80(at least in what we have in MacOS)
+#ifdef SQL_OV_ODBC3_80
+# define MADB_SUPPORTED_OV SQL_OV_ODBC3_80
+#else
+# define MADB_SUPPORTED_OV SQL_OV_ODBC3
+#endif // 
+
 
 static unsigned int ValidChar(const char* start, const char* end)
 {
@@ -121,7 +129,7 @@ MADB_Env *MADB_EnvInit()
 
   MADB_PutErrorPrefix(NULL, &Env->Error);
 
-  Env->OdbcVersion= SQL_OV_ODBC3_80;
+  Env->OdbcVersion= MADB_SUPPORTED_OV;
 
   /* This is probably is better todo with thread_once */
   if (DmUnicodeCs == NULL)
@@ -167,7 +175,7 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
       return MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
     }
     
-    if (valueAsInt != SQL_OV_ODBC2 && valueAsInt != SQL_OV_ODBC3 && valueAsInt != SQL_OV_ODBC3_80)
+    if (valueAsInt != SQL_OV_ODBC2 && valueAsInt != SQL_OV_ODBC3 && valueAsInt != MADB_SUPPORTED_OV)
     {
       return MADB_SetError(&Env->Error, MADB_ERR_HY024, NULL, 0);
     }

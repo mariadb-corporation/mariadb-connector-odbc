@@ -1047,6 +1047,8 @@ namespace mariadb
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_NEWDECIMAL:
       return true;
+    default:
+      return false;
     }
     return false;
   }

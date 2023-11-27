@@ -368,7 +368,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
   catch (SQLException& e)
   {
     // First condition is probably means we can a multistatement, that can't be prepared, 2nd - that the query is not preparable
-    if (e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed || e.getErrorCode() == 1295)
+    if ((e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed) || e.getErrorCode() == 1295)
     {
       Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
@@ -1229,8 +1229,7 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
   MADB_DescRecord *Record;
 
   if ((ColumnNumber < 1 && Stmt->Options.UseBookmarks == SQL_UB_OFF) || 
-       Stmt->rs && STMT_WAS_PREPARED(Stmt) &&
-       ColumnNumber > Stmt->metadata->getColumnCount())
+       (Stmt->rs && STMT_WAS_PREPARED(Stmt) && ColumnNumber > Stmt->metadata->getColumnCount()))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
     return SQL_ERROR;
@@ -3956,7 +3955,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   {
     Stmt->Cursor.Position= (SQLLEN)MIN((my_ulonglong)Position, Stmt->rs->rowsCount() + 1);
   }
-  if (Position <= 0 || !MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > Stmt->rs->rowsCount())
+  if (Position <= 0 || (!MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > Stmt->rs->rowsCount()))
   {
     /* We need to put cursor before RS start, not only return error */
     if (Position <= 0)

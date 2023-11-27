@@ -313,7 +313,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   /* Schemas are not supported. Thus error except special cases of SQLTables use*/
 
   if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && SchemaNameLength > 1
-    && (strcmp(SchemaName, SQL_ALL_SCHEMAS) || CatalogName == NULL || CatalogNameLength != 0 && TableName == NULL || TableNameLength != 0)
+    && (strcmp(SchemaName, SQL_ALL_SCHEMAS) || CatalogName == NULL || (CatalogNameLength != 0 && TableName == NULL) || TableNameLength != 0)
     && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
@@ -354,7 +354,8 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   /* Since we treat our databases as catalogs, the only acceptable value for schema is NULL or "%",
      if that is not the special case of call for schemas list or tables w/out schema(empty string in schema name) - empty resultsets then. */
   else if (SchemaName &&
-    (!strcmp(SchemaName, SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0 || *SchemaName == '\0'))
+    ((!strcmp(SchemaName, SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0) ||
+      *SchemaName == '\0'))
   {
     if (MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
       "NULL AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "

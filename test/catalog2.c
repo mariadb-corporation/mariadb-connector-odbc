@@ -830,7 +830,7 @@ ODBC_TEST(t_bug55870)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870r");
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870_2");
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug55870");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLe bug55870(a INT NOT NULL PRIMARY KEY, "
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug55870(a INT NOT NULL PRIMARY KEY, "
     "b VARCHAR(20) NOT NULL, c VARCHAR(100) NOT NULL, INDEX(b)) ENGINE=InnoDB");
 
   /* There should be no problems with I_S version of SQLTablePrivileges. Thus need connection
@@ -1881,6 +1881,12 @@ ODBC_TEST(odbc391)
   BOOL found= FALSE;
   SQLCHAR  dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[40 + sizeof(my_host)], revokeSelect[48 + sizeof(my_host)];
 
+  if (iOdbc() && OdbcVer == SQL_OV_ODBC2)
+  {
+    /* It calls W version of the function, but passes the string of only 1st character(no matter what this 1st character is).
+     * No ideas how to overcome that */
+    skip("iOdbc behaves strangely on SQLSetConnectAttr with OdbcVer == SQL_OV_ODBC2.");
+  }
   OK_SIMPLE_STMT(Stmt, "DROP SCHEMA IF EXISTS _SchemaOdbc391");
   OK_SIMPLE_STMT(Stmt, "CREATE SCHEMA _SchemaOdbc391");
   CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &len));

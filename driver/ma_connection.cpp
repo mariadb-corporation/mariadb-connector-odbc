@@ -42,7 +42,9 @@ SQLUSMALLINT MADB_supported_api[]=
   SQL_API_SQLBINDCOL,
   SQL_API_SQLBINDPARAM,
   SQL_API_SQLCANCEL,
+#ifdef SQL_API_SQLCANCELHANDLE
   SQL_API_SQLCANCELHANDLE,
+#endif // 
   SQL_API_SQLCLOSECURSOR,
   SQL_API_SQLCOLATTRIBUTE,
   SQL_API_SQLCOLUMNS,
@@ -113,8 +115,8 @@ SQLUSMALLINT MADB_supported_api[]=
   SQL_API_SQLSETPOS,
   SQL_API_SQLSETSCROLLOPTIONS,
   SQL_API_SQLTABLES,
-  SQL_API_SQLTABLEPRIVILEGES
-
+  SQL_API_SQLTABLEPRIVILEGES,
+  0
 };
 
 
@@ -311,6 +313,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   case SQL_ATTR_QUIET_MODE:
     QuietMode= (HWND)ValuePtr;
     break;
+#ifdef SQL_ATTR_RESET_CONNECTION
   case SQL_ATTR_RESET_CONNECTION:
   {
     SQLUINTEGER uiValue= (SQLUINTEGER)(SQLULEN)ValuePtr;
@@ -318,8 +321,8 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     {
       return MADB_SetError(&Error, MADB_ERR_HY024, nullptr, 0);
     }
-
   }
+#endif
   case SQL_ATTR_TRACE:
     break;
   case SQL_ATTR_TRACEFILE:
@@ -374,7 +377,8 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     break;
   case SQL_ATTR_AUTOCOMMIT:
     /* Not sure why AutoCommit is initialized with 4. Probably to tell that is hasn't been set by application */
-    *(SQLUINTEGER *)ValuePtr= (mariadb && guard->getAutocommit() || !mariadb && AutoCommit != 0 ) ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF;
+    *(SQLUINTEGER *)ValuePtr= ((mariadb && guard->getAutocommit()) || (!mariadb && AutoCommit != 0)) ?
+                                SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF;
     break;
   case SQL_ATTR_CONNECTION_DEAD:
     /* ping may fail if status isn't ready, so we need to check errors */
@@ -590,7 +594,7 @@ static void MADB_AddInitCommand(MYSQL* mariadb, std::ostringstream &InitCmd, boo
 std::size_t MADB_Tokenize(std::vector<bytes>& tokens, const char* cstring, const char *separator)
 {
   const char *current= cstring, *next= nullptr, *end= cstring + strlen(cstring);
-  while (next= std::strpbrk(current, separator))
+  while ((next= std::strpbrk(current, separator)))
   {
     /* This is rather bad CArray API - constructor from const array creates copy, while constructor from array creates "wrapping" object,
        and here we need the wrapping one - there is no need to create copy, plus copy will not terminate array with \0, and that will create
@@ -1021,13 +1025,13 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
 /* {{{ MADB_DbcGetFunctions */
 SQLRETURN MADB_Dbc::GetFunctions(SQLUSMALLINT FunctionId, SQLUSMALLINT *SupportedPtr)
 {
-  unsigned int i, Elements= sizeof(MADB_supported_api) / sizeof(SQLUSMALLINT);
+  unsigned int i;
   
   switch(FunctionId) {
   case SQL_API_ODBC3_ALL_FUNCTIONS:
     /* clear ptr */ 
     memset(SupportedPtr, 0, sizeof(SQLUSMALLINT) * SQL_API_ODBC3_ALL_FUNCTIONS_SIZE);
-    for (i=0; i < Elements; ++i)
+    for (i=0; MADB_supported_api[i] != 0; ++i)
     {
       SQLUSMALLINT function= MADB_supported_api[i]; 
       SupportedPtr[function >> 4]|= (1 << (function & 0x000F));
@@ -1036,13 +1040,13 @@ SQLRETURN MADB_Dbc::GetFunctions(SQLUSMALLINT FunctionId, SQLUSMALLINT *Supporte
   case SQL_API_ALL_FUNCTIONS:
     /* Set all to SQL_FALSE (0) */
     memset(SupportedPtr, 0, sizeof(SQLUSMALLINT) * 100);
-    for (i=0; i < Elements; i++)
+    for (i=0; MADB_supported_api[i] != 0; ++i)
       if (MADB_supported_api[i] < 100)
         SupportedPtr[MADB_supported_api[i]]= SQL_TRUE;
     break;
   default:
     *SupportedPtr= SQL_FALSE;
-    for (i=0; i < Elements; i++)
+    for (i=0; MADB_supported_api[i] != 0; i++)
       if (MADB_supported_api[i] == FunctionId)
       {
         *SupportedPtr= SQL_TRUE;

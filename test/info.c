@@ -200,8 +200,13 @@ ODBC_TEST(t_bug31055)
   // DM calls SQLGetFunctions at the connect time, and then returns result itself to subsequent calls
   CHECK_DBC_RC(Connection, SQLGetFunctions(Connection, SQL_API_ODBC3_ALL_FUNCTIONS, funcs));
 
-  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), using_dm(Connection) ? SQL_TRUE : SQL_FALSE);
+  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), using_dm(Connection) && !iOdbc() ? SQL_TRUE : SQL_FALSE);
+
+#ifdef HAVE_NOT_SQLCANCELHANDLE
+  diag("DM does not support SQLCancelHandle - check skipped");
+#else
   is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLCANCELHANDLE), SQL_TRUE);
+#endif
 
   return OK;
 }

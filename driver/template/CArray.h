@@ -25,6 +25,7 @@
 #include <vector>
 #include <stdexcept>
 #include <cstring>
+#include <string>
 
 /* Simple C array wrapper template for use to pass arrays from connector */
 template <class T> struct CArray

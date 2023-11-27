@@ -284,7 +284,7 @@ void get_env_defaults()
     storedAddConnstr= add_connstr;
   }
 
-  if (env_val= getenv("srv"))
+  if ((env_val= getenv("srv")))
   {
     if (strcmp(env_val, "maxscale") == 0)
     {
