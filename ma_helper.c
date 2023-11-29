@@ -440,7 +440,7 @@ SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BO
 }
 
 /* {{{ MADB_GetDisplaySize */
-size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
+size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset, BOOL noBigint)
 {
   /* Todo: check these values with output from mysql --with-columntype-info */
   switch (Field->type) {
@@ -458,7 +458,7 @@ size_t MADB_GetDisplaySize(MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset)
   case MYSQL_TYPE_LONG:
     return 11 - test(Field->flags & UNSIGNED_FLAG);
   case MYSQL_TYPE_LONGLONG:
-    return 20;
+    return (noBigint ? 11 - test(Field->flags & UNSIGNED_FLAG) : 20);
   case MYSQL_TYPE_DOUBLE:
     return 15;
   case MYSQL_TYPE_FLOAT:
@@ -750,6 +750,7 @@ int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigne
     return MYSQL_TYPE_LONG;
   case SQL_C_UBIGINT:
   case SQL_C_SBIGINT:
+  case SQL_BIGINT:
     *Length= sizeof(long long);
     *Unsigned= (SqlDataType == SQL_C_UBIGINT);
     return MYSQL_TYPE_LONGLONG;

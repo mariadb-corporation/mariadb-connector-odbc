@@ -749,6 +749,20 @@ ODBC_TEST(t_odbc375)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc399)
+{
+  OK_SIMPLE_STMT(Stmt, "/*!80019 SELECT * FROM information_schema.applicable_roles ORDER BY host, user */");
+  //EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "/*!80019 SELECT * FROM information_schema.applicable_roles ORDER BY host, user */", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  //EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -767,6 +781,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc219, "t_odbc219"},
   {test_autocommit, "test_autocommit"},
   {t_odbc375, "t_odbc375_reStoreError"},
+  {t_odbc399, "t_odbc399_commentQuery"},
   {NULL, NULL}
 };
 

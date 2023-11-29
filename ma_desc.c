@@ -141,34 +141,34 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
   }
   MADB_DeleteDynamic(&Desc->Records);
 
-  Desc->Header.Count= 0;
-  if (Desc->AppType)
+Desc->Header.Count= 0;
+if (Desc->AppType)
+{
+  EnterCriticalSection(&Desc->Dbc->ListsCs);
+  for (i=0; i < Desc->Stmts.elements; i++)
   {
-    EnterCriticalSection(&Desc->Dbc->ListsCs);
-    for (i=0; i < Desc->Stmts.elements; i++)
-    {
-      MADB_Stmt **XStmt= ((MADB_Stmt **)Desc->Stmts.buffer) + i;
-      MADB_Stmt *Stmt= *XStmt;
-      switch(Desc->DescType) {
-      case MADB_DESC_ARD:
-        Stmt->Ard=Stmt->IArd;
-        break;
-      case MADB_DESC_APD:
-        Stmt->Apd= Stmt->IApd;
-        break;
-      }
+    MADB_Stmt **XStmt= ((MADB_Stmt **)Desc->Stmts.buffer) + i;
+    MADB_Stmt *Stmt= *XStmt;
+    switch (Desc->DescType) {
+    case MADB_DESC_ARD:
+      Stmt->Ard=Stmt->IArd;
+      break;
+    case MADB_DESC_APD:
+      Stmt->Apd= Stmt->IApd;
+      break;
     }
-    MADB_DeleteDynamic(&Desc->Stmts);
-  
-    Desc->Dbc->Descrs= MADB_ListDelete(Desc->Dbc->Descrs, &Desc->ListItem);
-    LeaveCriticalSection(&Desc->Dbc->ListsCs);
   }
-  
-  if (!RecordsOnly)
-    MADB_FREE(Desc);
-  return SQL_SUCCESS;
+  MADB_DeleteDynamic(&Desc->Stmts);
+
+  Desc->Dbc->Descrs= MADB_ListDelete(Desc->Dbc->Descrs, &Desc->ListItem);
+  LeaveCriticalSection(&Desc->Dbc->ListsCs);
 }
-/* }}} */ 
+
+if (!RecordsOnly)
+MADB_FREE(Desc);
+return SQL_SUCCESS;
+}
+/* }}} */
 
 /* {{{ MADB_SetIrdRecord */
 my_bool
@@ -176,6 +176,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
 {
   MY_CHARSET_INFO cs;
   MARIADB_CHARSET_INFO *FieldCs;
+  BOOL noBigint= (Stmt->Connection->Dsn->NoBigint && Field->type == MYSQL_TYPE_LONGLONG);
 
   if (Record == NULL)
   {
@@ -184,26 +185,26 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
 
   mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
 
-  MADB_RESET(Record->CatalogName,    Field->db);
-  MADB_RESET(Record->TableName,      Field->table);
-  MADB_RESET(Record->ColumnName,     Field->name);
-  MADB_RESET(Record->BaseTableName,  Field->org_table);
+  MADB_RESET(Record->CatalogName, Field->db);
+  MADB_RESET(Record->TableName, Field->table);
+  MADB_RESET(Record->ColumnName, Field->name);
+  MADB_RESET(Record->BaseTableName, Field->org_table);
   MADB_RESET(Record->BaseColumnName, Field->org_name);
   Record->AutoUniqueValue= (Field->flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->CaseSensitive=   (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
-  Record->Nullable= ( (Field->flags & NOT_NULL_FLAG) &&
-                      !Record->AutoUniqueValue &&
-                      Field->type != MYSQL_TYPE_TIMESTAMP) ? SQL_NO_NULLS : SQL_NULLABLE;
+  Record->Nullable= ((Field->flags & NOT_NULL_FLAG) &&
+    !Record->AutoUniqueValue &&
+    Field->type != MYSQL_TYPE_TIMESTAMP) ? SQL_NO_NULLS : SQL_NULLABLE;
   Record->Unsigned= (Field->flags & UNSIGNED_FLAG) ? SQL_TRUE : SQL_FALSE;
   /* We assume it might be updatable if tablename exists */
   Record->Updateable= (Field->table && Field->table[0]) ? SQL_ATTR_READWRITE_UNKNOWN : SQL_ATTR_READONLY;
 
   /*
       RADIX:
-      If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field 
-      contains a value of 2 because the SQL_DESC_PRECISION field contains the number of bits. 
-      If the data type in the SQL_DESC_TYPE field is an exact numeric data type, this field contains a value of 10 
-      because the SQL_DESC_PRECISION field contains the number of decimal digits. 
+      If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field
+      contains a value of 2 because the SQL_DESC_PRECISION field contains the number of bits.
+      If the data type in the SQL_DESC_TYPE field is an exact numeric data type, this field contains a value of 10
+      because the SQL_DESC_PRECISION field contains the number of decimal digits.
       This field is set to 0 for all non-numeric data types.
   */
   switch (Field->type) {
@@ -240,7 +241,15 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     break;
   }
 
-  Record->ConciseType= MapMariadDbToOdbcType(Field);
+  if (noBigint)
+  {
+    Record->ConciseType= SQL_INTEGER;
+  }
+  else
+  {
+    Record->ConciseType= MapMariadDbToOdbcType(Field);
+  }
+
 
   if (0)//Stmt->Connection->IsAnsi == '\0')
   {
@@ -278,8 +287,8 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
                        Record->ConciseType == SQL_WLONGVARCHAR ||
                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
-  Record->DisplaySize= MADB_GetDisplaySize(Field, mariadb_get_charset_by_nr(Field->charsetnr));
-  Record->OctetLength= MADB_GetOctetLength(Field, cs.mbmaxlen);
+  Record->DisplaySize= MADB_GetDisplaySize(Field, mariadb_get_charset_by_nr(Field->charsetnr), noBigint);
+  Record->OctetLength= noBigint ? 4 : MADB_GetOctetLength(Field, cs.mbmaxlen);
   FieldCs= mariadb_get_charset_by_nr(Field->charsetnr);
   Record->Length= MADB_GetDataSize(Record->ConciseType, Field->length, Record->Unsigned == SQL_TRUE,
                                    Record->Precision, Record->Scale, FieldCs!= NULL ? FieldCs->char_maxlen : 1);

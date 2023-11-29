@@ -80,12 +80,12 @@ ODBC_TEST(t_decimal)
   SQLRETURN       rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_decimal");
-  OK_SIMPLE_STMT(Stmt,"create table t_decimal(d1 decimal(10,6))");
+  OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_decimal(d1 DECIMAL(10,6))");
     
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection, rc);
   
-  rc = SQLPrepare(Stmt, (SQLCHAR *)"insert into t_decimal values (?),(?),(?),(?)",SQL_NTS);
+  rc = SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO t_decimal VALUES (?),(?),(?),(?)",SQL_NTS);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
     
   rc = SQLBindParameter( Stmt, 1, SQL_PARAM_INPUT, SQL_C_DOUBLE,
@@ -116,7 +116,7 @@ ODBC_TEST(t_decimal)
   rc = SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-  OK_SIMPLE_STMT(Stmt, "select d1 from t_decimal");
+  OK_SIMPLE_STMT(Stmt, "SELECT d1 FROM t_decimal");
 
   rc = SQLFetch(Stmt);
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -177,12 +177,12 @@ ODBC_TEST(t_bigint)
       SQLINTEGER dummy;
     } id = {"99998888"};       /* Just to get a binary pattern for some 64 bit big int */
 
-    OK_SIMPLE_STMT(Stmt,"drop table if exists t_bigint");
+    OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS t_bigint");
 
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"create table t_bigint(id int(20) NOT NULL auto_increment,name varchar(20), primary key(id))");
+    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_bigint(id INT(20) NOT NULL AUTO_INCREMENT,name VARCHAR(20), PRIMARY KEY(id))");
    
 
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
@@ -192,7 +192,7 @@ ODBC_TEST(t_bigint)
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
     /* TIMESTAMP TO DATE, TIME and TS CONVERSION */
-    rc = SQLPrepare(Stmt,"insert into t_bigint values(?,'venuxyz')", SQL_NTS);
+    rc = SQLPrepare(Stmt,"INSERT INTO t_bigint VALUES(?,'venuxyz')", SQL_NTS);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_LONG,
@@ -208,10 +208,10 @@ ODBC_TEST(t_bigint)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    OK_SIMPLE_STMT(Stmt,"insert into t_bigint values(10,'mysql1')");
+    OK_SIMPLE_STMT(Stmt,"INSERT INTO t_bigint VALUES(10,'mysql1')");
 
 
-   OK_SIMPLE_STMT(Stmt,"insert into t_bigint values(20,'mysql2')");
+   OK_SIMPLE_STMT(Stmt,"INSERT INTO t_bigint VALUES(20,'mysql2')");
 
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
@@ -248,11 +248,11 @@ ODBC_TEST(t_bigint)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-#if CATALOG_FUNCTIONS_FIXED
-    rc = SQLGetTypeInfo(Stmt,SQL_BIGINT);
+//#if CATALOG_FUNCTIONS_FIXED
+    rc = SQLGetTypeInfo(Stmt, SQL_BIGINT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 4 != myrowcount(Stmt), "expected 4 rows");
+    FAIL_IF( 2 != myrowcount(Stmt), "expected 2 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -260,16 +260,16 @@ ODBC_TEST(t_bigint)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    rc = SQLGetTypeInfo(Stmt,SQL_BIGINT);
+    rc = SQLGetTypeInfo(Stmt, SQL_BIGINT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    FAIL_IF( 4 != myrowcount(Stmt), "Expected 4 rows");
+    FAIL_IF( 2 != myrowcount(Stmt), "Expected 2 rows");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-#endif
+//#endif
 
-    OK_SIMPLE_STMT(Stmt,"select * from t_bigint");
+    OK_SIMPLE_STMT(Stmt,"SELECT * FROM t_bigint");
 
     rc = SQLFetch(Stmt);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -283,10 +283,56 @@ ODBC_TEST(t_bigint)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
+   OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bigint");
 #endif /* SQLBIGINT_MADE_PORTABLE || defined(_WIN32) */
   return OK;
 }
 
+
+ODBC_TEST(t_nobigint)
+{
+  SQLHDBC  hdbc;
+  SQLHSTMT hstmt;
+  SQLBIGINT id= 0xFFFFFFFFFFFFFFFF;
+  SQLLEN nlen= 0;
+  SQLSMALLINT type= 0;
+  SQLULEN     size= 0;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_nobigint");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_nobigint(id BIGINT(20))");
+
+  IS(AllocEnvConn(&Env, &hdbc));
+  hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, "NOBIGINT=1");
+  FAIL_IF(hstmt == NULL, "Could not connect or allocate the statement");
+
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_nobigint VALUES(15)");
+
+  CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, "SELECT id FROM t_nobigint", SQL_NTS));
+  CHECK_STMT_RC(hstmt, SQLDescribeCol(hstmt, 1, NULL, 0, NULL, &type, &size, NULL, NULL));
+  is_num(SQL_INTEGER, type);
+  is_num(10, size);
+  CHECK_STMT_RC(hstmt, SQLExecute(hstmt));
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  CHECK_STMT_RC(hstmt, SQLColAttribute(hstmt, 1, SQL_COLUMN_DISPLAY_SIZE, NULL, 0, NULL, &size));
+  is_num(size, 11);
+
+  CHECK_STMT_RC(hstmt, SQLColAttribute(hstmt, 1, SQL_DESC_LENGTH, NULL, 0, NULL, &size));
+  is_num(size, 10);
+  CHECK_STMT_RC(hstmt, SQLColAttribute(hstmt, 1, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &size));
+  is_num(size, 4);
+  CHECK_STMT_RC(hstmt, SQLGetData(hstmt, 1, SQL_C_DEFAULT, &id, sizeof(id), &nlen));
+
+  is_num(0xFFFFFFFF0000000F, id);
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(hstmt, SQLColumns(hstmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_nobigint", SQL_NTS, NULL, SQL_NTS));
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
+
+  return OK;
+}
 
 ODBC_TEST(t_enumset)
 {
@@ -299,7 +345,7 @@ ODBC_TEST(t_enumset)
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"create table t_enumset(col1 enum('MYSQL_E1','MYSQL_E2'),col2 set('ONE','TWO','THREE'))");
+    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_enumset(col1 enum('MYSQL_E1','MYSQL_E2'),col2 set('ONE','TWO','THREE'))");
    
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
@@ -1263,7 +1309,7 @@ ODBC_TEST(t_sqlnum_truncate)
 
   sqlnum.sign= sqlnum.precision= sqlnum.scale= (SQLCHAR)128;
 
-  OK_SIMPLE_STMT(Stmt, "select 25.212");
+  OK_SIMPLE_STMT(Stmt, "SELECT 25.212");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
 
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_TYPE,
@@ -1282,7 +1328,7 @@ ODBC_TEST(t_sqlnum_truncate)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "select 25.212000");
+  OK_SIMPLE_STMT(Stmt, "SELECT 25.212000");
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
 
   CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_TYPE,
@@ -1367,6 +1413,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_longlong1,        "t_longlong1",       NORMAL},
   {t_decimal,          "t_decimal",         NORMAL},
   {t_bigint,           "t_bigint",          NORMAL},
+  {t_nobigint,         "t_nobigint",        NORMAL},
   {t_enumset,          "t_enumset",         NORMAL},
   {t_bug16917,         "t_bug16917",        NORMAL},
   {t_bug16235,         "t_bug16235",        NORMAL},

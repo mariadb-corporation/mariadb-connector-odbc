@@ -133,6 +133,7 @@ MADB_OptionsMap OptionsMap[]= {
   {LASTPAGE, ckDebug,                  MADB_OPT_FLAG_DEBUG},
   {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   {LASTPAGE, ckIgnoreSpace,            MADB_OPT_FLAG_IGNORE_SPACE},
+  {LASTPAGE, ckNoBigint,                MADB_OPT_FLAG_NO_BIGINT},
   /* last element */
   {0, 0, 0}
 };

@@ -154,6 +154,7 @@ typedef struct st_madb_dsn
   my_bool NeglectSchemaParam;
   my_bool DisableLocalInfile;
   my_bool NullSchemaMeansCurrent;
+  my_bool NoBigint;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */

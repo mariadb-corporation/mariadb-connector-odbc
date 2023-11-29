@@ -245,7 +245,7 @@ BEGIN
     CONTROL         "Enable dynamic cursors",ckEnableDynamicCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,19,91,10,WS_EX_TRANSPARENT
     CONTROL         "Disable driver provided cursor support",ckDisableDriverCursor,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,33,138,10,WS_EX_TRANSPARENT
-    CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,19,37,10,WS_EX_TRANSPARENT
+    CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,19,37,10,WS_EX_TRANSPARENT
     CONTROL         "Return matched rows instead of affected rows",ckReturnMatchedRows,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,48,165,10,WS_EX_TRANSPARENT
     CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,63,105,10,WS_EX_TRANSPARENT
@@ -254,6 +254,7 @@ BEGIN
     CONTROL         "Return SQL_NULL_DATA for zero date",ckNullDate,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,93,139,10,WS_EX_TRANSPARENT
     CONTROL         "Force use of forward only cursors",ckForwardCursorOnly,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,108,124,10,WS_EX_TRANSPARENT
     CONTROL         "Don't cache results of forward only cursors",ckDontCacheForwardCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,123,153,10,WS_EX_TRANSPARENT
+    CONTROL         "No BIGINT in results",ckNoBigint,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,33,90,10,WS_EX_TRANSPARENT
 //    CONTROL         "Prefetch rows",ckPrefetchRows,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,33,61,10,WS_EX_TRANSPARENT
 END
 
