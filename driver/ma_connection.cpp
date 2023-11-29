@@ -321,6 +321,8 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     {
       return MADB_SetError(&Error, MADB_ERR_HY024, nullptr, 0);
     }
+    // TODO: make it delayed
+    guard->reset();
   }
 #endif
   case SQL_ATTR_TRACE:
