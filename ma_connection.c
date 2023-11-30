@@ -902,6 +902,10 @@ SQLRETURN MADB_DbcCoreConnect(MADB_Dbc* this, MYSQL* _mariadb, MADB_Dsn *Dsn, MA
 }
 /* }}} */
 
+/* Stub method for old servers - just does nothing */
+void ServerCantSetStatement(MADB_QUERY * Query, unsigned long long Timeout)
+{}
+
 /* {{{ MADB_Dbc_ConnectDB
        Mind that this function is used for establishing connection from the setup lib
 */
@@ -1063,6 +1067,10 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
 
   MADB_SetCapabilities(Connection, mysql_get_server_version(Connection->mariadb), mysql_get_server_name(Connection->mariadb));
+  if (!(Connection->ServerCapabilities & MADB_SET_STATEMENT))
+  {
+    Connection->Methods->AddQueryTime= &ServerCantSetStatement;
+  }
 
   if (DSN_OPTION(Connection, MADB_OPT_FLAG_NO_CACHE))
   {
@@ -2289,7 +2297,22 @@ int MADB_Dbc_StreamingIsNotUsed(MADB_Dbc *Dbc, MADB_Error *Error)
   return 0;
 }
 
-struct st_ma_connection_methods MADB_Dbc_Methods =
+void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
+{
+  if (Timeout)
+  {
+    /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
+    size_t NewSize= Query->Length + 38 + 20/* max SQLULEN*/ + 1;
+    char *NewStr= MADB_ALLOC(NewSize);
+
+    Query->Length= _snprintf(NewStr, NewSize, "SET STATEMENT max_statement_time=%llu FOR %s", Timeout, Query->Original);
+
+    MADB_FREE(Query->Original);
+    Query->Original= NewStr;
+  }
+}
+
+struct st_ma_connection_methods MADB_Dbc_Methods=
 { 
   MADB_DbcSetAttr,
   MADB_DbcGetAttr,
@@ -2301,5 +2324,6 @@ struct st_ma_connection_methods MADB_Dbc_Methods =
   MADB_DbcGetTrackedCurrentDB,
   MADB_DbcTrackSession,
   MADB_DbcGetTrackedTxIsolatin,
-  MADB_Dbc_StreamingIsNotUsed /* and thus there is nothing to cache */
+  MADB_Dbc_StreamingIsNotUsed, /* and thus there is nothing to cache */
+  MADB_AddQueryTime
 };

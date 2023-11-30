@@ -654,18 +654,6 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 }
 /* }}} */
 
-void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
-{
-  /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
-  size_t NewSize= Query->Length + 38 + 20/* max SQLULEN*/ + 1;
-  char *NewStr= MADB_ALLOC(NewSize);
-
-  Query->Length= _snprintf(NewStr, NewSize, "SET STATEMENT max_statement_time=%llu FOR %s", Timeout, Query->Original);
-
-  MADB_FREE(Query->Original);
-  Query->Original= NewStr;
-}
-
 /* {{{ MADB_StmtPrepare */
 SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER TextLength, BOOL ExecDirect)
 {
@@ -787,10 +775,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     STMT_LENGTH(Stmt)+= _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
   }
 
-  if (Stmt->Options.Timeout > 0)
-  {
-    MADB_AddQueryTime(&Stmt->Query, Stmt->Options.Timeout);
-  }
+  Stmt->Connection->Methods->AddQueryTime(&Stmt->Query, Stmt->Options.Timeout);
 
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
     /* If have multistatement query, and this is not allowed, we want to do normal prepare.
@@ -2790,9 +2775,9 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
-    if (Stmt->Connection->IsMySQL)
+    if (!MADB_ServerSupports(Stmt->Connection, MADB_SET_STATEMENT))
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL servers, value changed to default (0)", 0);
+      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL and old MariaDB servers, value changed to default (0)", 0);
     }
     Stmt->Options.Timeout= (SQLULEN)ValuePtr;
     break;

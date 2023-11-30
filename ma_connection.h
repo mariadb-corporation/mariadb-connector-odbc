@@ -48,6 +48,7 @@ struct st_ma_connection_methods
   SQLRETURN (*TrackSession)(MADB_Dbc* Connection);
   SQLRETURN (*GetTxIsolation)(MADB_Dbc* Connection, SQLINTEGER* txIsolation);
   int       (*CacheRestOfCurrentRsStream)(MADB_Dbc *Dbc, MADB_Error *Error);
+  void      (*AddQueryTime)(MADB_QUERY* Query, unsigned long long Timeout);
 };
 
 my_bool CheckConnection(MADB_Dbc *Dbc);
