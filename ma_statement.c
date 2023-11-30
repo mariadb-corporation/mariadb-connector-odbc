@@ -765,17 +765,20 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
     MADB_DynstrFree(&StmtStr);
   }
 
-  if (Stmt->Options.MaxRows)
+  if (Stmt->Query.RefinedLength > 0)
   {
-    /* TODO: LIMIT is not always the last clause. And not applicable to each query type.
-       Thus we need to check query type and last tokens, and possibly put limit before them */
-    char *p;
-    STMT_STRING(Stmt)= realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40);
-    p= STMT_STRING(Stmt) + STMT_LENGTH(Stmt);
-    STMT_LENGTH(Stmt)+= _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
-  }
+    if (Stmt->Options.MaxRows)
+    {
+      /* TODO: LIMIT is not always the last clause. And not applicable to each query type.
+         Thus we need to check query type and last tokens, and possibly put limit before them */
+      char *p;
+      STMT_STRING(Stmt)= realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40);
+      p= STMT_STRING(Stmt) + STMT_LENGTH(Stmt);
+      STMT_LENGTH(Stmt)+= _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
+    }
 
-  Stmt->Connection->Methods->AddQueryTime(&Stmt->Query, Stmt->Options.Timeout);
+    Stmt->Connection->Methods->AddQueryTime(&Stmt->Query, Stmt->Options.Timeout);
+  }
 
   if (!Stmt->Query.ReturnsResult && !Stmt->Query.HasParameters &&
     /* If have multistatement query, and this is not allowed, we want to do normal prepare.
@@ -2356,16 +2359,19 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     switch(rc) {
     case 1:
       RowResult= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
+      if (MADB_STMT_IS_STREAMING(Stmt))
+      {
+        /* C / C returns empty error message, and sql state "00000".Set native error renders that as "no error"(not sure atm why,
+        * but it is like it is). I faced problem with that when RS streaming is on, and thus make it error only in this case
+        */
+        RowResult= SQL_ERROR;
+      }
       /* If mysql_stmt_fetch returned error, there is no sense to continue */
       if (Stmt->Ird->Header.ArrayStatusPtr)
       {
         Stmt->Ird->Header.ArrayStatusPtr[RowNum]= MADB_MapToRowStatus(RowResult);
       }
       CALC_ALL_ROWS_RC(Result, RowResult, RowNum);
-      /*if (Streaming != FALSE)
-      {
-        UNLOCK_MARIADB(Stmt->Connection);
-      }*/
       return Result;
 
     case MYSQL_DATA_TRUNCATED:

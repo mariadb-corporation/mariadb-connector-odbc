@@ -672,14 +672,14 @@ ODBC_TEST(t_bug30983)
   SQLLEN buflen;
   int i, j;
 
-  bufp+= sprintf((char *)bufp, "select '");
+  bufp+= sprintf((char *)bufp, "SELECT '");
 
   /* fill 1k of each value */
   for (i= 0; i < 80; ++i)
     for (j= 0; j < 512; ++j, bufp += 2)
       sprintf((char *)bufp, "%02x", i);
 
-  sprintf((char *)bufp, "' as val");
+  sprintf((char *)bufp, "' AS val");
 
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, buf, SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -834,8 +834,8 @@ ODBC_TEST(sqlcancel_basic)
   CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
 
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT 1", SQL_NTS));
-
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
 }
@@ -861,11 +861,19 @@ ODBC_TEST(sqlcancel)
 
   thread= CreateThread(NULL, 0, cancel_in_one_second, Stmt, 0, NULL);
 
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
-  /* SLEEP(n) returns 1 when it is killed. */
-  /*OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  is_num(my_fetch_int(Stmt, 1), 1);*/
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    /**/
+    OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+    /* is_num(my_fetch_int(Stmt, 1), 1);*/
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  else
+  {
+    EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+  }
+  /* SLEEP(n) returns 1 when it is killed. - Not any more. however MySQL does, it seems */
 
   waitrc= WaitForSingleObject(thread, 10000);
   IS(!(waitrc == WAIT_TIMEOUT));
@@ -1869,6 +1877,8 @@ ODBC_TEST(t_odbc377)
 
 ODBC_TEST(t_odbc399)
 {
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_MAX_ROWS, (SQLPOINTER)5, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
   OK_SIMPLE_STMT(Stmt, "/*!80019 SELECT * FROM information_schema.applicable_roles ORDER BY host, user */");
   return OK;
 }
