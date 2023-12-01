@@ -901,10 +901,20 @@ ODBC_TEST(sqlcancel)
 
   pthread_create(&thread, NULL, cancel_in_one_second, Stmt);
 
-  /* Error "execution was interrupted" is returned when it's killed,
-     "SLEEP(n) returns 1 when it is killed" - that is probably for older versions. Need to verify. */
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
-
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    /**/
+    OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+    /* is_num(my_fetch_int(Stmt, 1), 1);*/
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
+  else
+  {
+    /* Error "execution was interrupted" is returned when it's killed,
+       "SLEEP(n) returns 1 when it is killed" - that is probably for older versions. Need to verify. */
+    EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+  }
   pthread_join(thread, NULL);
 
   return OK;
