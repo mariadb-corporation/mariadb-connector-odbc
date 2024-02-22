@@ -297,7 +297,7 @@ ODBC_TEST(t_nobigint)
   SQLLEN nlen= 0;
   SQLSMALLINT type= 0;
   SQLULEN     size= 0;
-  SQLCHAR* name[4];
+  SQLCHAR name[4];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_nobigint");
 
