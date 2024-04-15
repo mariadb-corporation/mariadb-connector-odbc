@@ -35,8 +35,20 @@ namespace mariadb
 class ServerPrepareResult;
 struct memBuf;
 
+extern "C"
+{
+  // C/C's callback running param column callbacks 
+  my_bool* defaultParamCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+  // C/C's callback running callback for the row, and then indivivual param column callbacks
+  my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+  // Result callback
+  void defaultResultCallback(void* data, uint32_t column, unsigned char **row);
+}
+
 class ResultSetBin : public ResultSet
 {
+  friend void defaultResultCallback(void* data, uint32_t column, unsigned char **row);
+
   const std::vector<ColumnDefinition>& columnsInformation;
   int32_t columnInformationLength;
   bool noBackslashEscapes;
@@ -59,6 +71,12 @@ class ResultSetBin : public ResultSet
   mutable int32_t lastRowPointer; /*-1*/
   bool isClosedFlag;
   bool forceAlias;
+
+  std::map<std::size_t, ResultCodec*> resultCodec;
+  // For NULL value C/C may call back even for those columns which we haven't marked as dummy. Thus atm we either always need a codec for each column
+  // or have one special codec. That makes sense since we don't won't to transcode all possible type combinations.
+  ResultCodec* nullResultCodec= nullptr;
+  void* callbackData= nullptr;
 
 public:
 
@@ -126,8 +144,10 @@ public:
   void setFetchSize(int32_t fetchSize);
   int32_t getType() const;
   int32_t getConcurrency() const;
+
 private:
   void checkClose() const;
+
 public:
   bool isCallableResult() const;
   bool isClosed() const;
@@ -135,8 +155,10 @@ public:
 
   bool isNull(int32_t columnIndex) const;
   SQLString getString(int32_t columnIndex) const;
+
 private:
   SQLString zeroFillingIfNeeded(const SQLString& value, ColumnDefinition* columnInformation);
+
 public:
   std::istream* getBinaryStream(int32_t columnIndex) const;
   int32_t getInt(int32_t columnIndex) const;
@@ -169,6 +191,8 @@ public:
   void bind(MYSQL_BIND* bind);
   bool get(MYSQL_BIND* bind, uint32_t colIdx0based, uint64_t offset);
   bool get();
+  bool setResultCallback(ResultCodec* callback, uint32_t column);
+  bool setCallbackData(void* data);
 };
 
 }

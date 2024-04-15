@@ -271,6 +271,10 @@ void MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int ro
 /* {{{  */
 bool MADB_Stmt::setParamRowCallback(ParamCodec * callback)
 {
+  //TODO should do all param codecs. and the operation below should be done once when 1st param codec is added, and not "row callback"
+  if (paramCodec.capacity() < stmt->getParamCount()) {
+    paramCodec.reserve(stmt->getParamCount());
+  }
   paramRowCallback.reset(callback);
   return stmt->setParamCallback(paramRowCallback.get());
 }
@@ -464,7 +468,7 @@ and we can't have DAE here */
 SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
   unsigned int  i, IndIdx= -1;
-  bool useCallbacks= true;
+  bool useCallbacks= Stmt->Connection->Dsn->ParamCallbacks;
 
   if (Stmt->stmt->isServerSide() && !MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS))
   {
@@ -539,7 +543,6 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       }
     }
   }
-
   return Stmt->DoExecuteBatch();
 }
 /* }}} */

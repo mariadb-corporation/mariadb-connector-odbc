@@ -95,6 +95,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[44], 3, txtAttr,            260, 0},
   {&DsnKeys[45], 3, ckServerDirectExec,   0, 0},
   {&DsnKeys[46], 3, ckClientPrepare,      0, 0},
+  {&DsnKeys[49], 3, ckParamCallbacks,     0, 0},
   {&DsnKeys[19], 4, txtSslKey,          260, 0},
   {&DsnKeys[20], 4, txtSslCert,         260, 0},
   {&DsnKeys[21], 4, txtSslCertAuth,     260, 0},
@@ -108,6 +109,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[27], 4, txtCrl,               0, 0},
   {&DsnKeys[25], 4, txtTlsPeerFp,        41, 0},
   {&DsnKeys[26], 4, txtTlsPeerFpList,   260, 0},
+  {&DsnKeys[50], 5, ckResultCallbacks,    0, 0},
   {NULL, 0, 0, 0, 0}
 };
 
@@ -127,7 +129,6 @@ MADB_OptionsMap OptionsMap[]= {
   {3, ckMultiStmt,                     MADB_OPT_FLAG_MULTI_STATEMENTS},
   {LASTPAGE, ckEnableDynamicCursor,    MADB_OPT_FLAG_DYNAMIC_CURSOR},
   {LASTPAGE, ckDisableDriverCursor,    MADB_OPT_FLAG_NO_DEFAULT_CURSOR},
-  {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
   {LASTPAGE, ckForwardCursorOnly,      MADB_OPT_FLAG_FORWARD_CURSOR},
   {LASTPAGE, ckDontCacheForwardCursor, MADB_OPT_FLAG_NO_CACHE},
   {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},

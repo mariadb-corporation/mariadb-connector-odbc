@@ -54,7 +54,6 @@ protected:
   int32_t fetchSize= 0;
   mutable Unique::Row row;
   bool isEof= false;
-  
 
   ResultSet(Protocol* guard, int32_t _fetchSize) :
     protocol(guard),
@@ -151,6 +150,9 @@ public:
   virtual bool get(MYSQL_BIND* result, uint32_t column0basedIdx, uint64_t offset)= 0;
   /* Fills all bound buffers */
   virtual bool get()= 0;
+  virtual bool setResultCallback(ResultCodec* callback, uint32_t column= uint32_t(-1))= 0;
+  virtual bool setCallbackData(void* data)= 0;
+
 protected:
   virtual void setRowPointer(int32_t pointer)=0;
   

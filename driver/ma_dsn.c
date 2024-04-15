@@ -95,7 +95,9 @@ MADB_DsnKey DsnKeys[]=
   {"EXECDSERVER",    offsetof(MADB_Dsn, EdPrepareOnServer), DSN_TYPE_BOOL,   0, 0},
   {"PREPONCLIENT",   offsetof(MADB_Dsn, PrepareOnClient),   DSN_TYPE_BOOL,   0, 0},
   {"PSCACHESIZE",    offsetof(MADB_Dsn, PsCacheSize),       DSN_TYPE_INT,    0, 0},
-  {"MAXCACHEKEY",    offsetof(MADB_Dsn, PsCacheMaxKeyLen),  DSN_TYPE_INT,    0, 0}, /* 48 */
+  {"MAXCACHEKEY",    offsetof(MADB_Dsn, PsCacheMaxKeyLen),  DSN_TYPE_INT,    0, 0},
+  {"PCALLBACK",      offsetof(MADB_Dsn, ParamCallbacks),    DSN_TYPE_BOOL,   0, 0},
+  {"RCALLBACK",      offsetof(MADB_Dsn, ResultCallbacks),   DSN_TYPE_BOOL,   0, 0}, /* 50 */
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
@@ -155,6 +157,7 @@ MADB_Dsn *MADB_DSN_Init(MADB_Dsn *Dsn2init)
     Dsn->NullSchemaMeansCurrent= '\1';
     Dsn->PsCacheSize= 250;
     Dsn->PsCacheMaxKeyLen= 2112;
+    Dsn->ParamCallbacks= '\1';
   }
   return Dsn;
 }

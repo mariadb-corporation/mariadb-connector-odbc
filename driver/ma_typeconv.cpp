@@ -21,7 +21,7 @@
 
 #include "ma_odbc.h"
 
-/* Borrowed from C/C and adapted */
+/* Borrowed from C/C and adapted. Reads date/time types from string into MYSQL_TIME */
 void MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, bool Interval, MADB_Error *Error, bool *isTime)
 {
   char *localCopy= static_cast<char*>(MADB_ALLOC(Length + 1)), *Start= localCopy, *Frac, *End= Start + Length;

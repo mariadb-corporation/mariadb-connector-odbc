@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2020 MariaDB Corporation AB
+   Copyright (C) 2014,2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -171,9 +171,9 @@ SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset*
 }
 
 
-/* {{{ MADB_ConvertFromWCharEx */
-char *MADB_ConvertFromWCharEx(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
-                            BOOL *Error, BOOL mustBeNullTerminated)
+/* {{{ MADB_ConvertFromWChar */
+char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *Length, Client_Charset *cc,
+                            BOOL *Error, bool mustBeNullTerminated)
 {
   char *AscStr;
   size_t AscLen= PtrLength, PtrOctetLen;
@@ -368,7 +368,7 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
     }
   }
 
-  if (!SrcLength || !Src || !strlen(Src))
+  if (!SrcLength || !Src || !*Src)
   {
     memset((char *)Dest, 0, cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;

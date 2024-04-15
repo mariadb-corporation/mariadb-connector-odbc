@@ -43,7 +43,24 @@ class PCodecCallable : public ParamCodec
 {
 public:
   virtual ~PCodecCallable() {}
-  virtual bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) { T(data, bind, col_nr, row_nr); }
+  virtual bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) { return T(data, bind, col_nr, row_nr); }
+};
+
+
+class ResultCodec
+{
+public:
+  virtual ~ResultCodec() {}
+  virtual void operator()(void *data, uint32_t col_nr, unsigned char *row, unsigned long length)= 0;
+};
+
+
+template <typename T>
+class RCodecCallable : public ResultCodec
+{
+public:
+  virtual ~RCodecCallable() {}
+  virtual void operator()(void *data, uint32_t col_nr, unsigned char *row, unsigned long length) { T(data, col_nr, row); }
 };
 
 
@@ -85,16 +102,9 @@ public:
     SUCCESS_NO_INFO = -2
   };
 
-  typedef my_bool* (*param_callback)(void *data, MYSQL_BIND *bind, unsigned int row_nr);
-  
-  typedef void (*result_callback)(void *data, unsigned char **row);
-
   virtual ~PreparedStatement(){}
 
 protected:
-  /* Feels like CSPS also could use these, otherwise have to be moved to the SSPS class */
-  std::vector<result_callback> resultCallback;
-
   virtual bool executeInternal(int32_t fetchSize)=0;
   virtual PrepareResult* getPrepareResult()=0;
   virtual void executeBatchInternal(uint32_t queryParameterSize)=0;
@@ -143,7 +153,6 @@ public:
   inline int32_t getFetchSize() { return fetchSize; }
   // Return false if callbacks are not supported
   virtual bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1))= 0;
-  virtual bool setResultCallback(result_callback callback, uint32_t column)= 0;
   virtual bool setCallbackData(void* data)= 0;
   //void validateParamset(std::size_t paramCount);
   /**

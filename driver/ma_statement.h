@@ -123,5 +123,6 @@ SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt);
 #define MADB_STMT_IS_STREAMING(_a) ((_a)->Connection->Streamer == _a)
 /* Set given Stmt handle as s current RS streamer on the connection */
 #define MADB_STMT_SET_CURRENT_STREAMER(_a) (_a)->Connection->Streamer= (_a)
+#define CALC_ALL_FLDS_RC(_agg_rc, _field_rc) if (_field_rc != SQL_SUCCESS && _agg_rc != SQL_ERROR) _agg_rc= _field_rc
 
 #endif

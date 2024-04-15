@@ -56,7 +56,6 @@
 #define ckEnableDC                      1045
 #define ckReconnect2                    1046
 #define ckDisableDriverCursorSupport    1047
-#define ckNoCacheForwardOnly            1048
 #define ckPrefetch                      1049
 #define IckUseIS                        1050
 #define ckUseIS                         1051
@@ -66,6 +65,7 @@
 #define ckEnableDynamicCursor           1100
 #define ckDisableDriverCursor           1101
 #define ckDontCacheForwardCursor        1102
+#define ckResultCallbacks               1350
 #define ckForwardCursorOnly             1103
 #define ckReturnMatchedRows             1104
 #define ckEnableSQLAutoIsNull           1105
@@ -86,6 +86,7 @@
 #define txtAttr                         1311
 #define ckServerDirectExec              1312
 #define ckClientPrepare                 1313
+#define ckParamCallbacks                1314
 #define txtSslKey                       1117
 #define txtSslCert                      1118
 #define txtSslCertAuth                  1119

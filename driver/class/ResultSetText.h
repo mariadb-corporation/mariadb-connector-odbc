@@ -186,6 +186,8 @@ public:
   void bind(MYSQL_BIND* bind);
   bool get(MYSQL_BIND* bind, uint32_t column0basedIdx, uint64_t offset);
   bool get();
+  bool setResultCallback(ResultCodec* callback, uint32_t column) { return true; }
+  bool setCallbackData(void* data) { return true; }
 };
 
 } // namespace mariadb

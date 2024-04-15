@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <list>
+#include <map>
 #include "ma_c_stuff.h"
 #include "ma_legacy_helpers.h"
 #include "lru/pscache.h"
@@ -39,6 +40,7 @@ namespace mariadb
     //typedef std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
     typedef std::unique_ptr<mariadb::Protocol> Protocol;
     typedef std::unique_ptr<mariadb::ParamCodec> ParamCodec;
+    typedef std::unique_ptr<mariadb::ResultCodec> ResultCodec;
   }
 }
 
@@ -348,14 +350,20 @@ struct MADB_Stmt
 private:
   Unique::ParamCodec paramRowCallback;
   std::vector<Unique::ParamCodec> paramCodec;
+  Unique::ResultCodec nullRCodec;
+  std::map<uint32_t,Unique::ResultCodec> resultCodec;
   MADB_Stmt()= delete;
   void ProcessRsMetadata();
 
 public:
-  bool setParamRowCallback(ParamCodec* callback);
+  SQLRETURN aggRc; // For opperations requiring aggregated result based on results of suboperations(on set of params/results, or on columns)
+  bool setParamRowCallback(ParamCodec* codec);
   SQLRETURN doBulkOldWay(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, SQLLEN* IndicatorPtr, SQLLEN* OctetLengthPtr, void* DataPtr,
     MYSQL_BIND* MaBind, unsigned int& IndIdx/* column with indicator array - needed to skip rows */, unsigned int ParamOffset);
   void setupBulkCallbacks(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, DescArrayIterator& cit, MYSQL_BIND* MaBind);
+  void PrepareBind(int32_t RowNumber);
+  bool setResultCodec(ResultCodec* codec, unsigned long column=(unsigned long)-1/* "null" row level codec */);
+  SQLRETURN FixFetchedValues(int RowNumber, int64_t SaveCursor);
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);

@@ -42,10 +42,6 @@ class ServerSidePreparedStatement : public PreparedStatement
   friend my_bool* defaultParamCallback(void* data, MYSQL_BIND* binds, uint32_t row_nr);
 
   ServerPrepareResult* serverPrepareResult= nullptr;
-//  ps_param_callback    capiParamCallback=   nullptr;
-  bool paramCallbackSet= false;
-  //This probably won't be needed either
-  ps_result_callback   capiResultCallback=  nullptr;
 
 public:
   ~ServerSidePreparedStatement();
@@ -95,7 +91,7 @@ public:
   void moveToNextResult();
 
   bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1));
-  bool setResultCallback(result_callback callback, uint32_t column);
+  bool setResultCallback(ResultCodec* callback, uint32_t column);
   bool setCallbackData(void* data);
   };
 }

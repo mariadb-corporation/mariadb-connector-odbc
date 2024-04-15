@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2016 MariaDB Corporation AB
+   Copyright (C) 2014,2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -240,7 +240,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
   if (Tmp != UnicodeString)
   {
     wcsncpy(UnicodeString, L"", 1);
-    wcsncat(UnicodeString, Tmp, UnicodeLength- 1);
+    wcsncat(UnicodeString, Tmp, UnicodeLength - 1);
     if (Error)
       MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
   }
@@ -286,7 +286,7 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
     }
   }
 
-  if (!Src || !strlen(Src) || !SrcLength)
+  if (!Src || !SrcLength || !*Src)
   {
     memset(p, 0, cc && cc->CodePage ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;

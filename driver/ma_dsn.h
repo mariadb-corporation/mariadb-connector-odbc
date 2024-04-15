@@ -163,6 +163,8 @@ typedef struct st_madb_dsn
   my_bool NullSchemaMeansCurrent;
   my_bool EdPrepareOnServer;
   my_bool PrepareOnClient;
+  my_bool ParamCallbacks;
+  my_bool ResultCallbacks;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */

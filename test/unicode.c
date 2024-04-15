@@ -105,6 +105,7 @@ ODBC_TEST(sqlprepare)
   HSTMT hstmt1;
   SQLINTEGER data;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
+  SQLLEN len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
@@ -129,9 +130,10 @@ ODBC_TEST(sqlprepare)
 
   data= 1;
   CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
-
+  CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_WCHAR, wbuff, sizeof(wbuff), &len));
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-
+  IS_WSTR(wbuff, W(L"\x30a1"), 1);
+  wbuff[0]= (SQLWCHAR)0;
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), W(L"\x30a1"), 1);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
@@ -1388,13 +1390,13 @@ ODBC_TEST(t_odbc19)
 
   a[0]= b[0]= c[0]= 0;
 
-  OK_SIMPLE_STMT(Stmt, "DROP table IF EXISTS t_odbc19");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc19");
 
-  OK_SIMPLE_STMT(Stmt, "CREATE table t_odbc19(a varchar(10), b varchar(10), c varchar(10))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc19(a VARCHAR(10), b VARCHAR(10), c VARCHAR(10))");
 
-  OK_SIMPLE_STMT(Stmt, "insert into t_odbc19(a, c) values( 'MariaDB', 'Sky')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc19(a, c) VALUES( 'MariaDB', 'Sky')");
 
-  OK_SIMPLE_STMTW(Stmt, CW("select a, b, c from t_odbc19"));
+  OK_SIMPLE_STMTW(Stmt, CW("SELECT a, b, c FROM t_odbc19"));
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, a, sizeof(a), &lenPtr));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, b, sizeof(b), &lenPtr));
@@ -1407,7 +1409,7 @@ ODBC_TEST(t_odbc19)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP table t_odbc19");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc19");
 
   return OK;
 }
@@ -1638,7 +1640,15 @@ MA_ODBC_TESTS my_tests[]=
 int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
+  int result;
+  char setpcallback[256];
+  sprintf(setpcallback, "%s;RCALLBACK=0", add_connstr);
+  add_connstr= setpcallback;
   get_options(argc, argv);
   plan(tests);
-  return run_tests_ex(my_tests, TRUE);
+  result= run_tests_ex(my_tests, TRUE);
+
+  sprintf(setpcallback, "%s;RCALLBACK=1", add_connstr);
+  add_connstr= setpcallback;
+  return run_tests_ex(my_tests, TRUE) || result;
 }

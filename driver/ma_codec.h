@@ -208,6 +208,49 @@ public:
   bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) override;
 };
 
+//--------------- End of Parameter Codecs -> Begin of Result Codecs(making them live in same file so far) -----------------
+
+class NullRCodec : public ResultCodec
+{
+  MADB_DescRecord* ardRec;
+
+public:
+  NullRCodec(MADB_DescRecord* descRec)
+    : ardRec(descRec)
+  {}
+
+  void operator()(void *data, uint32_t col_nr, unsigned char* row, unsigned long length) override;
+};
+
+
+class WcharRCodec : public ResultCodec
+{
+  MADB_DescRecord* irdRec;
+  DescArrayIterator it;
+
+public:
+  WcharRCodec(MADB_DescRecord* descRec, const DescArrayIterator& cit)
+    : irdRec(descRec)
+    , it(cit)
+  {}
+
+  void operator()(void *data, uint32_t col_nr, unsigned char* row, unsigned long length) override;
+};
+
+
+class StringRCodec : public ResultCodec
+{
+  MADB_DescRecord* irdRec;
+  DescArrayIterator it;
+
+public:
+  StringRCodec(MADB_DescRecord* descRec, const DescArrayIterator& cit)
+    : irdRec(descRec)
+    , it(cit)
+  {}
+
+  void operator()(void *data, uint32_t col_nr, unsigned char* row, unsigned long length) override;
+};
 
 } // namespace mariadb
 #endif /* _ma_xxxxxx_h_ */

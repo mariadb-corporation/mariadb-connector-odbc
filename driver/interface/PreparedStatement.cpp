@@ -158,13 +158,6 @@ namespace mariadb
     executeBatchInternal(batchArraySize);
     return batchRes.wrap(results->getCmdInformation()->getUpdateCounts());
   }
-  //void PreparedStatement::initParamset(std::size_t paramCount)
-  //{
-  //  parameters.reserve(paramCount);
-  //  for (std::size_t i = 0; i < paramCount; ++i) {
-  //    parameters.emplace_back(nullptr);
-  //  }
-  //}
 
 
   //void PreparedStatement::validateParamset(std::size_t paramCount)

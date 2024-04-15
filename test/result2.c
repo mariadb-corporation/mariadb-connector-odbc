@@ -1672,8 +1672,16 @@ MA_ODBC_TESTS my_tests[]=
 int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
+  int result;
+  char setpcallback[256];
+  sprintf(setpcallback, "%s;RCALLBACK=0", add_connstr);
+  add_connstr= setpcallback;
   get_options(argc, argv);
   plan(tests);
   mark_all_tests_normal(my_tests);
-  return run_tests(my_tests);
+  result= run_tests(my_tests);
+
+  sprintf(setpcallback, "%s;RCALLBACK=1", add_connstr);
+  add_connstr= setpcallback;
+  return run_tests(my_tests) || result;
 }

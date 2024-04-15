@@ -471,6 +471,8 @@ namespace mariadb
   }
 
   // It has to be const, because it's called by getters, and properties it changes are mutable
+  // If something is changed here - might be needed into get() method, cuz for the work with rs callbacks it
+  // knows too much about how resetRow works
   void ResultSetBin::resetRow() const
   {
     if (rowPointer > -1 && data.size() > static_cast<std::size_t>(rowPointer)) {
@@ -928,12 +930,24 @@ namespace mariadb
       statement= nullptr;
     }
   }
+
+  /*{{{ ResultSetBin::bind
+   * Binding MYSQL_BIND structures to columns. Should be called *after* setting callbacks.
+   * (this constraint can be removed if really needed)
+   */
   void ResultSetBin::bind(MYSQL_BIND* bind)
   {
     //mysql_stmt_bind_result(capiStmtHandle, bind);
     resultBind.reset(new MYSQL_BIND[columnInformationLength]());
     std::memcpy(resultBind.get(), bind, columnInformationLength*sizeof(MYSQL_BIND));
+    if (!resultCodec.empty()) {
+      for (const auto& it : resultCodec) {
+        resultBind[it.first].flags|= MADB_BIND_DUMMY;
+      }
+      mysql_stmt_bind_result(capiStmtHandle, resultBind.get());
+    }
   }
+
 
   bool ResultSetBin::get(MYSQL_BIND* bind, uint32_t colIdx0based, uint64_t offset)
   {
@@ -945,21 +959,87 @@ namespace mariadb
   {
     bool truncations= false;
     if (resultBind) {
-      if (lastRowPointer != rowPointer) {
+      // Ugly like my life - we don't want resetRow to call mysql_stmt_fetch. Maybe it just never should,
+      // but it is like it is, and now is not the right time to change that.
+      if (lastRowPointer != rowPointer && (rowPointer != lastRowPointer + 1 || streaming)) {
         resetRow();
       }
-      for (int32_t i = 0; i < columnInformationLength; ++i) {
-        MYSQL_BIND* bind= resultBind.get() + i;
-        if (bind->error == nullptr) {
-          bind->error= &bind->error_value;
+      if (resultCodec.empty()) {
+        for (int32_t i = 0; i < columnInformationLength; ++i) {
+          MYSQL_BIND* bind= resultBind.get() + i;
+          if (bind->error == nullptr) {
+            bind->error= &bind->error_value;
+          }
+          get(bind, i, 0);
+          if (*bind->error) {
+            truncations= true;
+          }
         }
-        get(bind, i, 0);
-        if (*bind->error) {
-          truncations= true;
-        }
+      }
+      else {
+        lastRowPointer= rowPointer;
+        return mysql_stmt_fetch(capiStmtHandle);
       }
     }
     return truncations;
+  }
+
+
+  bool ResultSetBin::setResultCallback(ResultCodec* callback, uint32_t column)
+  {
+    if (column == uint32_t(-1)) {
+      if (mysql_stmt_attr_set(capiStmtHandle, STMT_ATTR_CB_USER_DATA, callback ? (void*)this : nullptr)) {
+        return true;
+      }
+      nullResultCodec= callback;
+      return mysql_stmt_attr_set(capiStmtHandle, STMT_ATTR_CB_RESULT, (const void*)defaultResultCallback);
+    }
+    if (column >= static_cast<uint32_t>(columnInformationLength)) {
+      throw SQLException("No such column: " + std::to_string(column + 1), "22023");
+    }
+
+    resultCodec[column]= callback;
+    if (resultCodec.size() == 1 && nullResultCodec == nullptr) {
+      mysql_stmt_attr_set(capiStmtHandle, STMT_ATTR_CB_USER_DATA, (void*)this);
+      return mysql_stmt_attr_set(capiStmtHandle, STMT_ATTR_CB_RESULT, (const void*)defaultResultCallback);
+    }
+    return false;
+  }
+
+
+  void defaultResultCallback(void* data, uint32_t column, unsigned char **row)
+  {
+    // We can't let the callback to throw - we have to intercept, as otherwise we are guaranteed to have
+    // the protocol broken
+    try
+    {
+      // Assuming so far, that Null value codec is always present. In this project it's the case.
+      ResultSetBin *rs= reinterpret_cast<ResultSetBin*>(data);
+      if (row == nullptr) {
+        (*rs->nullResultCodec)(rs->callbackData, column, nullptr, NULL_LENGTH);
+      }
+
+      const auto& it= rs->resultCodec.find(column);
+
+      if (it != rs->resultCodec.end()) {
+        auto length= mysql_net_field_length(row);
+        (*it->second)(rs->callbackData, column, *row, length);
+        *row+= length;
+      }
+      //else if ()
+    }
+    catch (...)
+    {
+      // Just eating exception
+    }
+  }
+
+
+  bool ResultSetBin::setCallbackData(void * data)
+  {
+    callbackData= data;
+    // if C/C does not support callbacks 
+    return mysql_stmt_attr_set(capiStmtHandle, STMT_ATTR_CB_USER_DATA, (void*)this);
   }
 
 } // namespace mariadb

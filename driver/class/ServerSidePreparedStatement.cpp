@@ -337,13 +337,11 @@ namespace mariadb
     if (param == uint32_t(-1)) {
       parRowCallback= callback;
       if (callback != nullptr) {
-        paramCallbackSet= true;
         mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
         return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM,
           (const void*)withRowCheckCallback);
       }
       else {
-        paramCallbackSet= false;
         // Let's say - NULL as row callbback resets everything. That seems to be least ambiguous behavior
         mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)NULL);
         return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM,
@@ -356,9 +354,8 @@ namespace mariadb
     }
 
     parColCodec.insert({param, callback});
-    if (!paramCallbackSet) {
+    if (parRowCallback == nullptr && parColCodec.size() == 1) {
       // Needed not to overwrite callback with row check
-      paramCallbackSet= true;
       mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
       return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM, (const void*)defaultParamCallback);
     }
@@ -376,7 +373,7 @@ namespace mariadb
       ServerSidePreparedStatement *stmt= reinterpret_cast<ServerSidePreparedStatement*>(data);
 
       for (uint32_t i= 0; i < stmt->getParamCount(); ++i) {
-        auto& it= stmt->parColCodec.find(i);
+        const auto& it= stmt->parColCodec.find(i);
         /* Let's assume for now, that each column has to have a codec. But still we don't use vector and don't throw exception if not all of them have
        * For such columns we could assume, that we have normal arrays that we need to pass, and this function could do that simple job instead of callback.
        * But indicator arrow would still be needed. Thus maybe callback is still better. Another option could be - using default value(indicator for that)
@@ -419,10 +416,7 @@ namespace mariadb
     return NULL;
   }
 
-  bool ServerSidePreparedStatement::setResultCallback(result_callback callback, uint32_t column)
-  {
-    return false;
-  }
+
   bool ServerSidePreparedStatement::setCallbackData(void * data)
   {
     callbackData= data;

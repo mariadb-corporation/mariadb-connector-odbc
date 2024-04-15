@@ -19,6 +19,7 @@
 
 #include "ma_codec.h"
 #include "class/ResultSetMetaData.h"
+#include "ma_string.h"
 
 
 namespace mariadb
@@ -362,7 +363,7 @@ namespace mariadb
     std::memset(&buf, 0, sizeof(MYSQL_TIME));
   }
 
-
+  /* {{{ DateCodec::operator() */
   bool DateCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
     SQL_DATE_STRUCT *ts= reinterpret_cast<SQL_DATE_STRUCT*>(it.value());
@@ -373,5 +374,96 @@ namespace mariadb
     return true;
   }
   /* }}} */
+
+//--------------- End of Parameter Codecs -> Begin of Result Codecs -----------------
+
+  void NullRCodec::operator()(void *data, uint32_t col_nr, unsigned char* row, unsigned long length)
+  {
+    MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
+    *Stmt->result[col_nr].is_null= '\1';
+  }
+
+
+  void WcharRCodec::operator()(void * data, uint32_t column, unsigned char* row, unsigned long length)
+  {
+    MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
+    SQLLEN buffCharLen= it.getDescRec()->OctetLength/sizeof(SQLWCHAR), charLen;
+    
+    if (length == NULL_LENGTH) {
+      if (it.indicator() != nullptr) {
+        *it.indicator()= SQL_NULL_DATA;
+      }  
+      else {
+        *it.length()= SQL_NULL_DATA;
+      }
+      return;
+    }
+    if (MADB_ConvertAnsi2Unicode(&Stmt->Connection->Charset, (char *)row, (SQLLEN)length, (SQLWCHAR *)it.value(),
+      buffCharLen, &charLen, 0, &Stmt->Error)) {
+      //CALC_ALL_FLDS_RC(Stmt->aggRc, Stmt->Error.ReturnValue);
+    }
+
+    if ((charLen == 0 || charLen > buffCharLen) && length != 0 && it.value() != nullptr &&
+      *(char*)row != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
+    {
+      CALC_ALL_FLDS_RC(Stmt->aggRc, Stmt->Error.ReturnValue);
+    }
+    else if (charLen > 0 && charLen <= buffCharLen && ((SQLWCHAR*)it.value())[charLen - 1] != 0) {
+      if (charLen == buffCharLen) {
+        CALC_ALL_FLDS_RC(Stmt->aggRc, MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0));
+        ((SQLWCHAR*)it.value())[charLen - 1]= 0;
+      }
+      else {
+        // Length does not include terminating NULL
+        ((SQLWCHAR*)it.value())[charLen]= 0;
+      }
+    }
+
+    if (it.length() != 0) {
+      /* If application didn't give data buffer and only want to know the length of data to fetch */
+      if (charLen == 0 && it.value() == nullptr) {
+        charLen= length;
+      }
+      /* Not quite right */
+      *it.length()= charLen * sizeof(SQLWCHAR);
+    }
+  }
+
+
+  void StringRCodec::operator()(void * data, uint32_t column, unsigned char* row, unsigned long length)
+  {
+    MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
+
+    if (length == NULL_LENGTH) {
+      if (it.indicator() != nullptr) {
+        *it.indicator()= SQL_NULL_DATA;
+      }
+      else {
+        *it.length()= SQL_NULL_DATA;
+      }
+      return;
+    }
+
+    uint32_t need2terminate= length == 0 || row[length - 1] != '\0' ? 1 : 0;
+
+    if (it.value() && it.getDescRec()->OctetLength > 0) {
+      if (it.getDescRec()->OctetLength < length + need2terminate) {
+        CALC_ALL_FLDS_RC(Stmt->aggRc, MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0));
+        std::memcpy(it.value(), row, static_cast<std::size_t>(it.getDescRec()->OctetLength - 1));
+        ((char*)it.value())[static_cast<std::size_t>(it.getDescRec()->OctetLength - 1)]= '\0';
+      }
+      else if (length > 0) {
+        std::memcpy(it.value(), row, length);
+        if (need2terminate) {
+          ((char*)it.value())[length]= '\0';
+        }
+      }
+    }
+
+    if (it.length() != 0) {
+      /* If application didn't give data buffer and only want to know the length of data to fetch */
+      *it.length()= length;
+    }
+  }
 }
 

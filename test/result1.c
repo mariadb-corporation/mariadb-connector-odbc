@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation A
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -2316,7 +2316,15 @@ MA_ODBC_TESTS my_tests[]=
 int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
+  int result;
+  char setpcallback[256];
+  sprintf(setpcallback, "%s;RCALLBACK=0", add_connstr);
+  add_connstr= setpcallback;
   get_options(argc, argv);
   plan(tests);
-  return run_tests(my_tests);
+  result= run_tests(my_tests);
+
+  sprintf(setpcallback, "%s;RCALLBACK=1", add_connstr);
+  add_connstr= setpcallback;
+  return run_tests(my_tests) || result;
 }
