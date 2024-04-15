@@ -126,13 +126,13 @@ SQLWCHAR *MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset*
   return WStr;
 }
 
-/* {{{ MADB_ConvertFromWCharEx
+/* {{{ MADB_ConvertFromWChar
        Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
        TN in the Wstr)
        @mustBeNullTerminated[in] - forces to result string to be NULL-terminated
  */
-char* MADB_ConvertFromWCharEx(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error,
-                              BOOL mustBeNullTerminated)
+char* MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error,
+                            bool mustBeNullTerminated)
 {
   char *AscStr;
   int AscLen, AllocLen;

@@ -52,11 +52,11 @@ case SQL_TYPE_DATE
 
 char          MADB_MapIndicatorValue(SQLLEN OdbcInd);
 unsigned int  MADB_UsedParamSets(MADB_Stmt *Stmt);
-BOOL          MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType);
+bool          MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType);
 void          MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset);
-SQLRETURN     MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void *DataPtr, SQLLEN *OctetLengthPtr,
+void          MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void *DataPtr, SQLLEN *OctetLengthPtr,
                                       SQLLEN *IndicatorPtr, SQLSMALLINT SqlType, MYSQL_BIND *MaBind);
-SQLRETURN     MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int row, SQLLEN OdbcIndicator);
+void          MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int row, SQLLEN OdbcIndicator);
 
 SQLRETURN     MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset);
 

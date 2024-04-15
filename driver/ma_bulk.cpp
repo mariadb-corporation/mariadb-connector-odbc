@@ -49,7 +49,7 @@ char MADB_MapIndicatorValue(SQLLEN OdbcInd)
 }
 
 
-BOOL MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType)
+bool MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType)
 {
   switch (CType)
   {
@@ -62,9 +62,9 @@ BOOL MADB_AppBufferCanBeUsed(SQLSMALLINT CType, SQLSMALLINT SqlType)
   case SQL_C_NUMERIC:
   case DATETIME_TYPES:
 
-    return FALSE;
+    return false;
   }
-  return TRUE;
+  return true;
 }
 
 
@@ -72,17 +72,25 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
   if (MADB_DOING_BULK_OPER(Stmt))
   {
+    Stmt->Bulk.ArraySize= 0;
+    Stmt->Bulk.HasRowsToSkip= 0;
+
+    if (Stmt->stmt->isServerSide() && !Stmt->setParamRowCallback(nullptr))
+    {
+      // We were doing callbacks - there is nothing to do any more
+      return;
+    }
     MADB_DescRecord *CRec;
-    void            *DataPtr= NULL;
-    MYSQL_BIND      *MaBind= NULL;
+    void            *DataPtr= nullptr;
+    MYSQL_BIND      *MaBind= nullptr;
     int             i;
 
     for (i= ParamOffset; i < MADB_STMT_PARAM_COUNT(Stmt); ++i)
     {
-      if ((CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) != NULL)
+      if ((CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) != nullptr)
       {
         MaBind= &Stmt->params[i - ParamOffset];
-        DataPtr= GetBindOffset(Stmt->Apd, CRec, CRec->DataPtr, 0, CRec->OctetLength);
+        DataPtr= GetBindOffset(Stmt->Apd->Header, CRec->DataPtr, 0, CRec->OctetLength);
 
         if (MaBind->buffer != DataPtr)
         {
@@ -113,27 +121,24 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
         MADB_FREE(MaBind->u.indicator);
       }
     }
-    Stmt->Bulk.ArraySize= 0;
-    Stmt->Bulk.HasRowsToSkip= 0;
   }
 }
 
 
-SQLRETURN MADB_InitIndicatorArray(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, char InitValue)
+void MADB_InitIndicatorArray(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, char InitValue)
 {
   MaBind->u.indicator= static_cast<char*>(MADB_ALLOC(Stmt->Bulk.ArraySize));
 
-  if (MaBind->u.indicator == NULL)
+  if (MaBind->u.indicator == nullptr)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
+    throw Stmt->Error;
   }
   memset(MaBind->u.indicator, InitValue, Stmt->Bulk.ArraySize);
-
-  return SQL_SUCCESS;
 }
 
 
-SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLLEN *OctetLengthPtr, SQLLEN *IndicatorPtr,
+void MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLLEN *OctetLengthPtr, SQLLEN *IndicatorPtr,
                                     void *DataPtr, MYSQL_BIND *MaBind, BOOL VariableLengthMadbType)
 {
   /* Leaving it so far here commented, but it comlicates things w/out much gains */
@@ -151,45 +156,44 @@ SQLRETURN MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLL
   if (VariableLengthMadbType)
   {
     MaBind->length= static_cast<unsigned long*>(MADB_REALLOC(MaBind->length, Stmt->Bulk.ArraySize*sizeof(long)));
-    if (MaBind->length == NULL)
+    if (MaBind->length == nullptr)
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
+      throw Stmt->Error;
     }
   }
 
   for (row= 0; row < Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
   {
-    if (Stmt->Apd->Header.ArrayStatusPtr != NULL && Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+    if (Stmt->Apd->Header.ArrayStatusPtr != nullptr && Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
     {
       Stmt->Bulk.HasRowsToSkip= 1;
       continue;
     }
 
-    if ((OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_NULL_DATA)
-      || (IndicatorPtr != NULL && IndicatorPtr[row] != SQL_NULL_DATA))
+    if ((OctetLengthPtr != nullptr && OctetLengthPtr[row] == SQL_NULL_DATA)
+      || (IndicatorPtr != nullptr && IndicatorPtr[row] != SQL_NULL_DATA))
     {
-      RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_NULL_DATA));
+      MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_NULL_DATA);
       continue;
     }
-    if ((OctetLengthPtr != NULL && OctetLengthPtr[row] == SQL_COLUMN_IGNORE)
-      || (IndicatorPtr != NULL && IndicatorPtr[row] != SQL_COLUMN_IGNORE))
+    if ((OctetLengthPtr != nullptr && OctetLengthPtr[row] == SQL_COLUMN_IGNORE)
+      || (IndicatorPtr != nullptr && IndicatorPtr[row] != SQL_COLUMN_IGNORE))
     {
-      RETURN_ERROR_OR_CONTINUE(MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_COLUMN_IGNORE));
+      MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_COLUMN_IGNORE);
       continue;
     }
 
     if (VariableLengthMadbType)
     {
-      MaBind->length[row]= (unsigned long)MADB_CalculateLength(Stmt, OctetLengthPtr != NULL ? &OctetLengthPtr[row] : NULL, CRec, DataPtr);
+      MaBind->length[row]= (unsigned long)MADB_CalculateLength(Stmt, OctetLengthPtr != nullptr ? &OctetLengthPtr[row] : nullptr, CRec, DataPtr);
     }
   }
-
-  return SQL_SUCCESS;
 }
 /* {{{ MADB_InitBulkOperBuffers */
 /* Allocating data and length arrays, if needed, and initing them in certain cases.
-   DataPtr should be ensured to be not NULL */
-SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void *DataPtr, SQLLEN *OctetLengthPtr,
+   DataPtr should be ensured to be not nullptr */
+void MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void *DataPtr, SQLLEN *OctetLengthPtr,
                                    SQLLEN *IndicatorPtr, SQLSMALLINT SqlType, MYSQL_BIND *MaBind)
 {
   BOOL VariableLengthMadbType= TRUE;
@@ -241,29 +245,218 @@ SQLRETURN MADB_InitBulkOperBuffers(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void 
   if (MaBind->buffer != DataPtr)
   {
     MaBind->buffer= CRec->InternalBuffer;
-    if (MaBind->buffer == NULL)
+    if (MaBind->buffer == nullptr)
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
+      throw Stmt->Error;
     }
-    CRec->InternalBuffer= NULL; /* Need to reset this pointer, so the memory won't be freed (accidentally) */
+    CRec->InternalBuffer= nullptr; /* Need to reset this pointer, so the memory won't be freed (accidentally) */
   }
 
-  return MADB_SetBulkOperLengthArr(Stmt, CRec, OctetLengthPtr, IndicatorPtr, DataPtr, MaBind, VariableLengthMadbType);
+  MADB_SetBulkOperLengthArr(Stmt, CRec, OctetLengthPtr, IndicatorPtr, DataPtr, MaBind, VariableLengthMadbType);
 }
 /* }}} */
 
 /* {{{ MADB_SetIndicatorValue */
-SQLRETURN MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int row, SQLLEN OdbcIndicator)
+void MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int row, SQLLEN OdbcIndicator)
 {
-  if (MaBind->u.indicator == NULL)
+  if (MaBind->u.indicator == nullptr)
   {
-    RETURN_ERROR_OR_CONTINUE(MADB_InitIndicatorArray(Stmt, MaBind, STMT_INDICATOR_NONE));
+    MADB_InitIndicatorArray(Stmt, MaBind, STMT_INDICATOR_NONE);
   }
-
   MaBind->u.indicator[row]= MADB_MapIndicatorValue(OdbcIndicator);
-  return SQL_SUCCESS;
 }
 /* }}} */
+
+/* {{{  */
+bool MADB_Stmt::setParamRowCallback(ParamCodec * callback)
+{
+  paramRowCallback.reset(callback);
+  return stmt->setParamCallback(paramRowCallback.get());
+}
+/* }}} */
+
+
+SQLRETURN MADB_Stmt::doBulkOldWay(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, SQLLEN* IndicatorPtr, SQLLEN* OctetLengthPtr, void* DataPtr,
+  MYSQL_BIND* MaBind, unsigned int& IndIdx, unsigned int ParamOffset)
+{
+  SQLULEN row, Start= ArrayOffset;
+  unsigned long Dummy;
+  /* Well, specs kinda say, that both values and lenghts arrays should be set(in instruction to param array operations)
+         But there is no error/sqlstate for the case if any of those pointers is not set. Thus we assume that is possible */
+  if (DataPtr == nullptr)
+  {
+    /* Special case - DataPtr is not set, we treat it as all values are nullptr. Setting indicators and moving on next param */
+    MADB_InitIndicatorArray(this, MaBind, MADB_MapIndicatorValue(SQL_NULL_DATA));
+  }
+
+  /* Sets Stmt->Bulk.HasRowsToSkip if needed, since it traverses and checks status array anyway */
+  MADB_InitBulkOperBuffers(this, CRec, DataPtr, OctetLengthPtr, IndicatorPtr, SqlRec->ConciseType, MaBind);
+
+  if (MaBind->u.indicator != nullptr && IndIdx == (unsigned int)-1)
+  {
+    IndIdx= parNr - ParamOffset;
+  }
+
+  if (MADB_AppBufferCanBeUsed(CRec->ConciseType, SqlRec->ConciseType))
+  {
+    /* Everything has been done for such column already */
+    return true;
+  }
+
+  /* We either have skipped rows or need to convert parameter values/convert array */
+  for (row= Start; row < Start + Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
+  {
+    void *Buffer= (char*)MaBind->buffer + row * MaBind->buffer_length;
+    void **BufferPtr= (void**)Buffer; /* For the case when Buffer points to the pointer already */
+
+    if (Apd->Header.ArrayStatusPtr != nullptr && Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+    {
+      continue;
+    }
+    if (MaBind->u.indicator && MaBind->u.indicator[row] > STMT_INDICATOR_NONE)
+    {
+      continue;
+    }
+
+    switch (CRec->ConciseType)
+    {
+    case SQL_C_CHAR:
+      if (SqlRec->ConciseType != SQL_BIT)
+      {
+        break;
+      }
+    case DATETIME_TYPES:
+      if (CanUseStructArrForDatetime(this))
+      {
+        BufferPtr= &Buffer;
+      }
+    }
+
+    /* Need &Dummy here as a length ptr, since nullptr is not good here.
+       It would make MADB_ConvertC2Sql to use MaBind->buffer_length by default */
+    if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(this, CRec, DataPtr, MaBind->length != nullptr ? MaBind->length[row] : 0,
+      SqlRec, MaBind, BufferPtr, MaBind->length != nullptr ? MaBind->length + row : &Dummy)))
+    {
+      /* Perhaps it's better to move to Clean function */
+      CRec->InternalBuffer= nullptr;
+      return Error.ReturnValue;
+    }
+    CRec->InternalBuffer= nullptr;
+  }
+
+  return false;
+}
+
+
+void MADB_Stmt::setupBulkCallbacks(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, DescArrayIterator& it,
+  MYSQL_BIND* MaBind)
+{
+  /* Well, specs kinda say, that both values and lenghts arrays should be set(in instruction to param array operations)
+     But there is no error/sqlstate for the case if any of those pointers is not set. Thus we assume that is possible */
+  if (it.value() == nullptr)
+  {
+    /* Special case - DataPtr is not set, we treat it as all values are nullptr. Setting indicators and moving on next param */
+    MaBind->u.indicator= &paramIndicatorNull;
+  }
+
+  auto parIt= paramCodec.begin() + parNr;
+  paramCodec.insert(parIt, Unique::ParamCodec(nullptr));
+  std::size_t dataArrStep= getArrayStep(Apd->Header, CRec->OctetLength);
+  /*if (Apd->Header.ArrayStatusPtr != nullptr && Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+  {
+    continue;
+  }
+  if (MaBind->u.indicator && MaBind->u.indicator[row] > STMT_INDICATOR_NONE)
+  {
+    continue;
+  }*/
+  if (MADB_AppBufferCanBeUsed(CRec->ConciseType, SqlRec->ConciseType)) {
+    paramCodec[parNr].reset(new FixedSizeCopyCodec(it));
+  }
+  else {
+    switch (CRec->ConciseType)
+    {
+    case WCHAR_TYPES:
+      paramCodec[parNr].reset(new WcharCodec(it));
+      break;
+    case CHAR_BINARY_TYPES:
+      switch (SqlRec->ConciseType)
+      {
+      case SQL_BIT:
+        paramCodec[parNr].reset(new BitCodec(it, *MaBind));
+        break;
+      case SQL_TIME:
+      case SQL_TYPE_TIME:
+        paramCodec[parNr].reset(new Str2TimeCodec(it, *MaBind));
+        break;
+      case SQL_DATE:
+      case SQL_TYPE_DATE:
+        paramCodec[parNr].reset(new Str2DateCodec(it, *MaBind));
+        break;
+      case SQL_TYPE_TIMESTAMP:
+      {
+        paramCodec[parNr].reset(new Str2TimestampCodec(it, *MaBind));
+        break;
+      }
+      default:
+        paramCodec[parNr].reset(new CopyCodec(it));
+      }
+      break;
+    case SQL_C_NUMERIC:
+      MaBind->buffer_type= MYSQL_TYPE_STRING;
+      paramCodec[parNr].reset(new NumericCodec(it, *MaBind, SqlRec));
+      break;
+    case SQL_C_TIMESTAMP:
+    case SQL_TYPE_TIMESTAMP:
+      switch (SqlRec->ConciseType) {
+
+      case SQL_TYPE_DATE:
+        MaBind->buffer_type= MYSQL_TYPE_DATE;
+        //tm->time_type=       MYSQL_TIMESTAMP_DATE;
+        paramCodec[parNr].reset(new Ts2DateCodec(it, *MaBind));
+        break;
+      case SQL_TYPE_TIME:
+        MaBind->buffer_type= MYSQL_TYPE_TIME;
+        //tm->time_type= MYSQL_TIMESTAMP_TIME;
+        paramCodec[parNr].reset(new Ts2TimeCodec(it, *MaBind));
+        break;
+      default:
+        paramCodec[parNr].reset(new TsCodec(it, *MaBind));
+      }
+      break;
+    case SQL_C_TIME:
+    case SQL_C_TYPE_TIME:
+      paramCodec[parNr].reset(new Time2TsCodec(it, *MaBind, SqlRec));
+      break;
+    case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+      paramCodec[parNr].reset(new IntrervalHmsCodec(it, *MaBind, false));
+      break;
+    case SQL_C_INTERVAL_HOUR_TO_SECOND:
+      paramCodec[parNr].reset(new IntrervalHmsCodec(it, *MaBind, true));
+      break;
+    case SQL_C_DATE:
+    case SQL_TYPE_DATE:
+      MaBind->buffer_type= MYSQL_TYPE_DATE;
+      paramCodec[parNr].reset(new DateCodec(it, *MaBind));
+      break;
+    default:
+      if (!CRec->OctetLength)
+      {
+        CRec->OctetLength= MaBind->buffer_length;
+      }
+      if (!it.length()) {
+        // We don't have length arr - must be fixed size
+        paramCodec[parNr].reset(new FixedSizeCopyCodec(it));
+      }
+      else {
+        paramCodec[parNr].reset(new CopyCodec(it));
+      }
+    }
+  }
+
+  stmt->setParamCallback(paramCodec[parNr].get(), parNr);
+}
 
 /* {{{ MADB_ExecuteBulk */
 /* Assuming that bulk insert can't go with DAE(and that unlikely ever changes). And that it has been checked before this call,
@@ -271,22 +464,26 @@ and we can't have DAE here */
 SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
   unsigned int  i, IndIdx= -1;
-  unsigned long Dummy;
+  bool useCallbacks= true;
 
   if (Stmt->stmt->isServerSide() && !MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS))
   {
     Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->Options.CursorType
       , Stmt->Query.NoBackslashEscape));
+    // So far
+    useCallbacks= false;
+  }
+
+  // i.e. if the available C/C does not support callbacks
+  if (useCallbacks &&
+    (Stmt->setParamRowCallback(nullptr) || Stmt->stmt->setCallbackData(reinterpret_cast<void*>(Stmt)))) {
+    useCallbacks= false;
   }
 
   for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
   {
     MADB_DescRecord *CRec, *SqlRec;
-    SQLLEN          *IndicatorPtr= NULL;
-    SQLLEN          *OctetLengthPtr= NULL;
-    void            *DataPtr= NULL;
     MYSQL_BIND      *MaBind= &Stmt->params[i - ParamOffset];
-    SQLULEN         row, Start= Stmt->ArrayOffset;
 
     if ((CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
       (SqlRec= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
@@ -294,86 +491,26 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       /* check if parameter was bound */
       if (!CRec->inUse)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
+        return MADB_SetError(&Stmt->Error, MADB_ERR_07002, nullptr, 0);
       }
 
       if (MADB_ConversionSupported(CRec, SqlRec) == FALSE)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
+        return MADB_SetError(&Stmt->Error, MADB_ERR_07006, nullptr, 0);
       }
 
-      MaBind->length= NULL;
-      IndicatorPtr=   (SQLLEN *)GetBindOffset(Stmt->Apd, CRec, CRec->IndicatorPtr, 0, sizeof(SQLLEN));
-      OctetLengthPtr= (SQLLEN *)GetBindOffset(Stmt->Apd, CRec, CRec->OctetLengthPtr, 0, sizeof(SQLLEN));
-      DataPtr=        GetBindOffset(Stmt->Apd, CRec, CRec->DataPtr, 0, CRec->OctetLength);
+      MaBind->length= nullptr;
+      DescArrayIterator cit(Stmt->Apd->Header, *CRec, i);
 
-      /* If these are the same pointers, setting indicator to NULL to simplify things a bit */
-      if (IndicatorPtr == OctetLengthPtr)
+      MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
+      
+      if (useCallbacks)
       {
-        IndicatorPtr= NULL;
+        Stmt->setupBulkCallbacks(i, CRec, SqlRec, cit, MaBind);
       }
-      /* Well, specs kinda say, that both values and lenghts arrays should be set(in instruction to param array operations)
-         But there is no error/sqlstate for the case if any of those pointers is not set. Thus we assume that is possible */
-      if (DataPtr == NULL)
+      else
       {
-        /* Special case - DataPtr is not set, we treat it as all values are NULL. Setting indicators and moving on next param */
-        RETURN_ERROR_OR_CONTINUE(MADB_InitIndicatorArray(Stmt, MaBind, MADB_MapIndicatorValue(SQL_NULL_DATA)));
-        continue;
-      }
-
-      /* Sets Stmt->Bulk.HasRowsToSkip if needed, since it traverses and checks status array anyway */
-      RETURN_ERROR_OR_CONTINUE(MADB_InitBulkOperBuffers(Stmt, CRec, DataPtr, OctetLengthPtr, IndicatorPtr, SqlRec->ConciseType, MaBind));
-
-      if (MaBind->u.indicator != NULL && IndIdx == (unsigned int)-1)
-      {
-        IndIdx= i - ParamOffset;
-      }
-
-      if (MADB_AppBufferCanBeUsed(CRec->ConciseType, SqlRec->ConciseType))
-      {
-        /* Everything has been done for such column already */
-        continue;
-      }
-
-      /* We either have skipped rows or need to convert parameter values/convert array */
-      for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
-      {
-        void *Buffer= (char*)MaBind->buffer + row*MaBind->buffer_length;
-        void **BufferPtr= (void**)Buffer; /* For the case when Buffer points to the pointer already */
-
-        if (Stmt->Apd->Header.ArrayStatusPtr != NULL && Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
-        {
-          continue;
-        }
-        if (MaBind->u.indicator && MaBind->u.indicator[row] > STMT_INDICATOR_NONE)
-        {
-          continue;
-        }
-
-        switch (CRec->ConciseType)
-        {
-        case SQL_C_CHAR:
-          if (SqlRec->ConciseType != SQL_BIT)
-          {
-            break;
-          }
-        case DATETIME_TYPES:
-          if (CanUseStructArrForDatetime(Stmt))
-          {
-            BufferPtr= &Buffer;
-          }
-        }
-
-        /* Need &Dummy here as a length ptr, since NULL is not good here.
-           It would make MADB_ConvertC2Sql to use MaBind->buffer_length by default */
-        if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, MaBind->length != NULL ? MaBind->length[row] : 0,
-          SqlRec, MaBind, BufferPtr, MaBind->length != NULL ? MaBind->length + row : &Dummy)))
-        {
-          /* Perhaps it's better to move to Clean function */
-          CRec->InternalBuffer= NULL;
-          return Stmt->Error.ReturnValue;
-        }
-        CRec->InternalBuffer= NULL;
+        Stmt->doBulkOldWay(i, CRec, SqlRec, cit.indicator(), cit.length(), cit.value(), MaBind, IndIdx, ParamOffset);
       }
     }
   }
@@ -381,17 +518,24 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
   /* just to do this once, and to use already allocated indicator array */
   if (Stmt->Bulk.HasRowsToSkip)
   {
-    SQLULEN row, Start = Stmt->ArrayOffset;
-    if (IndIdx == (unsigned int)-1)
+    if (useCallbacks)
     {
-      IndIdx = 0;
+      Stmt->stmt->setParamCallback(new IgnoreRow(Stmt->Apd->Header.ArrayStatusPtr, Stmt->ArrayOffset));
     }
-
-    for (row = Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+    else
     {
-      if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+      SQLULEN row, Start= Stmt->ArrayOffset;
+      if (IndIdx == (unsigned int)-1)
       {
-        MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], (unsigned int)row, SQL_PARAM_IGNORE);
+        IndIdx= 0;
+      }
+
+      for (row = Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+      {
+        if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
+        {
+          MADB_SetIndicatorValue(Stmt, &Stmt->params[IndIdx], (unsigned int)row, SQL_PARAM_IGNORE);
+        }
       }
     }
   }

@@ -76,7 +76,7 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   MADB_Desc *Desc;
   
   if (!(Desc= (MADB_Desc *)MADB_CALLOC(sizeof(MADB_Desc))))
-    return NULL;
+    return nullptr;
 
   Desc->DescType= DescType;
   MADB_PutErrorPrefix(Dbc, &Desc->Error);
@@ -84,14 +84,14 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   if (MADB_InitDynamicArray(&Desc->Records, sizeof(MADB_DescRecord), 0, MADB_DESC_INIT_REC_NUM))
   {
     MADB_FREE(Desc);
-    return NULL;
+    return nullptr;
   }
   if (isExternal)
   {
     if (MADB_InitDynamicArray(&Desc->Stmts, sizeof(MADB_Stmt**), 0, MADB_DESC_INIT_STMT_NUM))
     {
       MADB_DescFree(Desc, FALSE);
-      return NULL;
+      return nullptr;
     }
     else
     {
@@ -176,7 +176,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
   MY_CHARSET_INFO cs;
   MARIADB_CHARSET_INFO *FieldCs;
 
-  if (Record == NULL)
+  if (Record == nullptr)
   {
     return 1;
   }
@@ -281,7 +281,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
   Record->OctetLength= MADB_GetOctetLength(Field, cs.mbmaxlen);
   FieldCs= mariadb_get_charset_by_nr(Field->charsetnr);
   Record->Length= MADB_GetDataSize(Record->ConciseType, Field->length, Record->Unsigned == SQL_TRUE,
-                                   Record->Precision, Record->Scale, FieldCs!= NULL ? FieldCs->char_maxlen : 1);
+                                   Record->Precision, Record->Scale, FieldCs!= nullptr ? FieldCs->char_maxlen : 1);
     
   MADB_RESET(Record->TypeName, MADB_GetTypeName(Field));
 
@@ -420,7 +420,7 @@ void MADB_FixDisplaySize(MADB_DescRecord *Record, const MY_CHARSET_INFO *charset
     Record->DisplaySize= 36;
     break;
   default:
-    if (charset == NULL || charset->mbmaxlen < 2/*i.e.0||1*/)
+    if (charset == nullptr || charset->mbmaxlen < 2/*i.e.0||1*/)
     {
       Record->DisplaySize=Record->OctetLength;
     }
@@ -440,17 +440,17 @@ void MADB_FixDataSize(MADB_DescRecord *Record, const MY_CHARSET_INFO *charset)
 /* }}} */
 
 /* {{{ MADB_FixIrdRecord */
-my_bool
+bool
 MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
 {
   MY_CHARSET_INFO cs;
 
-  if (Record == NULL)
+  if (Record == nullptr)
   {
-    return 1;
+    return true;
   }
-
   MADB_FixOctetLength(Record);
+
   /*
       RADIX:
       If the data type in the SQL_DESC_TYPE field is an approximate numeric data type, this SQLINTEGER field 
@@ -534,20 +534,20 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
     break;
   }
 
-  return 0;
+  return false;
 }
 /* }}} */
 
 /* {{{ MADB_FixColumnDataTypes */
-my_bool
+bool
 MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
 {
   SQLSMALLINT     i;
-  MADB_DescRecord *Record= NULL;
+  MADB_DescRecord *Record= nullptr;
 
-  if (ColTypesArr == NULL)
+  if (ColTypesArr == nullptr)
   {
-    return 1;
+    return true;
   }
   for (i=0; i < Stmt->Ird->Header.Count; ++i)
   {
@@ -555,9 +555,9 @@ MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
     {
       Record= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
 
-      if (Record == NULL)
+      if (Record == nullptr)
       {
-        return 1;
+        return true;
       }
       Record->ConciseType= ColTypesArr[i].SqlType;
       Record->Nullable= ColTypesArr[i].Nullable;
@@ -570,14 +570,14 @@ MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
       }
       if (MADB_FixIrdRecord(Stmt, Record))
       {
-        return 1;
+        return true;
       }
     }
   }
 
   /* If the stmt is re-executed, we should be able to fix columns again */
   Stmt->ColsTypeFixArr= ColTypesArr;
-  return 0;
+  return false;
 }
 /* }}} */
 
@@ -623,16 +623,16 @@ MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordN
   if (RecordNumber > (SQLINTEGER)Desc->Records.elements &&
       Type == MADB_DESC_READ)
   {
-    MADB_SetError(&Desc->Error, MADB_ERR_07009, NULL, 0);
-    return NULL;
+    MADB_SetError(&Desc->Error, MADB_ERR_07009, nullptr, 0);
+    return nullptr;
   }
 
   while (RecordNumber >= (SQLINTEGER)Desc->Records.elements)
   {
     if (!(DescRecord= (MADB_DescRecord *)MADB_AllocDynamic(&Desc->Records)))
     {
-      MADB_SetError(&Desc->Error, MADB_ERR_HY001, NULL, 0);
-      return NULL;
+      MADB_SetError(&Desc->Error, MADB_ERR_HY001, nullptr, 0);
+      return nullptr;
     }
  
     MADB_DescSetRecordDefaults(Desc, DescRecord);
@@ -659,7 +659,7 @@ SQLRETURN MADB_DeskCheckFldId(MADB_Desc *Desc, SQLSMALLINT FieldIdentifier, SQLS
   /* End of list = invalid FieldIdentifier */
   if (!MADB_DESC_FLDID[i].FieldIdentifier ||
       !(MADB_DESC_FLDID[i].Access[Desc->DescType] & mode)) {
-    MADB_SetError(&Desc->Error, MADB_ERR_HY091, NULL, 0);
+    MADB_SetError(&Desc->Error, MADB_ERR_HY091, nullptr, 0);
     return SQL_ERROR;
   }
   return SQL_SUCCESS;
@@ -676,7 +676,7 @@ SQLRETURN MADB_DescGetField(SQLHDESC DescriptorHandle,
                             int isWChar)
 {
   MADB_Desc *Desc= (MADB_Desc *)DescriptorHandle;
-  MADB_DescRecord *DescRecord= NULL;
+  MADB_DescRecord *DescRecord= nullptr;
   SQLRETURN ret;
   size_t Length;
 
@@ -842,7 +842,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
                             int isWChar)
 {
   MADB_Desc *Desc= (MADB_Desc *)DescriptorHandle;
-  MADB_DescRecord *DescRecord= NULL;
+  MADB_DescRecord *DescRecord= nullptr;
   SQLRETURN ret;
   SQL_UNNAMED;
   ret= MADB_DeskCheckFldId(Desc, FieldIdentifier, MADB_DESC_WRITE);
@@ -850,7 +850,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   /* Application may set IPD's field SQL_DESC_UNNAMED to SQL_UNNAMED only */
   if (FieldIdentifier == SQL_DESC_UNNAMED && (SQLSMALLINT)(SQLULEN)ValuePtr == SQL_NAMED)
   {
-    ret= MADB_SetError(&Desc->Error, MADB_ERR_HY092, NULL, 0);
+    ret= MADB_SetError(&Desc->Error, MADB_ERR_HY092, nullptr, 0);
   }
 
   if (!SQL_SUCCEEDED(ret))
@@ -929,7 +929,7 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
       if ((SQLSMALLINT)(SQLLEN)ValuePtr > MADB_MAX_SCALE)
       {
         DescRecord->Scale= MADB_MAX_SCALE;
-        ret= MADB_SetError(&Desc->Error, MADB_ERR_01S02, NULL, 0); 
+        ret= MADB_SetError(&Desc->Error, MADB_ERR_01S02, nullptr, 0); 
       }
       else
       {
@@ -951,13 +951,13 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
       break;
     default:
       if (Desc->DescType== MADB_DESC_ARD && DescRecord && DescRecord->DataPtr)
-        DescRecord->DataPtr= NULL;
+        DescRecord->DataPtr= nullptr;
       break;
     }
   
     /* inUse is only used to check if column/parameter was bound or not. Thus we do not set it for each field, but only for those,
        that make column/parameter "bound" */
-    if (DescRecord && (DescRecord->DataPtr != NULL || DescRecord->OctetLengthPtr != NULL || DescRecord->IndicatorPtr != NULL))
+    if (DescRecord && (DescRecord->DataPtr != nullptr || DescRecord->OctetLengthPtr != nullptr || DescRecord->IndicatorPtr != nullptr))
       DescRecord->inUse= 1;
   }
   return ret;
@@ -971,12 +971,12 @@ SQLRETURN MADB_DescCopyDesc(SQLHDESC Src, SQLHDESC Dest)
   /*TODO: clear error */
   if (DestDesc->DescType == MADB_DESC_IRD)
   {
-    MADB_SetError(&DestDesc->Error, MADB_ERR_HY016, NULL, 0);
+    MADB_SetError(&DestDesc->Error, MADB_ERR_HY016, nullptr, 0);
     return SQL_ERROR;
   }
   if (SrcDesc->DescType == MADB_DESC_IRD && !SrcDesc->Header.Count)
   {
-    MADB_SetError(&DestDesc->Error, MADB_ERR_HY007, NULL, 0);
+    MADB_SetError(&DestDesc->Error, MADB_ERR_HY007, nullptr, 0);
     return SQL_ERROR;
   }
   /* make sure there aren't old records */
@@ -984,7 +984,7 @@ SQLRETURN MADB_DescCopyDesc(SQLHDESC Src, SQLHDESC Dest)
   if (MADB_InitDynamicArray(&DestDesc->Records, sizeof(MADB_DescRecord),
                             SrcDesc->Records.max_element, SrcDesc->Records.alloc_increment))
   {
-    MADB_SetError(&DestDesc->Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(&DestDesc->Error, MADB_ERR_HY001, nullptr, 0);
     return SQL_ERROR;
   }
 
@@ -1008,9 +1008,9 @@ SQLRETURN MADB_DescCopyDesc(SQLHDESC Src, SQLHDESC Dest)
     {
       MADB_DescRecord *Rec= MADB_DescGetInternalRecord(DestDesc, i, MADB_DESC_READ);
 
-      if (Rec != NULL)
+      if (Rec != nullptr)
       {
-        Rec->InternalBuffer= NULL;
+        Rec->InternalBuffer= nullptr;
       }
     }
   }
@@ -1040,7 +1040,7 @@ SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
 
   if (!(Record= MADB_DescGetInternalRecord(Desc, RecNumber, MADB_DESC_READ)))
   {
-    MADB_SetError(&Desc->Error, MADB_ERR_07009, NULL, 0);
+    MADB_SetError(&Desc->Error, MADB_ERR_07009, nullptr, 0);
     return Desc->Error.ReturnValue;
   }
   
@@ -1071,3 +1071,29 @@ SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
   return SQL_SUCCESS;
 }
 
+DescArrayIterator::DescArrayIterator(MADB_Header& header, MADB_DescRecord& rec, SQLSMALLINT i)
+  : descRec(&rec)
+  , valuePtr(GetBindOffset(header, rec.DataPtr, 0, rec.OctetLength))
+  , valueOffset(getArrayStep(header, rec.OctetLength))
+  , endPtr(reinterpret_cast<void*>(reinterpret_cast<char*>(valuePtr) + valueOffset*header.ArraySize))
+  , octetLengthPtr(reinterpret_cast<SQLLEN*>(GetBindOffset(header, rec.OctetLengthPtr, 0, sizeof(SQLLEN))))
+  , indicatorPtr(reinterpret_cast<SQLLEN*>(GetBindOffset(header, rec.IndicatorPtr, 0, sizeof(SQLLEN))))
+  , lengthOffset(getArrayStep(header, sizeof(SQLLEN)))
+{
+  // Somewhere code depends on that. Maybe makes sense - less "noise"
+  if (indicatorPtr == octetLengthPtr) {
+    indicatorPtr= nullptr;
+  }
+}
+
+
+DescArrayIterator::DescArrayIterator(MADB_DescRecord& rec, void * val, std::size_t valOffset, SQLLEN * len, SQLLEN * ind, std::size_t lenOffset, std::size_t arrSize)
+  : descRec(&rec)
+  , valuePtr(val)
+  , valueOffset(valOffset)
+  , endPtr(reinterpret_cast<void*>(reinterpret_cast<char*>(valuePtr) + valueOffset*arrSize))
+  , octetLengthPtr(len)
+  , indicatorPtr(ind != len ? ind : nullptr)
+  , lengthOffset(lenOffset)
+{
+}

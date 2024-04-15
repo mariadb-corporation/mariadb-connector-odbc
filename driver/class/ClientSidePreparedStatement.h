@@ -87,6 +87,9 @@ public:
   }
   bool hasMoreResults();
   void moveToNextResult();
+  bool setParamCallback(ParamCodec* callback, uint32_t param) { return true; }
+  bool setResultCallback(result_callback callback, uint32_t column) { return true; }
+  bool setCallbackData(void* data){ return true; }
   //SQLString toString();
 };
 }

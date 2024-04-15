@@ -1087,6 +1087,11 @@ SQLRETURN MA_SQLExecute(SQLHSTMT StatementHandle)
   {
     return MADB_FromException(Stmt->Error, e);
   }
+  catch (MADB_Error &Err)
+  {
+    // Assuming that this is Err from the handle, and we do not need to copy anything
+    return Err.ReturnValue;
+  }
   catch (const std::bad_alloc&)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
@@ -1171,6 +1176,11 @@ SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle)
   {
     MDBUG_C_RETURN(Stmt->Connection, MADB_FromException(Stmt->Error, e), &Stmt->Error);
   }
+  catch (MADB_Error &Err)
+  {
+    // Assuming that this is Err from the handle, and we do not need to copy anything
+    return Err.ReturnValue;
+  }
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -1196,6 +1206,11 @@ SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
   catch (SQLException &e)
   {
     MDBUG_C_RETURN(Stmt->Connection, MADB_FromException(Stmt->Error, e), &Stmt->Error);
+  }
+  catch (MADB_Error &Err)
+  {
+    // Assuming that this is Err from the handle, and we do not need to copy anything
+    return Err.ReturnValue;
   }
   return SQL_SUCCESS;
 }
@@ -1520,6 +1535,11 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   try
   {
     return Stmt->Methods->GetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr, FALSE);
+  }
+  catch (MADB_Error &Err)
+  {
+    // Assuming that this is Err from the handle, and we do not need to copy anything
+    return Err.ReturnValue;
   }
   catch (std::bad_alloc &/*e*/)
   {

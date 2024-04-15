@@ -838,9 +838,20 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER Dat
 }
 
 
-void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN RowNumber, size_t PtrSize)
+std::size_t getArrayStep(MADB_Header& header, std::size_t pointedSize)
 {
-  size_t BindOffset= 0;
+  if (header.BindType == SQL_BIND_BY_COLUMN ||
+    header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+  {
+    return pointedSize;
+  }
+  return header.BindType;
+}
+
+
+void* GetBindOffset(MADB_Header& Header, void* Ptr, SQLULEN RowNumber, std::size_t PtrSize)
+{
+  std::size_t BindOffset= 0;
 
   /* This is not quite clear - I'd imagine, that if BindOffset is set, then Ptr can be NULL.
      Makes perfect sense in case of row-based binding - setting pointers to offset in structure, and BindOffset to the begin of array.
@@ -849,20 +860,20 @@ void *GetBindOffset(MADB_Desc *Desc, MADB_DescRecord *Record, void *Ptr, SQLULEN
   {
     return NULL;
   }
-  if (Desc->Header.BindOffsetPtr != NULL)
+  if (Header.BindOffsetPtr != NULL)
   {
-    BindOffset= (size_t)*Desc->Header.BindOffsetPtr;
+    BindOffset= (std::size_t)*Header.BindOffsetPtr;
   }
 
   /* row wise binding */
-  if (Desc->Header.BindType == SQL_BIND_BY_COLUMN ||
-    Desc->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
+  if (Header.BindType == SQL_BIND_BY_COLUMN ||
+    Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
   {
     BindOffset+= PtrSize * RowNumber;
   }
   else
   {
-    BindOffset+= Desc->Header.BindType * RowNumber;
+    BindOffset+= Header.BindType * RowNumber;
   }
 
   return (char *)Ptr + BindOffset;
@@ -876,7 +887,7 @@ BOOL MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec)
 
   for (row= 0; row < Desc->Header.ArraySize; ++row)
   {
-    IndicatorPtr= (SQLLEN *)GetBindOffset(Desc, Rec, Rec->IndicatorPtr, row, sizeof(SQLLEN));
+    IndicatorPtr= (SQLLEN *)GetBindOffset(Desc->Header, Rec->IndicatorPtr, row, sizeof(SQLLEN));
 
     if (IndicatorPtr == NULL || *IndicatorPtr != SQL_COLUMN_IGNORE)
     {
@@ -902,7 +913,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
 {
   char *p;
   SQL_NUMERIC_STRUCT *number= dst_buffer != NULL ? dst_buffer :
-    (SQL_NUMERIC_STRUCT *)GetBindOffset(Ard, ArdRecord, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
+    (SQL_NUMERIC_STRUCT *)GetBindOffset(Ard->Header, ArdRecord->DataPtr, RowNumber, ArdRecord->OctetLength);
   int ret= 0;
 
   if (!buffer || !number)
@@ -1190,7 +1201,7 @@ int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumb
       if (Record->OctetLengthPtr)
       {
         /* Stmt->DaeRowNumber is 1 based */
-        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
+        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc->Header, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
         if (PARAM_IS_DAE(OctetLength))
         {
           return i;

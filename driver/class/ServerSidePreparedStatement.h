@@ -28,9 +28,24 @@
 namespace mariadb
 {
 
+  extern "C"
+  {
+    // C/C's callback running param column callbacks 
+    my_bool* defaultParamCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+    // C/C's callback running callback for the row, and then indivivual param column callbacks
+    my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+  }
+
 class ServerSidePreparedStatement : public PreparedStatement
 {
+  friend my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+  friend my_bool* defaultParamCallback(void* data, MYSQL_BIND* binds, uint32_t row_nr);
+
   ServerPrepareResult* serverPrepareResult= nullptr;
+//  ps_param_callback    capiParamCallback=   nullptr;
+  bool paramCallbackSet= false;
+  //This probably won't be needed either
+  ps_result_callback   capiResultCallback=  nullptr;
 
 public:
   ~ServerSidePreparedStatement();
@@ -63,10 +78,8 @@ public:
   bool executeInternal(int32_t fetchSize);
   uint32_t fieldCount() const;
 
-public:
   void close();
 
-public:
   const char* getError();
   uint32_t    getErrno();
   const char* getSqlState();
@@ -80,6 +93,10 @@ public:
   }
   bool hasMoreResults();
   void moveToNextResult();
+
+  bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1));
+  bool setResultCallback(result_callback callback, uint32_t column);
+  bool setCallbackData(void* data);
   };
 }
 #endif

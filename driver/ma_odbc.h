@@ -38,6 +38,7 @@ namespace mariadb
     typedef std::unique_ptr<mariadb::PreparedStatement> PreparedStatement;
     //typedef std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> MYSQL_RES;
     typedef std::unique_ptr<mariadb::Protocol> Protocol;
+    typedef std::unique_ptr<mariadb::ParamCodec> ParamCodec;
   }
 }
 
@@ -281,7 +282,9 @@ private:
   std::mutex cs;
 };
 
+// Stmt has to know few things about connection and descriptor
 #include "ma_connection.h"
+#include "ma_desc.h"
 
 struct MADB_Stmt
 {
@@ -343,9 +346,16 @@ struct MADB_Stmt
   //const SQLString& OriginalQuery() { return Query.Original; }
 
 private:
+  Unique::ParamCodec paramRowCallback;
+  std::vector<Unique::ParamCodec> paramCodec;
   MADB_Stmt()= delete;
   void ProcessRsMetadata();
-  
+
+public:
+  bool setParamRowCallback(ParamCodec* callback);
+  SQLRETURN doBulkOldWay(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, SQLLEN* IndicatorPtr, SQLLEN* OctetLengthPtr, void* DataPtr,
+    MYSQL_BIND* MaBind, unsigned int& IndIdx/* column with indicator array - needed to skip rows */, unsigned int ParamOffset);
+  void setupBulkCallbacks(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, DescArrayIterator& cit, MYSQL_BIND* MaBind);
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);
@@ -388,7 +398,6 @@ void  CloseClientCharset(Client_Charset *cc);
 #include "ma_environment.h"
 #include "ma_connection.h"
 #include "ma_debug.h"
-#include "ma_desc.h"
 #include "ma_statement.h"
 #include "ma_string.h"
 #include "ma_result.h"
@@ -397,6 +406,7 @@ void  CloseClientCharset(Client_Charset *cc);
 #include "ma_server.h"
 #include "ma_typeconv.h"
 #include "ma_bulk.h"
+#include "ma_codec.h"
 
 #include "ma_api_internal.h"
 

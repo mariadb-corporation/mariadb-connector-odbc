@@ -187,7 +187,7 @@ namespace mariadb
         emptyStr,
         nullptr));
 
-    mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_ARRAY_SIZE, (void*)&batchArraySize);
+    mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_ARRAY_SIZE, (void*)&queryParameterSize);
     if (param != nullptr) {
       mysql_stmt_bind_param(serverPrepareResult->getStatementId(), param);
     }
@@ -328,5 +328,105 @@ namespace mariadb
   {
     guard->moveToNextResult(results.get(), serverPrepareResult);
     getResult();
+  }
+
+//----------------------------- For param callbacks ------------------------------
+ 
+  bool ServerSidePreparedStatement::setParamCallback(ParamCodec* callback, uint32_t param)
+  {
+    if (param == uint32_t(-1)) {
+      parRowCallback= callback;
+      if (callback != nullptr) {
+        paramCallbackSet= true;
+        mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
+        return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM,
+          (const void*)withRowCheckCallback);
+      }
+      else {
+        paramCallbackSet= false;
+        // Let's say - NULL as row callbback resets everything. That seems to be least ambiguous behavior
+        mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)NULL);
+        return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM,
+          (const void*)NULL);
+      }
+    }
+    
+    if (param >= serverPrepareResult->getParamCount()) {
+      throw SQLException("Invalid parameter number");
+    }
+
+    parColCodec.insert({param, callback});
+    if (!paramCallbackSet) {
+      // Needed not to overwrite callback with row check
+      paramCallbackSet= true;
+      mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
+      return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM, (const void*)defaultParamCallback);
+    }
+    return false;
+  }
+
+  const my_bool error= '\1';
+
+  my_bool* defaultParamCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr)
+  {
+    // We can't let the callback to throw - we have to intercept, as otherwise we are guaranteed to have
+    // the protocol broken
+    try
+    {
+      ServerSidePreparedStatement *stmt= reinterpret_cast<ServerSidePreparedStatement*>(data);
+
+      for (uint32_t i= 0; i < stmt->getParamCount(); ++i) {
+        auto& it= stmt->parColCodec.find(i);
+        /* Let's assume for now, that each column has to have a codec. But still we don't use vector and don't throw exception if not all of them have
+       * For such columns we could assume, that we have normal arrays that we need to pass, and this function could do that simple job instead of callback.
+       * But indicator arrow would still be needed. Thus maybe callback is still better. Another option could be - using default value(indicator for that)
+       * But here there is another problem - the common "row" callback could take care of such columns
+       * More likely that app will need to use array
+       */
+        if (it != stmt->parColCodec.end()) {
+          if ((*it->second)(stmt->callbackData, bind + i, i, row_nr)) {
+            return (my_bool*)&error;
+          }
+        }
+      }
+    }
+    catch (...)
+    {
+      return (my_bool*)&error;
+    }
+    return NULL;
+  }
+
+
+  my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr)
+  {
+    // We can't let the callback to throw - we have to intercept, as otherwise we are guaranteed to have
+    // the protocol broken
+    try
+    {
+      ServerSidePreparedStatement *stmt= reinterpret_cast<ServerSidePreparedStatement*>(data);
+      // Let's assume, that this callback should not be set if our callback is NULL
+      if ((*stmt->parRowCallback)(stmt->callbackData, bind, -1, row_nr))
+      {
+        return (my_bool*)&error;
+      }
+      return defaultParamCallback(data, bind, row_nr);
+    }
+    catch (...)
+    {
+      return (my_bool*)&error;
+    }
+    return NULL;
+  }
+
+  bool ServerSidePreparedStatement::setResultCallback(result_callback callback, uint32_t column)
+  {
+    return false;
+  }
+  bool ServerSidePreparedStatement::setCallbackData(void * data)
+  {
+    callbackData= data;
+    // if C/C does not support callbacks 
+    return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
   }
 } // namespace mariadb

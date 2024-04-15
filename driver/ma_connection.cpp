@@ -247,7 +247,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
       {
         /* IsAnsi will be set before this, even if it is set before connection
            StringLength from DM here is octets length */
-        CatalogName= MADB_ConvertFromWCharEx((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), nullptr, ConnOrSrcCharset, nullptr, TRUE);
+        CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), nullptr, ConnOrSrcCharset, nullptr, true);
       }
       else
       {

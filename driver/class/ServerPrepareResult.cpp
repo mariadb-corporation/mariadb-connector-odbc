@@ -237,31 +237,6 @@ namespace mariadb
   //}
 
 
-  //uint8_t paramRowUpdateCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr)
-  //{
-  //  static char indicator[]{'\0', STMT_INDICATOR_NULL};
-  //  std::size_t i= 0;
-  //  std::vector<Unique::ParameterHolder>& paramSet= (*static_cast<std::vector<std::vector<Unique::ParameterHolder>>*>(data))[row_nr];
-
-  //  for (auto& param : paramSet) {
-  //    if (param->isNullData()) {
-  //      bind[i].u.indicator= &indicator[1];
-  //      ++i;
-  //      continue;
-  //    }
-  //    bind[i].u.indicator = &indicator[0];
-  //    if (param->isUnsigned()) {
-  //      bind[i].is_unsigned = '\1';
-  //    }
-
-  //    bind[i].buffer = param->getValuePtr();
-  //    bind[i].buffer_length = param->getValueBinLen();
-  //    ++i;
-  //  }
-  //  return '\0';
-  //}
- 
-
   //void ServerPrepareResult::bindParameters(MYSQL_BIND* paramValue, const int16_t* type)
   //{
   //  uint32_t i= 0;

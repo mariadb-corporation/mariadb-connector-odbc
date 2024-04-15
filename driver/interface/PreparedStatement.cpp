@@ -26,6 +26,8 @@
 
 namespace mariadb
 {
+  /*const*/ char paramIndicatorNone= '\0', paramIndicatorNull= STMT_INDICATOR_NULL, paramIndicatorNts= STMT_INDICATOR_NTS, paramIndicatorIgnore= STMT_INDICATOR_IGNORE,
+    paramIndicatorIgnoreRow= STMT_INDICATOR_IGNORE_ROW;
   /**
    * Constructor. Base class that permits setting parameters for client and server PrepareStatement.
    *
@@ -143,7 +145,7 @@ namespace mariadb
 
   std::size_t PreparedStatement::getParamCount()
   {
-      return getPrepareResult()->getParamCount();
+    return getPrepareResult()->getParamCount();
   }
 
   const mariadb::Longs& PreparedStatement::executeBatch()

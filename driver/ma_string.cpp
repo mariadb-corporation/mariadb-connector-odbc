@@ -124,7 +124,7 @@ bool MADB_DynStrUpdateSet(MADB_Stmt* Stmt, SQLString& DynString)
     SQLLEN *IndicatorPtr= nullptr;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
     if (Record->IndicatorPtr)
-      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard, Record, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber-1 : 0,
+      IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard->Header, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber-1 : 0,
                                             sizeof(SQLLEN)/*Record->OctetLength*/);
     if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
     {
@@ -397,14 +397,6 @@ my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString)
   return FALSE;
 }
 
-/* {{{ MADB_ConvertFromWChar
-       Length gets number of written bytes including TN (if WstrCharLen == -1 or SQL_NTS or if WstrCharLen includes
-       TN in the Wstr) */
-char* MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULEN *Length/*Bytes*/, Client_Charset *cc, BOOL *Error)
-{
-  return MADB_ConvertFromWCharEx(Wstr, WstrCharLen, Length, cc, Error, FALSE);
-}
-/* }}} */
 
 my_bool MADB_ValidateStmt(MADB_QUERY *Query)
 {

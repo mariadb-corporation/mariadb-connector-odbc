@@ -73,7 +73,7 @@ ODBC_TEST(t_bulk_insert_test)
   double d[2]= {1.23, 3.45}, res_d[2];
   SQLLEN indicator[2]= {SQL_NTS, SQL_NTS};
   SQLLEN b_indicator[2]= {0,0};
-  SQLLEN d_indicator[2]= {0,0};
+  SQLLEN d_indicator[2]= {0,0}, nLen;
   size_t i= 0;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bulk_insert");
@@ -93,8 +93,10 @@ ODBC_TEST(t_bulk_insert_test)
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_DOUBLE, 0, 0, &d[0], 8, d_indicator));
   
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nLen));
+  is_num(2, nLen);
 
-  CHECK_DBC_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, 0));
+  CHECK_DBC_RC(Stmt, SQLEndTran(SQL_HANDLE_DBC, Connection, SQL_COMMIT));
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)1, 0));
   OK_SIMPLE_STMT(Stmt, "SELECT a,b,d FROM t_bulk_insert");

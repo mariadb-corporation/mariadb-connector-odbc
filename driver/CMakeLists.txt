@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2020 MariaDB Corporation AB
+#   Copyright (C) 2020,2024 MariaDB Corporation plc
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -46,6 +46,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           ma_legacy_helpers.cpp
                           ma_typeconv.cpp
                           ma_bulk.cpp
+                          ma_codec.cpp
 #                          class/SQLString.cpp
                           class/Results.cpp
                           class/TextRow.cpp
@@ -98,6 +99,7 @@ IF(WIN32)
                           ma_legacy_helpers.h
                           ma_typeconv.h
                           ma_bulk.h
+                          ma_codec.h
                           ma_c_stuff.h
                           class/SQLString.h
                           class/Results.h

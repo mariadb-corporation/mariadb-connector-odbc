@@ -36,6 +36,7 @@ namespace mariadb
   class ColumnDefinition;
   class ResultSet;
   class PreparedStatement;
+  class ParamCodec;
 
   namespace Shared
   {

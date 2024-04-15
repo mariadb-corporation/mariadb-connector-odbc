@@ -22,14 +22,15 @@
 #include "ma_odbc.h"
 
 /* Borrowed from C/C and adapted */
-SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Interval, MADB_Error *Error, BOOL *isTime)
+void MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, bool Interval, MADB_Error *Error, bool *isTime)
 {
   char *localCopy= static_cast<char*>(MADB_ALLOC(Length + 1)), *Start= localCopy, *Frac, *End= Start + Length;
   my_bool isDate= 0;
 
-  if (Start == NULL)
+  if (Start == nullptr)
   {
-    return MADB_SetError(Error, MADB_ERR_HY001, NULL, 0);
+    MADB_SetError(Error, MADB_ERR_HY001, nullptr, 0);
+    throw *Error;
   }
 
   memset(Tm, 0, sizeof(MYSQL_TIME));
@@ -40,7 +41,7 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Inter
 
   if (Length == 0)
   {
-    goto end;//MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+    goto end;//MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
   }  
 
   /* Determine time type:
@@ -52,7 +53,8 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Inter
   {
     if (sscanf(Start, "%d-%u-%u", &Tm->year, &Tm->month, &Tm->day) < 3)
     {
-      return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
+      throw *Error;
     }
     isDate= 1;
     if (!(Start= strchr(Start, ' ')))
@@ -67,17 +69,18 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Inter
 
   if (isDate == 0)
   {
-    *isTime= 1;
+    *isTime= true;
   }
 
-  if ((Frac= strchr(Start, '.')) != NULL) /* fractional seconds */
+  if ((Frac= strchr(Start, '.')) != nullptr) /* fractional seconds */
   {
     size_t FracMulIdx= End - (Frac + 1) - 1/*to get index array index */;
     /* ODBC - nano-seconds */
     if (sscanf(Start, "%d:%u:%u.%6lu", &Tm->hour, &Tm->minute,
       &Tm->second, &Tm->second_part) < 4)
     {
-      return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
+      throw *Error;
     }
     /* 9 digits up to nano-seconds, and -1 since comparing with arr idx  */
     if (FracMulIdx < 6 - 1)
@@ -91,12 +94,13 @@ SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Inter
     if (sscanf(Start, "%d:%u:%u", &Tm->hour, &Tm->minute,
       &Tm->second) < 3)
     {
-      return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
+      throw *Error;
     }
   }
 
 check:
-  if (Interval == FALSE)
+  if (!Interval)
   {
     if (isDate)
     {
@@ -116,11 +120,10 @@ check:
 
 end:
   MADB_FREE(localCopy);
-  return SQL_SUCCESS;
 }
 
 /* {{{ MADB_ConversionSupported */
-BOOL MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To)
+bool MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To)
 {
   switch (From->ConciseType)
   {
@@ -133,18 +136,18 @@ BOOL MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To)
 
     if (To->Type == SQL_INTERVAL)
     {
-      return FALSE;
+      return false;
     }
 
   }
-  return TRUE;
+  return true;
 }
 /* }}} */
 
 /* {{{ MADB_ConvertCharToBit */
 char MADB_ConvertCharToBit(MADB_Stmt *Stmt, char *src)
 {
-  char *EndPtr= NULL;
+  char *EndPtr= nullptr;
   float asNumber= strtof(src, &EndPtr);
 
   if (asNumber < 0 || asNumber > 1)
@@ -155,7 +158,7 @@ char MADB_ConvertCharToBit(MADB_Stmt *Stmt, char *src)
   {
     /* 22001 */
   }
-  else if (EndPtr != NULL && *EndPtr != '\0')
+  else if (EndPtr != nullptr && *EndPtr != '\0')
   {
     /* 22018. TODO: check if condition is correct */
   }
@@ -277,7 +280,7 @@ BOOL MADB_ProcessIndicator(MADB_Stmt *Stmt, SQLLEN Indicator, char * DefaultValu
   switch (Indicator)
   {
   case SQL_COLUMN_IGNORE:
-    if (DefaultValue == NULL)
+    if (DefaultValue == nullptr)
     {
       MADB_ConvertNullValue(Stmt, MaBind);
     }
@@ -301,7 +304,7 @@ BOOL MADB_ProcessIndicator(MADB_Stmt *Stmt, SQLLEN Indicator, char * DefaultValu
 SQLLEN MADB_CalculateLength(MADB_Stmt *Stmt, SQLLEN *OctetLengthPtr, MADB_DescRecord *CRec, void* DataPtr)
 {
   /* If no OctetLengthPtr was specified, or OctetLengthPtr is SQL_NTS character
-     are considered to be NULL binary data are null terminated */
+     are considered to be nullptr binary data are null terminated */
   if (!OctetLengthPtr || *OctetLengthPtr == SQL_NTS)
   {
     /* Meaning of Buffer Length is not quite clear in specs. Thus we treat in the way, that does not break
@@ -334,14 +337,14 @@ SQLLEN MADB_CalculateLength(MADB_Stmt *Stmt, SQLLEN *OctetLengthPtr, MADB_DescRe
 /* {{{ MADB_GetBufferForSqlValue */
 void* MADB_GetBufferForSqlValue(MADB_Stmt *Stmt, MADB_DescRecord *CRec, size_t Size)
 {
-  if (Stmt->RebindParams || CRec->InternalBuffer == NULL)
+  if (Stmt->RebindParams || CRec->InternalBuffer == nullptr)
   {
     MADB_FREE(CRec->InternalBuffer);
     CRec->InternalBuffer= static_cast<char*>(MADB_CALLOC(Size));
-    if (CRec->InternalBuffer == NULL)
+    if (CRec->InternalBuffer == nullptr)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-      return NULL;
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
+      return nullptr;
     }
   }
 
@@ -359,11 +362,11 @@ SQLRETURN MADB_Wchar2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, 
 
   /* conn cs ? */
   CRec->InternalBuffer= MADB_ConvertFromWChar((SQLWCHAR *)DataPtr, (SQLINTEGER)(Length / sizeof(SQLWCHAR)),
-    &mbLength, &Stmt->Connection->Charset, NULL);
+    &mbLength, &Stmt->Connection->Charset, nullptr);
 
-  if (CRec->InternalBuffer == NULL)
+  if (CRec->InternalBuffer == nullptr)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
   }
 
   *LengthPtr= (unsigned long)mbLength;
@@ -382,11 +385,11 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
   switch (SqlRec->Type)
   {
     case SQL_BIT:
-      if (*Buffer == NULL)
+      if (*Buffer == nullptr)
       {
         CRec->InternalBuffer= (char *)MADB_GetBufferForSqlValue(Stmt, CRec, MaBind->buffer_length);
 
-        if (CRec->InternalBuffer == NULL)
+        if (CRec->InternalBuffer == nullptr)
         {
           return Stmt->Error.ReturnValue;
         }
@@ -401,12 +404,12 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
   {
     MYSQL_TIME Tm;
     SQL_TIMESTAMP_STRUCT Ts;
-    BOOL isTime;
+    bool isTime;
 
     /* Enforcing constraints on date/time values */
-    RETURN_ERROR_OR_CONTINUE(MADB_Str2Ts(static_cast<char*>(DataPtr), Length, &Tm, FALSE, &Stmt->Error, &isTime));
+    MADB_Str2Ts(static_cast<char*>(DataPtr), Length, &Tm, FALSE, &Stmt->Error, &isTime);
     MADB_CopyMadbTimeToOdbcTs(&Tm, &Ts);
-    RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime));
+    MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime);
     /* To stay on the safe side - still sending as string in the default branch */
   }
   default:
@@ -430,7 +433,7 @@ SQLRETURN MADB_Numeric2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr
   /* We might need to preserve this pointer to be able to later release the memory */
   CRec->InternalBuffer= (char *)MADB_GetBufferForSqlValue(Stmt, CRec, MADB_CHARSIZE_FOR_NUMERIC);
 
-  if (CRec->InternalBuffer == NULL)
+  if (CRec->InternalBuffer == nullptr)
   {
     return Stmt->Error.ReturnValue;
   }
@@ -439,7 +442,7 @@ SQLRETURN MADB_Numeric2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr
   p->scale= (SQLSCHAR)SqlRec->Scale;
   p->precision= (SQLSCHAR)SqlRec->Precision;
 
-  *LengthPtr= (unsigned long)MADB_ConvertNumericToChar((SQL_NUMERIC_STRUCT *)p, CRec->InternalBuffer, &ErrorCode);;
+  *LengthPtr= (unsigned long)MADB_ConvertNumericToChar(p, CRec->InternalBuffer, &ErrorCode);
   *Buffer= CRec->InternalBuffer;
 
   MaBind->buffer_type= MYSQL_TYPE_STRING;
@@ -447,7 +450,7 @@ SQLRETURN MADB_Numeric2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr
   if (ErrorCode)
   {
     /*TODO: I guess this parameters row should be skipped */
-    return MADB_SetError(&Stmt->Error, ErrorCode, NULL, 0);
+    return MADB_SetError(&Stmt->Error, ErrorCode, nullptr, 0);
   }
 
   return SQL_SUCCESS;
@@ -455,7 +458,7 @@ SQLRETURN MADB_Numeric2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr
 /* }}} */
 
 /* {{{ MADB_TsConversionIsPossible */
-SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, int isTime)
+void MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, bool isTime)
 {
   /* I think instead of MADB_ERR_22008 there should be also SqlState */
   switch (SqlType)
@@ -464,23 +467,25 @@ SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlT
   case SQL_TYPE_TIME:
     if (ts->fraction)
     {
-      return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
+      throw *Error;
     }
     break;
   case SQL_DATE:
   case SQL_TYPE_DATE:
     if (ts->hour + ts->minute + ts->second + ts->fraction)
     {
-      return MADB_SetError(Error, MADB_ERR_22008, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
+      throw *Error;
     }
   default:
-    /* This only would be good for SQL_TYPE_TIME. If C type is time(isTime!=0), and SQL type is timestamp, date fields may be NULL - driver should set them to current date */
-    if ((isTime == 0 && ts->year == 0) || ts->month == 0 || ts->day == 0)
+    /* This only would be good for SQL_TYPE_TIME. If C type is time(isTime!=0), and SQL type is timestamp, date fields may be nullptr - driver should set them to current date */
+    if ((!isTime && ts->year == 0) || ts->month == 0 || ts->day == 0)
     {
-      return MADB_SetError(Error, SqlState, NULL, 0);
+      MADB_SetError(Error, SqlState, nullptr, 0);
+      throw *Error;
     }
   }
-  return SQL_SUCCESS;
 }
 /* }}} */
 
@@ -488,15 +493,15 @@ SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlT
 SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
   MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr)
 {
-  MYSQL_TIME           *tm= NULL;
+  MYSQL_TIME           *tm= nullptr;
   SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
-  RETURN_ERROR_OR_CONTINUE(MADB_TsConversionIsPossible(ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22007, 0));
+  MADB_TsConversionIsPossible(ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22007, false);
 
-  if (*Buffer == NULL)
+  if (*Buffer == nullptr)
   {
     tm= (MYSQL_TIME*)MADB_GetBufferForSqlValue(Stmt, CRec, sizeof(MYSQL_TIME));
-    if (tm == NULL)
+    if (tm == nullptr)
     {
       /* Error is set in function responsible for allocation */
       return Stmt->Error.ReturnValue;
@@ -514,7 +519,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
 
   switch (SqlRec->ConciseType) {
   case SQL_TYPE_DATE:
-    if (ts->hour + ts->minute + ts->second + ts->fraction != 0)
+    if (ts->hour || ts->minute || ts->second || ts->fraction)
     {
       return MADB_SetError(&Stmt->Error, MADB_ERR_22008, "Time fields are nonzero", 0);
     }
@@ -555,20 +560,20 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
 SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
   MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr)
 {
-  MYSQL_TIME      *tm= NULL;
+  MYSQL_TIME      *tm= nullptr;
   SQL_TIME_STRUCT *ts= (SQL_TIME_STRUCT *)DataPtr;
 
   if ((SqlRec->ConciseType == SQL_TYPE_TIME || SqlRec->ConciseType == SQL_TYPE_TIMESTAMP ||
     SqlRec->ConciseType == SQL_TIME || SqlRec->ConciseType == SQL_TIMESTAMP || SqlRec->ConciseType == SQL_DATETIME) &&
     !VALID_TIME(ts))
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_22007, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_22007, nullptr, 0);
   }
 
-  if (*Buffer == NULL)
+  if (*Buffer == nullptr)
   {
     tm= (MYSQL_TIME*)MADB_GetBufferForSqlValue(Stmt, CRec, sizeof(MYSQL_TIME));
-    if (tm == NULL)
+    if (tm == nullptr)
     {
       /* Error is set in function responsible for allocation */
       return Stmt->Error.ReturnValue;
@@ -586,7 +591,7 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
     time_t sec_time;
     struct tm * cur_tm;
 
-    sec_time= time(NULL);
+    sec_time= time(nullptr);
     cur_tm= localtime(&sec_time);
 
     tm->year= 1900 + cur_tm->tm_year;
@@ -623,13 +628,13 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
 SQLRETURN MADB_IntervalHtoMS2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
   MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr)
 {
-  MYSQL_TIME          *tm= NULL;
+  MYSQL_TIME          *tm= nullptr;
   SQL_INTERVAL_STRUCT *is= (SQL_INTERVAL_STRUCT *)DataPtr;
 
-  if (*Buffer == NULL)
+  if (*Buffer == nullptr)
   {
     tm= (MYSQL_TIME*)MADB_GetBufferForSqlValue(Stmt, CRec, sizeof(MYSQL_TIME));
-    if (tm == NULL)
+    if (tm == nullptr)
     {
       /* Error is set in function responsible for allocation */
       return Stmt->Error.ReturnValue;
@@ -659,13 +664,13 @@ SQLRETURN MADB_IntervalHtoMS2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* D
 SQLRETURN MADB_Date2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
   MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr)
 {
-  MYSQL_TIME      *tm= NULL, **BuffPtr= (MYSQL_TIME**)Buffer;
+  MYSQL_TIME      *tm= nullptr, **BuffPtr= (MYSQL_TIME**)Buffer;
   SQL_DATE_STRUCT *ts= (SQL_DATE_STRUCT *)DataPtr;
 
-  if (*BuffPtr == NULL)
+  if (*BuffPtr == nullptr)
   {
     tm= (MYSQL_TIME*)MADB_GetBufferForSqlValue(Stmt, CRec, sizeof(MYSQL_TIME));
-    if (tm == NULL)
+    if (tm == nullptr)
     {
       /* Error is set in function responsible for allocation */
       return Stmt->Error.ReturnValue;
@@ -695,12 +700,12 @@ SQLRETURN MADB_Date2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
 SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
                             MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr)
 {
-  if (Buffer == NULL)
+  if (Buffer == nullptr)
   {
-    MaBind->buffer= NULL;
+    MaBind->buffer= nullptr;
     Buffer= &MaBind->buffer;
   }
-  if (LengthPtr == NULL)
+  if (LengthPtr == nullptr)
   {
     LengthPtr= &MaBind->buffer_length;
   }
@@ -733,8 +738,6 @@ SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPt
     RETURN_ERROR_OR_CONTINUE(MADB_Date2Sql(Stmt, CRec, DataPtr, Length, SqlRec, MaBind, Buffer, LengthPtr));
     break;
   default:
-    /* memset(MaBind, 0, sizeof(MYSQL_BIND));
-    MaBind->buffer_length= 0; */
     MaBind->buffer_type=   MYSQL_TYPE_DECIMAL;/*0*/
     MaBind->is_unsigned=   0;
 
@@ -757,13 +760,13 @@ SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPt
 /* Main entrance function for C type to SQL type conversion*/
 SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *SqlRec, SQLULEN ParamSetIdx, MYSQL_BIND *MaBind)
 {
-  SQLLEN *IndicatorPtr= NULL;
-  SQLLEN *OctetLengthPtr= NULL;
-  void   *DataPtr= NULL;
+  SQLLEN *IndicatorPtr= nullptr;
+  SQLLEN *OctetLengthPtr= nullptr;
+  void   *DataPtr= nullptr;
   SQLLEN  Length= 0;
 
-  IndicatorPtr=   (SQLLEN *)GetBindOffset(Stmt->Apd, CRec, CRec->IndicatorPtr, ParamSetIdx, sizeof(SQLLEN));
-  OctetLengthPtr= (SQLLEN *)GetBindOffset(Stmt->Apd, CRec, CRec->OctetLengthPtr, ParamSetIdx, sizeof(SQLLEN));
+  IndicatorPtr=   (SQLLEN *)GetBindOffset(Stmt->Apd->Header, CRec->IndicatorPtr, ParamSetIdx, sizeof(SQLLEN));
+  OctetLengthPtr= (SQLLEN *)GetBindOffset(Stmt->Apd->Header, CRec->OctetLengthPtr, ParamSetIdx, sizeof(SQLLEN));
 
   if (PARAM_IS_DAE(OctetLengthPtr))
   {
@@ -787,9 +790,9 @@ SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *Sq
 
   /* -- Special cases are done, i.e. not a DAE etc, general case -- */
  
-  DataPtr= GetBindOffset(Stmt->Apd, CRec, CRec->DataPtr, ParamSetIdx, CRec->OctetLength);
+  DataPtr= GetBindOffset(Stmt->Apd->Header, CRec->DataPtr, ParamSetIdx, CRec->OctetLength);
 
-  /* If indicator wasn't NULL_DATA, but data pointer is still NULL, we convert NULL value */
+  /* If indicator wasn't NULL_DATA, but data pointer is still nullptr, we convert nullptr value */
   if (!DataPtr)
   {
     return MADB_ConvertNullValue(Stmt, MaBind);
@@ -797,7 +800,7 @@ SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *Sq
   
   Length= MADB_CalculateLength(Stmt, OctetLengthPtr, CRec, DataPtr);
 
-  RETURN_ERROR_OR_CONTINUE(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, Length, SqlRec, MaBind, NULL, NULL));
+  RETURN_ERROR_OR_CONTINUE(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, Length, SqlRec, MaBind, nullptr, nullptr));
   /* We need it in case SUCCESS_WITH_INFO was set */
   return Stmt->Error.ReturnValue;
 }

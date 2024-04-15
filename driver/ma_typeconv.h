@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2017 MariaDB Corporation AB
+   Copyright (C) 2017,2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -25,7 +25,8 @@
 #define VALID_TIME(PTR2TM_OR_TS) (PTR2TM_OR_TS->hour < 24 && PTR2TM_OR_TS->minute < 60 && PTR2TM_OR_TS->second < 60)
 /* 39 - max 16byte number lenght + 1 for sign + 1 for dot + 1 for + scale up to 38 \0 */
 #define MADB_CHARSIZE_FOR_NUMERIC 80
-BOOL      MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To);
+bool      MADB_ConversionSupported(MADB_DescRecord *From, MADB_DescRecord *To);
+char      MADB_ConvertCharToBit(MADB_Stmt *Stmt, char *src);
 size_t    MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int *ErrorCode);
 SQLLEN    MADB_CalculateLength(MADB_Stmt *Stmt, SQLLEN *OctetLengthPtr, MADB_DescRecord *CRec, void* DataPtr);
 SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *SqlRec, SQLULEN ParamSetIdx, MYSQL_BIND *bind);
@@ -48,7 +49,7 @@ SQLRETURN MADB_Date2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
 SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
                             MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr);
 
-SQLRETURN MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, int isTime);
-SQLRETURN MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, BOOL Interval, MADB_Error *Error, BOOL *isTime);
+void      MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, bool isTime);
+void      MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, bool Interval, MADB_Error *Error, bool *isTime);
 
 #endif

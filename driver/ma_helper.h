@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,7 +24,7 @@ void MADB_NewStmtHandle(MADB_Stmt *Stmt);
 bool QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount);
-MYSQL_RES *MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
+MYSQL_RES* MADB_ReadDefaultValues(MADB_Dbc *Dbc, const char *Catalog, const char *TableName);
 int MADB_GetDefaultType(int SQLDataType);
 void MADB_CopyOdbcTsToMadbTime(SQL_TIMESTAMP_STRUCT *Src, MYSQL_TIME *Dst);
 void MADB_CopyMadbTimeToOdbcTs(MYSQL_TIME *Src, SQL_TIMESTAMP_STRUCT *Dst);
@@ -52,7 +52,8 @@ size_t  MADB_GetOctetLength(const MYSQL_FIELD *Field, unsigned short MaxCharLen)
 const char *  MADB_GetTypeName(const MYSQL_FIELD *Field);
 
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
-void *  GetBindOffset(MADB_Desc *Ard, MADB_DescRecord *ArdRecord, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
+std::size_t getArrayStep(MADB_Header& header, std::size_t pointedSize);
+void *  GetBindOffset(MADB_Header& DescHeader, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
 BOOL    MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);
 
 SQLRETURN     MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);

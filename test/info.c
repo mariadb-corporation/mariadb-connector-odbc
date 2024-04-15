@@ -44,12 +44,28 @@ ODBC_TEST(sqlgetinfo)
 {
   SQLCHAR   rgbValue[100];
   SQLSMALLINT pcbInfo;
+  //SQLUSMALLINT supported= SQL_FALSE, v2[100], v3[SQL_API_ODBC3_ALL_FUNCTIONS_SIZE];
 
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_ODBC_VER, rgbValue,
                           sizeof(rgbValue), &pcbInfo));
 
   is_num(pcbInfo, 5);
   IS_STR(rgbValue, "03.80", 5);
+
+  /*SQLGetFunctions(Connection, SQL_API_SQLSETCURSORNAME, &supported);
+
+  SQLGetFunctions(Connection, SQL_API_ALL_FUNCTIONS, v2);
+
+  SQLGetFunctions(Connection, SQL_API_ODBC3_ALL_FUNCTIONS, v3);
+
+  if (supported == SQL_TRUE)
+  {
+    if (SQL_FUNC_EXISTS(v3, SQL_API_SQLSETCURSORNAME)  == SQL_TRUE && v2[SQL_API_SQLSETCURSORNAME] == SQL_TRUE)
+    {
+      supported= 2;
+    }
+
+  }*/
 
   return OK;
 }

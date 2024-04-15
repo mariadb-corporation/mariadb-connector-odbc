@@ -62,6 +62,34 @@ SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
     SQLSMALLINT *NullablePtr,
     int isWChar);
 
-my_bool MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr);
+bool MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr);
+
+class DescArrayIterator
+{
+  MADB_DescRecord* descRec;
+  void* valuePtr= nullptr;
+  std::size_t valueOffset= 0;
+  void* endPtr= nullptr;
+  SQLLEN* octetLengthPtr= nullptr;
+  SQLLEN* indicatorPtr= nullptr;
+  std::size_t lengthOffset= sizeof(SQLLEN);
+
+public:
+  DescArrayIterator(MADB_Header& header, MADB_DescRecord& rec, SQLSMALLINT i);
+  DescArrayIterator(MADB_DescRecord& rec, void* val, std::size_t valOffset, SQLLEN* len, SQLLEN* ind, std::size_t lenOffset, std::size_t arrSize);
+  inline void* next() {
+    octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + lengthOffset);
+    if (indicatorPtr) {
+      indicatorPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(indicatorPtr) + lengthOffset);
+    }
+    return (valuePtr= (void*)((char*)valuePtr + valueOffset));
+  }
+  inline void*   value()    { return valuePtr;       }
+  inline SQLLEN* length()   { return octetLengthPtr; }
+  inline SQLLEN* indicator(){ return indicatorPtr;   }
+  inline void*   end()      { return endPtr;         }
+
+  inline MADB_DescRecord* getDescRec() { return descRec; }
+};
 
 #endif /* _ma_desc_h_ */
