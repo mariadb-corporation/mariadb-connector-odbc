@@ -479,11 +479,9 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
      Append WHERE with Parameter Markers
      In StmtExecute we will call SQLSetPos with update or delete:
      */
-
   if ((CursorName= MADB_ParseCursorName(&Query, &WhereOffset)))
   {
     char *TableName;
-
     /* Make sure we have a delete or update statement
        MADB_QUERY_DELETE and MADB_QUERY_UPDATE defined in the enum to have the same value
        as SQL_UPDATE and SQL_DELETE, respectively */
@@ -510,7 +508,6 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
     {
       goto cleanandexit;
     }
-    
     STMT_STRING(this).assign(StmtStr);
     /* Constructed query we've copied for execution has parameters */
   }

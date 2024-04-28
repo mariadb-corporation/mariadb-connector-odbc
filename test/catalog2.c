@@ -129,18 +129,18 @@ ODBC_TEST(t_bug49660)
 {
   SQLLEN rowsCount;
 
-  OK_SIMPLE_STMT(Stmt, "drop database if exists bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660_r");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug49660_r");
 
-  OK_SIMPLE_STMT(Stmt, "create database bug49660");
-  OK_SIMPLE_STMT(Stmt, "create table bug49660.t_bug49660_r (id int unsigned not null primary key, name varchar(10) not null) ENGINE=InnoDB");
-  OK_SIMPLE_STMT(Stmt, "create table bug49660.t_bug49660 (id int unsigned not null primary key, refid int unsigned not null,"
-                "foreign key t_bug49660fk (id) references bug49660.t_bug49660_r (id)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE bug49660");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug49660.t_bug49660_r (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(10) NOT NULL) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug49660.t_bug49660 (id INT UNSIGNED NOT NULL PRIMARY KEY, refid INT UNSIGNED NOT NULL,"
+                "FOREIGN KEY t_bug49660fk (id) REFERENCES bug49660.t_bug49660_r (id)) ENGINE=InnoDB");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_bug49660_r (id int unsigned not null primary key, name varchar(10) not null) ENGINE=InnoDB");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug49660 (id int unsigned not null primary key, refid int unsigned not null,"
-                "foreign key t_bug49660fk (id) references t_bug49660_r (id)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug49660_r (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(10) NOT NULL) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug49660 (id INT UNSIGNED NOT NULL PRIMARY KEY, refid INT UNSIGNED NOT NULL,"
+                "FOREIGN KEY t_bug49660fk (id) REFERENCES t_bug49660_r (id)) ENGINE=InnoDB");
 
   CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0,
                                 NULL, 0, (SQLCHAR *)"t_bug49660", SQL_NTS));
@@ -152,9 +152,9 @@ ODBC_TEST(t_bug49660)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop database if exists bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660_r");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug49660_r");
 
   return OK;
 }
