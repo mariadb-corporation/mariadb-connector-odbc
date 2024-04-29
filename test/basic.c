@@ -1869,12 +1869,17 @@ ODBC_TEST(t_odbc384)
 }
 #endif
 
-/* ODBC-377 Timeout attributes have no effect. We don't support CONNECT_TIMEOUT(our C/C CONNECT_TIMEOUT is ODBC LOGINE_TIMEOUT attr) */
+/* ODBC-377 Timeout attributes have no effect. We don't support CONNECT_TIMEOUT(our C/C CONNECT_TIMEOUT is ODBC LOGINE_TIMEOUT attr)
+ * Taking are of ODBC-419 as well - connstring option controling use of the query timeout attribute
+ */
 ODBC_TEST(t_odbc377)
 {
   SQLHDBC  Hdbc;
   SQLHSTMT Hstmt;
   SQLCHAR  Sqlstate[6], ErrMsg[SQL_MAX_MESSAGE_LENGTH];
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc377");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc377(a INT NOT NULL)");
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
@@ -1892,7 +1897,8 @@ ODBC_TEST(t_odbc377)
   CHECK_SQLSTATE_EX(Hdbc, SQL_HANDLE_DBC, "HYT00");
   /* Login timeout from connstring(CONN_TIMEOUT) takes precedence over the one set as attribute */
   CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)1, 0));
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(2)};CONN_TIMEOUT=4");
+  /* QTIMEOUT is 2(enabled for all) by default, but we need to override DS settings */
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(2)};CONN_TIMEOUT=4;QTIMEOUT=2");
   FAIL_IF(Hstmt == NULL, "Timeout shouldn't have occurred");
 
   CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
@@ -1904,8 +1910,17 @@ ODBC_TEST(t_odbc377)
     diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
     return FAIL;
   }
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
+  /* Testing, that not only SELECT statements are affected by the timeout */
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "INSERT INTO t_odbc377 VALUES(SLEEP(2))", SQL_NTS), SQL_ERROR);
+  Sqlstate[0]= '\0';
+  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
+  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0 && (!IsXpand || strncmp(Sqlstate, "HYOOO", 6) != 0))
+  {
+    diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
+    return FAIL;
+  }
   /* Verifying the same(i.e. query timeout works) for the case of prepare + execute */
   CHECK_STMT_RC(Hstmt, SQLPrepare(Hstmt, "SELECT SLEEP(2)", SQL_NTS));
   EXPECT_STMT(Hstmt, SQLExecute(Hstmt), SQL_ERROR);
@@ -1920,7 +1935,39 @@ ODBC_TEST(t_odbc377)
 
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+
+  /* Disabling timeout */
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "QTIMEOUT=0");
+
+  CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
+  OK_SIMPLE_STMT(Hstmt, "SELECT SLEEP(2)");
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  
+  /* Enabling for SELECT's only */
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "QTIMEOUT=1");
+
+  CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
+  /* Should go thru */
+  OK_SIMPLE_STMT(Hstmt, "INSERT INTO t_odbc377 VALUES(SLEEP(2))");
+
+  /* Should time out */
+  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "SELECT SLEEP(2)", SQL_NTS), SQL_ERROR);
+  Sqlstate[0]= '\0';
+  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
+  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0 && (!IsXpand || strncmp(Sqlstate, "HYOOO", 6) != 0))
+  {
+    diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
+    return FAIL;
+  }
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
   CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc377");
+
   return OK;
 }
 

@@ -55,7 +55,7 @@ END
 
 IDD_DIALOG1 DIALOGEX 0, 0, 385, 173
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Create a new Data Source to MariaDB"
+CAPTION "Create a new/edit existing MariaDB Data Source"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     CONTROL         106,IDC_STATIC,"Static",SS_BITMAP,0,0,80,170
@@ -78,25 +78,6 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
     PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
     EDITTEXT        txtDriver,233,7,53,15,ES_AUTOHSCROLL | NOT WS_VISIBLE
-END
-
-Tab_Cursor DIALOGEX 0, 0, 256, 172
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    CONTROL         "Don't cache results of forward only cursors",IDC_CHECK3,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,40,153,10
-    CONTROL         "Force use of forward only cursors",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,55,124,10
-    CONTROL         "Prefetch rows",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,70,61,10
-    CONTROL         "Pad Char to fulllength with SPACE",IDC_CHECK8,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,113,124,10
-    CONTROL         "Return SQL_NULL_DATA for zero date",IDC_CHECK9,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,129,139,10
-END
-
-Tab_Connection DIALOGEX 0, 0, 256, 172
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
-BEGIN
-    CONTROL         "Allow big result sets",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,78,79,10,WS_EX_TRANSPARENT
 END
 
 Page_1 DIALOGEX 0, 0, 299, 182
@@ -133,26 +114,31 @@ BEGIN
     LTEXT           "Do you want to send initial statement(s) after establishing connection to MariaDB?",IDC_STATIC,7,0,264,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtInitCmd,74,11,197,39,ES_MULTILINE | ES_AUTOHSCROLL | WS_VSCROLL
     LTEXT           "Statement(s):",IDC_STATIC,20,11,46,8,0,WS_EX_TRANSPARENT
-    RTEXT           "Timeouts in sec",IDC_STATIC,6,55,60,10,0,WS_EX_TRANSPARENT
-    RTEXT           "Connection:",IDC_STATIC,17,69,39,10,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtConnectionTimeOut,57,68,30,12,ES_AUTOHSCROLL
-    RTEXT           "Read:",IDC_STATIC,89,69,20,10,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtReadTimeOut,110,68,30,12,ES_AUTOHSCROLL
-    RTEXT           "Write:",IDC_STATIC,142,69,22,10,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtWriteTimeOut,165,68,30,12,ES_AUTOHSCROLL
-    CONTROL         "Client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,69,84,10,WS_EX_TRANSPARENT
+    RTEXT           "Timeouts in sec",IDC_STATIC,6,50,60,10,0,WS_EX_TRANSPARENT
+    RTEXT           "Connection:",IDC_STATIC,17,62,39,10,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtConnectionTimeOut,57,61,30,12,ES_AUTOHSCROLL
+    RTEXT           "Read:",IDC_STATIC,89,62,20,10,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtReadTimeOut,110,61,30,12,ES_AUTOHSCROLL
+    RTEXT           "Write:",IDC_STATIC,142,62,22,10,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtWriteTimeOut,165,61,30,12,ES_AUTOHSCROLL
+    CONTROL         "Client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,62,84,10,WS_EX_TRANSPARENT
 
-    CONTROL         "Enable automatic reconnect",ckReconnect,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,83,107,10,WS_EX_TRANSPARENT
-    CONTROL         "Don't prompt when connecting",ckConnectPrompt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,97,113,10,WS_EX_TRANSPARENT
-    CONTROL         "Use compression",ckCompressed,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,83,107,10,WS_EX_TRANSPARENT
-    CONTROL         "Read odbc section from my.cnf",ckUseMycnf,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,97,198,10,WS_EX_TRANSPARENT
+    LTEXT           "Query timeout:",IDC_STATIC,16,75,72,8,0,WS_EX_TRANSPARENT
+    CONTROL         "Enabled for all",rbQtoutEnabled,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,89,75,77,10,WS_EX_TRANSPARENT
+    CONTROL         "SELECT's only",rbQtoutSelects,"Button",BS_AUTORADIOBUTTON,167,75,67,10,WS_EX_TRANSPARENT
+    CONTROL         "Disabled",rbQtoutDisabled,"Button",BS_AUTORADIOBUTTON,235,75,42,10,WS_EX_TRANSPARENT
 
-    COMBOBOX        cbCharset,113,110,160,80,CBS_DROPDOWN | CBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Enable automatic reconnect",ckReconnect,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,87,107,10,WS_EX_TRANSPARENT
+    CONTROL         "Don't prompt when connecting",ckConnectPrompt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,99,113,10,WS_EX_TRANSPARENT
+    CONTROL         "Use compression",ckCompressed,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,87,107,10,WS_EX_TRANSPARENT
+    CONTROL         "Read odbc section from my.cnf",ckUseMycnf,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,99,198,10,WS_EX_TRANSPARENT
+
+    COMBOBOX        cbCharset,113,112,160,80,CBS_DROPDOWN | CBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Connection Character Set:",IDC_STATIC,7,113,96,8,0,WS_EX_TRANSPARENT
 
-    RTEXT           "Server RSA public key:",IDC_STATIC,15,128,88,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtServerKey,113,127,110,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbServerKeyBrowse,224,126,30,14
+    RTEXT           "Server RSA public key:",IDC_STATIC,15,130,88,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtServerKey,113,129,110,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbServerKeyBrowse,224,128,30,14
 
     PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
     PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
@@ -263,6 +249,8 @@ BEGIN
     CONTROL         "Use result conversion callbacks",ckResultCallbacks,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,162,33,105,10,WS_EX_TRANSPARENT
 //    CONTROL         "Prefetch rows",ckPrefetchRows,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,33,61,10,WS_EX_TRANSPARENT
+//    CONTROL         "Pad Char to fulllength with SPACE",IDC_CHECK8,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,113,124,10
+//    CONTROL         "Allow big result sets",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,78,79,10,WS_EX_TRANSPARENT
 END
 
 
@@ -288,29 +276,29 @@ BEGIN
         BOTTOMMARGIN, 173
     END
 
-    Tab_Cursor, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 249
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 163
-    END
+//    Tab_Cursor, DIALOG
+//    BEGIN
+//        LEFTMARGIN, 7
+//        RIGHTMARGIN, 249
+//        TOPMARGIN, 7
+//        BOTTOMMARGIN, 163
+//    END
 
-    Tab_Metadata, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 249
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 163
-    END
+//    Tab_Metadata, DIALOG
+//   BEGIN
+//        LEFTMARGIN, 7
+//       RIGHTMARGIN, 249
+//        TOPMARGIN, 7
+//        BOTTOMMARGIN, 163
+//    END
 
-    Tab_Connection, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 249
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 163
-    END
+//    Tab_Connection, DIALOG
+//    BEGIN
+//        LEFTMARGIN, 7
+//        RIGHTMARGIN, 249
+//        TOPMARGIN, 7
+//        BOTTOMMARGIN, 163
+//    END
 
     Page_1, DIALOG
     BEGIN

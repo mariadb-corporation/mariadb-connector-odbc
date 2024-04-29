@@ -84,6 +84,9 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[39], 2, txtReadTimeOut,       5, 0},
   {&DsnKeys[40], 2, txtWriteTimeOut,      5, 0},
   {&DsnKeys[36], 2, cbInteractive,        0, 0},
+  {&DsnKeys[51], 2, rbQtoutEnabled,       2, 0},
+  {&DsnKeys[51], 2, rbQtoutSelects,       1, 0},
+  {&DsnKeys[51], 2, rbQtoutDisabled,      0, 0},
   {&DsnKeys[14], 2, ckReconnect,          0, 0},
   {&DsnKeys[15], 2, ckConnectPrompt,      0, 0},
   {&DsnKeys[16], 2, cbCharset,            0, 0},
@@ -193,6 +196,9 @@ my_bool SetDialogFields()
     case DSN_TYPE_CBOXGROUP:
       SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
         (*GET_FIELD_PTR(Dsn, DsnMap[i].Key, char) & CBGROUP_BIT(i)) != '\0' ? BST_CHECKED : BST_UNCHECKED, 0);
+    case DSN_TYPE_RBGROUP:
+      SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
+        (*GET_FIELD_PTR(Dsn, DsnMap[i].Key, char) == CBGROUP_BIT(i)) != '\0' ? BST_CHECKED : BST_UNCHECKED, 0);
     }
     i++;
   }
@@ -392,6 +398,11 @@ void GetDialogFields()
       else
       {
         CBGROUP_RESETBIT(Dsn, i);
+      }
+    case DSN_TYPE_RBGROUP:
+      if (IS_CB_CHECKED(i) != '\0')
+      {
+        *GET_FIELD_PTR(Dsn, DsnMap[i].Key, char)= CBGROUP_BIT(i);
       }
     }
     ++i;

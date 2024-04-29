@@ -98,6 +98,7 @@ MADB_DsnKey DsnKeys[]=
   {"MAXCACHEKEY",    offsetof(MADB_Dsn, PsCacheMaxKeyLen),  DSN_TYPE_INT,    0, 0},
   {"PCALLBACK",      offsetof(MADB_Dsn, ParamCallbacks),    DSN_TYPE_BOOL,   0, 0},
   {"RCALLBACK",      offsetof(MADB_Dsn, ResultCallbacks),   DSN_TYPE_BOOL,   0, 0}, /* 50 */
+  {"QTIMEOUT",       offsetof(MADB_Dsn, QueryTimeout),      DSN_TYPE_RBGROUP,0, 0},
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
@@ -158,6 +159,7 @@ MADB_Dsn *MADB_DSN_Init(MADB_Dsn *Dsn2init)
     Dsn->PsCacheSize= 250;
     Dsn->PsCacheMaxKeyLen= 2112;
     Dsn->ParamCallbacks= '\1';
+    Dsn->QueryTimeout= '\2'; /* Query timeout enabled for all query types by default */
   }
   return Dsn;
 }
@@ -239,6 +241,7 @@ BOOL MADB_DsnSwitchDependents(MADB_Dsn *Dsn, unsigned int Changed)
       case DSN_TYPE_OPTION:
       case DSN_TYPE_BOOL:
       case DSN_TYPE_CBOXGROUP:
+      case DSN_TYPE_RBGROUP:
         {
           KeySet= *GET_FIELD_PTR(Dsn, &DsnKeys[Changed], my_bool);
         }
@@ -329,6 +332,11 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
       *GET_FIELD_PTR(Dsn, DsnKey, char)= IntValue;
     }
     break;
+  case DSN_TYPE_RBGROUP:
+  {
+    int dummy= atoi(Value);
+    *GET_FIELD_PTR(Dsn, DsnKey, char)= dummy != 0 ? (dummy > MADB_QTOUT_SELECTS ? '\2' : MADB_QTOUT_SELECTS) : '\0';
+  }
   case DSN_TYPE_INT:
     if (*GET_FIELD_PTR(Dsn, DsnKey, int) && OverWrite == FALSE)
       break;
@@ -466,6 +474,7 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
         }
         break;
       case DSN_TYPE_CBOXGROUP:
+      case DSN_TYPE_RBGROUP:
         {
           _snprintf(Value, 32, "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
           ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Value, "ODBC.INI");
@@ -717,6 +726,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         }
         break;
       case DSN_TYPE_CBOXGROUP:
+      case DSN_TYPE_RBGROUP:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
         {
           _snprintf(IntVal, sizeof(IntVal), "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));

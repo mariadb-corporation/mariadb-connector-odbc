@@ -64,8 +64,9 @@ enum enum_dsn_item_type {
   DSN_TYPE_BOOL,
   DSN_TYPE_COMBO,    /* Mainly the same as string, but the field in the dialog is combobox */
   DSN_TYPE_OPTION,   /* Connection string option has correspondent OPTIONS bit */
-  DSN_TYPE_CBOXGROUP /* Group of checkboxes each of them represent a bit in the field's value
+  DSN_TYPE_CBOXGROUP, /* Group of checkboxes each of them represent a bit in the field's value
                         Bitmap size is 1 byte */
+  DSN_TYPE_RBGROUP    /* Radio group - one value out of set */
 };
 
 typedef struct
@@ -93,6 +94,9 @@ typedef struct
 #define MADB_TLSV11 1
 #define MADB_TLSV12 2
 #define MADB_TLSV13 4
+
+/* Const for QueryTimeout "enabled for SELECT's only. 0 - disabled, >than this mean for all */
+#define MADB_QTOUT_SELECTS '\1'
 
 extern const char TlsVersionName[3][8];
 extern const char TlsVersionBits[3];
@@ -165,6 +169,7 @@ typedef struct st_madb_dsn
   my_bool PrepareOnClient;
   my_bool ParamCallbacks;
   my_bool ResultCallbacks;
+  char QueryTimeout; /* Not the value of timeout itself, but its configuration - disabled, select's only or all queries */
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */

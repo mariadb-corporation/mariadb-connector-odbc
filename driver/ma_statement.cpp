@@ -408,14 +408,17 @@ void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
 /* }}} */
 
 /* {{{ MADB_AddQueryTime */
-void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
+void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout, bool selectsOnly= false)
 {
-  /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
-  size_t NewSize= Query->Original.length() + 38 + 20/* max SQLULEN*/ + 1;
-  SQLString query(Query->Original);
-  Query->Original.reserve(NewSize);
-  Query->Original.assign("SET STATEMENT max_statement_time=", sizeof("SET STATEMENT max_statement_time=") - 1);
-  Query->Original.append(std::to_string(Timeout)).append(" FOR ").append(query);
+  if (!(selectsOnly && Query->QueryType != MADB_QUERY_SELECT))
+  {
+    /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
+    size_t NewSize= Query->Original.length() + 38 + 20/* max SQLULEN*/ + 1;
+    SQLString query(Query->Original);
+    Query->Original.reserve(NewSize);
+    Query->Original.assign("SET STATEMENT max_statement_time=", sizeof("SET STATEMENT max_statement_time=") - 1);
+    Query->Original.append(std::to_string(Timeout)).append(" FOR ").append(query);
+  }
 }
 /* }}} */
 
@@ -522,7 +525,7 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
 
   if (Options.Timeout > 0)
   {
-    MADB_AddQueryTime(&Query, Options.Timeout);
+    MADB_AddQueryTime(&Query, Options.Timeout, Connection->Dsn->QueryTimeout == MADB_QTOUT_SELECTS);
   }
 
   if (ServerSide)
@@ -2488,6 +2491,9 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     }
     break;
   case SQL_ATTR_QUERY_TIMEOUT:
+    if (!Stmt->Connection->Dsn->QueryTimeout) {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Query timeouts are disabled by the connection string option, value changed to default (0)", 0);
+    }
     if (Stmt->Connection->IsMySQL)
     {
       return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL servers, value changed to default (0)", 0);

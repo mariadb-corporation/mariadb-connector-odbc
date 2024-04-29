@@ -33,7 +33,7 @@ typedef struct
   MADB_DsnKey *Key;
   int Page;
   int Item;
-  int MaxLength;  /* For DSN_TYPE_CBOXGROUP that is the bit it represents */
+  int MaxLength;  /* For DSN_TYPE_CBOXGROUP that is the bit it represents, for DSN_TYPE_RBGROUP - value */
   my_bool Mandatory;
 } MADB_DsnMap;
 
