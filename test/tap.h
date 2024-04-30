@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -368,16 +368,9 @@ int myrowcount(SQLHSTMT Stmt)
 {
   int Rows=0;
   while (SQLFetch(Stmt) != SQL_NO_DATA)
-    Rows++;
+    ++Rows;
   return Rows;
 }
-
-
-#define mystmt(hstmt,r)  \
-  do { \
-    if (r != SQL_SUCCESS && r != SQL_SUCCESS_WITH_INFO) \
-      return FAIL; \
-  } while (0)
 
 
 void diag(const char *fstr, ...)
@@ -465,7 +458,7 @@ int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
 
     for (nIndex = 1; nIndex <= ncol; ++nIndex)
     {
-        rc = SQLDescribeCol(Stmt,nIndex,szColName, MAX_NAME_LEN, NULL,
+        rc= SQLDescribeCol(Stmt,nIndex,szColName, MAX_NAME_LEN, NULL,
                             &pfSqlType,&pcColDef,&pcbScale,&pfNullable);
         /* Returning in case of an error -nIndex we will see in the log column# */
         mystmt_rows(Stmt,rc,-nIndex);
@@ -473,14 +466,14 @@ int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
 
         fprintf(stdout, "%s\t", szColName);
 
-        rc = SQLBindCol(Stmt, nIndex, SQL_C_CHAR, szData[nIndex-1],
+        rc= SQLBindCol(Stmt, nIndex, SQL_C_CHAR, szData[nIndex-1],
                         MAX_ROW_DATA_LEN+1, &ind_strlen);
         mystmt_rows(Stmt, rc, -nIndex);
     }
 
     fprintf(stdout, "\n");
 
-    rc = SQLFetch(Stmt);
+    rc= SQLFetch(Stmt);
     while (SQL_SUCCEEDED(rc))
     {
         ++nRowCount;
@@ -488,7 +481,7 @@ int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
             fprintf(stdout, "%s\t", szData[nIndex]);
 
         fprintf(stdout, "\n");
-        rc = SQLFetch(Stmt);
+        rc= SQLFetch(Stmt);
     }
 
     SQLFreeStmt(Stmt, SQL_UNBIND);

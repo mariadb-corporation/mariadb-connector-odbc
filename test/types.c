@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2023 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -177,111 +177,57 @@ ODBC_TEST(t_bigint)
       SQLINTEGER dummy;
     } id = {"99998888"};       /* Just to get a binary pattern for some 64 bit big int */
 
-    OK_SIMPLE_STMT(Stmt,"drop table if exists t_bigint");
+    OK_SIMPLE_STMT(Stmt,"DROP TABLE if exists t_bigint");
 
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"create table t_bigint(id int(20) NOT NULL auto_increment,name varchar(20), primary key(id))");
-   
+    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_bigint(id int(20) NOT NULL AUTO_INCREMENT,name VARCHAR(20),"
+                        "PRIMARY KEY(id))");
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection, SQLTransact(NULL, Connection, SQL_COMMIT));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    /* TIMESTAMP TO DATE, TIME and TS CONVERSION */
-    rc = SQLPrepare(Stmt,"insert into t_bigint values(?,'venuxyz')", SQL_NTS);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt,
+      SQLPrepare(Stmt, "INSERT INTO t_bigint VALUES(?,'venuxyz')", SQL_NTS));
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_LONG,
-                          SQL_BIGINT,0,0,&id.buf,sizeof(id.buf),&nlen);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG,
+     SQL_BIGINT, 0, 0, &id.buf, sizeof(id.buf), &nlen)); 
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLExecute(Stmt));
 
-    rc = SQLExecute(Stmt);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLFreeStmt(Stmt,SQL_RESET_PARAMS);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    OK_SIMPLE_STMT(Stmt,"INSERT INTO t_bigint VALUES(10,'mysql1')");
+    OK_SIMPLE_STMT(Stmt,"INSERT INTO t_bigint VALUES(20,'mysql2')");
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection, SQLTransact(NULL, Connection, SQL_COMMIT));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    OK_SIMPLE_STMT(Stmt,"insert into t_bigint values(10,'mysql1')");
-
-
-   OK_SIMPLE_STMT(Stmt,"insert into t_bigint values(20,'mysql2')");
-
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
-
-    rc = SQLSpecialColumns(Stmt,SQL_ROWVER,NULL,SQL_NTS,NULL,SQL_NTS,
-                           "t_bigint",SQL_NTS,SQL_SCOPE_TRANSACTION,SQL_NULLABLE);
-
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
-
+    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection, SQLSpecialColumns(Stmt, SQL_ROWVER, NULL, SQL_NTS, NULL, SQL_NTS,
+      "t_bigint", SQL_NTS, SQL_SCOPE_TRANSACTION, SQL_NULLABLE));
     FAIL_IF( 0 != myrowcount(Stmt), "expected 0 rows");
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLColumns(Stmt,NULL,SQL_NTS,NULL,SQL_NTS,"t_bigint",SQL_NTS,NULL,SQL_NTS);
-
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
-
+    CHECK_STMT_RC(Stmt, SQLColumns(Stmt,NULL,SQL_NTS,NULL,SQL_NTS,"t_bigint",SQL_NTS,NULL,SQL_NTS));
     FAIL_IF( 2 != myrowcount(Stmt), "expected 2 rows");
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLStatistics(Stmt,NULL,SQL_NTS,NULL,SQL_NTS,"t_bigint",SQL_NTS,SQL_INDEX_ALL,SQL_QUICK);
-
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
-
+    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_bigint",
+      SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
     FAIL_IF( 1 != myrowcount(Stmt), "Expected 1 row");
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection, SQLGetTypeInfo(Stmt, SQL_BIGINT));
+    is_num( 2, my_print_non_format_result(Stmt));
 
-#if CATALOG_FUNCTIONS_FIXED
-    rc = SQLGetTypeInfo(Stmt,SQL_BIGINT);
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
+    OK_SIMPLE_STMT(Stmt,"SELECT * FROM t_bigint");
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_DEFAULT, &id.buf, sizeof(id.buf),
+      &nlen));
 
-    FAIL_IF( 4 != myrowcount(Stmt), "expected 4 rows");
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLGetTypeInfo(Stmt,SQL_BIGINT);
-    CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
-
-    FAIL_IF( 4 != myrowcount(Stmt), "Expected 4 rows");
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-#endif
-
-    OK_SIMPLE_STMT(Stmt,"select * from t_bigint");
-
-    rc = SQLFetch(Stmt);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLGetData(Stmt,1,SQL_C_DEFAULT,&id.buf,sizeof(id.buf),&nlen);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLFreeStmt(Stmt,SQL_UNBIND);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
-
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
 #endif /* SQLBIGINT_MADE_PORTABLE || defined(_WIN32) */
   return OK;
@@ -299,7 +245,7 @@ ODBC_TEST(t_enumset)
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"create table t_enumset(col1 enum('MYSQL_E1','MYSQL_E2'),col2 set('ONE','TWO','THREE'))");
+    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_enumset(col1 ENUM('MYSQL_E1','MYSQL_E2'),col2 SET('ONE','TWO','THREE'))");
    
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
@@ -307,13 +253,13 @@ ODBC_TEST(t_enumset)
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    OK_SIMPLE_STMT(Stmt, "insert into t_enumset values('MYSQL_E2','TWO,THREE')");
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO t_enumset VALUES('MYSQL_E2','TWO,THREE')");
 
     rc = SQLFreeStmt(Stmt,SQL_CLOSE);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
     CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLPrepare(Stmt, (SQLCHAR *)
-                              "insert into t_enumset values(?,?)", SQL_NTS));
+                              "INSERT INTO t_enumset VALUES(?,?)", SQL_NTS));
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_CHAR,SQL_CHAR,0,0,&szEnum,sizeof(szEnum),NULL);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -333,7 +279,7 @@ ODBC_TEST(t_enumset)
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"select * from t_enumset");
+    OK_SIMPLE_STMT(Stmt,"SELECT * FROM t_enumset");
   
     FAIL_IF( 2 != myrowcount(Stmt), "expected 2 rows");
 
