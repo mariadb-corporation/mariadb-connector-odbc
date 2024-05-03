@@ -270,8 +270,14 @@ ODBC_TEST(t_nobigint)
   is_num(size, 4);
   CHECK_STMT_RC(hstmt, SQLGetData(hstmt, 1, SQL_C_DEFAULT, &id, sizeof(id), &nlen));
 
-  is_num(0xFFFFFFFF0000000F, id);
-
+  if (little_endian())
+  {
+    is_num(0xFFFFFFFF0000000F, id);
+  }
+  else
+  {
+    is_num(0x0000000FFFFFFFFF, id);
+  }
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
 
   CHECK_STMT_RC(hstmt, SQLColumns(hstmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_nobigint", SQL_NTS, NULL, SQL_NTS));
