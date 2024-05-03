@@ -248,6 +248,7 @@ BEGIN
     CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,162,19,37,10,WS_EX_TRANSPARENT
     CONTROL         "Use result conversion callbacks",ckResultCallbacks,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,162,33,105,10,WS_EX_TRANSPARENT
+    CONTROL         "No BIGINT in results",ckNoBigint,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,33,90,10,WS_EX_TRANSPARENT
 //    CONTROL         "Prefetch rows",ckPrefetchRows,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,33,61,10,WS_EX_TRANSPARENT
 //    CONTROL         "Pad Char to fulllength with SPACE",IDC_CHECK8,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,113,124,10
 //    CONTROL         "Allow big result sets",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,78,79,10,WS_EX_TRANSPARENT

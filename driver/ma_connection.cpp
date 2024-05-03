@@ -612,8 +612,7 @@ std::size_t MADB_Tokenize(std::vector<bytes>& tokens, const char* cstring, const
 }
 /* }}} */
 
-/* {{{ MADB_SetAttributes
-*/
+/* {{{ MADB_SetAttributes */
 bool MADB_SetAttributes(MYSQL* mariadb, const char* Attributes)
 {
   bool result= false;
@@ -690,7 +689,6 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
   {
     mysql_optionsv(_mariadb, MYSQL_READ_DEFAULT_GROUP, (void *)"odbc");
   }
-
   /* Connstring's option value takes precedence*/
   if (Dsn->ConnectionTimeout)
   {
@@ -998,7 +996,6 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
   }
 
   MADB_SetCapabilities(this, mysql_get_server_version(mariadb), mysql_get_server_name(mariadb));
-
   {
     Cache<std::string, ServerPrepareResult> *psCache= nullptr;
     if (Dsn->PsCacheSize > 0 && Dsn->PsCacheMaxKeyLen > 0)

@@ -20,6 +20,8 @@ jobs:
     - os: linux
       arch: s390x
       dist: focal
+    - env: srv=maxscale MAXSCALE_TEST_DISABLE=true
+    - env: srv=xpand
   include:
     - stage: Language
       os: osx

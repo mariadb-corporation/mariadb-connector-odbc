@@ -757,6 +757,7 @@ ODBC_TEST(t_odbc375)
   return OK;
 }
 
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},

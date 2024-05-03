@@ -170,6 +170,7 @@ typedef struct st_madb_dsn
   my_bool ParamCallbacks;
   my_bool ResultCallbacks;
   char QueryTimeout; /* Not the value of timeout itself, but its configuration - disabled, select's only or all queries */
+  my_bool NoBigint;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */

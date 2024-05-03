@@ -23,7 +23,8 @@
 
 unsigned long VersionCapabilityMap[][2]= {{100202, MADB_CAPABLE_EXEC_DIRECT},
                                           {100207, MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES},
-                                          {110101, MADB_MYSQL_TRANSACTION_ISOLATION}};
+                                          {110101, MADB_MYSQL_TRANSACTION_ISOLATION},
+                                          {100102, MADB_SET_STATEMENT}};
 unsigned long MySQLVersionCapabilityMap[][2]= {{50720, MADB_MYSQL_TRANSACTION_ISOLATION}};
 /*                                               {50704, MADB_SESSION_TRACKING}*/
 unsigned long CapabilitiesMap[][2]= {{CLIENT_SESSION_TRACKING, MADB_SESSION_TRACKING}};

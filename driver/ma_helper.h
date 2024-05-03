@@ -47,7 +47,7 @@ SQLSMALLINT MapMariadDbToOdbcType(const MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 
-size_t  MADB_GetDisplaySize(const MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset);
+size_t  MADB_GetDisplaySize(const MYSQL_FIELD *Field, MARIADB_CHARSET_INFO *charset, bool noBigint);
 size_t  MADB_GetOctetLength(const MYSQL_FIELD *Field, unsigned short MaxCharLen);
 const char *  MADB_GetTypeName(const MYSQL_FIELD *Field);
 

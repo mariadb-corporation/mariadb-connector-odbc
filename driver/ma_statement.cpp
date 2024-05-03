@@ -386,7 +386,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 /* }}} */
 
 /* {{{ MSwitchToSsIfNeeded - prepares on the server when application requests some metadata from
- * cliet side prepared statement
+ * client side prepared statement
  */
 void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
 {
@@ -515,17 +515,19 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
     /* Constructed query we've copied for execution has parameters */
   }
 
-  if (Options.MaxRows)
+  if (!Query.RefinedText.empty())
   {
-    /* TODO: LIMIT is not always the last clause. And not applicable to each query type.
-       Thus we need to check query type and last tokens, and possibly put limit before them */
-    STMT_STRING(this).reserve(STMT_STRING(this).length() + 32);
-    STMT_STRING(this).append(" LIMIT ").append(std::to_string(Options.MaxRows));
-  }
-
-  if (Options.Timeout > 0)
-  {
-    MADB_AddQueryTime(&Query, Options.Timeout, Connection->Dsn->QueryTimeout == MADB_QTOUT_SELECTS);
+    if (Options.MaxRows)
+    {
+      /* TODO: LIMIT is not always the last clause. And not applicable to each query type.
+         Thus we need to check query type and last tokens, and possibly put limit before them */
+      STMT_STRING(this).reserve(STMT_STRING(this).length() + 32);
+      STMT_STRING(this).append(" LIMIT ").append(std::to_string(Options.MaxRows));
+    }
+    if (Options.Timeout > 0 && (Connection->ServerCapabilities & MADB_SET_STATEMENT))
+    {
+      MADB_AddQueryTime(&Query, Options.Timeout, Connection->Dsn->QueryTimeout == MADB_QTOUT_SELECTS);
+    }
   }
 
   if (ServerSide)
@@ -2095,6 +2097,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       {
         Stmt->Cursor.Position= 1;
       }
+
       if (!Stmt->rs->next()) {
         
         /* We have already incremented this counter, since there was no more rows, need to decrement */
@@ -2483,6 +2486,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
   case SQL_ATTR_METADATA_ID:
     Stmt->Options.MetadataId= (SQLULEN)ValuePtr;
     break;
+
   case SQL_ATTR_NOSCAN:
     if ((SQLULEN)ValuePtr != SQL_NOSCAN_ON)
     {
@@ -2490,16 +2494,18 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
        ret= SQL_SUCCESS_WITH_INFO;
     }
     break;
+
   case SQL_ATTR_QUERY_TIMEOUT:
     if (!Stmt->Connection->Dsn->QueryTimeout) {
       return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Query timeouts are disabled by the connection string option, value changed to default (0)", 0);
     }
-    if (Stmt->Connection->IsMySQL)
+    if (!MADB_ServerSupports(Stmt->Connection, MADB_SET_STATEMENT) || Stmt->Connection->IsMySQL)
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL servers, value changed to default (0)", 0);
+      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL and old MariaDB servers, value changed to default (0)", 0);
     }
     Stmt->Options.Timeout= (SQLULEN)ValuePtr;
     break;
+
   case SQL_ATTR_RETRIEVE_DATA:
     if ((SQLULEN)ValuePtr != SQL_RD_ON)
     {
@@ -2507,6 +2513,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
        ret= SQL_SUCCESS_WITH_INFO;
     }
     break;
+
   case SQL_ATTR_USE_BOOKMARKS:
     Stmt->Options.UseBookmarks= (SQLUINTEGER)(SQLULEN)ValuePtr;
    break;
@@ -3994,6 +4001,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   {
     Stmt->Cursor.Position= (SQLLEN)MIN((my_ulonglong)Position, Stmt->rs->rowsCount() + 1);
   }
+
   if (Position <= 0 || (!MADB_STMT_SHOULD_STREAM(Stmt) && (my_ulonglong)Position > Stmt->rs->rowsCount()))
   {
     /* We need to put cursor before RS start, not only return error */

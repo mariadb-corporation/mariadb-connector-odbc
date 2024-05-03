@@ -33,9 +33,6 @@
 #define DSNKEY_FPLIST_INDEX   26
 #define DSNKEY_STREAMRS_INDEX 43
 
-
-//extern "C" {
-
 /* If adding new connstring option, one should add them to the end of the array section before aliases, because some arrays defining program logic
    use indexes of an element in this array. In particular, in the setup lib there is array mapping dsn field(i.e. this array element) to parent window
    and resource id of the contorl in the dialog. Thus if you still think it should go somewhere in the middle, mind also change that array and at least
@@ -99,6 +96,7 @@ MADB_DsnKey DsnKeys[]=
   {"PCALLBACK",      offsetof(MADB_Dsn, ParamCallbacks),    DSN_TYPE_BOOL,   0, 0},
   {"RCALLBACK",      offsetof(MADB_Dsn, ResultCallbacks),   DSN_TYPE_BOOL,   0, 0}, /* 50 */
   {"QTIMEOUT",       offsetof(MADB_Dsn, QueryTimeout),      DSN_TYPE_RBGROUP,0, 0},
+  {"NOBIGINT",       offsetof(MADB_Dsn, NoBigint),          DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_BIGINT, 0},
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
@@ -756,5 +754,3 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
   return TotalLength;
 }
 /* }}} */
-
-//} /* End of "extern C" */

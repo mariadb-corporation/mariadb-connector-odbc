@@ -227,7 +227,6 @@ ODBC_TEST(t_bug31055)
   return OK;
 }
 
-
 /*
    Bug 3780, reading or setting ADODB.Connection.DefaultDatabase 
    is not supported

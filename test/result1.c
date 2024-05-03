@@ -455,7 +455,7 @@ ODBC_TEST(t_max_rows)
    for Bug #6609: SQL_ATTR_MAX_ROWS and leading spaces in query result in
    truncating end of query.
   */
-  OK_SIMPLE_STMT(Stmt,"  select * from t_max_rows");
+  OK_SIMPLE_STMT(Stmt,"  SELECT * FROM t_max_rows");
   is_num(5, myrowcount(Stmt));
 
   SQLFreeStmt(Stmt,SQL_CLOSE);
