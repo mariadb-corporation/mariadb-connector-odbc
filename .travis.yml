@@ -8,8 +8,8 @@ cache:
   directories:
     - $HOME/docker
 
-
-env: local=0 DB=testo CLEAR_TEXT=0
+env:
+  global: CLEAR_TEXT=0 DB=testo  local=0
 
 import: mariadb-corporation/connector-test-machine:common-build.yml@master
 
