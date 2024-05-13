@@ -312,7 +312,7 @@ int MADB_ConvertAnsi2Unicode(Client_Charset *cc, const char *AnsiString, SQLLEN 
   }
 
   if (LengthIndicator)
-    *LengthIndicator= SqlwcsCharLen(Tmp, RequiredLength);
+    *LengthIndicator= RequiredLength / sizeof(SQLWCHAR);
 
   /* Truncation */
   if (Tmp != UnicodeString)
@@ -330,16 +330,18 @@ end:
 }
 /* }}} */
 
-/* {{{ MADB_ConvertAnsi2Unicode
-       @returns number of characters available at Src */
+/* Returns required length for result string without terminating NULL.
+   If cc is NULL, or not initialized(CodePage is 0), then simply SrcLength is returned. 
+   If Dest is not NULL, and DestLenth is 0, then error */
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                       const char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
 {
+  char  *p= (char *)Dest;
   SQLLEN Length= 0;
 
   if (SrcLength == SQL_NTS)
   {
-    if (Src != NULL)
+    if (Src != nullptr)
     {
       /* Thinking about utf8 - Should be probably len in characters */
       SrcLength= strlen(Src);
@@ -354,8 +356,8 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
   if (!DestLength || !Dest)
   {
     if (Dest)
-      MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
-    if (!cc)
+      MADB_SetError(Error, MADB_ERR_01004, nullptr, 0);
+    if (!cc || !cc->CodePage)
       return SrcLength;
     else
     {
@@ -368,15 +370,15 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
     }
   }
 
-  if (!SrcLength || !Src || !*Src)
+  if (!Src || !SrcLength || !*Src)
   {
-    memset((char *)Dest, 0, cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
+    memset(p, 0, cc ? sizeof(SQLWCHAR) : sizeof(SQLCHAR));
     return 0;
   }
 
   if (!cc)
   {
-    strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
+    strncpy_s(p, DestLength, Src ? Src : "", _TRUNCATE);
     /* strncpy does not write null at the end */
     *((char *)Dest + MIN(SrcLength, DestLength - 1))= '\0';
 
@@ -386,7 +388,20 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
   }
   else
   {
-    MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, TRUE, Error);
+    // If there was the error - we can't do anything else. Otherwise
+    if (!MADB_ConvertAnsi2Unicode(cc, Src, SrcLength, (SQLWCHAR *)Dest, DestLength, &Length, 0, Error))
+    {
+      int32_t nullPosition= Length;
+      if ((SQLULEN)Length >= DestLength)
+      {
+        if (Error)
+        {
+          MADB_SetError(Error, MADB_ERR_01004, nullptr, 0);
+        }
+        nullPosition= DestLength - 1;
+      }
+      ((SQLWCHAR *)Dest)[nullPosition]= 0;
+    }
     return Length;
   }
 }

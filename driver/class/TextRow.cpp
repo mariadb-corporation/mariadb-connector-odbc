@@ -50,7 +50,6 @@ namespace mariadb
  void TextRow::setPosition(int32_t newIndex)
  {
    index= newIndex;
-
    pos= 0;
 
    if (buf != nullptr)

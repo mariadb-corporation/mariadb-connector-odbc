@@ -74,7 +74,7 @@ ODBC_TEST(test_count)
   rc= SQLExecDirectW(Stmt, CW("INSERT INTO test_count VALUES (1),(2)"), SQL_NTS);
   rc= SQLExecDirectW(Stmt, CW("SELECT count(*) RELEATED FROM test_count"), SQL_NTS);
 
-  SQLBindCol(Stmt, 1, SQL_INTEGER, &columnsize, sizeof(SQLINTEGER), NULL);
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &columnsize, sizeof(SQLINTEGER), NULL);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L));  
   SQLDescribeColW(Stmt,1, columnname, 64, &columnlength, &datatype, &columnsize, &digits, &nullable);
 
@@ -1442,19 +1442,29 @@ ODBC_TEST(t_odbc72)
     {
     case 1:
       EXPECT_STMT(Stmt1, rc, SQL_SUCCESS_WITH_INFO);
-      is_num(len, 8);
+      /* Here \0 is part of data, not terminating NULL, thus it has to be included into total length, as it would also be
+       * included while inserting data and having it included in the given length of the data buffer. Otherwise written and
+       * read data will be different
+       */
+      is_num(len, 10);
       is_num(a[0], 'a');
       is_num(a[1], 0xd83d);
       is_num(a[2], 0);
       break;
     case 2:
-      EXPECT_STMT(Stmt1, rc, SQL_SUCCESS);
-      is_num(len, 4);
+      EXPECT_STMT(Stmt1, rc, SQL_SUCCESS_WITH_INFO);
+      is_num(len, 6);
       is_num(a[0], 0xde18);
       is_num(a[1], 'd');
       is_num(a[2], 0);
       break;
     case 3:
+      EXPECT_STMT(Stmt1, rc, SQL_SUCCESS);
+      is_num(len, 2);
+      is_num(a[0], 0);
+      is_num(a[1], 0);
+      break;
+    case 4:
       FAIL_IF(1, "SQLGetData's \"stuck\" in eternal cycle");
     }
   }
@@ -1600,6 +1610,146 @@ ODBC_TEST(t_odbc321)
   return OK;
 }
 
+/* ODBC-418 It boils down to widechar string got truncated if the field contained \0 */
+ODBC_TEST(t_odbc418)
+{
+  SQLWCHAR wparam[]= {'a', 0, 'b', 0, 0}, wvalue[sizeof(wparam)];
+  SQLCHAR  aparam[]= {'a', 0, 'b', 0, 0}, avalue[sizeof(aparam)];
+  SQLLEN   len= 4*sizeof(SQLWCHAR);
+  int i= 0, j;
+
+  OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE IF EXISTS t_odbc418"));
+  OK_SIMPLE_STMTW(wStmt, WW("CREATE TABLE t_odbc418(id INT NOT NULL PRIMARY KEY, value  varchar(5) not null)"));
+
+  /* First as WCHAR on both connections connection */
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, 0, 0, wparam, sizeof(wparam), &len));
+  OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc418 VALUES(1,?)"));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, 0, 0, wparam, sizeof(wparam), &len));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc418 VALUES(3,?)");
+  /* Now the same as ansi CHAR */
+  len= 4;
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, aparam, sizeof(aparam), &len));
+  OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc418 VALUES(2,?)"));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, aparam, sizeof(aparam), &len));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc418 VALUES(4,?)");
+
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLSetStmtAttr(wStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  OK_SIMPLE_STMTW(wStmt, WW("SELECT id, value FROM t_odbc418 ORDER BY id"));
+  CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 2, SQL_C_WCHAR, wvalue, sizeof(wvalue), &len));
+  //1st run - getting data as WCHAR types, 2nd run - as CHAR. Both times both ways - SQLFetch and SQLGetData
+  for (j= 0; j < 2; ++j)
+  {
+    for (i=1; i < 5; ++i)
+    {
+      switch (i)
+      {
+      case 1: diag("Checking inserted as WCHAR on W connection ");
+        break;
+      case 2: diag("Checking inserted as CHAR on W connection ");
+        break;
+      case 3: diag("Checking inserted as WCHAR on A connection ");
+        break;
+      case 4: diag("Checking inserted as CHAR on A connection ");
+        break;
+      }
+      len= 0;
+      if (i == 1)
+      {
+        CHECK_STMT_RC(wStmt, SQLFetchScroll(wStmt, SQL_FETCH_FIRST, 0));
+      }
+      else
+      {
+        CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+      }
+      
+      is_num(i, my_fetch_int(wStmt, 1));
+      if (j)
+      {
+        is_num(4, len);
+        IS_WSTR(aparam, avalue, len);
+        memset(avalue, 0xfe, sizeof(avalue));
+        IS_STR(aparam, my_fetch_str(wStmt, avalue, 2), len);
+        memset(avalue, 0xfe, sizeof(avalue));
+      }
+      else
+      {
+        is_num(4 * sizeof(SQLWCHAR), len);
+        IS_WSTR(wparam, wvalue, len/sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+        IS_WSTR(wparam, my_fetch_wstr(wStmt, wvalue, 2, sizeof(wvalue)), len/sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+      }
+    }
+    if (!j)
+    {
+      CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
+    }
+  }
+  
+  /* Now the same on ANSI connection */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  OK_SIMPLE_STMT(Stmt, "SELECT id, value FROM t_odbc418 ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, wvalue, sizeof(wvalue), &len));
+  //1st run - getting data as WCHAR types, 2nd run - as CHAR. Both times both ways - SQLFetch and SQLGetData
+  for (j= 0; j < 2; ++j)
+  {
+    for (i=1; i < 5; ++i)
+    {
+      switch (i)
+      {
+      case 1: diag("Checking inserted as WCHAR on W connection ");
+        break;
+      case 2: diag("Checking inserted as CHAR on W connection ");
+        break;
+      case 3: diag("Checking inserted as WCHAR on A connection ");
+        break;
+      case 4: diag("Checking inserted as CHAR on A connection ");
+        break;
+      }
+      len= 0;
+      if (i == 1)
+      {
+        CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
+      }
+      else
+      {
+        CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+      }
+
+      is_num(i, my_fetch_int(Stmt, 1));
+      if (j)
+      {
+        is_num(4, len);
+        IS_WSTR(aparam, avalue, len);
+        memset(avalue, 0xfe, sizeof(avalue));
+        IS_STR(aparam, my_fetch_str(Stmt, avalue, 2), len);
+        memset(avalue, 0xfe, sizeof(avalue));
+      }
+      else
+      {
+        is_num(4 * sizeof(SQLWCHAR), len);
+        IS_WSTR(wparam, wvalue, len / sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+        IS_WSTR(wparam, my_fetch_wstr(Stmt, wvalue, 2, sizeof(wvalue)), len / sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+      }
+    }
+    if (!j)
+    {
+      CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
+    }
+  }
+  /*if (!iOdbc())*/
+  {
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+  OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE t_odbc418"));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1633,6 +1783,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc203,         "t_odbc203",          NORMAL},
   {t_odbc253,         "t_odbc253_empty_str_crash", NORMAL},
   {t_odbc321,         "t_odbc321_short_buffer", NORMAL},
+  {t_odbc418,         "t_odbc418_0in_string", NORMAL},
   {NULL, NULL}
 };
 

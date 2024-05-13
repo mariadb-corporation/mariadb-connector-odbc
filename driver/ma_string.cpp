@@ -520,10 +520,10 @@ SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *
       }
 
       /* Stopping if current character is terminating nullptr - charlen == 0 means all bytes of current char was 0 */
-      if (charlen == 0)
+      /*if (charlen == 0)
       {
         return result;
-      }
+      }*/
       /* else we increment ptr for number of left bytes */
       ptr+= charlen;
       ++result;

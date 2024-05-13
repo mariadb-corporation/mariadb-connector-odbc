@@ -250,9 +250,8 @@ end:
   return rc;
 }
 
-/* Returns required length for result string with(if dest and dest length are provided)
-   or without terminating NULL(otherwise). If cc is NULL, or not initialized(CodePage is 0),
-   then simply SrcLength is returned. 
+/* Returns required length for result string without terminating NULL.
+   If cc is NULL, or not initialized(CodePage is 0), then simply SrcLength is returned. 
    If Dest is not NULL, and DestLenth is 0, then error */
 SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                       const char *Src, SQLLEN SrcLength/*bytes*/, MADB_Error *Error)
@@ -262,7 +261,7 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 
   if (SrcLength == SQL_NTS)
   {
-    if (Src != NULL)
+    if (Src != nullptr)
     {
       SrcLength= strlen(Src);
     }
@@ -276,7 +275,7 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
   if (!DestLength || !Dest)
   {
     if (Dest)
-      MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_01004, nullptr, 0);
     if (!cc || !cc->CodePage)
       return SrcLength;
     else
@@ -294,17 +293,31 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
 
   if (!cc || !cc->CodePage)
   {
-    strncpy_s((char *)Dest, DestLength, Src ? Src : "", _TRUNCATE);
+    strncpy_s(p, DestLength, Src ? Src : "", _TRUNCATE);
     if (Error && (SQLULEN)SrcLength >= DestLength)
-      MADB_SetError(Error, MADB_ERR_01004, NULL, 0);
+      MADB_SetError(Error, MADB_ERR_01004, nullptr, 0);
     return SrcLength;
   }
   else
   {
-    MADB_ConvertAnsi2Unicode(cc, Src, -1, (SQLWCHAR *)Dest, DestLength, &Length, 1, Error);
+    // If there was the error - we can't do anything else. Otherwise
+    if (!MADB_ConvertAnsi2Unicode(cc, Src, SrcLength, (SQLWCHAR *)Dest, DestLength, &Length, 0, Error))
+    {
+      int32_t nullPosition= Length;
+      if ((SQLULEN)Length >= DestLength)
+      {
+        if (Error)
+        {
+          MADB_SetError(Error, MADB_ERR_01004, nullptr, 0);
+        }
+        nullPosition= DestLength - 1;
+      }
+      ((SQLWCHAR *)Dest)[nullPosition]= 0;
+    }
     return Length;
   }
 }
+/* }}} */
 
 
 int GetSourceAnsiCs(Client_Charset *cc)

@@ -24,7 +24,7 @@
 
 struct st_ma_stmt_methods
 {
-  SQLRETURN(*Execute)(MADB_Stmt* Stmt, BOOL ExecDirect);
+  SQLRETURN(*Execute)(MADB_Stmt* Stmt, bool ExecDirect);
   SQLRETURN(*Fetch)(MADB_Stmt* Stmt);
   SQLRETURN(*BindColumn)(MADB_Stmt* Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
     SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_Ind);
