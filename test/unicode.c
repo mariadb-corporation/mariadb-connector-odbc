@@ -1667,7 +1667,7 @@ ODBC_TEST(t_odbc418)
       if (j)
       {
         is_num(4, len);
-        IS_WSTR(aparam, avalue, len);
+        IS_STR(aparam, avalue, len);
         memset(avalue, 0xfe, sizeof(avalue));
         IS_STR(aparam, my_fetch_str(wStmt, avalue, 2), len);
         memset(avalue, 0xfe, sizeof(avalue));
@@ -1722,7 +1722,7 @@ ODBC_TEST(t_odbc418)
       if (j)
       {
         is_num(4, len);
-        IS_WSTR(aparam, avalue, len);
+        IS_STR(aparam, avalue, len);
         memset(avalue, 0xfe, sizeof(avalue));
         IS_STR(aparam, my_fetch_str(Stmt, avalue, 2), len);
         memset(avalue, 0xfe, sizeof(avalue));

@@ -95,7 +95,6 @@ MADB_DsnKey DsnKeys[]=
   {"MAXCACHEKEY",    offsetof(MADB_Dsn, PsCacheMaxKeyLen),  DSN_TYPE_INT,    0, 0},
   {"PCALLBACK",      offsetof(MADB_Dsn, ParamCallbacks),    DSN_TYPE_BOOL,   0, 0},
   {"RCALLBACK",      offsetof(MADB_Dsn, ResultCallbacks),   DSN_TYPE_BOOL,   0, 0}, /* 50 */
-  {"QTIMEOUT",       offsetof(MADB_Dsn, QueryTimeout),      DSN_TYPE_RBGROUP,0, 0},
   {"NOBIGINT",       offsetof(MADB_Dsn, NoBigint),          DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_BIGINT, 0},
 
   /* Aliases. Here offset is index of aliased key */
@@ -157,7 +156,6 @@ MADB_Dsn *MADB_DSN_Init(MADB_Dsn *Dsn2init)
     Dsn->PsCacheSize= 250;
     Dsn->PsCacheMaxKeyLen= 2112;
     Dsn->ParamCallbacks= '\1';
-    Dsn->QueryTimeout= '\2'; /* Query timeout enabled for all query types by default */
   }
   return Dsn;
 }
@@ -333,7 +331,8 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
   case DSN_TYPE_RBGROUP:
   {
     int dummy= atoi(Value);
-    *GET_FIELD_PTR(Dsn, DsnKey, char)= dummy != 0 ? (dummy > MADB_QTOUT_SELECTS ? '\2' : MADB_QTOUT_SELECTS) : '\0';
+    /* Here are remains of code for RBGROUP added for revoked feature, and for real use some change would be needed here */
+    *GET_FIELD_PTR(Dsn, DsnKey, char)= dummy != 0 ? '\1' : '\0';
   }
   case DSN_TYPE_INT:
     if (*GET_FIELD_PTR(Dsn, DsnKey, int) && OverWrite == FALSE)

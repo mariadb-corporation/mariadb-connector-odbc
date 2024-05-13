@@ -407,9 +407,9 @@ void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
 /* }}} */
 
 /* {{{ MADB_AddQueryTime */
-void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout, bool selectsOnly= false)
+void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout/*, bool selectsOnly= false*/)
 {
-  if (!(selectsOnly && Query->QueryType != MADB_QUERY_SELECT))
+  //if (!(selectsOnly && Query->QueryType != MADB_QUERY_SELECT))
   {
     /* sizeof("SET STATEMENT max_statement_time= FOR ") = 38 */
     size_t NewSize= Query->Original.length() + 38 + 20/* max SQLULEN*/ + 1;
@@ -525,7 +525,7 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
     }
     if (Options.Timeout > 0 && (Connection->ServerCapabilities & MADB_SET_STATEMENT))
     {
-      MADB_AddQueryTime(&Query, Options.Timeout, Connection->Dsn->QueryTimeout == MADB_QTOUT_SELECTS);
+      MADB_AddQueryTime(&Query, Options.Timeout);
     }
   }
 
@@ -2495,9 +2495,6 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     break;
 
   case SQL_ATTR_QUERY_TIMEOUT:
-    if (!Stmt->Connection->Dsn->QueryTimeout) {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Query timeouts are disabled by the connection string option, value changed to default (0)", 0);
-    }
     if (!MADB_ServerSupports(Stmt->Connection, MADB_SET_STATEMENT) || Stmt->Connection->IsMySQL)
     {
       return MADB_SetError(&Stmt->Error, MADB_ERR_01S02, "Option not supported with MySQL and old MariaDB servers, value changed to default (0)", 0);

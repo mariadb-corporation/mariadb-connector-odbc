@@ -95,9 +95,6 @@ typedef struct
 #define MADB_TLSV12 2
 #define MADB_TLSV13 4
 
-/* Const for QueryTimeout "enabled for SELECT's only. 0 - disabled, >than this mean for all */
-#define MADB_QTOUT_SELECTS '\1'
-
 extern const char TlsVersionName[3][8];
 extern const char TlsVersionBits[3];
 
@@ -169,7 +166,6 @@ typedef struct st_madb_dsn
   my_bool PrepareOnClient;
   my_bool ParamCallbacks;
   my_bool ResultCallbacks;
-  char QueryTimeout; /* Not the value of timeout itself, but its configuration - disabled, select's only or all queries */
   my_bool NoBigint;
 } MADB_Dsn;
 

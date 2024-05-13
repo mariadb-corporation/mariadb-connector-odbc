@@ -46,9 +46,6 @@
 #define txtConnectionTimeOut            1043
 #define txtReadTimeOut                  1230
 #define txtWriteTimeOut                 1231
-#define rbQtoutEnabled                  1232
-#define rbQtoutSelects                  1233
-#define rbQtoutDisabled                 1234
 #define txtDriver                       1200
 #define ckEnableDC                      1045
 #define ckReconnect2                    1046

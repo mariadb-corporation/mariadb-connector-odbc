@@ -123,11 +123,6 @@ BEGIN
     EDITTEXT        txtWriteTimeOut,165,61,30,12,ES_AUTOHSCROLL
     CONTROL         "Client is interactive",cbInteractive,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,62,84,10,WS_EX_TRANSPARENT
 
-    LTEXT           "Query timeout:",IDC_STATIC,16,75,72,8,0,WS_EX_TRANSPARENT
-    CONTROL         "Enabled for all",rbQtoutEnabled,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,89,75,77,10,WS_EX_TRANSPARENT
-    CONTROL         "SELECT's only",rbQtoutSelects,"Button",BS_AUTORADIOBUTTON,167,75,67,10,WS_EX_TRANSPARENT
-    CONTROL         "Disabled",rbQtoutDisabled,"Button",BS_AUTORADIOBUTTON,235,75,42,10,WS_EX_TRANSPARENT
-
     CONTROL         "Enable automatic reconnect",ckReconnect,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,87,107,10,WS_EX_TRANSPARENT
     CONTROL         "Don't prompt when connecting",ckConnectPrompt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,99,113,10,WS_EX_TRANSPARENT
     CONTROL         "Use compression",ckCompressed,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,87,107,10,WS_EX_TRANSPARENT

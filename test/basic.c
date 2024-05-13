@@ -1917,7 +1917,7 @@ ODBC_TEST(t_odbc377)
   /* Login timeout from connstring(CONN_TIMEOUT) takes precedence over the one set as attribute */
   CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)1, 0));
   /* QTIMEOUT is 2(enabled for all) by default, but we need to override DS settings */
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(2)};CONN_TIMEOUT=4;QTIMEOUT=2");
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "INITSTMT={SELECT SLEEP(2)};CONN_TIMEOUT=4");
   FAIL_IF(Hstmt == NULL, "Timeout shouldn't have occurred");
 
   CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
@@ -1951,36 +1951,6 @@ ODBC_TEST(t_odbc377)
     diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
     return FAIL;
   }
-
-  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
-  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
-
-  /* Disabling timeout */
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "QTIMEOUT=0");
-
-  CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
-  OK_SIMPLE_STMT(Hstmt, "SELECT SLEEP(2)");
-
-  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
-  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
-  
-  /* Enabling for SELECT's only */
-  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "QTIMEOUT=1");
-
-  CHECK_STMT_RC(Hstmt, SQLSetStmtAttr(Hstmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)1, 0));
-  /* Should go thru */
-  OK_SIMPLE_STMT(Hstmt, "INSERT INTO t_odbc377 VALUES(SLEEP(2))");
-
-  /* Should time out */
-  EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "SELECT SLEEP(2)", SQL_NTS), SQL_ERROR);
-  Sqlstate[0]= '\0';
-  CHECK_STMT_RC(Hstmt, SQLGetDiagRec(SQL_HANDLE_STMT, Hstmt, 1, Sqlstate, NULL, ErrMsg, sizeof(ErrMsg), NULL));
-  if (strncmp(Sqlstate, "70100", 6) != 0 && strncmp(Sqlstate, "HY018", 6) != 0 && (!IsXpand || strncmp(Sqlstate, "HYOOO", 6) != 0))
-  {
-    diag("Unexpected SQL State %s(%s)", Sqlstate, ErrMsg);
-    return FAIL;
-  }
-  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
   CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
