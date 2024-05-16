@@ -19,6 +19,9 @@
 #ifndef _ma_info_h_
 #define _ma_info_h_
 
+// In fact atm for variables it's srangely 81.
+#define MADB_DECIMAL_MAX_PRECISION 65
+
 typedef struct
 {
   bytes TypeName;

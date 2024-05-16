@@ -303,8 +303,8 @@ SQLLEN MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
     // If there was the error - we can't do anything else. Otherwise
     if (!MADB_ConvertAnsi2Unicode(cc, Src, SrcLength, (SQLWCHAR *)Dest, DestLength, &Length, 0, Error))
     {
-      int32_t nullPosition= Length;
-      if ((SQLULEN)Length >= DestLength)
+      SQLULEN nullPosition= static_cast<SQLULEN>(Length);
+      if (nullPosition >= DestLength)
       {
         if (Error)
         {

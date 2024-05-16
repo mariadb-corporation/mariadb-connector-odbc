@@ -210,7 +210,8 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
   case MYSQL_TYPE_NEWDECIMAL:
     Record->NumPrecRadix= 10;
     Record->Scale= Field->decimals;
-    Record->Precision= (SQLSMALLINT)Field->length - MADBTEST(Record->Unsigned == SQL_FALSE) - MADBTEST(Record->Scale > 0);
+    Record->Precision= MIN((SQLSMALLINT)Field->length - MADBTEST(Record->Unsigned == SQL_FALSE) - MADBTEST(Record->Scale > 0),
+      MADB_DECIMAL_MAX_PRECISION);
     if (Record->Precision == 0)
     {
       Record->Precision= Record->Scale;

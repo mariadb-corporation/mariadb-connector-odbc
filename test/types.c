@@ -1361,6 +1361,29 @@ ODBC_TEST(t_odbc305)
   return OK;
 }
 
+/* ODBC-405 */
+ODBC_TEST(t_odbc405)
+{
+  SQLINTEGER maxDecPrecision= 65;
+  SQLULEN colLen= 0;
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_DECIMAL));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(maxDecPrecision, my_fetch_int(Stmt, 3));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SET @testDECIMAL= CAST(1.5 AS DECIMAL(15,2))");
+  /* For variables precision is max possible, and for some reason for variables it's higher,
+     than for nomal one for fields */
+  OK_SIMPLE_STMT(Stmt, "SELECT @testDECIMAL");
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, NULL, &colLen, NULL, NULL));
+  FAIL_IF(colLen > maxDecPrecision, "Column length is greater than max precision for decimal");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_longlong1,        "t_longlong1",       NORMAL},
@@ -1388,6 +1411,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
   {t_odbc158,          "odbc158_bigintcolumn_as_c_long", NORMAL},
   {t_odbc305,          "odbc305_numeric_as_numeric", NORMAL},
+  {t_odbc405,          "odbc405_dec_precision", NORMAL},
   {NULL, NULL, NORMAL}
 };
 
