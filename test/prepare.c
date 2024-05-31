@@ -989,7 +989,7 @@ ODBC_TEST(t_acc_update)
 
     CHECK_STMT_RC(Stmt,
             SQLPrepare(Stmt,
-                       (SQLCHAR *)"select id from t_acc_update where id = ?",
+                       (SQLCHAR *)"select /* maxscale route to master */ id from t_acc_update where id = ?",
                        SQL_NTS));
 
     rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_DEFAULT,SQL_INTEGER,11,0,&id,0,NULL);
