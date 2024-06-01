@@ -1614,7 +1614,7 @@ ODBC_TEST(t_odbc321)
 ODBC_TEST(t_odbc418)
 {
   SQLWCHAR wparam[]= {'a', 0, 'b', 0, 0}, wvalue[sizeof(wparam)];
-  SQLCHAR  aparam[]= {'a', 0, 'b', 0, 0}, avalue[sizeof(aparam)];
+  SQLCHAR  aparam[]={'a', 0, 'b', 0, 0}, avalue[7];// just to shut up warnings - sizeof(aparam)] should be really enough;
   SQLLEN   len= 4*sizeof(SQLWCHAR);
   int i= 0, j;
 
@@ -1740,9 +1740,6 @@ ODBC_TEST(t_odbc418)
     {
       CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
     }
-  }
-  /*if (!iOdbc())*/
-  {
   }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));

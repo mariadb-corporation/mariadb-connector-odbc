@@ -1,16 +1,8 @@
 environment: 
     matrix:
-        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-          DB: 10.4.14
-          CMAKE_PARAM_G: 'Visual Studio 14 2015 Win64'
-
-        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-          DB: 10.4.14
-          CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
-
-        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-          DB: 10.5.5
-          CMAKE_PARAM_G: 'Visual Studio 15 2017 Win64'
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2022
+          DB: 10.11.7
+          CMAKE_PARAM_G: 'Visual Studio 17 2022'
 
 # scripts that are called at very beginning, before repo cloning
 init:

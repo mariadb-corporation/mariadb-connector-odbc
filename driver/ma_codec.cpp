@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
+#include <cstdio>
 #include "ma_codec.h"
 #include "class/ResultSetMetaData.h"
 #include "ma_string.h"
@@ -73,6 +74,8 @@ namespace mariadb
 
     if (it.getDescRec()->InternalBuffer == nullptr)
     {
+      char error[64];
+      std::snprintf(error, sizeof(error), "Error of allocation of the buffer of size %u", (uint32_t)mbLength);
       MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return true;
     }

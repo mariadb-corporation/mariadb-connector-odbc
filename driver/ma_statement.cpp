@@ -900,6 +900,11 @@ SQLRETURN MADB_Stmt::DoExecuteBatch()
   catch (int32_t /*rc*/)
   {
     MDBUG_C_PRINT(Connection, "execute:ERROR%s", "");
+    if (stmt.get()->getErrno() == CR_ERR_STMT_PARAM_CALLBACK && Error.ReturnValue == SQL_ERROR)
+    {
+      //Rerturning error set by callback
+      return SQL_ERROR;
+    }
     return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
   }
   State= MADB_SS_EXECUTED;

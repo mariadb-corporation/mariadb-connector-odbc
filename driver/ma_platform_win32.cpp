@@ -153,8 +153,13 @@ char* MADB_ConvertFromWChar(const SQLWCHAR *Wstr, SQLINTEGER WstrCharLen, SQLULE
   if (WstrCharLen != -1)
     ++AllocLen;
   
-  if (!(AscStr = (char *)MADB_CALLOC(AllocLen)))
+  if (!(AscStr= (char *)MADB_CALLOC(AllocLen)))
+  {
+    if (Length) {
+      *Length= AllocLen;
+    }
     return NULL;
+  }
 
   AscLen= WideCharToMultiByte(cc->CodePage,  0, Wstr, WstrCharLen, AscStr, AscLen, NULL, (cc->CodePage != CP_UTF8) ? Error : NULL);
   if (AscLen && WstrCharLen == -1)

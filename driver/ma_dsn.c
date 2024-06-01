@@ -152,6 +152,8 @@ MADB_Dsn *MADB_DSN_Init(MADB_Dsn *Dsn2init)
     /* Should this go to MADB_DSN_SetDefaults? The problem is that only used in dialog till the moment, not sure if
      * Dsn->IsTcpIp= 1 is appropriate default in driver.
      */
+    /* MYSQL_OPT_SSL_VERIFY_SERVER_CERT is set by default in C/C 3.4 and in the 11.4 server. Making it default here as well */
+    Dsn->SslVerify= '\1';
     Dsn->NullSchemaMeansCurrent= '\1';
     Dsn->PsCacheSize= 250;
     Dsn->PsCacheMaxKeyLen= 2112;
