@@ -53,6 +53,9 @@ if [ "${TEST_REQUIRE_TLS}" = "1" ] ; then
   export TEST_ADD_PARAM="FORCETLS=1"
 fi
 
+if [ "${v}" = "11.4" ] ; then
+  export TEST_SSLVERIFY=1
+fi
 
 if [ "$TRAVIS_OS_NAME" = "windows" ] ; then
   cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL .

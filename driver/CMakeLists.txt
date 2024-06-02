@@ -285,6 +285,7 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
                                         -DTEST_UID=${TEST_UID}
                                         -DTEST_PASSWORD="${TEST_PASSWORD}"
                                         -DTEST_USETLS=${TEST_USETLS}
+                                        -DTEST_SSLVERIFY=${TEST_SSLVERIFY}
                                         -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
                                         -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
                                         -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
@@ -308,6 +309,7 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
                                         -DTEST_UID=${TEST_UID}
                                         -DTEST_PASSWORD=${TEST_PASSWORD}
                                         -DTEST_USETLS=${TEST_USETLS}
+                                        -DTEST_SSLVERIFY=${TEST_SSLVERIFY}
                                         -DFILE_IN=${CMAKE_SOURCE_DIR}/test/odbc.ini.in
                                         -DFILE_OUT=${CMAKE_BINARY_DIR}/test/odbc.ini
                                         -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake
