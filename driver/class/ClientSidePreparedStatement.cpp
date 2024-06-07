@@ -203,17 +203,11 @@ namespace mariadb
     while (nextIndex < size) {
       SQLString sql("");
       nextIndex= prepareResult->assembleBatchQuery(sql, param, size, nextIndex);
-      int32_t rc = mysql_real_query(guard->getCHandle(), sql.c_str(), static_cast<unsigned long>(sql.length()));
-
-      if (rc == 0) {
-        getResult();
-      }
-      else {
-        results->setRewritten(prepareResult->isQueryMultiValuesRewritable());
-        throw rc;
-      }
+      // Or should it still go after the query?
+      results->setRewritten(prepareResult->isQueryMultiValuesRewritable());
+      guard->realQuery(sql);
+      guard->getResult(results.get());
     }
-    results->setRewritten(prepareResult->isQueryMultiValuesRewritable());
     return;
   }
 

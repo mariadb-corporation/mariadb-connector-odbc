@@ -55,7 +55,7 @@ class ResultSetBin : public ResultSet
   // we don't create buffers for all columns without call. Thus has to be mutable while getters are const
   mutable std::map<int32_t, std::unique_ptr<memBuf>> blobBuffer;
 
-  bool callableResult;
+  bool callableResult= false;
   PreparedStatement* statement;
   MYSQL_STMT* capiStmtHandle;
   std::unique_ptr<MYSQL_BIND[]> resultBind;

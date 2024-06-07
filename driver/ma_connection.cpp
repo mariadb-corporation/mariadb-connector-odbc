@@ -749,6 +749,10 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
       || !MADB_IS_EMPTY(SslKey))
     {
       mysql_optionsv(_mariadb, MYSQL_OPT_SSL_ENFORCE, &selectedBoolOption);
+      if (Dsn->SslVerify == DSN_DEFAULT_TRUE)
+      {
+        mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&selectedBoolOption);
+      }
 
       if (!MADB_IS_EMPTY(SslKey))
       {
@@ -771,6 +775,13 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
         mysql_optionsv(_mariadb, MYSQL_OPT_SSL_CIPHER, SslCipher);
       }
     }
+    // else encrypted connection does not seem to be requested, and certificate verification
+    // hasn't been explicitly set - resetting this default C/C option
+    else if (Dsn->SslVerify == DSN_DEFAULT_TRUE)
+    {
+      mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&unselectedBoolOption);
+    }
+
     if (Dsn->TlsVersion > 0)
     {
       char TlsVersion[sizeof(TlsVersionName) + sizeof(TlsVersionBits) - 1], *Ptr= TlsVersion; /* All names + (n-1) comma */
@@ -796,11 +807,11 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
     }
   }
 
-  if (Dsn->SslVerify)
+  if (Dsn->SslVerify == '\1')
   {
     mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&selectedBoolOption);
   }
-  else
+  else if (Dsn->SslVerify == '\0')
   {
     mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&unselectedBoolOption);
   }
@@ -808,6 +819,11 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
   if (Dsn->ForceTls != '\0')
   {
     mysql_optionsv(_mariadb, MYSQL_OPT_SSL_ENFORCE, (const char*)&selectedBoolOption);
+    // This also done int code above where MYSQL_OPT_SSL_ENFORCE is set
+    if (Dsn->SslVerify == DSN_DEFAULT_TRUE)
+    {
+      mysql_optionsv(_mariadb, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, (const char*)&selectedBoolOption);
+    }
   }
 
   if (!MADB_IS_EMPTY(Dsn->SslCrl))

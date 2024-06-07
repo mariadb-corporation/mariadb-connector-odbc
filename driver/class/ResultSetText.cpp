@@ -46,13 +46,12 @@ namespace mariadb
       dataSize(0),
       resultSetScrollType(results->getResultSetScrollType()),
       rowPointer(-1),
-      callableResult(false),
       capiConnHandle(capiConnHandle),
       forceAlias(false),
       lastRowPointer(-1)
   {
     MYSQL_RES* textNativeResults= nullptr;
-    if (fetchSize == 0 || callableResult) {
+    if (fetchSize == 0) {
       data.reserve(10);
       textNativeResults= mysql_store_result(capiConnHandle);
 
@@ -112,7 +111,6 @@ namespace mariadb
       columnInformationLength(static_cast<int32_t>(columnsInformation.size())),
       resultSetScrollType(resultSetScrollType),
       rowPointer(-1),
-      callableResult(false),
       capiConnHandle(nullptr),
       forceAlias(false),
       lastRowPointer(-1)
@@ -135,7 +133,6 @@ namespace mariadb
     columnInformationLength(static_cast<int32_t>(data.size())),
     resultSetScrollType(resultSetScrollType),
     rowPointer(-1),
-    callableResult(false),
     capiConnHandle(nullptr),
     forceAlias(false),
     lastRowPointer(-1)
@@ -311,26 +308,8 @@ namespace mariadb
       // else we are falling thru to MYSQL_NO_DATA
     }
     case MYSQL_NO_DATA: {
-      uint32_t serverStatus;
-
-      // CallableResult has been read from intermediate EOF server_status
-      // and is mandatory because :
-      //
-      // - Call query will have an callable resultSet for OUT parameters
-      //   this resultSet must be identified and not listed in JDBC statement.getResultSet()
-      //
-      // - after a callable resultSet, a OK packet is send,
-      //   but mysql before 5.7.4 doesn't send MORE_RESULTS_EXISTS flag
-      if (callableResult) {
-        serverStatus|= SERVER_MORE_RESULTS_EXIST;
-      }
-
-      // OK_Packet with a 0xFE header
-      //protocol->readOkPacket();
-      callableResult= (serverStatus & SERVER_PS_OUT_PARAMS)!=0;
-
-      /*protocol->setServerStatus(serverStatus);
-      protocol->setHasWarnings(warningCount() > 0);*/
+      uint32_t serverStatus= protocol->getServerStatus();
+      //protocol->setHasWarnings(warningCount() > 0); */
 
       if ((serverStatus & SERVER_MORE_RESULTS_EXIST) == 0) {
         protocol->removeActiveStreamingResult();
@@ -775,7 +754,7 @@ namespace mariadb
   }
 
   bool ResultSetText::isCallableResult() const {
-    return callableResult;
+    return false;
   }
 
   bool ResultSetText::isClosed() const {

@@ -48,13 +48,18 @@ set -ex
 export TEST_PORT=$TEST_DB_PORT
 export TEST_SCHEMA=testo
 export TEST_SOCKET=
-if [ "${TEST_REQUIRE_TLS}" = "1" ] ; then
-  export TEST_USETLS=1
-  export TEST_ADD_PARAM="FORCETLS=1"
-fi
 
 if [ "${v}" = "11.4" ] ; then
   export TEST_SSLVERIFY=1
+#  export TEST_ADD_PARAM="SSLVERIFY=1;"
+#else
+#  export TEST_SSLVERIFY=0
+#  export TEST_ADD_PARAM="SSLVERIFY=1;"
+fi
+
+if [ "${TEST_REQUIRE_TLS}" = "1" ] ; then
+  export TEST_USETLS=1
+  export TEST_ADD_PARAM="FORCETLS=1"
 fi
 
 if [ "$TRAVIS_OS_NAME" = "windows" ] ; then

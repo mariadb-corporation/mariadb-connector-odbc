@@ -1253,27 +1253,54 @@ namespace mariadb
   }
 
 
-  void Protocol::moveToNextResult(Results* results, ServerPrepareResult* spr)
+  void Protocol::resetError(MYSQL_STMT *stmt)
   {
-    // It's a mess atm - all moveToNextResult thing
+    stmt->last_errno= 0;
+  }
+
+
+  void Protocol::moveToNextSpsResult(Results *results, ServerPrepareResult *spr)
+  {
     std::lock_guard<std::mutex> localScopeLock(lock);
-    // if we are moving to next result - it is active streaming result then. also, we can't do any delayed operation at this point.
-    int32_t res;
-    if (spr != nullptr) {
-      res= mysql_stmt_next_result(spr->getStatementId());
-    }
-    else {
-      res= mysql_next_result(connection.get());
-    }
-    if (res != 0) {
+    MYSQL_STMT *stmt= spr->getStatementId();
+    rc= mysql_stmt_next_result(stmt);
+
+    if (rc != 0) {
+      if (rc == -1) {
+        // mysql_stmt_store_result checks if there are fields
+        //mysql_stmt_store_result(stmt);
+
+      }
       throw processError(results, spr);
     }
-    else {
-      getResult(results, spr);
-    }
+    Protocol::resetError(stmt);
+    getResult(results, spr);
     // Server and session can be changed
     cmdEpilog();
   }
+
+
+  void Protocol::moveToNextResult(Results *results, ServerPrepareResult *spr)
+  {
+    // It's a mess atm - all moveToNextResult thing
+    // if we are moving to next result - it is active streaming result then.
+     // also, we can't do any delayed operation at this point.
+    if (spr != nullptr) {
+      moveToNextSpsResult(results, spr);
+      return;
+    }
+
+    std::lock_guard<std::mutex> localScopeLock(lock);
+    rc= mysql_next_result(connection.get());
+
+    if (rc != 0) {
+      throw processError(results, spr);
+    }
+    getResult(results, spr);
+    // Server and session can be changed
+    cmdEpilog();
+  }
+
 
   void Protocol::getResult(Results* results, ServerPrepareResult *pr, bool readAllResults)
   {
@@ -1297,7 +1324,7 @@ namespace mariadb
    */
   void Protocol::processResult(Results* results, ServerPrepareResult *pr)
   {
-    switch (errorOccurred(pr))
+    switch (rc)//errorOccurred(pr))
     {
       case 0:
         if (fieldCount(pr) == 0)
@@ -1382,6 +1409,7 @@ namespace mariadb
     }
   }
 
+  // I wonder why does it have to be in Protocol
   uint32_t Protocol::fieldCount(ServerPrepareResult *pr)
   {
     if (pr != nullptr)
@@ -1509,6 +1537,7 @@ namespace mariadb
 
   void Protocol::cmdPrologue()
   {
+    rc= 0;
     if (mustReset)
     {
       this->unsyncedReset();
@@ -1945,7 +1974,8 @@ namespace mariadb
 
   void Protocol::realQuery(const SQLString& sql)
   {
-    if (mysql_real_query(connection.get(), sql.c_str(), static_cast<unsigned long>(sql.length()))) {
+    if ((rc= mysql_real_query(connection.get(), sql.c_str(),
+      static_cast<unsigned long>(sql.length())))) {
       throwConnError(getCHandle());
     }
   }

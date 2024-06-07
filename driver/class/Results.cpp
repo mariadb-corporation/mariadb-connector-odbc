@@ -321,8 +321,9 @@ namespace mariadb
       }
     }
     while (guard->hasMoreResults()) {
+      // moveToNextResult does that - getResult in case of success
       guard->moveToNextResult(this, serverPrepResult);
-      guard->getResult(this);
+      //guard->getResult(this);
     }
   }
 

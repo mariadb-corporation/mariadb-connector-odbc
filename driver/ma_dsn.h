@@ -54,6 +54,8 @@
 #define MADN_OPT_FLAG_BIGINT_BIND_STR           536870912
 #define MADN_OPT_FLAG_NO_INFORMATION_SCHEMA    1073741824 /*30*/
 
+#define DSN_DEFAULT_TRUE '\xff'
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -113,7 +115,6 @@ typedef struct st_madb_dsn
   char    *Catalog;
   char *CharacterSet;
   char *InitCommand;
-  char *TraceFile;
   char *Socket;
   char *ConnCPluginsDir;
   /* SSL Settings */
@@ -167,6 +168,8 @@ typedef struct st_madb_dsn
   my_bool ParamCallbacks;
   my_bool ResultCallbacks;
   my_bool NoBigint;
+  //TODO: this has to be removed
+  my_bool TraceFile;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */

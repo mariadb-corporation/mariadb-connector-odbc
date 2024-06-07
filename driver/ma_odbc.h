@@ -272,7 +272,6 @@ struct MADB_Env {
   typedef /*typename*/std::list<MADB_Dbc*>::iterator ListIterator;
   MADB_Error Error;
   std::list<MADB_Dbc*> Dbcs;
-  SQLWCHAR* TraceFile;
   SQLUINTEGER Trace;
   SQLINTEGER OdbcVersion;
   enum MADB_AppType AppType;

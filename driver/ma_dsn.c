@@ -60,7 +60,10 @@ MADB_DsnKey DsnKeys[]=
   {"AUTO_RECONNECT", offsetof(MADB_Dsn, Reconnect),         DSN_TYPE_OPTION, MADB_OPT_FLAG_AUTO_RECONNECT,0},
   {"NO_PROMPT",      offsetof(MADB_Dsn, ConnectPrompt),     DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_PROMPT,0},
   {"CHARSET",        offsetof(MADB_Dsn, CharacterSet),      DSN_TYPE_COMBO,  0, 0},
-  {"TRACE",          offsetof(MADB_Dsn, TraceFile),         DSN_TYPE_STRING, 0, 0},
+  /* TODO: this has to be removed.Changed to bool to take less memory : ) The problem is changed
+   * indexes of other elements of this array. I think they are relied upon in the setup dialog
+   */
+  {"TRACE",          offsetof(MADB_Dsn, TraceFile),         DSN_TYPE_BOOL, 0, 0},
   {"PLUGIN_DIR",     offsetof(MADB_Dsn, ConnCPluginsDir),   DSN_TYPE_STRING, 0, 0},
   /* SSL */
   {"SSLKEY",         offsetof(MADB_Dsn, SslKey),            DSN_TYPE_STRING, 0, 0},
@@ -152,8 +155,11 @@ MADB_Dsn *MADB_DSN_Init(MADB_Dsn *Dsn2init)
     /* Should this go to MADB_DSN_SetDefaults? The problem is that only used in dialog till the moment, not sure if
      * Dsn->IsTcpIp= 1 is appropriate default in driver.
      */
-    /* MYSQL_OPT_SSL_VERIFY_SERVER_CERT is set by default in C/C 3.4 and in the 11.4 server. Making it default here as well */
-    Dsn->SslVerify= '\1';
+    /* MYSQL_OPT_SSL_VERIFY_SERVER_CERT is set by default in C/C 3.4 and in the 11.4 server.
+       Making it default here as well. 0xff(-1) is the "default true"
+       if app sets it 0 or 1 - driver will enforce it, if it doesn't - this "default true"
+       will only be used if any other encryption related parameters are set */
+    Dsn->SslVerify= DSN_DEFAULT_TRUE;
     Dsn->NullSchemaMeansCurrent= '\1';
     Dsn->PsCacheSize= 250;
     Dsn->PsCacheMaxKeyLen= 2112;
@@ -178,7 +184,6 @@ void MADB_DSN_Free(MADB_Dsn *Dsn)
   MADB_FREE(Dsn->Catalog);
   MADB_FREE(Dsn->CharacterSet);
   MADB_FREE(Dsn->InitCommand);
-  MADB_FREE(Dsn->TraceFile);
   MADB_FREE(Dsn->Socket);
   MADB_FREE(Dsn->ConnCPluginsDir);
   MADB_FREE(Dsn->SslKey);

@@ -44,7 +44,6 @@ class ResultSetText : public ResultSet
   // we don't create buffers for all columns without call. Thus has to be mutable while getters are const
   mutable std::map<int32_t, std::unique_ptr<memBuf>> blobBuffer;
 
-  bool callableResult;
   PreparedStatement* statement;
   MYSQL *capiConnHandle;
 

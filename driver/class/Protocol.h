@@ -66,6 +66,8 @@ class Protocol
   /* This cannot be Shared as long as C/C stmt handle is owned by statement(SSPS class in this case) object */
   Results* activeStreamingResult= nullptr;
   uint32_t serverStatus= 0;
+  // Last command result, used in process
+  int32_t rc= 0;
 
   int32_t autoIncrementIncrement= 1;
 
@@ -109,6 +111,8 @@ class Protocol
   ServerPrepareResult* prepareInternal(const SQLString& sql);
   Protocol() = delete;
   void unsyncedReset();
+
+  static void resetError(MYSQL_STMT *stmt);
 
 public:
   static const int64_t MAX_PACKET_LENGTH;
@@ -159,6 +163,7 @@ public:
   void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
   /*bool executeBatchServer(bool mustExecuteOnMaster, ServerPrepareResult* serverPrepareResult, Results* results, const SQLString& sql,
                                   std::vector<std::vector<Unique::ParameterHolder>>& parameterList, bool hasLongData);*/
+  void moveToNextSpsResult(Results*, ServerPrepareResult* spr);
   void moveToNextResult(Results*, ServerPrepareResult* spr= nullptr);
   void getResult(Results*, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
   //void cancelCurrentQuery();

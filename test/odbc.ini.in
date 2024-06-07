@@ -10,7 +10,7 @@ DATABASE    = @TEST_SCHEMA@
 UID         = @TEST_UID@
 PASSWORD    = @TEST_PASSWORD@
 FORCETLS    = @TEST_USETLS@
-SSLVERIFY   = @TEST_SSLVERIFY@
+#SSLVERIFY   = @TEST_SSLVERIFY@
 TCPIP       = 1
 # To turn on connectors log(slows execution significantly)
 #OPTIONS     =4

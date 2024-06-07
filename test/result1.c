@@ -1684,20 +1684,15 @@ connection" errors
 */
 ODBC_TEST(t_bug27544)
 {
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1(a int)");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES (1)");
-
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS p1");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE p1() BEGIN"
-                "   SELECT a FROM t1; "
-                "END;");
+                       "   SELECT 1 FROM DUAL; "
+                       "END;");
 
   OK_SIMPLE_STMT(Stmt,"CALL p1()");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE p1");
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE t1");
 
   return OK;
 }
@@ -1756,7 +1751,7 @@ ODBC_TEST(t_bug16817)
                 "BEGIN "
                 "  SELECT 'Marten' FROM DUAL; "
                 "  SELECT 'Zack' FROM DUAL; "
-               "END");
+                "END");
 
   OK_SIMPLE_STMT(Stmt, "CALL p_bug16817()");
 

@@ -50,7 +50,6 @@ struct MADB_Dbc
   /* Attributes */
   char*      CatalogName= nullptr; /* Schema name set via SQLSetConnectAttr - it can be set before connection, thus we need it to have here */
   HWND       QuietMode= nullptr;
-  char*      TraceFile= nullptr;
 
   SQLPOINTER EnlistInDtc= nullptr;
   SQLULEN    AsyncEnable= 0;
