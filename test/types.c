@@ -1366,6 +1366,7 @@ ODBC_TEST(t_odbc405)
 {
   SQLINTEGER maxDecPrecision= 65;
   SQLULEN colLen= 0;
+  SQLCHAR dummy[16];
 
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_DECIMAL));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -1376,7 +1377,8 @@ ODBC_TEST(t_odbc405)
   /* For variables precision is max possible, and for some reason for variables it's higher,
      than for nomal one for fields */
   OK_SIMPLE_STMT(Stmt, "SELECT @testDECIMAL");
-  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, NULL, NULL, &colLen, NULL, NULL));
+  /* iOdbc crashes if not giver buffer for name */
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, dummy, sizeof(dummy), NULL, NULL, &colLen, NULL, NULL));
   FAIL_IF(colLen > maxDecPrecision, "Column length is greater than max precision for decimal");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

@@ -66,7 +66,7 @@ namespace mariadb
     }
     else
     {
-      length= *it.length();
+      length= *it.length() / sizeof(SQLWCHAR);
     }
 
     MADB_FREE(it.getDescRec()->InternalBuffer);
@@ -76,7 +76,7 @@ namespace mariadb
     {
       char error[64];
       std::snprintf(error, sizeof(error), "Error of allocation of the buffer of size %u", (uint32_t)mbLength);
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, error, 0);
       return true;
     }
 

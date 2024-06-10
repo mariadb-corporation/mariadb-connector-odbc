@@ -1618,6 +1618,16 @@ ODBC_TEST(t_odbc418)
   SQLLEN   len= 4*sizeof(SQLWCHAR);
   int i= 0, j;
 
+  /* Somehow iOdbc does its values sanitation that nobody asks it for. In the first run of
+   * SQLExecDirectW here after SQLBindParameter the value pointed by SQL_DESC_OCTET_LENGTH_PTR
+   * descriptor field(i.e. len), which was 16 after SQLBindParameter, happens to be already 4
+   * If we change param valus so 2nd charector is not null, that value will be 12. i.e. seems
+   * like iOdbc does smth like _wcslen on param value, and cnahges the length accordingly.
+   */
+  if (iOdbc())
+  {
+    skip("The test won't work due to iOdbc pecularities");
+  }
   OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE IF EXISTS t_odbc418"));
   OK_SIMPLE_STMTW(wStmt, WW("CREATE TABLE t_odbc418(id INT NOT NULL PRIMARY KEY, value  varchar(5) not null)"));
 
