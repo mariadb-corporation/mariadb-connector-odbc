@@ -72,12 +72,11 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
 {
   if (MADB_DOING_BULK_OPER(Stmt))
   {
-    Stmt->Bulk.ArraySize= 0;
-    Stmt->Bulk.HasRowsToSkip= 0;
-
-    if (Stmt->stmt->isServerSide() && !Stmt->setParamRowCallback(nullptr))
+    if (Stmt->Connection->Dsn->ParamCallbacks && Stmt->stmt->isServerSide() && !Stmt->setParamRowCallback(nullptr))
     {
       // We were doing callbacks - there is nothing to do any more
+      Stmt->Bulk.ArraySize= 0;
+      Stmt->Bulk.HasRowsToSkip= 0;
       return;
     }
     MADB_DescRecord *CRec;
@@ -121,6 +120,8 @@ void MADB_CleanBulkOperData(MADB_Stmt *Stmt, unsigned int ParamOffset)
         MADB_FREE(MaBind->u.indicator);
       }
     }
+    Stmt->Bulk.ArraySize= 0;
+    Stmt->Bulk.HasRowsToSkip= 0;
   }
 }
 

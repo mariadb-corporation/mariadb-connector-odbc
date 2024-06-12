@@ -1613,7 +1613,7 @@ void MADB_Stmt::PrepareBind(int32_t RowNumber)
     }
     if (didCallbacks)
     {
-      rs->setResultCallback(new NullRCodec(ArdRec));
+      setResultCodec(new NullRCodec(ArdRec));
     }
   }
 }
@@ -1828,9 +1828,16 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
         break;
         case SQL_C_WCHAR:
         {
-          SQLLEN CharLen= MADB_SetString(&Connection->Charset, DataPtr, ArdRec->OctetLength/sizeof(SQLWCHAR), (char *)result[i].buffer,
-            *result[i].length, &Error);
-
+          SQLLEN CharLen= *result[i].length;
+          /* If app buffer len(ArdRec->OctetLength) == 0, we don't have to write there anything.
+           * Besides we had allocated buffer of 1. And if we try to calculate chars number based on the result string
+           * full length from *result[i].length, it can get reading past the end of allocated buffer.
+           */
+          if (ArdRec->OctetLength)
+          {
+            MADB_SetString(&Connection->Charset, DataPtr, ArdRec->OctetLength / sizeof(SQLWCHAR), (char *)result[i].buffer,
+              *result[i].length, &Error);
+          }
           /* If returned len is 0 while source len is not - taking it as error occurred */
           if ((CharLen == 0 ||
             (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *result[i].length != 0 && result[i].buffer != NULL &&

@@ -91,7 +91,6 @@ public:
   void moveToNextResult();
 
   bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1));
-  bool setResultCallback(ResultCodec* callback, uint32_t column);
   bool setCallbackData(void* data);
   };
 }
