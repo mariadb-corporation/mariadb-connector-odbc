@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -765,7 +765,7 @@ ODBC_TEST(odbc143)
   Stmt1= DoConnect(Hdbc1, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
-  OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI_QUOTES'");
+  OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI,ANSI_QUOTES'");
   CHECK_DBC_RC(Hdbc1, SQLGetInfo(Hdbc1, SQL_IDENTIFIER_QUOTE_CHAR, Info, sizeof(Info), &Length));
   IS_STR(Info, "\"", 2);
   is_num(Length, 1);

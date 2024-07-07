@@ -1,6 +1,6 @@
   /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -785,7 +785,7 @@ ODBC_TEST(t_bug49029)
   SQLCHAR buff[6];
   SQLULEN len= 5;
 
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SET @@session.sql_mode='NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION,NO_BACKSLASH_ESCAPES'", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "SET @@session.sql_mode='NO_ENGINE_SUBSTITUTION,NO_BACKSLASH_ESCAPES'", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY,
     0, 0, (SQLPOINTER)bData, 0, &len));
@@ -819,14 +819,14 @@ ODBC_TEST(t_bug56804)
   SQLUSMALLINT status[PARAMSET_SIZE]= {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   SQLUSMALLINT ExpectedStatus[PARAMSET_SIZE];
 
-  SQLLEN	    paramset_size	= PARAMSET_SIZE;
+  SQLLEN	    paramset_size= PARAMSET_SIZE;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug56804");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug56804 (c1 INT PRIMARY KEY NOT NULL, c2 INT)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO bug56804 VALUES( 1, 1 ), (9, 9009)");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"insert into bug56804 values( ?,? )", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"INSERT INTO bug56804 VALUES( ?,? )", SQL_NTS));
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr( Stmt, SQL_ATTR_PARAMSET_SIZE,
     (SQLPOINTER)paramset_size, SQL_IS_UINTEGER ));
@@ -840,10 +840,17 @@ ODBC_TEST(t_bug56804)
   CHECK_STMT_RC(Stmt, SQLBindParameter( Stmt, 2, SQL_PARAM_INPUT, SQL_C_SLONG,
     SQL_DECIMAL, 4, 0, c2, 4, d2));
 
-  
-  if (ServerNotOlderThan(Connection, 10, 2, 7))
+  if (IsMysql)
   {
-    /* Starting from 10.2.7 connector will use bulk operations, which is solid, and either success or fail all together */
+    /*  With MySQL driver sends batch */
+    EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+    memset(ExpectedStatus, 0x00ff & SQL_PARAM_SUCCESS, sizeof(ExpectedStatus));
+    ExpectedStatus[1]= ExpectedStatus[6]= SQL_PARAM_ERROR;
+  }
+  else if (ServerNotOlderThan(Connection, 10, 2, 7))
+  {
+    /* Starting from 10.2.7 connector will use bulk operations, which is one indivisable operation,
+    and either success or fail all together. */
     EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
     memset(ExpectedStatus, 0x00ff & SQL_PARAM_DIAG_UNAVAILABLE, sizeof(ExpectedStatus));
   }
@@ -856,8 +863,6 @@ ODBC_TEST(t_bug56804)
     ExpectedStatus[9]= SQL_PARAM_ERROR;
     SolidOperation= FALSE;
   }
-  
-
   /* Following tests are here to ensure that driver works how it is currently
      expected to work, and they need to be changed if driver changes smth in the
      way how it reports errors in paramsets and diagnostics */

@@ -822,8 +822,17 @@ ODBC_TEST(t_odbc226)
   
   EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
   odbc_print_error(SQL_HANDLE_STMT, Stmt);
-  /* Before 3.2 here was HY000, but we actually may set sqlstate specific for the error */
-  CHECK_SQLSTATE(Stmt, "42S02");
+  /* Before 3.2 here was HY000, but we actually can set sqlstate specific for the error
+   * MySQL's error is about unknown database, MariaDB's - unknown table.  
+   */
+  if (IsMysql)
+  {
+    CHECK_SQLSTATE(Stmt, "42000");
+  }
+  else
+  {
+    CHECK_SQLSTATE(Stmt, "42S02");
+  }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 

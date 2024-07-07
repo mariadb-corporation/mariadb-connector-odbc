@@ -1157,6 +1157,7 @@ ODBC_TEST(t_desccolext)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_desccolext");
 
+  // MySQL does not support year(2). Test doesn't lose much w/out such field. Basically loses nothing
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_desccolext\
       ( t1 tinyint,\
         t2 tinyint(10),\
@@ -1194,7 +1195,7 @@ ODBC_TEST(t_desccolext)
         ts timestamp,\
         ti  time,\
         yr1 year,\
-        yr2 year(2),\
+        /*yr2 year(2),*/\
         yr3 year(4),\
         c1 char(10),\
         c2 char(10) binary,\
@@ -1329,6 +1330,7 @@ ODBC_TEST(t_colattributes)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_colattr");
 
+  // MySQL does not support year(2). Test doesn't lose much w/out such field. Basically loses nothing
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_colattr ("
          "t1 TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,"
@@ -1367,7 +1369,7 @@ ODBC_TEST(t_colattributes)
          "ts TIMESTAMP,"
          "ti  TIME,"
          "yr1 YEAR,"
-         "yr2 YEAR(2),"
+ //        "yr2 YEAR(2),"
          "yr3 YEAR(4),"
          "c1 CHAR(10),"
          "c2 CHAR(10) BINARY,"
@@ -1391,7 +1393,7 @@ ODBC_TEST(t_colattributes)
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_COLUMN_COUNT, NULL, 0, NULL,
                                  &count));
-  IS(count == 54);
+  IS(count == 53);
 
   CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, 1, SQL_COLUMN_AUTO_INCREMENT, NULL, 0,
                                  NULL, &isauto));

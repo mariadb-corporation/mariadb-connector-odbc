@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -706,9 +706,9 @@ ODBC_TEST(t_bug9781)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug9781");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug9781 (g GEOMETRY)");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug9781 VALUES (GeomFromText('POINT(0 0)'))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug9781 VALUES (ST_GeomFromText('POINT(0 0)'))");
 
-  OK_SIMPLE_STMT(Stmt, "SELECT AsBinary(g) FROM t_bug9781");
+  OK_SIMPLE_STMT(Stmt, "SELECT ST_AsBinary(g) FROM t_bug9781");
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLDescribeCol(Stmt, 1, column_name, sizeof(column_name),
                                 &name_length, &data_type, &column_size,

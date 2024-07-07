@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013 MontyProgram AB
+                2013, 2024  MariaDB plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -159,7 +159,7 @@ ODBC_TEST(t_isolation)
   is_num(isolation, SQL_TXN_READ_UNCOMMITTED);
 
   /* Check that it was actually changed on the server. */
-  if (ServerNotOlderThan(Connection, 11, 1, 1))
+  if (ServerNotOlderThan(Connection, 11, 1, 1) || IsMysql)
   {
     OK_SIMPLE_STMT(Stmt, "SELECT @@transaction_isolation");
   }
@@ -232,7 +232,7 @@ ODBC_TEST(t_isolation3)
     SQL_IS_POINTER, NULL));
   is_num(isolation, SQL_TXN_READ_COMMITTED);
 
-  if (ServerNotOlderThan(Connection, 11, 1, 1))
+  if (ServerNotOlderThan(Connection, 11, 1, 1) || IsMysql)
   {
     OK_SIMPLE_STMT(Stmt1, "SELECT @@transaction_isolation");
   }

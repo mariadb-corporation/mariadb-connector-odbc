@@ -149,7 +149,8 @@ static unsigned int  my_port=        3306;
 char                 ma_strport[12]= "PORT=3306";
 char                 my_host[256], DriverVersion[12], sql_mode[512];
 static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE
+, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -800,6 +801,7 @@ SKIP_IF_NOT_GRANTED(_STMT);\
 return FAIL;\
 } } while (0)
 
+
 int using_dm(HDBC hdbc)
 {
   return (DmMajor != 0 || DmMinor !=  0 || DmPatch != 0);
@@ -1008,7 +1010,7 @@ int reset_changed_server_variables(void)
 int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
 {
   SQLRETURN rc;
-  SQLCHAR val[20];
+  SQLCHAR val[20], DbmsName[16];
   SQLSMALLINT len;
   SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
 
@@ -1029,6 +1031,13 @@ int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+
+  if (SQL_SUCCEEDED(SQLGetInfo(Connection, SQL_DBMS_NAME, DbmsName, sizeof(DbmsName), NULL))
+    && _strnicmp(DbmsName, "MySQL", 5) == 0)
+  {
+    IsMysql= TRUE;
+  }
 
   /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
@@ -1531,7 +1540,7 @@ BOOL WindowsDM(HDBC hdbc)
 
 #define SKIPIF(_COND, _MSG) do {if (_COND) {skip(_MSG);}} while(0)
 
-int SkipIfRsStreming()
+int SkipIfRsStreaming()
 {
   if (ForwardOnly == TRUE && NoCache == TRUE)
   {

@@ -409,7 +409,11 @@ ODBC_TEST(t_odbc159)
   SQLSMALLINT ColumnsCount, expCols[]= {0,0,16};
   SQLRETURN rc;
 
-  if (ServerNotOlderThan(Connection, 10, 6, 0))
+  if (IsMysql)
+  {
+    expCols[2]= 18; //at least in 8.4
+  }
+  else if (ServerNotOlderThan(Connection, 10, 6, 0))
   {
     /* INFORMATION_SCHEMA.STATISTICS has 17 columns in 10.6 */
     expCols[2]= 17;
@@ -745,7 +749,7 @@ ODBC_TEST(t_odbc375)
   EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (SkipIfRsStreming())
+  if (SkipIfRsStreaming())
   {
     skip("The error is not detectable atm in case of result streaming");
   }
@@ -757,6 +761,41 @@ ODBC_TEST(t_odbc375)
   return OK;
 }
 
+ODBC_TEST(t_odbc423)
+{
+  SQLRETURN rc= SQL_SUCCESS;
+  SQLSMALLINT columnsCount= 0;
+
+  SQLCHAR *Query= "SELECT COUNT(*) FROM information_schema.tables\
+                   WHERE TABLE_SCHEMA='information_schema' AND TABLE_NAME='TABLESPACES'\
+                   INTO @tableExists;"
+                  "SELECT\
+	                  IF(@tableExists>0 \
+                  	,'SELECT tablespace_name, engine, tablespace_type, logfile_group_name, extent_size FROM information_schema.tablespaces ORDER BY tablespace_name , engine'\
+	                  ,'SELECT NULL LIMIT 0')\
+                   INTO @query;"
+                  "PREPARE s FROM @query;"
+                  "EXECUTE s;"
+                  "DEALLOCATE PREPARE s";
+
+  /* In 3.2 with client side prepare we don't get error here, but we get error on SQLMoreResults */
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, Query, SQL_NTS));
+
+  while ((rc= SQLMoreResults(Stmt)) != SQL_NO_DATA_FOUND)
+  {
+    // Still need to check for error
+    CHECK_STMT_RC(Stmt, rc);
+    SQLNumResultCols(Stmt, &columnsCount);
+
+    if (columnsCount > 0) {
+      my_print_non_format_result(Stmt);
+    }
+  }
+  
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -776,6 +815,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc219, "t_odbc219"},
   {test_autocommit, "test_autocommit"},
   {t_odbc375, "t_odbc375_reStoreError"},
+  {t_odbc423, "t_odbc423_batchWithPrepare"},
   {NULL, NULL}
 };
 

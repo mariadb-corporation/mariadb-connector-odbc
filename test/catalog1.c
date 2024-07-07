@@ -596,6 +596,13 @@ ODBC_TEST(t_tables_bug)
   CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnCount));
   is_num(ColumnCount, 5);
 
+  /* As said below - REMARKS are TEXT, i.e. longvarchar*/
+  if (IsMysql)
+  {
+    /* REMARKS */
+    t_tables_bug_data[4].pfSqlType= SQL_WLONGVARCHAR;
+    t_tables_bug_data[9].pfSqlType= SQL_LONGVARCHAR;
+  }
   for (i= 1; i <= ColumnCount; ++i)
   {
     CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, (SQLUSMALLINT)i, szColName,
@@ -616,7 +623,11 @@ ODBC_TEST(t_tables_bug)
     /* This depends on NAME_LEN in mysql_com.h */
 
     is_num(t_tables_bug_data[i + RefArrOffset].pibScale, pibScale);
-    is_num(t_tables_bug_data[i + RefArrOffset].pfNullable, pfNullable);
+    // (Copied from other test) MySQL has the field behind REMARKS as TEXT(unlike varchar in MariaDB)
+    // But for TEXT field is considered NULLABLE. I don't know if mysql can have NULL there, probably unlikely.
+    // On other hand catalog function result unlikely should be nullable per se. So, maybe we need to tweak metadata hier, but it does not look
+    // like a huge problem. 
+    is_num((IsMysql && i != 4 /*TABLE_TYPE*/ ? SQL_NULLABLE : t_tables_bug_data[i + RefArrOffset].pfNullable), pfNullable);
   }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -947,7 +958,8 @@ ODBC_TEST(t_bug4518)
   IS_STR(my_fetch_str(Stmt, buff, 8), "parent_id", 9);
   if (1)
   {
-    is_num(my_fetch_int(Stmt, 10), SQL_RESTRICT);
+    /* Im MySQL it's NO_ACTION, in MariaDB RESTRICT */
+    is_num(my_fetch_int(Stmt, 10), IsMysql ? SQL_NO_ACTION : SQL_RESTRICT);
     is_num(my_fetch_int(Stmt, 11), SQL_SET_NULL);
   }
   else

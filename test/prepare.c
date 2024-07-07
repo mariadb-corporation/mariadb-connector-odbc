@@ -1197,7 +1197,7 @@ ODBC_TEST(t_odbc57)
   return OK;
 }
 
-
+/* LOAD DATA INFILE was erroneously being refused from prparing and execution (with binary protocol) */
 ODBC_TEST(t_odbc141)
 {
   SQLCHAR SQLState[6];
@@ -1221,7 +1221,9 @@ ODBC_TEST(t_odbc141)
   {
     skip("Test user doesn't have enough privileges to run this test");
   }
-  FAIL_IF(NativeError!=29 && NativeError != 13, "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
+  // MySQL runs by default with --secure-file-priv these days execution of this statement disallowed. But such error basically means, that
+  // the test passed
+  FAIL_IF(NativeError!=29 && NativeError != 13 && (!IsMysql || NativeError != 1290), "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc141");

@@ -1147,7 +1147,7 @@ ODBC_TEST(t_bug28168)
   SQLINTEGER native_error= 0;
 
   SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
-
+  SKIPIF(IsMysql, "MySQL does not support the syntax used in this test");
   /* Create tables to give permissions */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28168");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28168 (x int)");
@@ -1768,7 +1768,7 @@ MA_ODBC_TESTS my_tests[]=
   {sqlchar,           "sqlchar",            NORMAL},
   {sqldriverconnect,  "sqldriverconnect",   NORMAL},
   {sqlnativesql,      "sqlnativesql",       NORMAL},
-  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL, SkipIfRsStreming},
+  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL, SkipIfRsStreaming},
   {sqlgetcursorname,  "sqlgetcursorname",   NORMAL},
   {sqlcolattribute,   "sqlcolattribute",    NORMAL},
   {sqldescribecol,    "sqldescribecol",     NORMAL},
