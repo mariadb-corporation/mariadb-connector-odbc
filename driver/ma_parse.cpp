@@ -18,6 +18,7 @@
 *************************************************************************************/
 
 #include "ma_odbc.h"
+#include "class/Protocol.h"
 
 /* Minimal query length when we tried to avoid full parsing */
 #define QUERY_LEN_FOR_POOR_MAN_PARSING 32768
@@ -105,7 +106,7 @@ int MADB_ResetParser(MADB_Stmt *Stmt, const char *OriginalQuery, SQLINTEGER Orig
     }
 
     Stmt->Query.BatchAllowed=      DSN_OPTION(Stmt->Connection, MADB_OPT_FLAG_MULTI_STATEMENTS) ? '\1' : '\0';
-    Stmt->Query.AnsiQuotes=        MADB_SqlMode(Stmt->Connection, MADB_ANSI_QUOTES);
+    Stmt->Query.AnsiQuotes=        Stmt->Connection->guard->getAnsiQuotes();
     Stmt->Query.NoBackslashEscape= MADB_SqlMode(Stmt->Connection, MADB_NO_BACKSLASH_ESCAPES);
   }
  
@@ -421,7 +422,7 @@ int ParseQuery(MADB_QUERY *Query)
         Quote= *p++;
         SavePosition= p; /* In case we go past eos while looking for ending quote */
         if (Query->NoBackslashEscape || Quote == '`' || /* Backtick works with ANSI_QUOTES */
-          (Query->AnsiQuotes && Quote == '"'))/* In indetifier quotation backslash does not escape anything - CLI has error with that */
+          (Query->AnsiQuotes && Quote == '"'))/* In idetifier quotation backslash does not escape anything - CLI has error with that */
         {
           SkipQuotedString_Noescapes(&p, end, Quote);
         }

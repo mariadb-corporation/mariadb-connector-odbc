@@ -136,7 +136,8 @@ namespace mariadb
   {
     parseVersion(serverVersion);
 
-    if (serverVersion.compare(0, MARIADB_RPL_HACK_PREFIX.length(), MARIADB_RPL_HACK_PREFIX)) {
+    if (serverVersion.compare(0, MARIADB_RPL_HACK_PREFIX.length(),
+      MARIADB_RPL_HACK_PREFIX) == 0) {
       serverMariaDb= true;
       serverVersion= serverVersion.substr(MARIADB_RPL_HACK_PREFIX.length());
     }
@@ -165,10 +166,17 @@ namespace mariadb
 
     SQLString sessionOption("SET session_track_schema=1,session_track_system_variables='auto_increment_increment,");
 
-//    if ((serverCapabilities & CLIENT_MULTI_STATEMENTS) != 0) {
     sessionOption.append(trIsolVarName);
-    sessionOption.append("'");
-//    }
+    // MySQL does not have ansi_quotes in status, need to track it
+    if (!serverMariaDb) {
+      sessionOption.append(",sql_mode");
+      // Getting initial value
+      realQuery("SELECT 1 WHERE @@sql_mode LIKE '%ansi_quotes%'");
+      auto res= mysql_store_result(connection.get());
+      ansiQuotes= (mysql_fetch_row(res) != nullptr);
+      mysql_free_result(res);
+    }
+    sessionOption.append(1,'\'');
     realQuery(sessionOption);
   }
 
@@ -1366,7 +1374,7 @@ namespace mariadb
   void Protocol::handleStateChange()
   {
     const char *key, *value;
-    size_t len, valueLen;
+    std::size_t len, valueLen;
 
     for (int32_t type= SESSION_TRACK_BEGIN; type < SESSION_TRACK_END; ++type)
     {
@@ -1384,6 +1392,20 @@ namespace mariadb
           else if (std::strncmp(key, txIsolationVarName.c_str(), len) == 0)
           {
             transactionIsolationLevel= mapStr2TxIsolation(value, valueLen);
+          }
+          else if (std::strncmp(key, "sql_mode", len) == 0) {
+            ansiQuotes= false;
+            if (valueLen > 10/*ANSI_QUOTES*/) {
+              for (std::size_t i= 0; i < valueLen - 10; ++i) {
+                if (value[i] == 'A' && value[++i] == 'N' && value[++i] == 'S' && value[++i] == 'I' &&
+                  value[++i] == '_' && value[++i] == 'Q') {// That's enough. Even one byte more than enough
+                  ansiQuotes= true;
+                  break;
+                }
+                // Moving to the separator before next mode name
+                while (i < valueLen - 11 && value[i] != ',') ++i;
+              }
+            }
           }
           break;
         }
@@ -1735,7 +1757,7 @@ namespace mariadb
 
   uint32_t Protocol::getServerStatus()
   {
-    // Should it be really read each time?
+    // Should it be really read each time? it's safer, but probably redundant
     mariadb_get_infov(connection.get(), MARIADB_CONNECTION_SERVER_STATUS, (void*)&this->serverStatus);
     return serverStatus;
   }

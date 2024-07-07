@@ -539,15 +539,10 @@ SQLRETURN MADB_Dbc::GetCurrentDB(SQLPOINTER CurrentDB, SQLINTEGER CurrentDBLengt
 
 bool MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
 {
-  unsigned int ServerStatus;
-
-  mariadb_get_infov(Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
   switch (SqlMode)
   {
   case MADB_NO_BACKSLASH_ESCAPES:
-    return ServerStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES;
-  case MADB_ANSI_QUOTES:
-    return ServerStatus & SERVER_STATUS_ANSI_QUOTES;
+    return Connection->guard->getServerStatus() & SERVER_STATUS_NO_BACKSLASH_ESCAPES;
   }
   return false;
 }
@@ -1520,7 +1515,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     break;
   case SQL_IDENTIFIER_QUOTE_CHAR:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Charset : nullptr, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
-      MADB_SqlMode(this, MADB_ANSI_QUOTES) ? "\"" : "`", SQL_NTS, &Error);
+      guard->getAnsiQuotes() ? "\"" : "`", SQL_NTS, &Error);
     break;
   case SQL_INDEX_KEYWORDS:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_IK_ALL, StringLengthPtr);

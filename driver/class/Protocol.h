@@ -83,11 +83,12 @@ class Protocol
 
   SQLString serverVersion;
   bool serverMariaDb= true;
-  uint32_t majorVersion= 10;
+  uint32_t majorVersion= 11;
   uint32_t minorVersion= 0;
   uint32_t patchVersion= 0;
   SQLString txIsolationVarName;
   bool     mustReset= false;
+  bool     ansiQuotes= false;
 
   // ----- private methods -----
   void cmdPrologue();
@@ -126,7 +127,7 @@ public:
   ServerPrepareResult* prepare(const SQLString& sql);
   bool getAutocommit();
   bool noBackslashEscapes();
-  void connect();
+  //void connect(); //not used
   bool inTransaction();
   void close();
   void abort();
@@ -134,7 +135,7 @@ public:
   void closeExplicit();
   void markClosed(bool closed);
   bool isClosed();
-  void resetDatabase();
+  //void resetDatabase(); //not used
   const SQLString& getSchema();
   void setSchema(const SQLString& database);
   const SQLString& getServerVersion() const;
@@ -151,18 +152,8 @@ public:
   bool isValid(int32_t timeout);
   void executeQuery(const SQLString& sql);
   void executeQuery(Results*, const SQLString& sql);
-  /*void executeQuery(Results* results, const SQLString& sql, const Charset* charset);
-  void executeQuery(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* clientPrepareResult,
-    std::vector<Unique::ParameterHolder>& parameters);
-  void executeQuery(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* clientPrepareResult,
-    std::vector<Unique::ParameterHolder>& parameters,
-    int32_t timeout);
-  bool executeBatchClient(bool mustExecuteOnMaster, Results* results, ClientPrepareResult* prepareResult,
-    std::vector<std::vector<Unique::ParameterHolder>>& parametersList, bool hasLongData);*/
   void executeBatchStmt(bool mustExecuteOnMaster, Results*, const std::vector<SQLString>& queries);
   void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
-  /*bool executeBatchServer(bool mustExecuteOnMaster, ServerPrepareResult* serverPrepareResult, Results* results, const SQLString& sql,
-                                  std::vector<std::vector<Unique::ParameterHolder>>& parameterList, bool hasLongData);*/
   void moveToNextSpsResult(Results*, ServerPrepareResult* spr);
   void moveToNextResult(Results*, ServerPrepareResult* spr= nullptr);
   void getResult(Results*, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
@@ -181,7 +172,7 @@ public:
   int64_t getServerThreadId();
   int32_t getTransactionIsolationLevel();
   bool isExplicitClosed();
-  void connectWithoutProxy();
+  // void connectWithoutProxy(); //not used
   void releasePrepareStatement(ServerPrepareResult* serverPrepareResult);
   bool forceReleasePrepareStatement(MYSQL_STMT* statementId);
   void forceReleaseWaitingPrepareStatement();
@@ -211,6 +202,7 @@ public:
   void setTransactionIsolation(enum IsolationLevel level);
   inline bool sessionStateChanged() { return (serverStatus & SERVER_SESSION_STATE_CHANGED) != 0; }
   void deferredReset() { mustReset= true; }
+  inline bool getAnsiQuotes() const { return serverMariaDb ? serverStatus & SERVER_STATUS_ANSI_QUOTES : ansiQuotes; }
   };
 
 }

@@ -21,7 +21,7 @@
 
 
 /* sql_mode's identifiers */
-enum enum_madb_sql_mode {MADB_NO_BACKSLASH_ESCAPES, MADB_ANSI_QUOTES };
+enum enum_madb_sql_mode {MADB_NO_BACKSLASH_ESCAPES};
 
 struct st_madb_isolation {
   long SqlIsolation;
