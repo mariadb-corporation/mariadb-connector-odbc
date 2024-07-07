@@ -791,7 +791,7 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
                            "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
                            "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
-                           "COLUMN_KEY = 'pri' AND ");
+                           "COLUMN_KEY = 'PRI' AND ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
@@ -1102,7 +1102,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
         namedRefSchemaCondition[1]= '\'';
       }
       aux << field << " FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE A " << part3.str() << " AND " << field <<
-        " IS NOT NULL ORDER BY TABLE_SCHEMA";
+        " IS NOT NULL ORDER BY " << field;
 
       std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
       Stmt->Connection->guard->safeRealQuery(aux.str());
