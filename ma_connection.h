@@ -51,11 +51,12 @@ struct st_ma_connection_methods
   void      (*AddQueryTime)(MADB_QUERY* Query, unsigned long long Timeout);
 };
 
-my_bool CheckConnection(MADB_Dbc *Dbc);
+my_bool CheckConnection(MADB_Dbc* Dbc);
 
-SQLRETURN MADB_DbcFree(MADB_Dbc *Connection);
-MADB_Dbc * MADB_DbcInit(MADB_Env *Env);
-BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode);
+SQLRETURN MADB_DbcFree(MADB_Dbc* Connection);
+MADB_Dbc * MADB_DbcInit(MADB_Env* Env);
+my_bool MADB_ReadIfAnsiSqlMode(MADB_Dbc* Connection);
+BOOL MADB_SqlMode(MADB_Dbc* Connection, enum enum_madb_sql_mode SqlMode);
 /* Has platform versions */
 char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size);
 

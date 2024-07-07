@@ -149,8 +149,8 @@ static unsigned int  my_port=        3306;
 char                 ma_strport[12]= "PORT=3306";
 char                 my_host[256], DriverVersion[12], sql_mode[512];
 static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE/*, PerfSchema= FALSE*/
-, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE,
+        IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};

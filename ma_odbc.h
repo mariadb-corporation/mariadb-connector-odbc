@@ -391,6 +391,7 @@ struct st_ma_odbc_connection
   my_bool IsMySQL;
  /* my_bool IsXpand;*/
   char    lcTableNamesMode2;
+  my_bool ansiSqlMode;
 };
 
 typedef BOOL (__stdcall *PromptDSN)(HWND hwnd, MADB_Dsn *Dsn);

@@ -58,6 +58,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
         Dbc->ServerCapabilities|= MySQLVersionCapabilityMap[i][1];
       }
     }
+    Dbc->ansiSqlMode= MADB_ReadIfAnsiSqlMode(Dbc);
   }
 
   mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_SERVER_CAPABILITIES, (void*)&ServerCapabilities);

@@ -498,6 +498,7 @@ MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
 
   Connection->AutoCommit= 4;
   Connection->lcTableNamesMode2= (char)-1; /* -1 means we don't know if lower_case_table_names=2, ie that info has never been requested  yet */
+  Connection->ansiSqlMode= -1; /* means we don't know this yet */
   Connection->Environment= Env;
   Connection->Methods= &MADB_Dbc_Methods;
   //CopyClientCharset(&SourceAnsiCs, &Connection->Charset);
@@ -624,7 +625,21 @@ SQLRETURN MADB_DbcGetTrackedCurrentDB(MADB_Dbc* Dbc, SQLPOINTER CurrentDB, SQLIN
 }
 /* }}} */
 
-BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
+my_bool MADB_ReadIfAnsiSqlMode(MADB_Dbc* Connection)
+{
+  MYSQL_RES* res= NULL;
+  LOCK_MARIADB(Connection);
+  mysql_real_query(Connection->mariadb, "SELECT 1 FROM DUAL WHERE @@sql_mode LIKE '%ansi_quotes%'",
+    sizeof("SELECT 1 FROM DUAL WHERE @@sql_mode LIKE '%ansi_quotes%'") - 1);
+  res= mysql_store_result(Connection->mariadb);
+  Connection->ansiSqlMode= (my_bool)(mysql_fetch_row(res) != NULL);
+  mysql_free_result(res);
+  UNLOCK_MARIADB(Connection);
+  return Connection->ansiSqlMode;
+}
+
+
+BOOL MADB_SqlMode(MADB_Dbc* Connection, enum enum_madb_sql_mode SqlMode)
 {
   unsigned int ServerStatus;
 
@@ -634,7 +649,14 @@ BOOL MADB_SqlMode(MADB_Dbc *Connection, enum enum_madb_sql_mode SqlMode)
   case MADB_NO_BACKSLASH_ESCAPES:
     return test(ServerStatus & SERVER_STATUS_NO_BACKSLASH_ESCAPES);
   case MADB_ANSI_QUOTES:
-    return test(ServerStatus & SERVER_STATUS_ANSI_QUOTES);
+    if (Connection->IsMySQL)
+    {
+      return Connection->ansiSqlMode;
+    }
+    else
+    {
+      return test(ServerStatus & SERVER_STATUS_ANSI_QUOTES);
+    }
   }
   return FALSE;
 }
@@ -1604,7 +1626,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
     break;
   case SQL_IDENTIFIER_QUOTE_CHAR:
     SLen= (SQLSMALLINT)MADB_SetString(isWChar ? &Dbc->Charset : NULL, (void *)InfoValuePtr, BUFFER_CHAR_LEN(BufferLength, isWChar), 
-      MADB_SqlMode(Dbc, MADB_ANSI_QUOTES) ? "\"" : "`", SQL_NTS, &Dbc->Error);
+      Dbc->IsMySQL && MADB_ReadIfAnsiSqlMode(Dbc) || !Dbc->IsMySQL && MADB_SqlMode(Dbc, MADB_ANSI_QUOTES) ? "\"" : "`", SQL_NTS, &Dbc->Error);
     break;
   case SQL_INDEX_KEYWORDS:
     MADB_SET_NUM_VAL(SQLUINTEGER, InfoValuePtr, SQL_IK_ALL, StringLengthPtr);

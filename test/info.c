@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -752,7 +752,7 @@ ODBC_TEST(odbc143)
   Stmt1= DoConnect(Hdbc1, FALSE, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL);
   FAIL_IF(Stmt1 == NULL, "Could not connect and/or allocate");
 
-  OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI_QUOTES'");
+  OK_SIMPLE_STMT(Stmt1, "SET @@SESSION.sql_mode='ANSI,ANSI_QUOTES'");
   CHECK_DBC_RC(Hdbc1, SQLGetInfo(Hdbc1, SQL_IDENTIFIER_QUOTE_CHAR, Info, sizeof(Info), &Length));
   IS_STR(Info, "\"", 2);
   is_num(Length, 1);
@@ -859,6 +859,20 @@ ODBC_TEST(odbc313)
   return OK;
 }
 
+ODBC_TEST(odbc430)
+{
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_VARCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 3), 65535);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_VARBINARY));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 3), 65535);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -885,6 +899,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc317, "odbc317_conattributes", NORMAL },
   { odbc326, "odbc326", NORMAL },
   { odbc313, "odbc313", NORMAL },
+  { odbc430, "odbc430", NORMAL },
   { NULL, NULL }
 };
 

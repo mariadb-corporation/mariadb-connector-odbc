@@ -1437,6 +1437,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
             /* What if this is multistatement? */
             goto end;
           }
+          /* We have to clear error here if it's not the last paramset. Otherwise it will decide there
+           * was an error during parameter conversion in MADB_C2SQL
+           */
+          MADB_CLEAR_ERROR(&Stmt->Error);
         }
         else
         {

@@ -1,6 +1,6 @@
 ﻿/*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -644,6 +644,9 @@ ODBC_TEST(t_bug12520)
   SQLLEN len, my_time_cb;
   SQLCHAR datetime[50];
 
+  if (IsMysql)
+    skip("MySQL does not allow '0000-00-00 00:00'");
+
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug12520");
   OK_SIMPLE_STMT(Stmt,
          "CREATE TABLE t_bug12520 (a DATETIME DEFAULT '0000-00-00 00:00',"
@@ -682,8 +685,8 @@ ODBC_TEST(t_bug15773)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug15773");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug15773("
          "`a` varchar(255) NOT NULL default '',"
-         "`b` datetime NOT NULL default '0000-00-00 00:00:00',"
-         "`c` datetime NOT NULL default '0000-00-00 00:00:00'"
+         "`b` datetime NOT NULL,"
+         "`c` datetime NOT NULL"
          ") ENGINE=InnoDB DEFAULT CHARSET=latin1");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug15773 VALUES ('a', '2005-12-24 00:00:00', '2008-05-12 00:00:00')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_bug15773 VALUES ('b', '2004-01-01 00:00:00', '2005-01-01 00:00:00')");
@@ -713,7 +716,6 @@ ODBC_TEST(t_bug15773)
   return OK;
 }
 
-
 /**
  Bug #9927: Updating datetime columns
 */
@@ -722,14 +724,15 @@ ODBC_TEST(t_bug9927)
   SQLCHAR col[10];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug9927");
-  OK_SIMPLE_STMT(Stmt,
-         "CREATE TABLE t_bug9927 (a TIMESTAMP DEFAULT 0,"
-         "b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+  OK_SIMPLE_STMT(Stmt, IsMysql ? "CREATE TABLE t_bug9927 (a TIMESTAMP,"
+                                 "b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)" :
+                        "CREATE TABLE t_bug9927 (a TIMESTAMP DEFAULT 0,"
+                        "b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
 
   /* Not sure which exactly version that was introduced, but 10.11.2 is first ga */
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt,SQL_ROWVER,  NULL, 0,
                                    NULL, 0, (SQLCHAR *)"t_bug9927", SQL_NTS,
-                                   0, ServerNotOlderThan(Connection, 10,10,2) ? SQL_NULLABLE : SQL_NO_NULLS));
+                                   0, ServerNotOlderThan(Connection, 10,10,2) || IsMysql ? SQL_NULLABLE : SQL_NO_NULLS));
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, col, 2), "b", 1);
@@ -751,15 +754,16 @@ ODBC_TEST(t_bug9927)
 ODBC_TEST(t_bug30081)
 {
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug30081");
-  OK_SIMPLE_STMT(Stmt,
-         "CREATE TABLE t_bug30081 (a TIMESTAMP DEFAULT 0,"
-        "b TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+  OK_SIMPLE_STMT(Stmt, IsMysql ? "CREATE TABLE t_bug30081 (a TIMESTAMP,"
+                                 "b TIMESTAMP DEFAULT CURRENT_TIMESTAMP)" :
+                        "CREATE TABLE t_bug30081 (a TIMESTAMP DEFAULT 0,"
+                        "b TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt,SQL_ROWVER,  NULL, 0,
                                    NULL, 0, (SQLCHAR *)"t_bug30081", SQL_NTS,
                                    0, SQL_NO_NULLS));
 
-  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA_FOUND);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
