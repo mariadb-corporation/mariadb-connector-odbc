@@ -242,12 +242,12 @@ namespace mariadb
   std::size_t estimatePreparedQuerySize(ClientPrepareResult* clientPrepareResult, const std::vector<SQLString> &queryPart,
       std::vector<Unique::ParameterHolder>& parameters)
   {
-    std::size_t estimate= queryPart.front().length() + 1/* for \0 */, offset = 0;
+    std::size_t estimate= queryPart.front().length() + 1/* for \0 */, offset= 0;
     if (clientPrepareResult->isRewriteType()) {
       estimate+= queryPart[1].length() + queryPart[clientPrepareResult->getParamCount() + 2].length();
       offset= 1;
     }
-    for (uint32_t i = 0; i < clientPrepareResult->getParamCount(); ++i) {
+    for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); ++i) {
       estimate+= (parameters)[i]->getApproximateTextProtocolLength();
       estimate+= queryPart[i + 1 + offset].length();
     }
@@ -274,7 +274,7 @@ namespace mariadb
       out.append(queryPart[0]);
       out.append(queryPart[1]);
 
-      for (uint32_t i = 0; i < clientPrepareResult->getParamCount(); i++) {
+      for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
         parameters[i]->writeTo(out);
         out.append(queryPart[i + 2]);
       }
@@ -282,7 +282,7 @@ namespace mariadb
     }
     else {
       out.append(queryPart.front());
-      for (uint32_t i = 0; i < clientPrepareResult->getParamCount(); i++) {
+      for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
         parameters[i]->writeTo(out);
         out.append(queryPart[i + 1]);
       }
@@ -637,7 +637,7 @@ namespace mariadb
        return pr;
     }
 
-    MYSQL_STMT* stmtId = mysql_stmt_init(connection.get());
+    MYSQL_STMT* stmtId= mysql_stmt_init(connection.get());
 
     if (stmtId == nullptr)
     {
@@ -651,7 +651,7 @@ namespace mariadb
     if (mysql_stmt_prepare(stmtId, sql.c_str(), static_cast<unsigned long>(sql.length())))
     {
       SQLString err(mysql_stmt_error(stmtId)), sqlState(mysql_stmt_sqlstate(stmtId));
-      uint32_t errNo = mysql_stmt_errno(stmtId);
+      uint32_t errNo= mysql_stmt_errno(stmtId);
 
       mysql_stmt_close(stmtId);
       throw SQLException(err, sqlState, errNo);
@@ -1186,7 +1186,7 @@ namespace mariadb
 
   void Protocol::markClosed(bool closed)
   {
-    this->explicitClosed = closed;
+    this->explicitClosed= closed;
     //close();
   }
 
@@ -1273,15 +1273,11 @@ namespace mariadb
     MYSQL_STMT *stmt= spr->getStatementId();
     rc= mysql_stmt_next_result(stmt);
 
-    if (rc != 0) {
-      if (rc == -1) {
-        // mysql_stmt_store_result checks if there are fields
-        //mysql_stmt_store_result(stmt);
-
-      }
-      throw processError(results, spr);
+    if (rc == 0) {
+      // Temporary hack to work-around the bug C/C
+      Protocol::resetError(stmt);
     }
-    Protocol::resetError(stmt);
+    
     getResult(results, spr);
     // Server and session can be changed
     cmdEpilog();
@@ -1301,9 +1297,6 @@ namespace mariadb
     std::lock_guard<std::mutex> localScopeLock(lock);
     rc= mysql_next_result(connection.get());
 
-    if (rc != 0) {
-      throw processError(results, spr);
-    }
     getResult(results, spr);
     // Server and session can be changed
     cmdEpilog();
@@ -1359,7 +1352,7 @@ namespace mariadb
   void Protocol::readOk(Results* results, ServerPrepareResult *pr)
   {
     const int64_t updateCount= (pr == nullptr ? mysql_affected_rows(connection.get()) : mysql_stmt_affected_rows(pr->getStatementId()));
-    const int64_t insertId= (pr == nullptr ? mysql_insert_id(connection.get()) : mysql_stmt_insert_id(pr->getStatementId()));
+    //const int64_t insertId= (pr == nullptr ? mysql_insert_id(connection.get()) : mysql_stmt_insert_id(pr->getStatementId()));
 
     getServerStatus();
     hasWarningsFlag= mysql_warning_count(connection.get()) > 0;
@@ -1531,7 +1524,6 @@ namespace mariadb
       throw e;
     }
   }
-
 
   /**
    * Preparation before command.
@@ -1705,7 +1697,7 @@ namespace mariadb
    */
   void Protocol::skip()
   {
-    Results* activeStream = getActiveStreamingResult();
+    Results* activeStream= getActiveStreamingResult();
     if (activeStream) {
       activeStream->loadFully(true, this);
       activeStreamingResult= nullptr;
@@ -1942,7 +1934,7 @@ namespace mariadb
   /** Remove exception result and since totally fetched, set fetch size to 0. */
   void Protocol::removeActiveStreamingResult()
   {
-    Results* activeStream = getActiveStreamingResult();
+    Results* activeStream= getActiveStreamingResult();
     if (activeStream) {
       activeStream->removeFetchSize();
       activeStreamingResult= nullptr;
@@ -1976,7 +1968,7 @@ namespace mariadb
 
   void Protocol::changeReadTimeout(int32_t millis)
   {
-    this->socketTimeout = millis;
+    this->socketTimeout= millis;
     // Making seconds out of millies, as MYSQL_OPT_READ_TIMEOUT needs seconds
     millis= (millis + 999) / 1000;
     mysql_optionsv(connection.get(), MYSQL_OPT_READ_TIMEOUT, (void*)&millis);

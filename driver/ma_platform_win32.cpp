@@ -335,14 +335,14 @@ int GetSourceAnsiCs(Client_Charset *cc)
 
 BOOL MADB_DirectoryExists(const char *Path)
 {
-  DWORD FileAttributes = GetFileAttributes(Path);
+  DWORD FileAttributes= GetFileAttributes(Path);
 
   return (FileAttributes != INVALID_FILE_ATTRIBUTES) && (FileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 char* MADB_GetDefaultPluginsDir(char* Buffer, size_t Size)
 {
-  HMODULE hModule = GetModuleHandle(MADB_DRIVER_NAME);
+  HMODULE hModule= GetModuleHandle(MADB_DRIVER_NAME);
   wchar_t wOurLocation[_MAX_PATH];
   const char *PluginsSubDirName= "\\" MADB_DEFAULT_PLUGINS_SUBDIR;
   HRESULT hr;

@@ -127,8 +127,8 @@ namespace mariadb
 
   bool CmdInformationMultiple::moreResults()
   {
-    return static_cast<std::size_t>(++moreResultsIdx) < updateCounts.size()
-      && updateCounts[moreResultsIdx] == RESULT_SET_VALUE;
+    return static_cast<std::size_t>(++moreResultsIdx) < updateCounts.size();
+  //    && updateCounts[moreResultsIdx] == RESULT_SET_VALUE;
   }
 
   bool CmdInformationMultiple::isCurrentUpdateCount()

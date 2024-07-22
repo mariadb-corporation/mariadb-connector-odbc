@@ -115,9 +115,13 @@ public:
   CArrView(int64_t len, const T _arr[] )
     : length(len < 0 ? len : -len)
   {
-    if (length < 0)
-    {
+    // If len parameter < 0 - macking copy, otherwise - taking ownership of the array
+    // Looks like CArrView is not needed, and CArray could do all the job
+    if (len < 0) {
       make_copy(_arr, static_cast<std::size_t>(-length));
+    }
+    else {
+      arr= _arr;
     }
   }
 
@@ -265,7 +269,7 @@ CArray<T>::CArray(std::initializer_list<T> const& initList) : CArray(initList.en
 if (rhs.length > 0)
 {
   rhs.arr= nullptr;
-  length = 0;
+  length= 0;
 }
 }*/
 
@@ -387,7 +391,7 @@ namespace mariadb
 template <template<typename, typename...> class C, typename T>
 class UniqueContainer {
 public:
-  UniqueContainer() = default;
+  UniqueContainer()= default;
   ~UniqueContainer() {
     for (auto ptr : container) {
       delete ptr;
@@ -407,7 +411,7 @@ public:
   void reset(T* array, std::size_t count) {
     reset();
     container.reserve(count);
-    for (std::size_t i = 0; i < count; ++i) {
+    for (std::size_t i= 0; i < count; ++i) {
       emplace_back(array[i]);
     }
   }

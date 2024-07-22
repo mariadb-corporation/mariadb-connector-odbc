@@ -593,7 +593,7 @@ my_bool MADB_ParseConnString(MADB_Dsn *Dsn, const char *String, size_t Length, c
           char *valueBufPtr= ValueBuf;
           char *prev= ++Value;
           *valueBufPtr= '\0';
-          while ((p = strchr(prev, '}')) != NULL )
+          while ((p= strchr(prev, '}')) != NULL )
           {
             memcpy(valueBufPtr, prev, p - prev);
             valueBufPtr+= p - prev;

@@ -72,8 +72,8 @@ void ma_debug_print_error(MADB_Error *err)
   GetSystemTime(&st);
   ma_debug_print(1, "%d-%02d-%02d %02d:%02d:%02d [%s](%u)%s", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, err->SqlState, err->NativeError, err->SqlErrorMsg);
 #else
-  time_t t = time(NULL);\
-  struct tm st = *gmtime(&t);\
+  time_t t= time(NULL);\
+  struct tm st= *gmtime(&t);\
   ma_debug_print(1, "%d-%02d-%02d %02d:%02d:%02d [%s](%u)%s", st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, st.tm_hour, st.tm_min, st.tm_sec, err->SqlState, err->NativeError, err->SqlErrorMsg);
 #endif
 }

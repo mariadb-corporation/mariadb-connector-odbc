@@ -197,7 +197,7 @@ namespace mariadb
     bind.buffer_type= static_cast<enum_field_types>(typeInfo.getType());
     bind.is_null= &bind.is_null_value;
     if (paramInfo.isUnsigned()) {
-      bind.is_unsigned = '\1';
+      bind.is_unsigned= '\1';
     }
   }*/
 

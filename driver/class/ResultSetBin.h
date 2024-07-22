@@ -24,7 +24,6 @@
 #include <exception>
 #include <vector>
 #include <map>
-#include "ma_odbc.h"
 
 #include "ColumnDefinition.h"
 #include "ResultSet.h"
@@ -49,28 +48,10 @@ class ResultSetBin : public ResultSet
 {
   friend void defaultResultCallback(void* data, uint32_t column, unsigned char **row);
 
-  const std::vector<ColumnDefinition>& columnsInformation;
-  int32_t columnInformationLength;
-  bool noBackslashEscapes;
-  // we don't create buffers for all columns without call. Thus has to be mutable while getters are const
-  mutable std::map<int32_t, std::unique_ptr<memBuf>> blobBuffer;
-
   bool callableResult= false;
-  PreparedStatement* statement;
   MYSQL_STMT* capiStmtHandle;
   std::unique_ptr<MYSQL_BIND[]> resultBind;
-
-  std::vector<std::vector<mariadb::bytes_view>> data;
-  std::size_t dataSize; //Should go after data
-
-  int32_t resultSetScrollType;
-  int32_t rowPointer;
-
-//  std::unique_ptr<ColumnNameMap> columnNameMap;
-
-  mutable int32_t lastRowPointer; /*-1*/
-  bool isClosedFlag;
-  bool forceAlias;
+  std::vector<std::unique_ptr<int8_t[]>> cache;
 
   std::map<std::size_t, ResultCodec*> resultCodec;
   // For NULL value C/C may call back even for those columns which we haven't marked as dummy. Thus atm we either always need a codec for each column
@@ -88,16 +69,16 @@ public:
   ~ResultSetBin();
 
   bool isFullyLoaded() const;
+  void fetchRemaining();
 
 private:
-  void fetchAllResults();
+  void flushPendingServerResults();
+  void cacheCompleteLocally() override;
 
   const char* getErrMessage();
   const char* getSqlState();
   uint32_t getErrNo();
   uint32_t warningCount();
-public:
-  void fetchRemaining();
 
 private:
   void handleIoException(std::exception& ioe) const;
@@ -111,21 +92,14 @@ protected:
   void addRowData(std::vector<mariadb::bytes_view>& rawData);
 
 private:
-  void growDataArray();
+  void growDataArray(bool complete= false);
+  void resetVariables();
 
 public:
   void abort();
   void close();
-
-private:
-  void resetVariables();
-public:
   bool fetchNext();
   bool next();
-private:
-  void resetRow() const;
-  void checkObjectRange(int32_t position) const;
-public:
   //SQLWarning* getWarnings();
   //void clearWarnings();
   bool isBeforeFirst() const;
@@ -143,7 +117,7 @@ public:
   int32_t getFetchSize() const;
   void setFetchSize(int32_t fetchSize);
   int32_t getType() const;
-  int32_t getConcurrency() const;
+//  int32_t getConcurrency() const;
 
 private:
   void checkClose() const;
@@ -153,7 +127,6 @@ public:
   bool isClosed() const;
   bool wasNull() const;
 
-  bool isNull(int32_t columnIndex) const;
   SQLString getString(int32_t columnIndex) const;
 
 private:
@@ -177,14 +150,16 @@ public:
   std::size_t rowsCount() const;
 
   void setForceTableAlias();
+
 private:
   void rangeCheck(const SQLString& className,int64_t minValue,int64_t maxValue,int64_t value, ColumnDefinition* columnInfo);
-public:
-  int32_t getRowPointer();
+
 protected:
   void setRowPointer(int32_t pointer);
   void checkOut();
+
 public:
+  int32_t getRowPointer();
   std::size_t getDataSize();
   bool isBinaryEncoded();
   void realClose(bool noLock= true);

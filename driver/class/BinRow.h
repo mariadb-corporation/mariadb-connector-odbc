@@ -36,6 +36,7 @@ class BinRow : public Row {
   std::vector<MYSQL_BIND> bind;
 
   SQLString convertToString(const char* asChar, const ColumnDefinition* columnInfo);
+
 public:
 
   BinRow(
@@ -69,6 +70,7 @@ public:
 
   bool isBinaryEncoded();
   void cacheCurrentRow(std::vector<bytes_view>& rowDataCache, std::size_t columnCount);
+  MYSQL_BIND* getDefaultBind() { return bind.data(); }
   };
 
 }

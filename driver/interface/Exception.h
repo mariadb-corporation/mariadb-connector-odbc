@@ -34,7 +34,7 @@ class SQLException : public ::std::runtime_error
 public:
   virtual ~SQLException();
 
-  SQLException& operator=(const SQLException &) = default;
+  SQLException& operator=(const SQLException &)= default;
   
   SQLException();
   SQLException(const SQLException&);

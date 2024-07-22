@@ -88,7 +88,8 @@ public:
   bool hasMoreResults();
   void moveToNextResult();
   bool setParamCallback(ParamCodec* callback, uint32_t param) { return true; }
-  bool setCallbackData(void* data){ return true; }
+  bool setCallbackData(void* data) { return true;  }
+  bool isOutParams() { return false; }
   //SQLString toString();
 };
 }

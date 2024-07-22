@@ -167,7 +167,7 @@ my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, const char *Compa
 unsigned int MADB_FindToken(MADB_QUERY *Query, const char *Compare)
 {
   unsigned int i;
-  std::size_t TokenCount = Query->Tokens.size();
+  std::size_t TokenCount= Query->Tokens.size();
   unsigned int Offset= 0;
 
   for (i=0; i < TokenCount; i++)
@@ -209,7 +209,7 @@ static const char * PoorManCursorName(MADB_QUERY *Query, unsigned int *Offset)
 
   /* We do poor man on long queries only, thus there is no need to check length */
   str= ::ltrim(Query->RefinedText.data() + Query->RefinedText.length() - MADB_MAX_CURSOR_NAME - 32/* "WHERE CURRENT OF" + spaces */);
-  initOffset = str - Query->RefinedText.data();
+  initOffset= str - Query->RefinedText.data();
   EndPiece.RefinedText.assign(str);
   /* As we did poor man parsing, we don't have full information about the query. Thus, parsing only this part at the end of the query -
      we need tockens, to check if we have WHERE CURRENT OF in usual way */
@@ -361,7 +361,7 @@ static BOOL ShouldWeTryPoorManParsing(MADB_QUERY *Query)
 
 int ParseQuery(MADB_QUERY *Query)
 {
-  const char* p = Query->RefinedText.data();
+  const char* p= Query->RefinedText.data();
   char Quote;
   bool         ReadingToken= false;
   unsigned int StmtTokensCount= 0;
@@ -379,7 +379,7 @@ int ParseQuery(MADB_QUERY *Query)
     {
       Length= end - p;
       SkipSpacesAndComments(&p, &Length, true);
-      offset = p - Query->RefinedText.data();
+      offset= p - Query->RefinedText.data();
       Query->Tokens.push_back(offset);
       
       ++StmtTokensCount;

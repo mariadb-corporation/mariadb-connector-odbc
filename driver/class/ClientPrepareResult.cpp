@@ -28,9 +28,9 @@ namespace mariadb
 {
   const SQLString SpecChars("();><=-+,");
   const char QUOTE= '\'';
-  static const char DBL_QUOTE = '"';
-  static const char ZERO_BYTE = '\0';
-  static const char BACKSLASH = '\\';
+  static const char DBL_QUOTE= '"';
+  static const char ZERO_BYTE= '\0';
+  static const char BACKSLASH= '\\';
 
   void escapeData(const char* in, std::size_t len, bool noBackslashEscapes, SQLString& out)
   {
@@ -39,7 +39,7 @@ namespace mariadb
     }
     
     if (noBackslashEscapes) {
-      for (size_t i = 0; i < len; i++) {
+      for (size_t i= 0; i < len; i++) {
         if (QUOTE == in[i]) {
           out.push_back(QUOTE);
         }
@@ -47,7 +47,7 @@ namespace mariadb
       }
     }
     else {
-      for (size_t i = 0; i < len; i++) {
+      for (size_t i= 0; i < len; i++) {
         if (in[i] == QUOTE
           || in[i] == BACKSLASH
           || in[i] == DBL_QUOTE
@@ -698,17 +698,17 @@ namespace mariadb
   std::size_t estimatePreparedQuerySize(const ClientPrepareResult* clientPrepareResult, const std::vector<SQLString>& queryPart,
     MYSQL_BIND* parameters)
   {
-    std::size_t estimate = queryPart.front().length() + 1/* for \0 */, offset = 0;
+    std::size_t estimate= queryPart.front().length() + 1/* for \0 */, offset= 0;
     if (clientPrepareResult->isRewriteType()) {
       estimate += queryPart[1].length() + queryPart[clientPrepareResult->getParamCount() + 2].length();
-      offset = 1;
+      offset= 1;
     }
-    for (uint32_t i = 0; i < clientPrepareResult->getParamCount(); ++i) {
+    for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); ++i) {
       estimate += (parameters)[i].buffer_length*2 + 2; // The string needs to be escaped - all characters in the worst case,
                                                        // + 2 quotes
       estimate += queryPart[i + 1 + offset].length();
     }
-    estimate = ((estimate + 7) / 8) * 8;
+    estimate= ((estimate + 7) / 8) * 8;
     return estimate;
   }
 
@@ -720,7 +720,7 @@ namespace mariadb
     std::map<uint32_t,std::string>& longData,
     bool noBackSlashEscapes)
   {
-    const std::vector<SQLString>& queryPart = clientPrepareResult->getQueryParts();
+    const std::vector<SQLString>& queryPart= clientPrepareResult->getQueryParts();
 
     for (auto pair : longData) {
       if (parameters[pair.first].buffer == nullptr) {
@@ -729,7 +729,7 @@ namespace mariadb
         parameters[pair.first].buffer_type= MYSQL_TYPE_BLOB;
       }
     }
-    std::size_t estimate = estimatePreparedQuerySize(clientPrepareResult, queryPart, parameters);
+    std::size_t estimate= estimatePreparedQuerySize(clientPrepareResult, queryPart, parameters);
 
     if (estimate > out.capacity() - out.length()) {
       out.reserve(out.length() + estimate);
@@ -739,7 +739,7 @@ namespace mariadb
       out.append(queryPart[1]);
       out.append(queryPart[0]);
 
-      for (uint32_t i = 0; i < clientPrepareResult->getParamCount(); i++) {
+      for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
         Parameter::toString(out, parameters[i], noBackSlashEscapes);
         out.append(queryPart[i + 2]);
       }
@@ -747,7 +747,7 @@ namespace mariadb
     }
     else {
       out.append(queryPart.front());
-      for (uint32_t i = 0; i < clientPrepareResult->getParamCount(); i++) {
+      for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
         Parameter::toString(out, parameters[i], noBackSlashEscapes);
         out.append(queryPart[i + 1]);
       }
@@ -793,7 +793,7 @@ namespace mariadb
     MYSQL_BIND* parameters, uint32_t arraySize, std::size_t currentIndex, bool noBackslashEscapes)
   {
     std::size_t index= currentIndex, capacity= pos.capacity(), estimatedLength= 0;
-    const std::vector<SQLString>& queryParts = clientPrepareResult->getQueryParts();
+    const std::vector<SQLString>& queryParts= clientPrepareResult->getQueryParts();
     const std::size_t paramCount= clientPrepareResult->getParamCount();
 
     const SQLString& firstPart= queryParts[1];
@@ -801,12 +801,12 @@ namespace mariadb
 
     pos.append(firstPart);
     pos.append(secondPart);
-    size_t lastPartLength = queryParts[paramCount + 2].length();
-    size_t intermediatePartLength = queryParts[1].length();
+    size_t lastPartLength= queryParts[paramCount + 2].length();
+    size_t intermediatePartLength= queryParts[1].length();
 
     while (skipParamRow(parameters, paramCount, index)) { ++index; }
     estimatedLength= pos.length();
-    for (size_t i = 0; i < paramCount; ++i) {
+    for (size_t i= 0; i < paramCount; ++i) {
       Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
       pos.append(queryParts[i + 2]);
       intermediatePartLength+= queryParts[i + 2].length();
@@ -824,9 +824,9 @@ namespace mariadb
         ++index;
         continue;
       }
-      int64_t parameterLength = 0;
-      bool knownParameterSize = true;
-      for (size_t i = 0; i < paramCount; ++i) {
+      int64_t parameterLength= 0;
+      bool knownParameterSize= true;
+      for (size_t i= 0; i < paramCount; ++i) {
         int64_t paramSize= Parameter::getApproximateStringLength(parameters[i], index);
         if (paramSize == -1) {
           knownParameterSize= false;
@@ -841,7 +841,7 @@ namespace mariadb
           pos.append(1, ',');
           pos.append(secondPart);
 
-          for (size_t i = 0; i < paramCount; i++) {
+          for (size_t i= 0; i < paramCount; i++) {
             Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
             pos.append(queryParts[i + 2]);
           }
@@ -855,7 +855,7 @@ namespace mariadb
         pos.append(1, ',');
         pos.append(secondPart);
 
-        for (size_t i = 0; i < paramCount; i++) {
+        for (size_t i= 0; i < paramCount; i++) {
           Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
           pos.append(queryParts[i + 2]);
         }
@@ -872,38 +872,38 @@ namespace mariadb
     MYSQL_BIND* parameters, uint32_t arraySize, std::size_t currentIndex, bool noBackslashEscapes)
   {
     std::size_t index= currentIndex, capacity= pos.capacity(), estimatedLength;
-    const std::vector<SQLString>& queryParts = clientPrepareResult->getQueryParts();
-    const std::size_t paramCount = clientPrepareResult->getParamCount();
+    const std::vector<SQLString>& queryParts= clientPrepareResult->getQueryParts();
+    const std::size_t paramCount= clientPrepareResult->getParamCount();
     const SQLString& firstPart= queryParts[1];
     const SQLString& secondPart= queryParts.front();
 
     pos.append(firstPart);
     pos.append(secondPart);
 
-    std::size_t staticLength = 1;
+    std::size_t staticLength= 1;
     for (auto& queryPart : queryParts) {
       staticLength += queryPart.length();
     }
 
-    for (size_t i = 0; i < paramCount; ++i) {
+    for (size_t i= 0; i < paramCount; ++i) {
       Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
       pos.append(queryParts[i + 2]);
     }
     pos.append(queryParts[paramCount + 2]);
     ++index;
-    estimatedLength = pos.length() * (arraySize - currentIndex);
+    estimatedLength= pos.length() * (arraySize - currentIndex);
     if (estimatedLength > capacity) {
       pos.reserve(((std::min<std::size_t>(Protocol::MAX_PACKET_LENGTH, estimatedLength) + 7) / 8) * 8);
     }
 
     while (index < arraySize) {
-      int64_t parameterLength = 0;
-      bool knownParameterSize = true;
+      int64_t parameterLength= 0;
+      bool knownParameterSize= true;
 
       for (std::size_t i= 0; i < paramCount; ++i) {
-        int64_t paramSize = Parameter::getApproximateStringLength(parameters[i], index);
+        int64_t paramSize= Parameter::getApproximateStringLength(parameters[i], index);
         if (paramSize == -1) {
-          knownParameterSize = false;
+          knownParameterSize= false;
           break;
         }
         parameterLength += paramSize;
@@ -915,7 +915,7 @@ namespace mariadb
           pos.append(1, ';');
           pos.append(firstPart);
           pos.append(secondPart);
-          for (size_t i = 0; i < paramCount; i++) {
+          for (size_t i= 0; i < paramCount; i++) {
             Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
             pos.append(queryParts[i + 2]);
           }
@@ -931,7 +931,7 @@ namespace mariadb
         pos.append(1, ';');
         pos.append(firstPart);
         pos.append(secondPart);
-        for (size_t i = 0; i < paramCount; i++) {
+        for (size_t i= 0; i < paramCount; i++) {
           Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
           pos.append(queryParts[i + 2]);
         }

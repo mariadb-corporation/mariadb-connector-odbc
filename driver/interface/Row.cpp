@@ -26,16 +26,16 @@ namespace mariadb
 {
   uint64_t stoull(const SQLString& str, std::size_t* pos)
   {
-    bool negative = false;
-    std::string::const_iterator ci = str.begin();
+    bool negative= false;
+    std::string::const_iterator ci= str.begin();
     while (std::isblank(*ci) && ci < str.end()) ++ci;
 
     if (*str.c_str() == '-')
     {
-      negative = true;
+      negative= true;
     }
 
-    uint64_t result = std::stoull(str, pos);
+    uint64_t result= std::stoull(str, pos);
 
     if (negative && result != 0)
     {
@@ -47,7 +47,7 @@ namespace mariadb
 
   uint64_t stoull(const char* str, std::size_t len, std::size_t* pos)
   {
-    len = len == static_cast<std::size_t>(-1) ? std::strlen(str) : len;
+    len= len == static_cast<std::size_t>(-1) ? std::strlen(str) : len;
     return mariadb::stoull(SQLString(str, len), pos);
   }
 
@@ -117,7 +117,7 @@ namespace mariadb
   bool parseTime(const SQLString& str, std::vector<SQLString>& time)
   {
     constexpr std::size_t minTimeLength= 5; /*N:N:N*/
-    std::string::const_iterator it = str.cbegin(), colon = it + str.find(':'), colon2 = str.cbegin();
+    std::string::const_iterator it= str.cbegin(), colon= it + str.find(':'), colon2= str.cbegin();
 
     if (str.length() < minTimeLength || colon >= str.cend()) {
       return false;
@@ -130,7 +130,7 @@ namespace mariadb
     // Reserving first element for complete time string
     time.push_back(emptyStr);
 
-    std::size_t offset = 0;
+    std::size_t offset= 0;
     if (*it == '-') {
       time.push_back("-");
       offset= 1;
@@ -252,9 +252,9 @@ namespace mariadb
     if (lastValueWasNull()) {
       return 0;
     }
-    int32_t value = fieldBuf[0];//buf[pos];
+    int32_t value= fieldBuf[0];//buf[pos];
     if (!columnInfo->isSigned()) {
-      value = (fieldBuf[0]/*buf[pos]*/ & 0xff);
+      value= (fieldBuf[0]/*buf[pos]*/ & 0xff);
     }
     return value;
   }
@@ -279,7 +279,7 @@ namespace mariadb
     if (lastValueWasNull()) {
       return 0;
     }
-    int value = (fieldBuf[0] & 0xff) + ((fieldBuf[1] & 0xff) << 8);
+    int value= (fieldBuf[0] & 0xff) + ((fieldBuf[1] & 0xff) << 8);
     if (!columnInfo->isSigned()) {
       return value & 0xffff;
     }
@@ -298,7 +298,7 @@ namespace mariadb
         + ((fieldBuf[2] & 0xff) << 16)
         + ((fieldBuf[3] & 0xff) << 24));
     if (!columnInfo->isSigned()) {
-      value = value & 0xffffffff;
+      value= value & 0xffffffff;
     }
     return /*static_cast<int32_t>*/(value);
   }

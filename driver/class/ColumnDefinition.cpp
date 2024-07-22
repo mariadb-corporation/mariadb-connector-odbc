@@ -23,6 +23,7 @@
 
 namespace mariadb
 {
+  long getTypeBinLength(enum_field_types type);
   extern const SQLString emptyStr;
 
   std::map<enum_field_types, SQLString> typeName{{MYSQL_TYPE_LONG, "INT"}, {MYSQL_TYPE_LONGLONG, "BIGINT"}, {MYSQL_TYPE_SHORT, "SMALLINT"},
@@ -119,7 +120,7 @@ namespace mariadb
     return std::move(columnTypeName(getColumnType(), getLength(), getDisplaySize(), isSigned(), isBinary()));
   }
 
-  // where character_sets.character_set_name = collations.character_set_name order by id"
+  // where character_sets.character_set_name= collations.character_set_name order by id"
   uint8_t ColumnDefinition::maxCharlen[]={
   0,2,1,1,1,1,1,1,
   1,1,1,1,3,2,1,1,
@@ -183,19 +184,46 @@ namespace mariadb
     return ColumnDefinition(name, _type);
   }
 
+
+  void ColumnDefinition::fieldDeafaultBind(const ColumnDefinition & cd, MYSQL_BIND & bind, int8_t ** buffer)
+  {
+    bind.buffer_type= cd.getColumnType();
+    if (bind.buffer_type == MYSQL_TYPE_VARCHAR) {
+      bind.buffer_type= MYSQL_TYPE_STRING;
+    }
+
+    long binLength= getTypeBinLength(cd.getColumnType());
+    bind.buffer_length= static_cast<unsigned long>(binLength > 0 ?
+      binLength :
+      cd.getMaxLength() > 0 ? cd.getMaxLength() : cd.getLength());
+
+    bind.buffer= nullptr;
+    if (buffer) {
+      bind.buffer= new uint8_t[bind.buffer_length];
+      if (bind.buffer) {
+        *buffer= static_cast<int8_t*>(bind.buffer);
+      }
+    }
+
+    bind.length=  &bind.length_value;
+    bind.is_null= &bind.is_null_value;
+    bind.error=   &bind.error_value;
+    //bind.flags|=        MADB_BIND_DUMMY;
+  }
+
   /* Refreshing pointers in FIELD structure to local names */
   void ColumnDefinition::refreshPointers()
   {
-    metadata->name= const_cast<char*>(name.data());
-    metadata->name_length= static_cast<unsigned int>(name.length());
-    metadata->org_name= const_cast<char*>(org_name.data());//metadata->name;
-    metadata->org_name_length= static_cast<unsigned int>(org_name.length());
-    metadata->table= const_cast<char*>(table.data());
-    metadata->table_length= static_cast<unsigned int>(table.length());
-    metadata->org_table= const_cast<char*>(org_table.data());
+    metadata->name=             const_cast<char*>(name.data());
+    metadata->name_length=      static_cast<unsigned int>(name.length());
+    metadata->org_name=         const_cast<char*>(org_name.data());//metadata->name;
+    metadata->org_name_length=  static_cast<unsigned int>(org_name.length());
+    metadata->table=            const_cast<char*>(table.data());
+    metadata->table_length=     static_cast<unsigned int>(table.length());
+    metadata->org_table=        const_cast<char*>(org_table.data());
     metadata->org_table_length= static_cast<unsigned int>(org_table.length());
-    metadata->db= const_cast<char*>(db.data());
-    metadata->db_length= static_cast<unsigned int>(db.length());
+    metadata->db=               const_cast<char*>(db.data());
+    metadata->db_length=        static_cast<unsigned int>(db.length());
   }
 
 

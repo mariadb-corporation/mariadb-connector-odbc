@@ -110,7 +110,7 @@ class Protocol
   uint32_t errorOccurred(ServerPrepareResult *pr);
   SQLException processError(Results*, ServerPrepareResult *pr);
   ServerPrepareResult* prepareInternal(const SQLString& sql);
-  Protocol() = delete;
+  Protocol()= delete;
   void unsyncedReset();
 
   static void resetError(MYSQL_STMT *stmt);

@@ -35,15 +35,7 @@ namespace mariadb
    * multi-queries !/
    */
   Results::Results()
-    : statement(nullptr)
-    , serverPrepResult(nullptr)
-    , resultSet(nullptr)
-    , cmdInformation(nullptr)
-    , rewritten(false)
-    , fetchSize(0)
-    , batch(false)
-    , expectedSize(1)
-    , binaryFormat(false)
+    : cmdInformation(nullptr)
     , resultSetScrollType(ResultSet::TYPE_FORWARD_ONLY)
     , sql("") 
   {
@@ -79,8 +71,6 @@ namespace mariadb
     MYSQL_BIND* _parameters)
     : statement(_statement)
     , parameters(_parameters)
-    , serverPrepResult(nullptr)
-    , resultSet(nullptr)
     , cmdInformation(nullptr)
     , fetchSize(fetchSize)
     , batch(_batch)
@@ -88,7 +78,6 @@ namespace mariadb
     , sql(_sql)
     , binaryFormat(binaryFormat)
     , resultSetScrollType(resultSetScrollType)
-    , rewritten(false)
   {
   }
 
@@ -102,7 +91,8 @@ namespace mariadb
     int32_t resultSetScrollType,
     const SQLString& _sql,
     MYSQL_BIND* _parameters)
-    : parameters(_parameters)
+    : statement(_statement)
+    , parameters(_parameters)
     , cmdInformation(nullptr)
     , fetchSize(fetchSize)
     , batch(_batch)
@@ -110,10 +100,8 @@ namespace mariadb
     , sql(_sql)
     , binaryFormat(binaryFormat)
     , resultSetScrollType(resultSetScrollType)
-    , rewritten(false)
     , serverPrepResult(dynamic_cast<ServerPrepareResult*>(_statement->getPrepareResult()))
   {
-    statement= _statement;
   }
 
 
@@ -128,8 +116,6 @@ namespace mariadb
     MYSQL_BIND* _parameters)
     : statement(_statement)
     , parameters(_parameters)
-    , serverPrepResult(nullptr)
-    , resultSet(nullptr)
     , cmdInformation(nullptr)
     , fetchSize(fetchSize)
     , batch(_batch)
@@ -137,7 +123,6 @@ namespace mariadb
     , sql(_sql)
     , binaryFormat(binaryFormat)
     , resultSetScrollType(resultSetScrollType)
-    , rewritten(false)
   {
   }
 
@@ -193,8 +178,9 @@ namespace mariadb
     cmdInformation->addErrorStat();
   }
 
+
   int32_t Results::getCurrentStatNumber(){
-    return (!cmdInformation)? 0 : cmdInformation->getCurrentStatNumber();
+    return (!cmdInformation) ? 0 : cmdInformation->getCurrentStatNumber();
   }
 
   /**
@@ -226,9 +212,11 @@ namespace mariadb
     cmdInformation->addResultSetStat();
   }
 
+
   CmdInformation* Results::getCmdInformation(){
     return cmdInformation.get();
   }
+
 
   void Results::setCmdInformation(CmdInformation* _cmdInformation){
     cmdInformation.reset(_cmdInformation);
@@ -387,12 +375,17 @@ namespace mariadb
         }
     }
 
-    if (statement->hasMoreResults()) {
+    bool haveCachedResult= cmdInformation->moreResults() && !batch;
+    if (!haveCachedResult && statement->hasMoreResults()) {
       guard->moveToNextResult(this, serverPrepResult);
+      haveCachedResult= true;
     }
 
-    if (cmdInformation->moreResults() && !batch) {
+    if (!haveCachedResult) {
+      return false;
+    }
 
+    if (!cmdInformation->isCurrentUpdateCount()) {
       if (closeCurrent && resultSet) {
         resultSet->close();
       }
@@ -401,7 +394,6 @@ namespace mariadb
         executionResults.pop_front();
       }
       return (currentRs.get() != nullptr);
-
     } else {
 
       if (closeCurrent && resultSet) {
@@ -412,9 +404,11 @@ namespace mariadb
     }
   }
 
+
   int32_t Results::getFetchSize(){
     return fetchSize;
   }
+
 
   PreparedStatement* Results::getStatement() {
     return statement;
@@ -463,6 +457,7 @@ namespace mariadb
     return rewritten;
   }
 
+
   void Results::setRewritten(bool rewritten){
     this->rewritten= rewritten;
   }
@@ -476,6 +471,38 @@ namespace mariadb
     if (resultSet == iamleaving) {
       resultSet= nullptr;
     }
+  }
+
+  /* Loads next result(if needed) and checks if there is no other in queue */
+  bool Results::nextIsLast(Protocol* protocol)
+  {
+    // If we have another resultset already loaded - current is not out params for sure
+    if (executionResults.size() == 0)
+    {
+      if (statement->hasMoreResults()) {
+        auto rs= resultSet;
+        if (rs == nullptr && currentRs) {
+          rs= currentRs.get();
+        }
+        if (rs) {
+          // Technically its cheating since the function is only used for verifying if current result is out params, and it can have only 1 row
+          if (rs->rowsCount() > 1) {
+            return false;
+          }
+          rs->cacheCompleteLocally();
+        }
+        try {
+          // If next result is error - it will throw it as an exception
+          protocol->moveToNextResult(this, serverPrepResult);
+        }
+        catch (int /*e*/) {
+          // if it's an error - not the last for sure
+          return false;
+        }
+        return !statement->hasMoreResults();
+      }
+    }
+    return false;
   }
 
 } // namespace mariadb

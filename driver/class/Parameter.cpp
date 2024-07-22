@@ -24,7 +24,7 @@
 
 namespace mariadb
 {
-  const char BINARY_INTRODUCER[] = { '_','b','i','n','a','r','y',' ','\'','\0' };
+  const char BINARY_INTRODUCER[]= { '_','b','i','n','a','r','y',' ','\'','\0' };
   const char QUOTE= '\'';
   void escapeData(const char* in, std::size_t len, bool noBackslashEscapes, SQLString& out);
 
@@ -154,7 +154,7 @@ namespace mariadb
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
       {
-        MYSQL_TIME* date = static_cast<MYSQL_TIME*>(value);
+        MYSQL_TIME* date= static_cast<MYSQL_TIME*>(value);
         query.append(1, QUOTE);
         addDate(query, date);
         query.append(1, QUOTE);
@@ -163,7 +163,7 @@ namespace mariadb
       case MYSQL_TYPE_TIME:
       case MYSQL_TYPE_TIME2:
       {
-        MYSQL_TIME* time = static_cast<MYSQL_TIME*>(value);
+        MYSQL_TIME* time= static_cast<MYSQL_TIME*>(value);
         query.append(1, QUOTE);
         addTime(query, time);
         query.append(1, QUOTE);
@@ -174,7 +174,7 @@ namespace mariadb
       case MYSQL_TYPE_DATETIME2:
       case MYSQL_TYPE_TIMESTAMP2:
       {
-        MYSQL_TIME* timestamp = static_cast<MYSQL_TIME*>(value);
+        MYSQL_TIME* timestamp= static_cast<MYSQL_TIME*>(value);
         query.append(1, QUOTE);
         addDate(query, timestamp);
         query.append(1, ' ');
@@ -184,7 +184,7 @@ namespace mariadb
       }
       default:
       {
-        const char* asString = static_cast<const char*>(value);
+        const char* asString= static_cast<const char*>(value);
         query.append(1, QUOTE);
         //escapeData(asString, length > 0 ? length : std::strlen(asString), noBackslashEscapes, query);
         if (length > 0) {
@@ -220,7 +220,7 @@ namespace mariadb
 
   std::size_t Parameter::getApproximateStringLength(MYSQL_BIND& param, std::size_t row)
   {
-    unsigned long length = getLength(param, row);
+    unsigned long length= getLength(param, row);
     if (length > 0 && (param.buffer_type > MYSQL_TYPE_TIME2 || typeLen[param.buffer_type] < 0)) {
       std::size_t result= length*2;
       switch (param.buffer_type) {

@@ -117,7 +117,7 @@ int MADB_ListWalk(MADB_List *list, MADB_ListWalkAction action, char * argument)
   int error=0;
   while (list)
   {
-    if ((error = (*action)(list->data,argument)))
+    if ((error= (*action)(list->data,argument)))
       return error;
     list= MADB_LIST_REST(list);
   }
@@ -232,7 +232,7 @@ void MADB_DynstrFree(MADB_DynString *str)
 char *MADB_DynstrMake(register char *dst, register const char *src, size_t length)
 {
   while (length--)
-    if (! (*dst++ = *src++))
+    if (! (*dst++= *src++))
       return dst-1;
   *dst=0;
   return dst;

@@ -120,6 +120,22 @@ void QuickDropAllPendingResults(MYSQL* Mariadb)
 }
 /* }}} */
 
+/* {{{ HasOutParams */
+bool HasOutParams(MADB_Stmt* Stmt)
+{
+  for (SQLSMALLINT i= 0; i < Stmt->ParamCount; ++i)
+  {
+    MADB_DescRecord *IpdRecord;
+    if ((IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)) != nullptr) {
+      if (IpdRecord->ParameterType == SQL_PARAM_INPUT_OUTPUT ||
+        IpdRecord->ParameterType == SQL_PARAM_OUTPUT) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+/* }}} */
 /* {{{ MADB_StmtMoreResults */
 // TODO: need to do it in unified way - create function in ma_api_internal, to some basic paremeters validation and
 //       exceptions processing
@@ -145,8 +161,15 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
       unsigned int ServerStatus;
       mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
       Stmt->rs.reset(Stmt->stmt->getResultSet());
+      bool itsOutParams= ServerStatus & SERVER_PS_OUT_PARAMS;
+      bool haveOutParams= HasOutParams(Stmt);
 
-      if (ServerStatus & SERVER_PS_OUT_PARAMS)
+      if (Stmt->Query.QueryType == MADB_QUERY_CALL && !itsOutParams && Stmt->Connection->IsMySQL &&
+        haveOutParams)
+      {
+        itsOutParams= Stmt->stmt->isOutParams();
+      }
+      if (itsOutParams && haveOutParams)
       {
         Stmt->State= MADB_SS_OUTPARAMSFETCHED;
         ret= Stmt->GetOutParams(0);

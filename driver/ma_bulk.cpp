@@ -535,7 +535,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
         IndIdx= 0;
       }
 
-      for (row = Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+      for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
       {
         if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
         {

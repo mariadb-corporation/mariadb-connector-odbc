@@ -57,8 +57,12 @@ if [ "${v}" = "11.4" ] ; then
 #  export TEST_ADD_PARAM="SSLVERIFY=1;"
 fi
 
+if [ "${srv}" = "mysql" ] ; then
+  export TEST_ADD_PARAM="PLUGIN_DIR=${PWD}/libmariadb;"
+fi
 if [ "${TEST_REQUIRE_TLS}" = "1" ] ; then
   export TEST_USETLS=1
+  # Technically need to concatenate here with previous value, but currently it will be always empty
   export TEST_ADD_PARAM="FORCETLS=1"
 fi
 

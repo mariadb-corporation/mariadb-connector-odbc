@@ -98,8 +98,8 @@ protected:
 public:
 
   enum {
-    EXECUTE_FAILED = -3,
-    SUCCESS_NO_INFO = -2
+    EXECUTE_FAILED= -3,
+    SUCCESS_NO_INFO= -2
   };
 
   virtual ~PreparedStatement(){}
@@ -154,6 +154,8 @@ public:
   // Return false if callbacks are not supported
   virtual bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1))= 0;
   virtual bool setCallbackData(void* data)= 0;
+  // Returns if current result is out params
+  virtual bool isOutParams()= 0;
   //void validateParamset(std::size_t paramCount);
   /**
   * Retrieves the number, types and properties of this <code>PreparedStatement</code> object's

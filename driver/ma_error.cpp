@@ -182,7 +182,7 @@ SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *P
     break;
   case SQL_HANDLE_STMT:
   {
-    PreparedStatement* ps = static_cast<PreparedStatement*>(Ptr);
+    PreparedStatement* ps= static_cast<PreparedStatement*>(Ptr);
     Sqlstate= ps->getSqlState();
     Errormsg= ps->getError();
     NativeError= ps->getErrno();
@@ -456,7 +456,7 @@ SQLRETURN MADB_FromException(MADB_Error &Err, SQLException& e)
     SqlState= "08S01";
   }
 
-  Err.ReturnValue = SQL_ERROR;
+  Err.ReturnValue= SQL_ERROR;
   strcpy_s(Err.SqlErrorMsg + Err.PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Err.PrefixLen, e.what());
 
   strcpy_s(Err.SqlState, SQLSTATE_LENGTH + 1, SqlState);

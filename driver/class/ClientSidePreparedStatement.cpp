@@ -288,7 +288,7 @@ namespace mariadb
       results->addStats(mysql_affected_rows(guard->getCHandle()), hasMoreResults());
     }
     else {
-      ResultSet* rs = ResultSet::create(results.get(), guard, guard->getCHandle());
+      ResultSet* rs= ResultSet::create(results.get(), guard, guard->getCHandle());
       results->addResultSet(rs, hasMoreResults() || results->getFetchSize() > 0);
     }
   }

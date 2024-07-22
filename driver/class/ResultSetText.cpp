@@ -40,15 +40,8 @@ namespace mariadb
   ResultSetText::ResultSetText(Results* results,
                                Protocol * _protocol,
                                MYSQL* capiConnHandle)
-    : ResultSet(_protocol, results->getFetchSize()),
-      statement(results->getStatement()),
-      isClosedFlag(false),
-      dataSize(0),
-      resultSetScrollType(results->getResultSetScrollType()),
-      rowPointer(-1),
-      capiConnHandle(capiConnHandle),
-      forceAlias(false),
-      lastRowPointer(-1)
+    : ResultSet(_protocol, results),
+      capiConnHandle(capiConnHandle)
   {
     MYSQL_RES* textNativeResults= nullptr;
     if (fetchSize == 0) {
@@ -94,7 +87,7 @@ namespace mariadb
     * @param resultSet result-set data
     * @param protocol current protocol
     * @param resultSetScrollType one of the following <code>ResultSet</code> constants: <code>
-    *     ResultSet.TYPE_FORWARD_ONLY</code>, <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or
+    *     ResultSet::TYPE_FORWARD_ONLY</code>, <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or
     *     <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>
     */
   ResultSetText::ResultSetText(
@@ -102,54 +95,25 @@ namespace mariadb
     const std::vector<std::vector<mariadb::bytes_view>>& resultSet,
     Protocol * _protocol,
     int32_t resultSetScrollType)
-    : ResultSet(_protocol, 0),
-      columnsInformation(std::move(columnInformation)),
-      statement(nullptr),
-      data(resultSet),
-      dataSize(data.size()),
-      isClosedFlag(false),
-      columnInformationLength(static_cast<int32_t>(columnsInformation.size())),
-      resultSetScrollType(resultSetScrollType),
-      rowPointer(-1),
-      capiConnHandle(nullptr),
-      forceAlias(false),
-      lastRowPointer(-1)
+    : ResultSet(_protocol, columnInformation, resultSet, resultSetScrollType)
   {
-    isEof= true;
-    row.reset(new TextRow(nullptr));
   }
 
 
   ResultSetText::ResultSetText(
     const MYSQL_FIELD* field,
-    std::vector<std::vector<mariadb::bytes_view>>& resultSet,
+    std::vector<std::vector<mariadb::bytes_view>>& rs,
     Protocol * _protocol,
-    int32_t resultSetScrollType)
-    : ResultSet(_protocol, 0),
-    statement(nullptr),
-    data(std::move(resultSet)),
-    dataSize(data.size()),
-    isClosedFlag(false),
-    columnInformationLength(static_cast<int32_t>(data.size())),
-    resultSetScrollType(resultSetScrollType),
-    rowPointer(-1),
-    capiConnHandle(nullptr),
-    forceAlias(false),
-    lastRowPointer(-1)
+    int32_t rsScrollType)
+    : ResultSet(_protocol, field, rs, rsScrollType)
   {
-    isEof= true;
-    row.reset(new TextRow(nullptr));
-
-    for (int32_t i= 0; i < columnInformationLength; ++i) {
-      columnsInformation.emplace_back(&field[i], false);
-    }
   }
 
   ResultSetText::~ResultSetText()
   {
     if (!isFullyLoaded()) {
       //close();
-      fetchAllResults();
+      flushPendingServerResults();
     }
     checkOut();
   }
@@ -164,7 +128,8 @@ namespace mariadb
     return isEof;
   }
 
-  void ResultSetText::fetchAllResults()
+  // Reading everything w/out caching
+  void ResultSetText::flushPendingServerResults()
   {
     dataSize= 0;
     while (readNextValue()) {
@@ -172,7 +137,17 @@ namespace mariadb
     ++dataFetchTime;
   }
 
-  const char * ResultSetText::getErrMessage()
+
+  void ResultSetText::cacheCompleteLocally()
+  {
+    // Fetching and caching locally if streaming. Otherwise it is cached in the Row object
+    if (fetchSize > 0) {
+      fetchRemaining();
+    }
+  }
+
+
+  const char* ResultSetText::getErrMessage()
   {
     if (capiConnHandle != nullptr)
     {
@@ -233,7 +208,6 @@ namespace mariadb
             rowPointer= 0;
             resetRow();
           }
-          
           ++dataSize;
         }
         while (!isEof) {
@@ -243,8 +217,7 @@ namespace mariadb
       catch (SQLException& queryException) {
         throw queryException;
       }
-
-      dataFetchTime++;
+      ++dataFetchTime;
     }
   }
 
@@ -272,7 +245,6 @@ namespace mariadb
     if (resultSetScrollType == TYPE_FORWARD_ONLY) {
       dataSize= 0;
     }
-
     addStreamingValue(fetchSize > 1);
   }
 
@@ -422,28 +394,6 @@ namespace mariadb
   }
 
 
-  bool ResultSetText::fillBuffers()
-  {
-    bool truncations= false;
-    if (resultBind != nullptr) {
-      for (int32_t i= 0; i < columnInformationLength; ++i) {
-        try {
-          get(&resultBind[i], i, 0);
-        }
-        catch (int rc) {
-          if (rc == MYSQL_DATA_TRUNCATED) {
-            *resultBind[i].error= '\1';
-          }
-        }
-        if (*resultBind[i].error) {
-          truncations= true;
-        }
-      }
-    }
-    return truncations;
-  }
-
-
   bool ResultSetText::fetchNext()
   {
     ++rowPointer;
@@ -493,43 +443,6 @@ namespace mariadb
       rowPointer= static_cast<int32_t>(dataSize);
       return false;
     }
-  }
-
-  // It has to be const, because it's called by getters, and properties it changes are mutable
-  void ResultSetText::resetRow() const
-  {
-    if (data.size() > 0) {
-      row->resetRow(const_cast<std::vector<mariadb::bytes_view>&>(data[rowPointer]));
-    }
-    else {
-      if (rowPointer != lastRowPointer + 1) {
-        row->installCursorAtPosition(rowPointer);
-      }
-      if (!streaming) {
-        row->fetchNext();
-      }
-    }
-    lastRowPointer= rowPointer;
-  }
-
-
-  void ResultSetText::checkObjectRange(int32_t position) const {
-    if (rowPointer < 0) {
-      throw SQLException("Current position is before the first row", "22023");
-    }
-
-    if (static_cast<uint32_t>(rowPointer) >= dataSize) {
-      throw SQLException("Current position is after the last row", "22023");
-    }
-
-    if (position <= 0 || position > columnInformationLength) {
-      throw SQLException("No such column: " + std::to_string(position), "22023");
-    }
-
-    if (lastRowPointer != rowPointer) {
-      resetRow();
-    }
-    row->setPosition(position - 1);
   }
 
 
@@ -608,7 +521,7 @@ namespace mariadb
   void ResultSetText::beforeFirst() {
     checkClose();
 
-    if (streaming &&resultSetScrollType == TYPE_FORWARD_ONLY) {
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
       throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     rowPointer= -1;
@@ -771,13 +684,6 @@ namespace mariadb
   bool ResultSetText::wasNull() const {
     return row->wasNull();
   }
-
-  bool ResultSetText::isNull(int32_t columnIndex) const
-  {
-    checkObjectRange(columnIndex);
-    return row->lastValueWasNull();
-  }
-
 
   /** {inheritDoc}. */
   SQLString ResultSetText::getString(int32_t columnIndex) const
@@ -944,7 +850,7 @@ namespace mariadb
       }
       try {
         while (!isEof) {
-          dataSize = 0; // to avoid storing data
+          dataSize= 0; // to avoid storing data
           readNextValue();
         }
       }
@@ -971,7 +877,7 @@ namespace mariadb
 
     if (statement != nullptr) {
       //statement->checkCloseOnCompletion(this);
-      statement = nullptr;
+      statement= nullptr;
     }
   }
 
@@ -981,194 +887,15 @@ namespace mariadb
     resultBind= bind;
   }
 
-  std::size_t strToDate(MYSQL_TIME* date, const SQLString str, std::size_t initialOffset)
+  bool ResultSetText::get(MYSQL_BIND* bind, uint32_t colIdx0based, uint64_t offset)
   {
-    std::size_t offset= initialOffset;
-    if (str[offset] == '-') {
-      date->neg= '\1';
-      ++offset;
-    }
-    else {
-      date->neg= '\0';
-    }
-    date->year=  static_cast<uint32_t>(std::stoll(str.substr(offset, 4)));
-    date->month= static_cast<uint32_t>(std::stoll(str.substr(offset + 5, 2)));
-    date->day=   static_cast<uint32_t>(std::stoll(str.substr(offset + 8, 2)));
-    return offset + 11;
+    checkObjectRange(colIdx0based + 1);
+    return getCached(bind, colIdx0based, offset);
   }
-
-
-  void strToTime(MYSQL_TIME* time, const SQLString str, std::size_t initialOffset)
-  {
-    std::size_t offset= initialOffset;
-    if (str[offset] == '-') {
-      time->neg= '\1';
-      ++offset;
-    }
-    else {
-      time->neg= '\0';
-    }
-    time->hour=   static_cast<uint32_t>(std::stoll(str.substr(offset, 2)));
-    time->minute= static_cast<uint32_t>(std::stoll(str.substr(offset + 3, 2)));
-    time->second= static_cast<uint32_t>(std::stoll(str.substr(offset + 6, 2)));
-    time->second_part= 0;
-    if (str[offset + 8] == '.') {
-      time->second_part = static_cast<uint32_t>(std::stoll(str.substr(offset + 9, std::min(str.length() - offset - 9, static_cast<std::size_t>(6)))));
-    }
-  }
-
-
-  bool floatColumnType(enum_field_types columnType)
-  {
-    switch (columnType)
-    {
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-    case MYSQL_TYPE_NEWDECIMAL:
-      return true;
-    default:
-      return false;
-    }
-    return false;
-  }
-
-
-  bool ResultSetText::get(MYSQL_BIND* bind, uint32_t column0basedIdx, uint64_t offset)
-  {
-    uint32_t terminateWithNull= 1, position= column0basedIdx + 1;
-    bool intAppType = false;
-
-    if (bind->error == nullptr) {
-      bind->error = &bind->error_value;
-    }
-    if (bind->is_null == nullptr) {
-      bind->is_null = &bind->is_null_value;
-    }
-    if (isNull(position)) {
-      *bind->is_null = '\1';
-      return true;
-    }
-    else {
-      *bind->is_null = '\0';
-    }
-
-    if (bind->length == nullptr) {
-      bind->length = &bind->length_value;
-    }
-    // Setting error for the column, that will be reset if nothing throws during type conversions
-    *bind->error = '\1';
-    switch (bind->buffer_type)
-    {
-    case MYSQL_TYPE_BIT:
-    case MYSQL_TYPE_TINY:
-      *static_cast<uint8_t*>(bind->buffer)= getByte(position);
-      *bind->length = 1;
-      intAppType = true;
-      break;
-    case MYSQL_TYPE_YEAR:
-    case MYSQL_TYPE_SHORT:
-      *static_cast<int16_t*>(bind->buffer)= getShort(position);
-      *bind->length = 2;
-      intAppType = true;
-      break;
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-      if (bind->is_unsigned) {
-        *static_cast<uint32_t*>(bind->buffer) = getUInt(position);
-      }
-      else {
-        *static_cast<int32_t*>(bind->buffer) = getInt(position);
-      }
-      *bind->length = 4;
-      intAppType = true;
-      break;
-    case MYSQL_TYPE_FLOAT:
-      *static_cast<float*>(bind->buffer) = getFloat(position);
-      *bind->length = 4;
-      break;
-    case MYSQL_TYPE_DOUBLE:
-      *static_cast<double*>(bind->buffer) = getDouble(position);
-      *bind->length = 8;
-      break;
-    case MYSQL_TYPE_NULL:
-      if (bind->is_null != nullptr) {
-        *bind->is_null = isNull(column0basedIdx) ? '\1' : '\0';
-      }
-      *bind->length = 0;
-      break;
-    case MYSQL_TYPE_LONGLONG:
-      if (bind->is_unsigned) {
-        *static_cast<uint64_t*>(bind->buffer) = getUInt64(position);
-      }
-      else {
-        *static_cast<int64_t*>(bind->buffer) = getLong(position);
-      }
-      *bind->length = 8;
-      intAppType = true;
-      break;
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-    {
-      MYSQL_TIME* date = static_cast<MYSQL_TIME*>(bind->buffer);
-      Date str(row->getInternalDate(&columnsInformation[column0basedIdx]));
-      strToDate(date, str, 0);
-      break;
-    }
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_TIME2:
-    {
-      MYSQL_TIME* time = static_cast<MYSQL_TIME*>(bind->buffer);
-      Time str(row->getInternalTime(&columnsInformation[column0basedIdx], time));
-      //strToTime(time, str, 0);
-      break;
-    }
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_DATETIME2:
-    case MYSQL_TYPE_TIMESTAMP2:
-    {
-      MYSQL_TIME* timestamp = static_cast<MYSQL_TIME*>(bind->buffer);
-      Timestamp str(row->getInternalTimestamp(&columnsInformation[column0basedIdx]));
-      std::size_t timeOffset = strToDate(timestamp, str, 0);
-      strToTime(timestamp, str, timeOffset);
-      break;
-    }
-    case MARIADB_BINARY_TYPES:
-      terminateWithNull = 0;
-    default:
-      if (bind->length != nullptr) {
-        *bind->length = row->getLengthMaxFieldSize();
-      }
-      if (bind->buffer == nullptr || bind->buffer_length == 0) {
-      }
-      else {
-        if (offset > row->getLengthMaxFieldSize()) {
-          return true;
-        }
-        std::size_t bytesToCopy = std::min(static_cast<std::size_t>(bind->buffer_length) - terminateWithNull,
-          static_cast<std::size_t>(row->getLengthMaxFieldSize() - offset));
-        std::memcpy(bind->buffer, row->fieldBuf.arr + row->pos + offset, bytesToCopy);
-        if (terminateWithNull > 0) {
-          *(static_cast<char*>(bind->buffer) + bytesToCopy) = '\0';
-        }
-        if (bytesToCopy < row->getLengthMaxFieldSize()) {
-          // Not resetting error
-          return false;
-        }
-      }
-      break;
-    }
-    //Checking if had truncation of decimal part
-    if (!(intAppType && floatColumnType(columnsInformation[column0basedIdx].getColumnType()))) {
-      *bind->error = '\0';
-    }
-    return false;
-  }
-
 
   bool ResultSetText::get()
   {
-    return fillBuffers();
+    return fillBuffers(resultBind);
   }
 
 } // namespace mariadb

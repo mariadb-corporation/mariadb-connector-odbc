@@ -1418,6 +1418,7 @@ ODBC_TEST(t_mysqld_stmt_reset)
 
   /* Unsuccessful query */
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)"SELECT count(*) FROM t_reset_nonexistent", SQL_NTS), SQL_ERROR);
+  odbc_print_error(SQL_HANDLE_STMT, Stmt);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Successful directly executed query */

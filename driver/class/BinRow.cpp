@@ -27,7 +27,6 @@
 
 namespace mariadb
 {
-  long getTypeBinLength(enum_field_types type);
   /**
     * Constructor.
     *
@@ -51,32 +50,19 @@ namespace mariadb
      {
        length= columnInfo.getLength();
        bind.emplace_back();
-
-       bind.back().buffer_type= columnInfo.getColumnType();
-       if (bind.back().buffer_type == MYSQL_TYPE_VARCHAR) {
-         bind.back().buffer_type= MYSQL_TYPE_STRING;
-       }
-       long binLength= getTypeBinLength(columnInfo.getColumnType());
-       bind.back().buffer_length= static_cast<unsigned long>( binLength > 0 ?
-                                                         binLength :
-                                                         columnInfo.getMaxLength() > 0 ? columnInfo.getMaxLength() : columnInfo.getLength());
-       bind.back().buffer=        nullptr/*new uint8_t[bind.back().buffer_length]*/;
-       bind.back().length=        &bind.back().length_value;
-       bind.back().is_null=       &bind.back().is_null_value;
-       bind.back().error=         &bind.back().error_value;
-       bind.back().flags|=        MADB_BIND_DUMMY;
+       ColumnDefinition::fieldDeafaultBind(columnInfo, bind.back());
      }
      /*if (mysql_stmt_bind_result(stmt, bind.data())) {
        throw 1;
      }*/
-  }
+   }
 
 
    BinRow::~BinRow()
    {
      for (auto& columnBind : bind)
      {
-       delete[] (uint8_t*)columnBind.buffer;
+       //delete[] (uint8_t*)columnBind.buffer;
      }
    }
 
@@ -259,7 +245,7 @@ namespace mariadb
     case MYSQL_TYPE_STRING:
       try {
         std::string str(fieldBuf.arr, length);
-        value = std::stoll(str);
+        value= std::stoll(str);
       }
       // Common parent for std::invalid_argument and std::out_of_range
       catch (std::logic_error&) {
@@ -302,30 +288,30 @@ namespace mariadb
       case MYSQL_TYPE_BIT:
         return parseBit();
       case MYSQL_TYPE_TINY:
-        value = getInternalTinyInt(columnInfo);
+        value= getInternalTinyInt(columnInfo);
         break;
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_YEAR:
       {
-        value = getInternalSmallInt(columnInfo);
+        value= getInternalSmallInt(columnInfo);
 
         break;
       }
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_INT24:
       {
-        value = getInternalMediumInt(columnInfo);
+        value= getInternalMediumInt(columnInfo);
 
         break;
       }
       case MYSQL_TYPE_LONGLONG:
       {
-        value = *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
+        value= *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
 
         if (columnInfo->isSigned()) {
           return value;
         }
-        uint64_t unsignedValue = *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
+        uint64_t unsignedValue= *reinterpret_cast<const uint64_t*>(fieldBuf.arr);
 
         if (unsignedValue > static_cast<uint64_t>(INT64_MAX)) {
           throw SQLException(
@@ -341,7 +327,7 @@ namespace mariadb
       }
       case MYSQL_TYPE_FLOAT:
       {
-        float floatValue = getInternalFloat(columnInfo);
+        float floatValue= getInternalFloat(columnInfo);
         if (floatValue > static_cast<float>(INT64_MAX)) {
           throw SQLException(
             "Out of range value for column '"
@@ -356,7 +342,7 @@ namespace mariadb
       }
       case MYSQL_TYPE_DOUBLE:
       {
-        long double doubleValue = getInternalDouble(columnInfo);
+        long double doubleValue= getInternalDouble(columnInfo);
         if (doubleValue > static_cast<long double>(INT64_MAX)) {
           throw SQLException(
             "Out of range value for column '"
@@ -430,13 +416,13 @@ namespace mariadb
     }
     case MYSQL_TYPE_LONGLONG:
     {
-      value = *reinterpret_cast<const int64_t*>(fieldBuf.arr);
+      value= *reinterpret_cast<const int64_t*>(fieldBuf.arr);
 
       break;
     }
     case MYSQL_TYPE_FLOAT:
     {
-      float floatValue = getInternalFloat(columnInfo);
+      float floatValue= getInternalFloat(columnInfo);
       if (floatValue < 0 || floatValue > static_cast<long double>(UINT64_MAX)) {
         throw SQLException(
           "Out of range value for column '"
@@ -451,7 +437,7 @@ namespace mariadb
     }
     case MYSQL_TYPE_DOUBLE:
     {
-      long double doubleValue = getInternalDouble(columnInfo);
+      long double doubleValue= getInternalDouble(columnInfo);
       if (doubleValue < 0 || doubleValue > static_cast<long double>(UINT64_MAX)) {
         throw SQLException(
           "Out of range value for column '"
@@ -790,7 +776,7 @@ namespace mariadb
     }
     case MYSQL_TYPE_YEAR:
     {
-      int32_t year = *reinterpret_cast<const int16_t*>(fieldBuf.arr);
+      int32_t year= *reinterpret_cast<const int16_t*>(fieldBuf.arr);
       if (length == 2 && columnInfo->getLength() == 2) {
         if (year < 70) {
           year += 2000;
@@ -1133,12 +1119,15 @@ namespace mariadb
   void BinRow::cacheCurrentRow(std::vector<mariadb::bytes_view>& rowDataCache, std::size_t columnCount)
   {
     rowDataCache.clear();
-    for (std::size_t i = 0; i < columnCount; ++i) {
+    for (std::size_t i= 0; i < columnCount; ++i) {
       if (bind[i].is_null_value != '\0') {
         rowDataCache.emplace_back();
       }
       else {
-        rowDataCache.emplace_back(bind[i].length_value, static_cast<const char*>(bind[i].buffer));
+        //rowDataCache.emplace_back(bind[i].length_value, static_cast<const char*>(bind[i].buffer));
+        rowDataCache.emplace_back(b.length && *b.length > 0 ? *b.length : b.buffer_length);
+        b.buffer= const_cast<char*>(rowDataCache.back().arr);
+        mysql_stmt_fetch_column(stmt, &b, static_cast<unsigned int>(i), 0);
       }
     }
   }

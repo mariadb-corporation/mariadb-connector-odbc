@@ -665,7 +665,7 @@ SQLRETURN MADB_DeskCheckFldId(MADB_Desc *Desc, SQLSMALLINT FieldIdentifier, SQLS
          MADB_DESC_FLDID[i].FieldIdentifier != FieldIdentifier)
     ++i;
 
-  /* End of list = invalid FieldIdentifier */
+  /* End of list= invalid FieldIdentifier */
   if (!MADB_DESC_FLDID[i].FieldIdentifier ||
       !(MADB_DESC_FLDID[i].Access[Desc->DescType] & mode)) {
     MADB_SetError(&Desc->Error, MADB_ERR_HY091, nullptr, 0);

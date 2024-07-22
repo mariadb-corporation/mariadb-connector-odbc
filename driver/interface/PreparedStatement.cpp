@@ -163,7 +163,7 @@ namespace mariadb
   //void PreparedStatement::validateParamset(std::size_t paramCount)
   //{
   //  // valid parameters
-  //  for (std::size_t i = 0; i < paramCount; i++) {
+  //  for (std::size_t i= 0; i < paramCount; i++) {
   //    if (i > parameters.size() || !parameters[i]) {
   //      getLogger()->error("Parameter at position " + std::to_string(i + 1) + " is not set");
   //      exceptionFactory->raiseStatementError(connection, this)->create("Parameter at position "

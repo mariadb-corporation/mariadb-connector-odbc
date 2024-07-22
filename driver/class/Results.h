@@ -31,26 +31,26 @@ namespace mariadb
 
 class Results  {
 
-  PreparedStatement* statement;
-  ServerPrepareResult* serverPrepResult; //?
-  int32_t fetchSize;
-  bool batch;
-  std::size_t expectedSize;
+  PreparedStatement* statement= nullptr;
+  ServerPrepareResult* serverPrepResult= nullptr; //?
+  int32_t fetchSize= 0;
+  bool batch= false;
+  std::size_t expectedSize= 1;
   Unique::CmdInformation cmdInformation;
   std::deque<Unique::ResultSet> executionResults;
   Unique::ResultSet currentRs;
   ResultSet* resultSet= nullptr;
-  Unique::ResultSet callableResultSet;
-  bool binaryFormat;
+  Unique::ResultSet callableResultSet; //?
+  bool binaryFormat= false;
   int32_t resultSetScrollType;
-  bool rewritten;
+  bool rewritten= false;
   SQLString sql;
   MYSQL_BIND* parameters;
 
 public:
   enum {
-    EXECUTE_FAILED = -3,
-    SUCCESS_NO_INFO = -2
+    EXECUTE_FAILED= -3,
+    SUCCESS_NO_INFO= -2
   };
 
   Results();
@@ -114,6 +114,7 @@ public:
   bool isRewritten();
   void setRewritten(bool rewritten);
   void checkOut(ResultSet* iamleaving);
+  bool nextIsLast(Protocol* protocol);
 };
 
 } // namespace mariadb

@@ -57,7 +57,7 @@ char* MADB_GetTableName(MADB_Stmt *Stmt)
   }
   if (TableName)
   {
-    Stmt->TableName = _strdup(TableName);
+    Stmt->TableName= _strdup(TableName);
   }
   return Stmt->TableName;
 }
@@ -66,7 +66,7 @@ char *MADB_GetCatalogName(MADB_Stmt *Stmt)
 {
   char *CatalogName= nullptr;
   uint32_t i= 0, colCount= 0;
-  const MYSQL_FIELD* Field = nullptr;
+  const MYSQL_FIELD* Field= nullptr;
 
   if (Stmt->CatalogName && Stmt->CatalogName[0])
   {
@@ -77,8 +77,8 @@ char *MADB_GetCatalogName(MADB_Stmt *Stmt)
     return nullptr;
   }
 
-  colCount = Stmt->metadata->getColumnCount();
-  Field = Stmt->metadata->getFields();
+  colCount= Stmt->metadata->getColumnCount();
+  Field= Stmt->metadata->getFields();
   for (i=0; i < colCount; i++)
   {
     if (Field[i].org_table)
@@ -117,7 +117,7 @@ bool MADB_DynStrUpdateSet(MADB_Stmt* Stmt, SQLString& DynString)
 
   DynString.append(" SET ");
 
-  const MYSQL_FIELD *Field = Stmt->metadata->getFields();
+  const MYSQL_FIELD *Field= Stmt->metadata->getFields();
   // ???? memcpy(&Stmt->Da->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
   for (i=0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
@@ -241,9 +241,9 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
   }
   else
   {
-    for (i = 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
+    for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
     {
-      const MYSQL_FIELD* field = FetchMetadata(Stmt)->getField(i);
+      const MYSQL_FIELD* field= FetchMetadata(Stmt)->getField(i);
       if (field->flags & PRI_KEY_FLAG)
       {
         ++PrimaryCount;
@@ -254,7 +254,7 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
       }
     }
 
-    TotalTableFieldCount = MADB_KeyTypeCount(Stmt->Connection, TableName, &TotalPrimaryCount, &TotalUniqueCount);
+    TotalTableFieldCount= MADB_KeyTypeCount(Stmt->Connection, TableName, &TotalPrimaryCount, &TotalUniqueCount);
 
     if (TotalTableFieldCount < 0)
     {
@@ -348,7 +348,7 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
         {
           Column= static_cast<char*>(MADB_CALLOC(StrLength + 1));
           Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, &StrLength, TRUE);
-          Escaped = static_cast<char*>(MADB_CALLOC(2 * StrLength + 1));
+          Escaped= static_cast<char*>(MADB_CALLOC(2 * StrLength + 1));
           EscapedLength= mysql_real_escape_string(Stmt->Connection->mariadb, Escaped, Column, (unsigned long)StrLength);
 
           DynString.append("= '").append(Escaped).append("'");

@@ -167,27 +167,27 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 /************** SQLColumns       *************/
 #define MADB_COLUMN_SIZE\
     "CAST(CASE" \
-    "  WHEN DATA_TYPE = 'bit' THEN @ColSize:=((NUMERIC_PRECISION + 7) / 8) "\
+    "  WHEN DATA_TYPE= 'bit' THEN @ColSize:=((NUMERIC_PRECISION + 7) / 8) "\
     "  WHEN DATA_TYPE in ('tinyint', 'smallint', 'mediumint', 'int',"\
                          "'bigint', 'decimal') THEN @ColSize:=NUMERIC_PRECISION "\
-    "  WHEN DATA_TYPE = 'float' THEN if(NUMERIC_SCALE IS NULL, @ColSize:=7, @ColSize:=NUMERIC_PRECISION)"\
-    "  WHEN DATA_TYPE = 'double' THEN if(NUMERIC_SCALE IS NULL, @ColSize:=15, @ColSize:=NUMERIC_PRECISION)"\
-    "  WHEN DATA_TYPE = 'date' THEN @ColSize:=10"\
-    "  WHEN DATA_TYPE = 'time' THEN @ColSize:=8"\
-    "  WHEN DATA_TYPE = 'year' THEN @ColSize:=4"\
+    "  WHEN DATA_TYPE= 'float' THEN if(NUMERIC_SCALE IS NULL, @ColSize:=7, @ColSize:=NUMERIC_PRECISION)"\
+    "  WHEN DATA_TYPE= 'double' THEN if(NUMERIC_SCALE IS NULL, @ColSize:=15, @ColSize:=NUMERIC_PRECISION)"\
+    "  WHEN DATA_TYPE= 'date' THEN @ColSize:=10"\
+    "  WHEN DATA_TYPE= 'time' THEN @ColSize:=8"\
+    "  WHEN DATA_TYPE= 'year' THEN @ColSize:=4"\
     "  WHEN DATA_TYPE in ('timestamp', 'datetime') THEN @ColSize:=19 "\
     "  ELSE @ColSize:=CHARACTER_MAXIMUM_LENGTH "\
   "END AS UNSIGNED)"
 #define MADB_COLUMN_SIZEMYSQL\
     "CAST(CASE" \
-    "  WHEN DATA_TYPE = 'bit' THEN @ColSize:=((NUMERIC_PRECISION + 7) / 8) "\
+    "  WHEN DATA_TYPE= 'bit' THEN @ColSize:=((NUMERIC_PRECISION + 7) / 8) "\
     "  WHEN DATA_TYPE in ('tinyint', 'smallint', 'mediumint', 'int',"\
                          "'bigint', 'decimal') THEN @ColSize:=NUMERIC_PRECISION "\
-    "  WHEN DATA_TYPE = 'float' THEN if(NUMERIC_SCALE IS NULL OR NUMERIC_SCALE=0, @ColSize:=7, @ColSize:=NUMERIC_PRECISION)"\
-    "  WHEN DATA_TYPE = 'double' THEN if(NUMERIC_SCALE IS NULL OR NUMERIC_SCALE=0, @ColSize:=15, @ColSize:=NUMERIC_PRECISION)"\
-    "  WHEN DATA_TYPE = 'date' THEN @ColSize:=10"\
-    "  WHEN DATA_TYPE = 'time' THEN @ColSize:=8"\
-    "  WHEN DATA_TYPE = 'year' THEN @ColSize:=4"\
+    "  WHEN DATA_TYPE= 'float' THEN if(NUMERIC_SCALE IS NULL OR NUMERIC_SCALE=0, @ColSize:=7, @ColSize:=NUMERIC_PRECISION)"\
+    "  WHEN DATA_TYPE= 'double' THEN if(NUMERIC_SCALE IS NULL OR NUMERIC_SCALE=0, @ColSize:=15, @ColSize:=NUMERIC_PRECISION)"\
+    "  WHEN DATA_TYPE= 'date' THEN @ColSize:=10"\
+    "  WHEN DATA_TYPE= 'time' THEN @ColSize:=8"\
+    "  WHEN DATA_TYPE= 'year' THEN @ColSize:=4"\
     "  WHEN DATA_TYPE in ('timestamp', 'datetime') THEN @ColSize:=19 "\
     "  ELSE @ColSize:=CHARACTER_MAXIMUM_LENGTH "\
   "END AS UNSIGNED)"
@@ -203,17 +203,17 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 #define MADB_DEFAULT_COLUMN_NEW  "COLUMN_DEFAULT"
 #define MADB_DEFAULT_COLUMN(DbcHndl) (MADB_ServerSupports(DbcHndl,MADB_ENCLOSES_COLUMN_DEF_WITH_QUOTES) ? MADB_DEFAULT_COLUMN_NEW : MADB_DEFAULT_COLUMN_OLD)
 #define MADB_CATALOG_TYPE_SUB "CAST(CASE"\
-  "  WHEN DATA_TYPE = 'date' THEN " XSTR(SQL_DATETIME)\
-  "  WHEN DATA_TYPE = 'time' THEN " XSTR(SQL_DATETIME)\
-  "  WHEN DATA_TYPE = 'datetime' THEN " XSTR(SQL_DATETIME)\
-  "  WHEN DATA_TYPE = 'timestamp' THEN " XSTR(SQL_DATETIME)\
+  "  WHEN DATA_TYPE= 'date' THEN " XSTR(SQL_DATETIME)\
+  "  WHEN DATA_TYPE= 'time' THEN " XSTR(SQL_DATETIME)\
+  "  WHEN DATA_TYPE= 'datetime' THEN " XSTR(SQL_DATETIME)\
+  "  WHEN DATA_TYPE= 'timestamp' THEN " XSTR(SQL_DATETIME)\
   " ELSE @dt "\
   "END AS SIGNED) SQL_DATA_TYPE,"\
   "CAST(CASE"\
-  "  WHEN DATA_TYPE = 'date' THEN " XSTR(SQL_CODE_DATE)\
-  "  WHEN DATA_TYPE = 'time' THEN " XSTR(SQL_CODE_TIME)\
-  "  WHEN DATA_TYPE = 'datetime' THEN " XSTR(SQL_CODE_TIMESTAMP)\
-  "  WHEN DATA_TYPE = 'timestamp' THEN " XSTR(SQL_CODE_TIMESTAMP)\
+  "  WHEN DATA_TYPE= 'date' THEN " XSTR(SQL_CODE_DATE)\
+  "  WHEN DATA_TYPE= 'time' THEN " XSTR(SQL_CODE_TIME)\
+  "  WHEN DATA_TYPE= 'datetime' THEN " XSTR(SQL_CODE_TIMESTAMP)\
+  "  WHEN DATA_TYPE= 'timestamp' THEN " XSTR(SQL_CODE_TIMESTAMP)\
   " ELSE NULL "\
   "END AS SIGNED) SQL_DATETIME_SUB,"
 #define MADB_CATALOG_COLUMNSp4 " AS COLUMN_DEF," MADB_CATALOG_TYPE_SUB\

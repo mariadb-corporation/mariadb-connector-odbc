@@ -44,7 +44,7 @@ namespace mariadb
 
   inline SQLString& rtrim(SQLString& str)
   {
-    auto pos = str.find_last_not_of(" ");
+    auto pos= str.find_last_not_of(" ");
     if (pos + 1 < str.length()) {
       str.erase(str.begin() + (pos != std::string::npos ? pos + 1 : 0), str.end());
     }

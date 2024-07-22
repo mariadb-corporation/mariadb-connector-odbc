@@ -54,20 +54,10 @@ namespace mariadb
   ResultSetBin::ResultSetBin(Results* results,
                              Protocol* guard,
                              ServerPrepareResult* spr)
-    : ResultSet(guard, results->getFetchSize()),
-      columnsInformation(spr->getColumns()),
-      statement(results->getStatement()),
-      isClosedFlag(false),
-      noBackslashEscapes(false),
-      columnInformationLength(static_cast<int32_t>(mysql_stmt_field_count(spr->getStatementId()))),
-      dataSize(0),
-      resultSetScrollType(results->getResultSetScrollType()),
-      rowPointer(-1),
-      callableResult(callableResult),
+    : ResultSet(guard, results, spr->getColumns()),
       capiStmtHandle(spr->getStatementId()),
-      forceAlias(false),
-      lastRowPointer(-1),
-      resultBind(nullptr)
+      resultBind(nullptr),
+      cache(mysql_stmt_field_count(spr->getStatementId()))
   {
     if (fetchSize == 0 || callableResult) {
       data.reserve(10);//= new char[10]; // This has to be array of arrays. Need to decide what to use for its representation
@@ -75,7 +65,6 @@ namespace mariadb
         throw 1;
       }
       dataSize= static_cast<std::size_t>(mysql_stmt_num_rows(capiStmtHandle));
-      streaming= false;
       resetVariables();
       row.reset(new BinRow(columnsInformation, columnInformationLength, capiStmtHandle));
     }
@@ -96,7 +85,7 @@ namespace mariadb
   {
     if (!isFullyLoaded()) {
       //close();
-      fetchAllResults();
+      flushPendingServerResults();
     }
     checkOut();
   }
@@ -112,7 +101,7 @@ namespace mariadb
   }
 
 
-  void ResultSetBin::fetchAllResults()
+  void ResultSetBin::flushPendingServerResults()
   {
     dataSize= 0;
     while (readNextValue()) {
@@ -120,7 +109,59 @@ namespace mariadb
     ++dataFetchTime;
   }
 
-  const char * ResultSetBin::getErrMessage()
+
+  void ResultSetBin::cacheCompleteLocally()
+  {
+    auto preservedPosition= rowPointer;
+    // fetchRemaining does remaining stream
+    if (streaming) {
+      fetchRemaining();
+    }
+    else {
+      auto preservePosition= rowPointer;
+
+      if (rowPointer > -1) {
+        first();
+        resetRow();
+      }
+      growDataArray(true);
+
+      BinRow *br= dynamic_cast<BinRow*>(row.get());
+      // Probably is better to make a copy
+      MYSQL_BIND *bind= br->getDefaultBind();
+
+      for (std::size_t i= 0; i < cache.size(); ++i)
+      {
+        cache[i].reset(new int8_t[bind[i].buffer_length * dataSize]);
+        bind[i].buffer= cache[i].get();
+      }
+      std::size_t rowNr= 0;
+      mysql_stmt_bind_result(capiStmtHandle, bind);
+      while (br->fetchNext() != MYSQL_NO_DATA) {
+        // It's mor correct to call cacheCurrentRow in Row object, but let's do to more optimally
+        //br->cacheCurrentRow(data[rowNr], columnsInformation.size());
+        auto& rowDataCache= data[rowNr];
+        rowDataCache.clear();
+        for (std::size_t i= 0; i < cache.size(); ++i)
+        {
+          auto& b= bind[i];
+          if (b.is_null_value != '\0') {
+              rowDataCache.emplace_back();
+            }
+            else {
+            rowDataCache.emplace_back(static_cast<char*>(b.buffer), b.length && *b.length > 0 ? *b.length : b.buffer_length);
+            }
+          b.buffer= ((char*)bind[i].buffer + bind[i].buffer_length);
+        }
+        mysql_stmt_bind_result(capiStmtHandle, bind);
+        ++rowNr;
+      }
+      rowPointer= preservedPosition;
+    }
+  }
+
+
+  const char* ResultSetBin::getErrMessage()
   {
     return mysql_stmt_error(capiStmtHandle);
   }
@@ -131,10 +172,12 @@ namespace mariadb
     return mysql_stmt_error(capiStmtHandle);
   }
 
+
   uint32_t ResultSetBin::getErrNo()
   {
     return mysql_stmt_errno(capiStmtHandle);
   }
+
 
   uint32_t ResultSetBin::warningCount()
   {
@@ -150,7 +193,7 @@ namespace mariadb
   void ResultSetBin::fetchRemaining() {
     if (!isEof) {
       try {
-        lastRowPointer = -1;
+        lastRowPointer= -1;
         if (!isEof && dataSize > 0 && fetchSize == 1) {
           // We need to grow the array till current size. Its main purpose is to create room for newly fetched
           // fetched row, so it grows till dataSize + 1. But we need to space for already fetched(from server)
@@ -176,9 +219,10 @@ namespace mariadb
       catch (std::exception & ioe) {
         handleIoException(ioe);
       }
-      dataFetchTime++;
+      ++dataFetchTime;
     }
   }
+
 
   void ResultSetBin::handleIoException(std::exception& ioe) const
   {
@@ -201,10 +245,9 @@ namespace mariadb
   void ResultSetBin::nextStreamingValue() {
     lastRowPointer= -1;
 
-    if (resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
+    if (resultSetScrollType == TYPE_FORWARD_ONLY) {
       dataSize= 0;
     }
-
     addStreamingValue(fetchSize > 1);
   }
 
@@ -221,7 +264,7 @@ namespace mariadb
     switch (row->fetchNext()) {
     case 1: {
       SQLString err("Internal error: most probably fetch on not yet executed statment handle. ");
-      unsigned int nativeErrno = getErrNo();
+      unsigned int nativeErrno= getErrNo();
       err.append(getErrMessage());
       throw SQLException(err, "HY000", nativeErrno );
     }
@@ -346,22 +389,27 @@ namespace mariadb
   }*/
 
   /** Grow data array. */
-  void ResultSetBin::growDataArray() {
-    std::size_t curSize = data.size();
+  void ResultSetBin::growDataArray(bool complete) {
+    std::size_t curSize= data.size(), newSize= curSize + 1;
+    if (complete) {
+      newSize= dataSize;
+    }
 
-    if (data.capacity() < curSize + 1) {
-      std::size_t newCapacity = static_cast<std::size_t>(curSize + (curSize >> 1));
+    if (data.capacity() < newSize) {
+      std::size_t newCapacity= complete ? newSize : static_cast<std::size_t>(curSize + (curSize >> 1));
 
-      if (newCapacity > MAX_ARRAY_SIZE) {
+      // I don't remember what is MAX_ARRAY_SIZE is about. it might be irrelevant for C/ODBC and C/C++
+      if (!complete && newCapacity > MAX_ARRAY_SIZE) {
         newCapacity= static_cast<std::size_t>(MAX_ARRAY_SIZE);
       }
 
       data.reserve(newCapacity);
     }
-    for (std::size_t i = curSize; i < dataSize + 1; ++i) {
+    for (std::size_t i=  curSize; i < newSize; ++i) {
       data.push_back({});
+      data.back().reserve(columnsInformation.size());
     }
-    data[dataSize].reserve(columnsInformation.size());
+    //data[dataSize].reserve(columnsInformation.size());
   }
 
   /**
@@ -454,7 +502,7 @@ namespace mariadb
           handleIoException(ioe);
         }
 
-        if (resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
+        if (resultSetScrollType == TYPE_FORWARD_ONLY) {
 
           rowPointer= 0;
           return dataSize > 0;
@@ -470,46 +518,7 @@ namespace mariadb
     }
   }
 
-  // It has to be const, because it's called by getters, and properties it changes are mutable
-  // If something is changed here - might be needed into get() method, cuz for the work with rs callbacks it
-  // knows too much about how resetRow works
-  void ResultSetBin::resetRow() const
-  {
-    if (rowPointer > -1 && data.size() > static_cast<std::size_t>(rowPointer)) {
-      row->resetRow(const_cast<std::vector<mariadb::bytes_view>&>(data[rowPointer]));
-    }
-    else {
-      if (rowPointer != lastRowPointer + 1) {
-        row->installCursorAtPosition(rowPointer);
-      }
-      if (!streaming) {
-        row->fetchNext();
-      }
-    }
-    lastRowPointer= rowPointer;
-  }
-
-
-  void ResultSetBin::checkObjectRange(int32_t position) const {
-    if (rowPointer < 0) {
-      throw SQLException("Current position is before the first row", "22023");
-    }
-
-    if (static_cast<uint32_t>(rowPointer) >= dataSize) {
-      throw SQLException("Current position is after the last row", "22023");
-    }
-
-    if (position <= 0 || position > columnInformationLength) {
-      throw SQLException("No such column: " + std::to_string(position), "22023");
-    }
-
-    if (lastRowPointer != rowPointer) {
-      resetRow();
-    }
-    row->setPosition(position - 1);
-  }
-
-
+  
   bool ResultSetBin::isBeforeFirst() const {
     checkClose();
     return (dataFetchTime >0) ? rowPointer == -1 && dataSize > 0 : rowPointer == -1;
@@ -582,10 +591,12 @@ namespace mariadb
   void ResultSetBin::beforeFirst() {
     checkClose();
 
-    if (streaming &&resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
-      throw SQLException("Invalid operation for result set type SQL_CURSOR_FORWARD_ONLY");
+    if (streaming &&resultSetScrollType == TYPE_FORWARD_ONLY) {
+      throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     rowPointer= -1;
+    row->installCursorAtPosition(0);
+    lastRowPointer= -1;
   }
 
   void ResultSetBin::afterLast() {
@@ -600,8 +611,8 @@ namespace mariadb
   bool ResultSetBin::first() {
     checkClose();
 
-    if (streaming && resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
-      throw SQLException("Invalid operation for result set type SQL_CURSOR_FORWARD_ONLY");
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
+      throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
 
     rowPointer= 0;
@@ -618,9 +629,10 @@ namespace mariadb
     return dataSize > 0;
   }
 
+  /* Returns current 1-based position in the resulset */
   int64_t ResultSetBin::getRow() {
     checkClose();
-    if (streaming && resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
       return 0;
     }
     return rowPointer + 1;
@@ -629,8 +641,8 @@ namespace mariadb
   bool ResultSetBin::absolute(int64_t rowPos) {
     checkClose();
 
-    if (streaming && resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
-      throw SQLException("Invalid operation for result set type SQL_CURSOR_FORWARD_ONLY");
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
+      throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
 
     if (rowPos >= 0 && static_cast<uint32_t>(rowPos) <= dataSize) {
@@ -665,8 +677,8 @@ namespace mariadb
 
   bool ResultSetBin::relative(int64_t rows) {
     checkClose();
-    if (streaming && resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
-      throw SQLException("Invalid operation for result set type SQL_CURSOR_FORWARD_ONLY");
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
+      throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     int32_t newPos= static_cast<int32_t>(rowPointer + rows);
     if (newPos <=-1) {
@@ -685,8 +697,8 @@ namespace mariadb
 
   bool ResultSetBin::previous() {
     checkClose();
-    if (streaming && resultSetScrollType == SQL_CURSOR_FORWARD_ONLY) {
-      throw SQLException("Invalid operation for result set type SQL_CURSOR_FORWARD_ONLY");
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
+      throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     if (rowPointer > -1) {
       --rowPointer;
@@ -739,17 +751,10 @@ namespace mariadb
     return row->wasNull();
   }
 
-  bool ResultSetBin::isNull(int32_t columnIndex) const
-  {
-    checkObjectRange(columnIndex);
-    return row->lastValueWasNull();
-  }
-
   /** {inheritDoc}. */
   SQLString ResultSetBin::getString(int32_t columnIndex) const
   {
     checkObjectRange(columnIndex);
-
     return std::move(row->getInternalString(&columnsInformation[columnIndex - 1]));
   }
 
@@ -901,13 +906,13 @@ namespace mariadb
 
   void ResultSetBin::realClose(bool noLock)
   {
-    isClosedFlag = true;
+    isClosedFlag= true;
     if (!isEof) {
       if (!noLock) {
       }
       try {
         while (!isEof) {
-          dataSize = 0; // to avoid storing data
+          dataSize= 0; // to avoid storing data
           readNextValue();
         }
       }
@@ -944,7 +949,10 @@ namespace mariadb
       for (const auto& it : resultCodec) {
         resultBind[it.first].flags|= MADB_BIND_DUMMY;
       }
+    }
+    if (dataSize > 0) {
       mysql_stmt_bind_result(capiStmtHandle, resultBind.get());
+      //lastRowPointer= -1; //We need to force fetch. Otherwise fetch_column may fail
     }
   }
 
@@ -952,9 +960,16 @@ namespace mariadb
   bool ResultSetBin::get(MYSQL_BIND* bind, uint32_t colIdx0based, uint64_t offset)
   {
     checkObjectRange(colIdx0based + 1);
-    return mysql_stmt_fetch_column(capiStmtHandle, bind, colIdx0based, static_cast<unsigned long>(offset)) != 0;
+    // If cached result - write to buffers with own means, otherwise let c/c do it
+    if (data.size()) {
+      return getCached(bind, colIdx0based, offset);
+    }
+    else {
+      return mysql_stmt_fetch_column(capiStmtHandle, bind, colIdx0based, static_cast<unsigned long>(offset)) != 0;
+    }
   }
 
+  /* Method like C/C's fetch functions - moves to next record and fills bound buffers with values */
   bool ResultSetBin::get()
   {
     bool truncations= false;
@@ -965,7 +980,7 @@ namespace mariadb
         resetRow();
       }
       if (resultCodec.empty()) {
-        for (int32_t i = 0; i < columnInformationLength; ++i) {
+        for (int32_t i= 0; i < columnInformationLength; ++i) {
           MYSQL_BIND* bind= resultBind.get() + i;
           if (bind->error == nullptr) {
             bind->error= &bind->error_value;

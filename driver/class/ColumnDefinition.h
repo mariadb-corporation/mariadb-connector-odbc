@@ -68,6 +68,7 @@ class ColumnDefinition
 
 public:
   static ColumnDefinition create(const SQLString& name, const MYSQL_FIELD* _type);
+  static void fieldDeafaultBind(const ColumnDefinition &cd, MYSQL_BIND& bind, int8_t** buffer= nullptr);
 
   ~ColumnDefinition();
   ColumnDefinition(const ColumnDefinition& other);

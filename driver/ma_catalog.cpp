@@ -791,7 +791,7 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
                            "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
                            "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
-                           "COLUMN_KEY = 'PRI' AND ");
+                           "COLUMN_KEY= 'PRI' AND ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
@@ -802,7 +802,7 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
     p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "TABLE_SCHEMA");
     /* Empty catalog name means table without catalog(schema). MariaDB/MySQL do not have such. Thus should be empty resultset.
        TABLE_SCHEMA='' will do the job. TODO: that can be done without sending query to the server.
-       Catalog(schema) cannot be a search pattern. Thus = and not LIKE here */
+       Catalog(schema) cannot be a search pattern. Thus= and not LIKE here */
     if (CatalogName != NULL)
     {
       p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);

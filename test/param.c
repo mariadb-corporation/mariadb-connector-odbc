@@ -840,14 +840,7 @@ ODBC_TEST(t_bug56804)
   CHECK_STMT_RC(Stmt, SQLBindParameter( Stmt, 2, SQL_PARAM_INPUT, SQL_C_SLONG,
     SQL_DECIMAL, 4, 0, c2, 4, d2));
 
-  if (IsMysql)
-  {
-    /*  With MySQL driver sends batch */
-    EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
-    memset(ExpectedStatus, 0x00ff & SQL_PARAM_SUCCESS, sizeof(ExpectedStatus));
-    ExpectedStatus[1]= ExpectedStatus[6]= SQL_PARAM_ERROR;
-  }
-  else if (ServerNotOlderThan(Connection, 10, 2, 7))
+  if (IsMysql || ServerNotOlderThan(Connection, 10, 2, 7))
   {
     /* Starting from 10.2.7 connector will use bulk operations, which is one indivisable operation,
     and either success or fail all together. */
@@ -1029,14 +1022,14 @@ ODBC_TEST(t_odbcoutparams)
 
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(hstmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
+  OK_SIMPLE_STMT(hstmt, "DROP PROCEDURE t_odbcoutparams");
   OK_SIMPLE_STMT(hstmt, "CREATE PROCEDURE t_odbcoutparams("
                 "  IN p_in INT, "
                 "  OUT p_out INT, "
                 "  INOUT p_inout INT) "
                 "BEGIN "
-                "  SELECT p_in, p_out, p_inout; "
-                "  SET p_in = 300, p_out = 100, p_inout = 200; "
+                "  SELECT p_in, p_out, p_inout;"
+                "  SET p_in = 300, p_out = 100, p_inout = 200;"
                 "END");
   OK_SIMPLE_STMT(hstmt, "CALL t_odbcoutparams(?, ?, ?)");
   /* rs-1 */
@@ -1060,13 +1053,13 @@ ODBC_TEST(t_odbcoutparams)
   FAIL_IF(SQLMoreResults(hstmt) != SQL_NO_DATA, "eof expected");
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(hstmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
+  OK_SIMPLE_STMT(hstmt, "DROP PROCEDURE t_odbcoutparams");
   OK_SIMPLE_STMT(hstmt, "CREATE PROCEDURE t_odbcoutparams("
-                "  OUT p_out VARCHAR(19), "
-                "  IN p_in INT, "
+                "  OUT p_out VARCHAR(19),"
+                "  IN p_in INT,"
                 "  INOUT p_inout INT) "
                 "BEGIN "
-                "  SET p_in = 300, p_out := 'This is OUT param', p_inout = 200; "
+                "  SET p_in=300, p_out:='This is OUT param', p_inout=200; "
                 "  SELECT p_inout, p_in, substring(p_out, 9);"
                 "END");
   
@@ -1117,8 +1110,6 @@ ODBC_TEST(t_bug14501952)
                   BEGIN\
                     SET param1= 'this is blob value from SP ';\
                   END;");
-
-
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT_OUTPUT,
     SQL_C_BINARY, SQL_LONGVARBINARY, 50, 0, &blobValue, sizeof(blobValue),

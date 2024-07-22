@@ -272,9 +272,9 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *field
   DynStr.reserve(512);
   DynStr.append(fields[0].db).append("' AND TABLE_NAME='").append(fields[0].org_table).append("' AND COLUMN_NAME IN (");
 
-  for (i = 0; i < Stmt->metadata->getColumnCount(); i++)
+  for (i= 0; i < Stmt->metadata->getColumnCount(); i++)
   {
-    MADB_DescRecord* Rec = MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
+    MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
 
     if (!Rec->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == TRUE)
     {
@@ -926,7 +926,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
   MADB_NumericInit(number, ArdRecord);
 
   /* Determining the sign of the number. From now on we dean with unsigned number */
-  if (!(number->sign = (*p == '-') ? 0 : 1))
+  if (!(number->sign= (*p == '-') ? 0 : 1))
   {
     p++;
   }
@@ -978,7 +978,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       if (number->scale < 0 && (number->precision - number->scale) >= digits_count)
       {
         /* Checking that all digits past presision are '0'. Otherwise - overflow */
-        for (i = digits_count - number->precision; i > 0; --i)
+        for (i= digits_count - number->precision; i > 0; --i)
         {
           if (*(p + digits_count - i) != '0')
           {
@@ -1068,13 +1068,13 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
     }
 
     digits_count= MIN(digits_count, MADB_DEFAULT_PRECISION + 1);
-    for (hval = 0, bit = 1L, sta = 0, olen = 0; sta < digits_count;)
+    for (hval= 0, bit= 1L, sta= 0, olen= 0; sta < digits_count;)
     {
-      for (dig = 0, i = sta; i < digits_count; i++)
+      for (dig= 0, i= sta; i < digits_count; i++)
       {
-        tv = dig * 10 + digits[i] - '0';
-        dig = tv % 2;
-        digits[i] = tv / 2 + '0';
+        tv= dig * 10 + digits[i] - '0';
+        dig= tv % 2;
+        digits[i]= tv / 2 + '0';
         if (i == sta && tv < 2)
           sta++;
       }
@@ -1085,13 +1085,13 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
       {
         if (olen >= SQL_MAX_NUMERIC_LEN)
         {
-          //number->scale = sta - number->precision;
+          //number->scale= sta - number->precision;
           ret= MADB_ERR_22003;
           break;
         }
-        number->val[olen++] = hval;
-        hval = 0;
-        bit = 1L;
+        number->val[olen++]= hval;
+        hval= 0;
+        bit= 1L;
 
       } 
     }
@@ -1099,7 +1099,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
     {
       if (olen < SQL_MAX_NUMERIC_LEN)
       {
-        number->val[olen++] = hval;
+        number->val[olen++]= hval;
       }
       else
       {
@@ -1202,7 +1202,7 @@ int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumb
       if (Record->OctetLengthPtr)
       {
         /* Stmt->DaeRowNumber is 1 based */
-        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc->Header, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
+        SQLLEN *OctetLength= (SQLLEN *)GetBindOffset(Desc->Header, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
         if (PARAM_IS_DAE(OctetLength))
         {
           return i;

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -37,12 +37,12 @@ ODBC_TEST(test_multi_statements)
 
   SQLRowCount(Stmt, &num_inserted);
   diag("inserted: %ld", (long)num_inserted);
-  FAIL_IF(num_inserted != 1, "Expected 1 row inserted");
+  is_num(1, num_inserted);
   
-  rc= SQLMoreResults(Stmt);
+  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
   num_inserted= 0;
   rc= SQLRowCount(Stmt, &num_inserted);
-  FAIL_IF(num_inserted != 2, "Expected 2 row inserted");
+  is_num(2, num_inserted);
 
   rc= SQLMoreResults(Stmt);
   FAIL_IF(rc != SQL_NO_DATA, "expected no more results");

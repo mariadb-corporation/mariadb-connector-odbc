@@ -33,7 +33,7 @@ class ResultSetMetaData
   std::vector<MYSQL_FIELD> rawField;
 public:
   enum {
-    columnNoNulls = 0,
+    columnNoNulls= 0,
     columnNullable,
     columnNullableUnknown
   };

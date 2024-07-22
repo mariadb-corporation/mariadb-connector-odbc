@@ -92,6 +92,7 @@ public:
 
   bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1));
   bool setCallbackData(void* data);
+  bool isOutParams() override;
   };
 }
 #endif

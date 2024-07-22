@@ -55,7 +55,7 @@ namespace mariadb
    if (buf != nullptr)
    {
      fieldBuf.wrap((*buf)[index].arr, (*buf)[index].size());
-     this->lastValueNull = fieldBuf ? BIT_LAST_FIELD_NOT_NULL : BIT_LAST_FIELD_NULL;
+     this->lastValueNull= fieldBuf ? BIT_LAST_FIELD_NOT_NULL : BIT_LAST_FIELD_NULL;
      length= static_cast<uint32_t>(fieldBuf.size());
    }
    else if (rowData) {
@@ -470,7 +470,7 @@ namespace mariadb
      case MYSQL_TYPE_FLOAT:
      case MYSQL_TYPE_DOUBLE:
      {
-       long double doubleValue = std::stold(fieldBuf.arr);
+       long double doubleValue= std::stold(fieldBuf.arr);
        if (doubleValue < 0 || doubleValue > static_cast<long double>(UINT64_MAX)) {
          throw SQLException(
            "Out of range value for column '"
@@ -739,7 +739,7 @@ namespace mariadb
  void TextRow::cacheCurrentRow(std::vector<mariadb::bytes_view>& rowDataCache, std::size_t columnCount)
  {
    rowDataCache.clear();
-   for (std::size_t i = 0; i < columnCount; ++i) {
+   for (std::size_t i= 0; i < columnCount; ++i) {
      rowDataCache.emplace_back(lengthArr[i], rowData[i]);
    }
  }

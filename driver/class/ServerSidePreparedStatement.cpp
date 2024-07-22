@@ -327,7 +327,6 @@ namespace mariadb
   void ServerSidePreparedStatement::moveToNextResult()
   {
     guard->moveToNextResult(results.get(), serverPrepareResult);
-    getResult();
   }
 
 //----------------------------- For param callbacks ------------------------------
@@ -422,5 +421,13 @@ namespace mariadb
     callbackData= data;
     // if C/C does not support callbacks 
     return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
+  }
+
+  /* Checking if next result is the last one. That would mean, that the current is out params.
+   * Method does not do any other checks and asusmes they are done by caller - i.e. it's callable result
+   */
+  bool ServerSidePreparedStatement::isOutParams()
+  {
+    return results->nextIsLast(guard);
   }
 } // namespace mariadb

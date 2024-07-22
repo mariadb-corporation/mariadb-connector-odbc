@@ -41,7 +41,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
 
   if (Dbc->IsMySQL == 0)
   {
-    for (i = 0; i < sizeof(VersionCapabilityMap) / sizeof(VersionCapabilityMap[0]); ++i)
+    for (i= 0; i < sizeof(VersionCapabilityMap) / sizeof(VersionCapabilityMap[0]); ++i)
     {
       if (ServerVersion >= VersionCapabilityMap[i][0])
       {
@@ -51,7 +51,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
   }
   else
   {
-    for (i = 0; i < sizeof(MySQLVersionCapabilityMap) / sizeof(MySQLVersionCapabilityMap[0]); ++i)
+    for (i= 0; i < sizeof(MySQLVersionCapabilityMap) / sizeof(MySQLVersionCapabilityMap[0]); ++i)
     {
       if (ServerVersion >= MySQLVersionCapabilityMap[i][0])
       {

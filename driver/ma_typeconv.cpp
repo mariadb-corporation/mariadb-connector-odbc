@@ -191,7 +191,7 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
   {
     if (i > 7 && Numeric->val[i] != '\0')
     {
-      *ErrorCode = MADB_ERR_22003;
+      *ErrorCode= MADB_ERR_22003;
       return 0;
     }
     Numerator += Numeric->val[i] * ByteDenominator;
@@ -200,7 +200,7 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
 
   if (Numeric->scale > 0)
   {
-    Denominator = DenominatorTable[Scale];// pow(10, Scale);
+    Denominator= DenominatorTable[Scale];// pow(10, Scale);
     char tmp[10 /*1 sign + 1 % + 1 dot + 3 scale + 1f + 1\0 */];
     _snprintf(tmp, sizeof(tmp), "%s%%.%df", Numeric->sign ? "" : "-", Numeric->scale);
     _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, tmp, Numerator / Denominator);
@@ -212,7 +212,7 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
     Length= strlen(Buffer) - (Numeric->sign ? 0 : 1);
     if (Length > Numeric->precision)
     {
-      *ErrorCode = MADB_ERR_22003;
+      *ErrorCode= MADB_ERR_22003;
       goto end;
     }
     for (i= 0; i < Scale; ++i)
@@ -243,7 +243,7 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
     if (Length > (unsigned int)(Numeric->precision + 1)/*dot*/ && Scale < Numeric->precision)
     {
       *ErrorCode= MADB_ERR_01S07;
-      Length = Numeric->precision + 1/*dot*/;
+      Length= Numeric->precision + 1/*dot*/;
       Buffer[Length]= 0;
       goto end;
     }
@@ -608,7 +608,7 @@ SQLRETURN MADB_Time2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
     tm->month= 0;
     tm->day=   0;
 
-    tm->time_type = MYSQL_TIMESTAMP_TIME;
+    tm->time_type= MYSQL_TIMESTAMP_TIME;
     MaBind->buffer_type= MYSQL_TYPE_TIME;
   }
 

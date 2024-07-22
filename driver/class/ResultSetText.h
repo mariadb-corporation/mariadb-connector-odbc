@@ -39,27 +39,8 @@ struct memBuf;
 
 class ResultSetText : public ResultSet
 {
-  std::vector<ColumnDefinition> columnsInformation;
-  int32_t columnInformationLength;
-  // we don't create buffers for all columns without call. Thus has to be mutable while getters are const
-  mutable std::map<int32_t, std::unique_ptr<memBuf>> blobBuffer;
-
-  PreparedStatement* statement;
-  MYSQL *capiConnHandle;
-
+  MYSQL *capiConnHandle= nullptr;
   MYSQL_BIND* resultBind= nullptr;
-  std::vector<std::vector<mariadb::bytes_view>> data;
-  std::size_t dataSize; //Should go after data
-
-  int32_t resultSetScrollType;
-  int32_t rowPointer;
-
-//  std::unique_ptr<ColumnNameMap> columnNameMap;
-
-  mutable int32_t lastRowPointer; /*-1*/
-  bool isClosedFlag;
-//  Shared::mutex lock;
-  bool forceAlias;
 
 public:
 
@@ -85,7 +66,8 @@ public:
   bool isFullyLoaded() const;
 
 private:
-  void fetchAllResults();
+  void flushPendingServerResults();
+  void cacheCompleteLocally() override;
 
   const char* getErrMessage();
   const char* getSqlState();
@@ -114,13 +96,11 @@ public:
 
 private:
   void resetVariables();
+
 public:
   bool fetchNext();
   bool next();
-private:
-  void resetRow() const;
-  void checkObjectRange(int32_t position) const;
-public:
+
   //SQLWarning* getWarnings();
   //void clearWarnings();
   bool isBeforeFirst() const;
@@ -146,10 +126,11 @@ public:
   bool isClosed() const;
   bool wasNull() const;
 
-  bool isNull(int32_t columnIndex) const;
   SQLString getString(int32_t columnIndex) const;
+
 private:
   SQLString zeroFillingIfNeeded(const SQLString& value, const ColumnDefinition* columnInformation);
+
 public:
   std::istream* getBinaryStream(int32_t columnIndex) const;
   int32_t getInt(int32_t columnIndex) const;
@@ -174,7 +155,6 @@ private:
   void rangeCheck(const SQLString& className,int64_t minValue,int64_t maxValue,int64_t value, const ColumnDefinition* columnInfo);
   void setRowPointer(int32_t pointer);
   void checkOut();
-  bool fillBuffers();
 
 public:
   int32_t getRowPointer();
