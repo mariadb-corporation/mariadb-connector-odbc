@@ -375,7 +375,7 @@ namespace mariadb
         }
     }
 
-    bool haveCachedResult= cmdInformation->moreResults() && !batch;
+    bool haveCachedResult= cmdInformation && cmdInformation->moreResults() && !batch;
     if (!haveCachedResult && statement->hasMoreResults()) {
       guard->moveToNextResult(this, serverPrepResult);
       haveCachedResult= true;

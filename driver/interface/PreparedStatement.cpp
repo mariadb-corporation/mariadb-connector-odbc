@@ -198,6 +198,10 @@ namespace mariadb
 
   int64_t PreparedStatement::getUpdateCount()
   {
-    return results->getCmdInformation()->getUpdateCount();
+    auto cmdInfo= results->getCmdInformation();
+    if (cmdInfo) {
+      return cmdInfo->getUpdateCount();
+    }
+    return -1LL;
   }
 } // namespace mariadb
