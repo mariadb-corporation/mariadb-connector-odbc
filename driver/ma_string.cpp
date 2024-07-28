@@ -335,7 +335,7 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
       }
       else
       { 
-        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, nullptr, 0, &StrLength, TRUE)))
+        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, nullptr, 0, &StrLength, true)))
         {
           MADB_FREE(Column);
           return TRUE;
@@ -347,7 +347,7 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
         else
         {
           Column= static_cast<char*>(MADB_CALLOC(StrLength + 1));
-          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, &StrLength, TRUE);
+          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, &StrLength, true);
           Escaped= static_cast<char*>(MADB_CALLOC(2 * StrLength + 1));
           EscapedLength= mysql_real_escape_string(Stmt->Connection->mariadb, Escaped, Column, (unsigned long)StrLength);
 

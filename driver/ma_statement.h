@@ -33,7 +33,7 @@ struct st_ma_stmt_methods
     SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr);
   SQLRETURN(*ExecDirect)(MADB_Stmt* Stmt, char* StatementText, SQLINTEGER TextLength);
   SQLRETURN(*GetData)(SQLHSTMT StatementHandle, SQLUSMALLINT Col_or_Param_Num, SQLSMALLINT TargetType,
-    SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr, BOOL InternalUse);
+    SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr, bool InternalUse);
   SQLRETURN(*RowCount)(MADB_Stmt* Stmt, SQLLEN* RowCountPtr);
   SQLRETURN(*ParamCount)(MADB_Stmt* Stmt, SQLSMALLINT* ParamCountPtr);
   SQLRETURN(*ColumnCount)(MADB_Stmt* Stmt, SQLSMALLINT* ColumnCountPtr);
@@ -83,10 +83,10 @@ struct st_ma_stmt_methods
   SQLRETURN(*DescribeCol)(MADB_Stmt* Stmt, SQLUSMALLINT ColumnNumber, void* ColumnName,
     SQLSMALLINT BufferLength, SQLSMALLINT* NameLengthPtr,
     SQLSMALLINT* DataTypePtr, SQLULEN* ColumnSizePtr, SQLSMALLINT* DecimalDigitsPtr,
-    SQLSMALLINT* NullablePtr, my_bool isWChar);
+    SQLSMALLINT* NullablePtr, bool isWChar);
   SQLRETURN(*SetCursorName)(MADB_Stmt* Stmt, char* Buffer, SQLINTEGER BufferLength);
   SQLRETURN(*GetCursorName)(MADB_Stmt* Stmt, void* CursorName, SQLSMALLINT BufferLength,
-    SQLSMALLINT* NameLengthPtr, my_bool isWChar);
+    SQLSMALLINT* NameLengthPtr, bool isWChar);
   SQLRETURN(*SetPos)(MADB_Stmt* Stmt, SQLSETPOSIROW Row, SQLUSMALLINT Operation,
     SQLUSMALLINT LockType, int ArrayOffset);
   SQLRETURN(*FetchScroll)(MADB_Stmt* Stmt, SQLSMALLINT FetchOrientation,

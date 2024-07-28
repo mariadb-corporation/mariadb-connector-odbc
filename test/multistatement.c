@@ -822,7 +822,7 @@ MA_ODBC_TESTS my_tests[]=
 int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
-  CHANGE_DEFAULT_OPTIONS(67108866);
+  CHANGE_DEFAULT_OPTIONS(67108866); /* MADB_OPT_FLAG_MULTI_STATEMENTS|MADB_OPT_FLAG_FOUND_ROWS */
   get_options(argc, argv);
   plan(tests);
   mark_all_tests_normal(my_tests);

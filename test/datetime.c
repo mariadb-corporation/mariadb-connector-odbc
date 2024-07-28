@@ -725,10 +725,8 @@ ODBC_TEST(t_bug9927)
   SQLCHAR col[10];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug9927");
-  OK_SIMPLE_STMT(Stmt, IsMysql ? "CREATE TABLE t_bug9927 (a TIMESTAMP,"
-                                 "b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)" :
-                        "CREATE TABLE t_bug9927 (a TIMESTAMP DEFAULT 0,"
-                        "b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug9927 (a TIMESTAMP DEFAULT '2022-02-24 05:00:00',"
+                       "b TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
 
   /* Not sure which exactly version that was introduced, but 10.11.2 is first ga */
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt,SQL_ROWVER,  NULL, 0,
@@ -755,10 +753,8 @@ ODBC_TEST(t_bug9927)
 ODBC_TEST(t_bug30081)
 {
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug30081");
-  OK_SIMPLE_STMT(Stmt, IsMysql ? "CREATE TABLE t_bug30081 (a TIMESTAMP,"
-                                 "b TIMESTAMP DEFAULT CURRENT_TIMESTAMP)" :
-                        "CREATE TABLE t_bug30081 (a TIMESTAMP DEFAULT 0,"
-                        "b TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug30081 (a TIMESTAMP DEFAULT '2022-02-24 05:00:00',"
+                       "b TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt,SQL_ROWVER,  NULL, 0,
                                    NULL, 0, (SQLCHAR *)"t_bug30081", SQL_NTS,

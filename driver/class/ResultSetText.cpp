@@ -75,9 +75,9 @@ namespace mariadb
 
     columnInformationLength= static_cast<int32_t>(columnsInformation.size());
 
-    if (streaming) {
+    /*if (streaming) {
       nextStreamingValue();
-    }
+    }*/
   }
 
   /**
@@ -234,22 +234,6 @@ namespace mariadb
   }
 
   /**
-    * This permit to replace current stream results by next ones.
-    *
-    * @throws IOException if socket exception occur
-    * @throws SQLException if server return an unexpected error
-    */
-  void ResultSetText::nextStreamingValue() {
-    lastRowPointer= -1;
-
-    if (resultSetScrollType == TYPE_FORWARD_ONLY) {
-      dataSize= 0;
-    }
-    addStreamingValue(fetchSize > 1);
-  }
-
-
-  /**
     * Read next value.
     *
     * @return true if have a new value
@@ -394,7 +378,7 @@ namespace mariadb
   }
 
 
-  bool ResultSetText::fetchNext()
+  /*bool ResultSetText::fetchNext()
   {
     ++rowPointer;
     if (data.size() > 0) {
@@ -408,44 +392,9 @@ namespace mariadb
     lastRowPointer= rowPointer;
 
     return true;
-  }
+  }*/
 
-  bool ResultSetText::next()
-  {
-    if (isClosedFlag) {
-      throw SQLException("Operation not permit on a closed resultSet", "HY000");
-    }
-    if (rowPointer < static_cast<int32_t>(dataSize) - 1) {
-      ++rowPointer;
-      return true;
-    }
-    else {
-      if (streaming && !isEof) {
-        try {
-          if (!isEof) {
-            nextStreamingValue();
-          }
-        }
-        catch (std::exception& ioe) {
-          handleIoException(ioe);
-        }
-
-        if (resultSetScrollType == TYPE_FORWARD_ONLY) {
-
-          rowPointer= 0;
-          return dataSize > 0;
-        }
-        else {
-          ++rowPointer;
-          return dataSize > static_cast<std::size_t>(rowPointer);
-        }
-      }
-      rowPointer= static_cast<int32_t>(dataSize);
-      return false;
-    }
-  }
-
-
+ 
   bool ResultSetText::isBeforeFirst() const {
     checkClose();
     return (dataFetchTime >0) ? rowPointer == -1 && dataSize > 0 : rowPointer == -1;

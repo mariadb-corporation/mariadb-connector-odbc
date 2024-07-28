@@ -1539,7 +1539,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
 
   try
   {
-    return Stmt->Methods->GetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr, FALSE);
+    return Stmt->Methods->GetData(StatementHandle, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr, false);
   }
   catch (MADB_Error &Err)
   {

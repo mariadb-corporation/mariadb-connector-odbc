@@ -612,7 +612,7 @@ int ma_print_result_getdata(SQLHSTMT Stmt)
 
 
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen((const char*)stmtstr))))\
+if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen((const char*)(stmtstr)))))\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -1052,34 +1052,16 @@ int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
      */
     if (SetCursorType == SQL_CURSOR_FORWARD_ONLY)
     {
-      SQLHANDLE Stmt2;
+      SQLLEN rowCount= 0;
 
       ForwardOnly=  TRUE;
-      OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS codbc_checkcaching");
-      OK_SIMPLE_STMT(Stmt, "CREATE TABLE codbc_checkcaching (id INT NOT NULL)");
-      OK_SIMPLE_STMT(Stmt, "INSERT INTO codbc_checkcaching VALUES(1),(2)");
-      OK_SIMPLE_STMT(Stmt, "SELECT * FROM codbc_checkcaching");
+      OK_SIMPLE_STMT(Stmt, "SELECT 1 UNION SELECT 2");
       CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
-      CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2));
-      /* Currently if "NO CACHE" aka streaming is endabled, any query will error */
-      rc= SQLExecDirect(Stmt2, "INSERT INTO codbc_checkcaching VALUES(3)", SQL_NTS);
+      CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
 
-      if (!SQL_SUCCEEDED(rc))
-      {
-        SQLCHAR SQLState[6];
-        SQLINTEGER NativeError;
-        SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
-        SQLSMALLINT TextLengthPtr;
-
-        SQLGetDiagRec(SQL_HANDLE_STMT, Stmt2, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
-        if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "The requested operation is blocked by another streaming operation") != NULL)
-        {
-          NoCache= TRUE;
-        }
-      }
+      NoCache= (rowCount == 1);
       CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-      CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
     }
   }
   else

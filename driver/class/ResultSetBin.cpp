@@ -75,7 +75,7 @@ namespace mariadb
 
       data.reserve(std::max(10, fetchSize)); // Same
       row.reset(new BinRow(columnsInformation, columnInformationLength, capiStmtHandle));
-      nextStreamingValue();
+      //nextStreamingValue();
       streaming= true;
     }
   }
@@ -235,22 +235,6 @@ namespace mariadb
         " / processing your result set faster (check Streaming result sets documentation for more information)",
         "HY000", &ioe);*/
   }
-
-  /**
-    * This permit to replace current stream results by next ones.
-    *
-    * @throws IOException if socket exception occur
-    * @throws SQLException if server return an unexpected error
-    */
-  void ResultSetBin::nextStreamingValue() {
-    lastRowPointer= -1;
-
-    if (resultSetScrollType == TYPE_FORWARD_ONLY) {
-      dataSize= 0;
-    }
-    addStreamingValue(fetchSize > 1);
-  }
-
 
   /**
     * Read next value.
@@ -467,7 +451,7 @@ namespace mariadb
   }
 
 
-  bool ResultSetBin::fetchNext()
+  /*bool ResultSetBin::fetchNext()
   {
     ++rowPointer;
     if (data.size() > 0) {
@@ -480,49 +464,14 @@ namespace mariadb
     }
     lastRowPointer= rowPointer;
     return true;
-  }
-
-  bool ResultSetBin::next()
-  {
-    if (isClosedFlag) {
-      throw SQLException("Operation not permit on a closed resultSet", "HY000");
-    }
-    if (rowPointer < static_cast<int32_t>(dataSize) - 1) {
-      ++rowPointer;
-      return true;
-    }
-    else {
-      if (streaming && !isEof) {
-        try {
-          if (!isEof) {
-            nextStreamingValue();
-          }
-        }
-        catch (std::exception& ioe) {
-          handleIoException(ioe);
-        }
-
-        if (resultSetScrollType == TYPE_FORWARD_ONLY) {
-
-          rowPointer= 0;
-          return dataSize > 0;
-        }
-        else {
-          rowPointer++;
-          return dataSize > static_cast<std::size_t>(rowPointer);
-        }
-      }
-
-      rowPointer= static_cast<int32_t>(dataSize);
-      return false;
-    }
-  }
+  }*/
 
   
   bool ResultSetBin::isBeforeFirst() const {
     checkClose();
     return (dataFetchTime >0) ? rowPointer == -1 && dataSize > 0 : rowPointer == -1;
   }
+
 
   bool ResultSetBin::isAfterLast() {
     checkClose();

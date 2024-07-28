@@ -766,10 +766,10 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
            MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
          else */
       {
-        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, nullptr, 0, &Length, TRUE);
+        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, nullptr, 0, &Length, true);
         p= (char*)MADB_CALLOC(Length + 2);
         MADB_InsertDynamic(&DynData, (char*)&p);
-        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, nullptr, TRUE);
+        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, nullptr, true);
         Stmt->Methods->BindParam(Stmt, ParamNumber, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, nullptr);
       }
     }
@@ -2585,7 +2585,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
                            SQLPOINTER TargetValuePtr,
                            SQLLEN BufferLength,
                            SQLLEN * StrLen_or_IndPtr,
-                           BOOL   InternalUse /* Currently this is respected for SQL_CHAR type only,
+                           bool   InternalUse /* Currently this is respected for SQL_CHAR type only,
                                                  since all "internal" calls of the function need string representation of data */)
 {
   MADB_Stmt       *Stmt= (MADB_Stmt *)StatementHandle;
@@ -2595,7 +2595,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   MYSQL_BIND      Bind;
   my_bool         IsNull= FALSE;
   my_bool         ZeroTerminated= 0;
-  unsigned long   CurrentOffset= InternalUse == TRUE ? 0 : Stmt->CharOffset[Offset]; /* We are supposed not get bookmark column here */
+  unsigned long   CurrentOffset= InternalUse ? 0 : Stmt->CharOffset[Offset]; /* We are supposed not get bookmark column here */
   my_bool         Error;
   MADB_DescRecord *IrdRec= nullptr;
   const MYSQL_FIELD *Field= Stmt->metadata->getField(Offset);
@@ -3022,7 +3022,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       {
         *StrLen_or_IndPtr= *Bind.length - CurrentOffset;
       }
-      if (InternalUse == FALSE)
+      if (!InternalUse)
       {
         /* Recording new offset only if that is API call, and not getting data for internal use */
         Stmt->CharOffset[Offset] += MIN((unsigned long)BufferLength - ZeroTerminated, *Bind.length);
@@ -3408,7 +3408,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
 SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void *ColumnName,
                          SQLSMALLINT BufferLength, SQLSMALLINT *NameLengthPtr,
                          SQLSMALLINT *DataTypePtr, SQLULEN *ColumnSizePtr, SQLSMALLINT *DecimalDigitsPtr,
-                         SQLSMALLINT *NullablePtr, my_bool isWChar)
+                         SQLSMALLINT *NullablePtr, bool isWChar)
 {
   MADB_DescRecord *Record;
 
@@ -3503,7 +3503,7 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
 
 /* {{{ MADB_GetCursorName */
 SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT BufferLength, 
-                             SQLSMALLINT *NameLengthPtr, my_bool isWChar)
+                             SQLSMALLINT *NameLengthPtr, bool isWChar)
 {
   SQLSMALLINT Length;
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -3785,13 +3785,13 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             {
               SQLLEN Length= 0;
               /* set a default value */
-              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, NULL, 0, &Length, TRUE) != SQL_ERROR && Length)
+              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, NULL, 0, &Length, true) != SQL_ERROR && Length)
               {
                 MADB_FREE(Rec->DefaultValue);
                 if (Length > 0) 
                 {
                   Rec->DefaultValue= (char *)MADB_CALLOC(Length + 1);
-                  Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0, TRUE);
+                  Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0, true);
                 }
                 Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
                               Rec->DefaultValue, Length, NULL);

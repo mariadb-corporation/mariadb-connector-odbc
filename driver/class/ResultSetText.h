@@ -39,11 +39,10 @@ struct memBuf;
 
 class ResultSetText : public ResultSet
 {
-  MYSQL *capiConnHandle= nullptr;
-  MYSQL_BIND* resultBind= nullptr;
+  MYSQL*      capiConnHandle= nullptr;
+  MYSQL_BIND* resultBind=     nullptr;
 
 public:
-
   ResultSetText(
     Results* results,
     Protocol* _protocol,
@@ -78,7 +77,6 @@ public:
 
 private:
   void handleIoException(std::exception& ioe) const;
-  void nextStreamingValue();
   bool readNextValue(bool cacheLocally= false);
 
 protected:
@@ -98,9 +96,7 @@ private:
   void resetVariables();
 
 public:
-  bool fetchNext();
-  bool next();
-
+  //bool fetchNext();
   //SQLWarning* getWarnings();
   //void clearWarnings();
   bool isBeforeFirst() const;

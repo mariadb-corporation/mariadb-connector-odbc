@@ -74,7 +74,6 @@ namespace mariadb
  *
  * @param columnInfo column information
  * @param cal calendar
- * @param timeZone time zone
  * @return String value
  * @throws SQLException if column type doesn't permit conversion
  */

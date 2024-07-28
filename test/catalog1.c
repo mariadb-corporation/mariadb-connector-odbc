@@ -627,11 +627,12 @@ ODBC_TEST(t_tables_bug)
     // But for TEXT field is considered NULLABLE. I don't know if mysql can have NULL there, probably unlikely.
     // On other hand catalog function result unlikely should be nullable per se. So, maybe we need to tweak metadata hier, but it does not look
     // like a huge problem. 
-    is_num((IsMysql && i != 4 /*TABLE_TYPE*/ ? SQL_NULLABLE : t_tables_bug_data[i + RefArrOffset].pfNullable), pfNullable);
+    if (!IsMysql || (i != 1 && i != 3)) // MySQL has inconsistent metadata for TABLE_CAT and TABLE_NAME, it seems.
+    {                                   // On Windows it's SQL_NULLABLE, on Linux SQL_NO_NULLS. Or that is another weird UnixODBC interference
+      is_num((IsMysql && i != 4 /*TABLE_TYPE*/ ? SQL_NULLABLE : t_tables_bug_data[i + RefArrOffset].pfNullable), pfNullable);
+    }
   }
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
   return OK;
 }
 

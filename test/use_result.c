@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -214,6 +214,7 @@ ODBC_TEST(unbuffered_result)
   if (!SQL_SUCCEEDED(rc))
   {
     /* Means that caching of the rest of the streamed RS is not implemented yet, and thus the error */
+    diag("Error - caching of the rest of RS still does not work");
     is_num(rc, SQL_ERROR);
     CHECK_SQLSTATE(Stmt2, "HY000");
     is_num(1, my_fetch_int(Stmt1, 1));
@@ -224,6 +225,7 @@ ODBC_TEST(unbuffered_result)
   }
   else
   {
+    diag("All is good - the driver can cache remaining part of the streamed RS");
     is_num(1, my_fetch_int(Stmt1, 1));
     CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
     is_num(3, my_fetch_int(Stmt1, 1));
@@ -263,13 +265,20 @@ ODBC_TEST(unbuffered_result)
 }
 
 
+ODBC_TEST(streaming_is_on)
+{
+  // Relying on what the framework has detected for us
+  FAIL_IF(NoCache == FALSE, "Tests in this suite are supposed to be run with resultset streaming, but they are cached");
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
-  {t_use_result, "t_use_result"},
-  {t_bug4657, "t_bug4657"},
-  {t_bug39878, "t_bug39878"},
+  {t_use_result,      "t_use_result"},
+  {t_bug4657,         "t_bug4657"},
+  {t_bug39878,        "t_bug39878"},
   {unbuffered_result, "unbuffered_result"},
+  {streaming_is_on,   "streaming_is_on"},
   {NULL, NULL}
 };
 
@@ -279,7 +288,7 @@ int main(int argc, char **argv)
   get_options(argc, argv);
   plan(tests);
   mark_all_tests_normal(my_tests);
-  CHANGE_DEFAULT_OPTIONS(my_options | 1048576 | 2097152);
+  CHANGE_DEFAULT_OPTIONS(my_options | 1048576 | 2097152); /* MADB_OPT_FLAG_NO_CACHE | MADB_OPT_FLAG_FORWARD_CURSOR */
   //return 0;
   return run_tests(my_tests);
 }

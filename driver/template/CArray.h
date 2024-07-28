@@ -115,14 +115,7 @@ public:
   CArrView(int64_t len, const T _arr[] )
     : length(len < 0 ? len : -len)
   {
-    // If len parameter < 0 - macking copy, otherwise - taking ownership of the array
-    // Looks like CArrView is not needed, and CArray could do all the job
-    if (len < 0) {
-      make_copy(_arr, static_cast<std::size_t>(-length));
-    }
-    else {
-      arr= _arr;
-    }
+    make_copy(_arr, static_cast<std::size_t>(-length));
   }
 
 

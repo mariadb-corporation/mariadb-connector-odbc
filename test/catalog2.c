@@ -851,7 +851,7 @@ ODBC_TEST(t_bug55870)
      Thus let's test it on NO_I_S connection too */
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
 
-  sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s;PORT=%u;NO_I_S=1", my_dsn, my_uid, my_pwd, my_port);
+  sprintf((char *)noI_SconnStr, "DSN=%s;UID=%s;PWD=%s;PORT=%u;NO_I_S=1;NO_CACHE=0", my_dsn, my_uid, my_pwd, my_port);
 
   sprintf(query, "GRANT Insert, Select ON bug55870 TO %s", my_uid);
   SQLExecDirect(Stmt, query, SQL_NTS);
@@ -866,8 +866,17 @@ ODBC_TEST(t_bug55870)
   CHECK_STMT_RC(hstmt1, SQLStatistics(hstmt1, NULL, 0, NULL, 0,
                                    "bug55870", SQL_NTS,
                                    SQL_INDEX_UNIQUE, SQL_QUICK));
-  CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rowCount));
-  is_num(rowCount, 1);
+  if (NoCache == FALSE)
+  {
+    CHECK_STMT_RC(hstmt1, SQLRowCount(hstmt1, &rowCount));
+    is_num(rowCount, 1);
+  }
+  else
+  {
+    CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
+    EXPECT_STMT(hstmt1, SQLFetch(hstmt1), SQL_NO_DATA);
+    skip("Test does not make sense with result streaming turned on");
+  }
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 

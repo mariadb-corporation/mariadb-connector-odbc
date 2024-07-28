@@ -82,7 +82,6 @@ private:
 
 private:
   void handleIoException(std::exception& ioe) const;
-  void nextStreamingValue();
   bool readNextValue(bool cacheLocally= false);
 
 protected:
@@ -98,8 +97,7 @@ private:
 public:
   void abort();
   void close();
-  bool fetchNext();
-  bool next();
+  //bool fetchNext();
   //SQLWarning* getWarnings();
   //void clearWarnings();
   bool isBeforeFirst() const;

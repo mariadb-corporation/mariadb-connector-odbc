@@ -43,6 +43,7 @@ namespace mariadb
 
   ResultSet::ResultSet(Protocol* guard, Results* results) :
     protocol(guard),
+    fetchSize(results->getFetchSize()),
     statement(results->getStatement()),
     resultSetScrollType(results->getResultSetScrollType())
   {}
@@ -205,6 +206,44 @@ namespace mariadb
   ResultSet::~ResultSet()
   {
   }
+
+
+  bool ResultSet::next()
+  {
+    if (isClosedFlag) {
+      throw SQLException("Operation not permit on a closed resultSet", "HY000");
+    }
+    if (rowPointer < static_cast<int32_t>(dataSize) - 1) {
+      ++rowPointer;
+      return true;
+    }
+    else {
+      if (streaming && !isEof) {
+        try {
+          if (!isEof) {
+            nextStreamingValue();
+          }
+        }
+        catch (std::exception& /*ioe*/) {
+          // We don't do anything else there now
+          throw 1;
+        }
+
+        if (resultSetScrollType == TYPE_FORWARD_ONLY) {
+
+          rowPointer= lastRowPointer= 0;
+          return dataSize > 0;
+        }
+        else {
+          ++rowPointer;
+          return dataSize > static_cast<std::size_t>(rowPointer);
+        }
+      }
+      rowPointer= static_cast<int32_t>(dataSize);
+      return false;
+    }
+  }
+
 
   /**
     * This permit to add next streaming values to existing resultSet.
@@ -409,6 +448,20 @@ namespace mariadb
     return false;
   }
 
+  /**
+  * This permit to replace current stream results by next ones.
+  *
+  * @throws IOException if socket exception occur
+  * @throws SQLException if server return an unexpected error
+  */
+  void ResultSet::nextStreamingValue() {
+    lastRowPointer= -1;
+
+    if (resultSetScrollType == TYPE_FORWARD_ONLY) {
+      dataSize= 0;
+    }
+    addStreamingValue(fetchSize > 1);
+  }
 
   // It has to be const, because it's called by getters, and properties it changes are mutable
   // If something is changed here - might be needed into get() method, cuz for the work with rs callbacks it
@@ -422,9 +475,9 @@ namespace mariadb
       if (rowPointer != lastRowPointer + 1) {
         row->installCursorAtPosition(rowPointer);
       }
-      if (!streaming) {
-        row->fetchNext();
-      }
+      //if (!streaming) {
+      row->fetchNext();
+      //}
     }
     lastRowPointer= rowPointer;
   }

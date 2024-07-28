@@ -134,7 +134,7 @@ public:
   virtual ~ResultSet();
 
   virtual void close()=0;
-  virtual bool next()= 0;
+  virtual bool next();
 
   virtual bool isFullyLoaded() const=0;
   // Fetches remaining result set from the server
@@ -167,6 +167,7 @@ protected:
   virtual void setRowPointer(int32_t pointer)=0;
   bool fillBuffers(MYSQL_BIND* resBind);
   bool getCached(MYSQL_BIND* bind, uint32_t column0basedIdx, uint64_t offset);
+  void nextStreamingValue();
 
   // Keeping them private so far
   virtual std::istream* getBinaryStream(int32_t columnIndex) const=0;
