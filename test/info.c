@@ -872,6 +872,20 @@ ODBC_TEST(odbc313)
   return OK;
 }
 
+ODBC_TEST(odbc430)
+{
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_VARCHAR));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 3), 65535);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_VARBINARY));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 3), 65535);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -898,6 +912,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc317, "odbc317_conattributes", NORMAL },
   { odbc326, "odbc326", NORMAL },
   { odbc313, "odbc313", NORMAL },
+  { odbc430, "odbc430", NORMAL },
   { NULL, NULL }
 };
 
