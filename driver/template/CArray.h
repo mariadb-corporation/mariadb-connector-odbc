@@ -118,6 +118,11 @@ public:
     make_copy(_arr, static_cast<std::size_t>(-length));
   }
 
+  CArrView(int64_t len)
+    : length(len < 0 ? len : -len)
+    , arr(new T[-length])
+  {
+  }
 
   ~CArrView()
   {
@@ -182,6 +187,14 @@ public:
   {
     arr= _arr;
     length= static_cast<int64_t>(size);
+    return *this;
+  }
+
+
+  CArrView<T>& takeover(const T* _arr, int64_t size)
+  {
+    arr= _arr;
+    length= size > 0 ? -size : size;
     return *this;
   }
 

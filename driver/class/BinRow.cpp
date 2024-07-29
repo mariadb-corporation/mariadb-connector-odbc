@@ -1120,7 +1120,8 @@ namespace mariadb
   {
     rowDataCache.clear();
     for (std::size_t i= 0; i < columnCount; ++i) {
-      if (bind[i].is_null_value != '\0') {
+      auto& b= bind[i];
+      if (b.is_null_value != '\0') {
         rowDataCache.emplace_back();
       }
       else {

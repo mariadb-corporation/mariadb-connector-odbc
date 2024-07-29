@@ -195,7 +195,6 @@ ODBC_TEST(t_bug39878)
 /* Some legacy test moved here from param.c and changed to make some sense */
 ODBC_TEST(unbuffered_result)
 {
-  SQLRETURN rc;
   SQLHSTMT Stmt1, Stmt2;
   int value[]= {1,3,8};
   size_t i;
@@ -209,30 +208,15 @@ ODBC_TEST(unbuffered_result)
   CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
 
   SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2);
-  rc= SQLExecDirect(Stmt2, "SELECT * FROM t_unbuffered_result", SQL_NTS);
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_result");
 
-  if (!SQL_SUCCEEDED(rc))
-  {
-    /* Means that caching of the rest of the streamed RS is not implemented yet, and thus the error */
-    diag("Error - caching of the rest of RS still does not work");
-    is_num(rc, SQL_ERROR);
-    CHECK_SQLSTATE(Stmt2, "HY000");
-    is_num(1, my_fetch_int(Stmt1, 1));
-    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
-    is_num(3, my_fetch_int(Stmt1, 1));
-    /* Still too early */
-    EXPECT_STMT(Stmt2, SQLExecDirect(Stmt2, "SELECT * FROM t_unbuffered_result", SQL_NTS), SQL_ERROR);
-  }
-  else
-  {
-    diag("All is good - the driver can cache remaining part of the streamed RS");
-    is_num(1, my_fetch_int(Stmt1, 1));
-    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
-    is_num(3, my_fetch_int(Stmt1, 1));
-  }
+  is_num(1, my_fetch_int(Stmt1, 1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(3, my_fetch_int(Stmt1, 1));
 
   EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
   /* Testing that all is fine after finishing fetching of the streamed RS */
   /* Also now need >2 rows */
   OK_SIMPLE_STMT(Stmt2, "INSERT INTO t_unbuffered_result VALUES (8)");
@@ -257,7 +241,124 @@ ODBC_TEST(unbuffered_result)
 
   /* Explicitly closing cursor as some DM's would need this */
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_bug39878");
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE t_unbuffered_result");
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+  return OK;
+}
+
+/* Same test as unbuffered_result, but for the case of PREPARE+EXECUTE, i.e. for binary result */
+ODBC_TEST(unbuffered_result_binary)
+{
+  SQLHSTMT Stmt1, Stmt2;
+  int value[]={1,3,8};
+  size_t i;
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_unbuffered_bin");
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t_unbuffered_bin (a int)");
+  OK_SIMPLE_STMT(Stmt1, "INSERT INTO t_unbuffered_bin VALUES (1),(3)");
+  CHECK_STMT_RC(Stmt1, SQLPrepare(Stmt1, "SELECT * FROM t_unbuffered_bin", SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLExecute(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2);
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_bin");
+
+  is_num(1, my_fetch_int(Stmt1, 1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(3, my_fetch_int(Stmt1, 1));
+
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
+  /* Testing that all is fine after finishing fetching of the streamed RS */
+  /* Also now need >2 rows */
+  OK_SIMPLE_STMT(Stmt2, "INSERT INTO t_unbuffered_bin VALUES (8)");
+
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_bin");
+  CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+  /* Now checking if closing cursor unblocks connection */
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt1, SQLPrepare(Stmt1, "SELECT * FROM t_unbuffered_bin ORDER BY a", SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLExecute(Stmt1));
+  /* Checking that rs is cached, if fetching has not been started */
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_bin ORDER BY a");
+
+  for (i= 0; i < sizeof(value) / sizeof(int); ++i)
+  {
+    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+    CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+    is_num(my_fetch_int(Stmt1, 1), value[i]);
+    is_num(my_fetch_int(Stmt2, 1), value[i]);
+  }
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  EXPECT_STMT(Stmt2, SQLFetch(Stmt2), SQL_NO_DATA);
+
+  /* Explicitly closing cursor as some DM's would need this */
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE t_unbuffered_bin");
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+  return OK;
+}
+
+
+/* Test of the whole resultsets caching in case of multiple resultsets and 
+ * other query needs connection
+ */
+ODBC_TEST(multirs_caching)
+{
+  SQLHSTMT Stmt1, Stmt2;
+  int value[]={1,3,8};
+  size_t i;
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE IF EXISTS t_unbuffered_bin");
+  OK_SIMPLE_STMT(Stmt1, "CREATE TABLE t_unbuffered_bin (a int)");
+  OK_SIMPLE_STMT(Stmt1, "INSERT INTO t_unbuffered_bin VALUES (1),(3)");
+  CHECK_STMT_RC(Stmt1, SQLPrepare(Stmt1, "SELECT * FROM t_unbuffered_bin", SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLExecute(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2);
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_bin");
+
+  is_num(1, my_fetch_int(Stmt1, 1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(3, my_fetch_int(Stmt1, 1));
+
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
+  /* Testing that all is fine after finishing fetching of the streamed RS */
+  /* Also now need >2 rows */
+  OK_SIMPLE_STMT(Stmt2, "INSERT INTO t_unbuffered_bin VALUES (8)");
+
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_bin");
+  CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+  /* Now checking if closing cursor unblocks connection */
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt1, SQLPrepare(Stmt1, "SELECT * FROM t_unbuffered_bin ORDER BY a", SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLExecute(Stmt1));
+  /* Checking that rs is cached, if fetching has not been started */
+  OK_SIMPLE_STMT(Stmt2, "SELECT * FROM t_unbuffered_bin ORDER BY a");
+
+  for (i= 0; i < sizeof(value) / sizeof(int); ++i)
+  {
+    CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+    CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+    is_num(my_fetch_int(Stmt1, 1), value[i]);
+    is_num(my_fetch_int(Stmt2, 1), value[i]);
+  }
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  EXPECT_STMT(Stmt2, SQLFetch(Stmt2), SQL_NO_DATA);
+
+  /* Explicitly closing cursor as some DM's would need this */
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt1, "DROP TABLE t_unbuffered_bin");
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
   CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
@@ -272,12 +373,15 @@ ODBC_TEST(streaming_is_on)
   return OK;
 }
 
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_use_result,      "t_use_result"},
   {t_bug4657,         "t_bug4657"},
   {t_bug39878,        "t_bug39878"},
   {unbuffered_result, "unbuffered_result"},
+  {unbuffered_result_binary, "unbuffered_binary_result"},
+  {multirs_caching, "multiresultset_caching"},
   {streaming_is_on,   "streaming_is_on"},
   {NULL, NULL}
 };
