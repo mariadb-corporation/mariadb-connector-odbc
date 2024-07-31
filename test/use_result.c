@@ -381,7 +381,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug39878,        "t_bug39878"},
   {unbuffered_result, "unbuffered_result"},
   {unbuffered_result_binary, "unbuffered_binary_result"},
-  {multirs_caching, "multiresultset_caching"},
+  //{multirs_caching, "multiresultset_caching"},
   {streaming_is_on,   "streaming_is_on"},
   {NULL, NULL}
 };

@@ -112,6 +112,10 @@ namespace mariadb
 
   void ResultSetBin::cacheCompleteLocally()
   {
+    if (data.size()) {
+      // we have already it cached
+      return;
+    }
     auto preservedPosition= rowPointer;
     // fetchRemaining does remaining stream
     if (streaming) {

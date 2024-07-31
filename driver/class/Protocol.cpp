@@ -1269,7 +1269,7 @@ namespace mariadb
 
   void Protocol::moveToNextSpsResult(Results *results, ServerPrepareResult *spr)
   {
-    std::lock_guard<std::mutex> localScopeLock(lock);
+    //std::lock_guard<std::mutex> localScopeLock(lock);
     MYSQL_STMT *stmt= spr->getStatementId();
     rc= mysql_stmt_next_result(stmt);
 
@@ -1294,7 +1294,7 @@ namespace mariadb
       return;
     }
 
-    std::lock_guard<std::mutex> localScopeLock(lock);
+    //std::lock_guard<std::mutex> localScopeLock(lock);
     rc= mysql_next_result(connection.get());
 
     getResult(results, spr);
@@ -1503,7 +1503,6 @@ namespace mariadb
   void Protocol::readResultSet(Results* results, ServerPrepareResult *pr)
   {
     try {
-
       ResultSet* selectResultSet;
 
       getServerStatus();
@@ -1518,7 +1517,7 @@ namespace mariadb
         selectResultSet= ResultSet::create(results, this, pr/*, callableResult*/);
 
       }
-      results->addResultSet(selectResultSet, hasMoreResults() || results->getFetchSize() > 0);
+      results->addResultSet(selectResultSet, hasMoreResults());
     }
     catch (SQLException & e) {
       throw e;

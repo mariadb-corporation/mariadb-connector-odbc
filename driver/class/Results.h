@@ -46,6 +46,8 @@ class Results  {
   bool rewritten= false;
   SQLString sql;
   MYSQL_BIND* parameters;
+  bool cachingLocally= false;
+  bool skippig=        false;
 
 public:
   enum {

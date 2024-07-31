@@ -284,12 +284,14 @@ namespace mariadb
 
   void ClientSidePreparedStatement::getSingleResult()
   {
+    bool moreResults= hasMoreResults();
+    Results *rr= results.get();
     if (fieldCount() == 0) {
-      results->addStats(mysql_affected_rows(guard->getCHandle()), hasMoreResults());
+      rr->addStats(mysql_affected_rows(guard->getCHandle()), moreResults);
     }
     else {
-      ResultSet* rs= ResultSet::create(results.get(), guard, guard->getCHandle());
-      results->addResultSet(rs, hasMoreResults() || results->getFetchSize() > 0);
+      ResultSet* rs= ResultSet::create(rr, guard, guard->getCHandle());
+      rr->addResultSet(rs, moreResults);
     }
   }
 

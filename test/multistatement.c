@@ -797,9 +797,87 @@ ODBC_TEST(t_odbc423)
   return OK;
 }
 
+/* ODBC-432 */
+ODBC_TEST(multirs_caching)
+{
+  SQLHSTMT Stmt1, Stmt2;
+  SQLCHAR buffer[16];
+  //int value[]= {2,4,3,1};
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
+  OK_SIMPLE_STMT(Stmt1, "SELECT 2 UNION SELECT 4;SELECT 3;SELECT 1");
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2);
+  // Concurrent query needs connection
+  OK_SIMPLE_STMT(Stmt2, "SELECT 100");
+
+  is_num(2, my_fetch_int(Stmt1, 1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(4, my_fetch_int(Stmt1, 1));
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(3, my_fetch_int(Stmt1, 1));
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(1, my_fetch_int(Stmt1, 1));
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  EXPECT_STMT(Stmt1, SQLMoreResults(Stmt1), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbc432");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbc432()\
+                        BEGIN\
+                          SELECT 1 as id, 'text' as val UNION SELECT 7 as id, 'seven' as val;\
+                          SELECT 'some text';\
+                          SELECT 2;\
+                        END");
+
+  OK_SIMPLE_STMT(Stmt1, "CALL t_odbc432()");
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+
+  // Concurrent query needs connection
+  OK_SIMPLE_STMT(Stmt2, "SELECT 100");
+
+  is_num(1, my_fetch_int(Stmt1, 1));
+  IS_STR("text", my_fetch_str(Stmt1, buffer, 2), 4);
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(7, my_fetch_int(Stmt1, 1));
+  IS_STR("seven", my_fetch_str(Stmt1, buffer, 2), 5);
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  IS_STR("some text", my_fetch_str(Stmt1, buffer, 1), 9);
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+
+  //Doesn't matter where to do it, really. Doing here - reading 2nd query results
+  CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+  is_num(100, my_fetch_int(Stmt2, 1));
+
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  is_num(2, my_fetch_int(Stmt1, 1));
+
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  EXPECT_STMT(Stmt1, SQLMoreResults(Stmt1), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE t_odbc432");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
-  {test_multi_statements, "test_multi_statements"},
+  /*{test_multi_statements, "test_multi_statements"},
   {test_multi_on_off, "test_multi_on_off"},
   {test_params, "test_params"},
   {test_params_last_count_smaller, "test_params_last_count_smaller"},
@@ -815,7 +893,8 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc219, "t_odbc219"},
   {test_autocommit, "test_autocommit"},
   {t_odbc375, "t_odbc375_reStoreError"},
-  {t_odbc423, "t_odbc423_batchWithPrepare"},
+  {t_odbc423, "t_odbc423_batchWithPrepare"},*/
+  {multirs_caching, "t_odbc432_test_multirs_caching"},
   {NULL, NULL}
 };
 

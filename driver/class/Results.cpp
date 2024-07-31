@@ -199,12 +199,12 @@ namespace mariadb
 
     executionResults.emplace_back(_resultSet);
 
-    if (!cmdInformation){
-      if (batch){
+    if (!cmdInformation) {
+      if (batch) {
         cmdInformation.reset(new CmdInformationBatch(expectedSize));
-      }else if (moreResultAvailable){
+      } else if (moreResultAvailable) {
         cmdInformation.reset(new CmdInformationMultiple(expectedSize));
-      }else {
+      } else {
         cmdInformation.reset(new CmdInformationSingle(CmdInformation::RESULT_SET_VALUE));
         return;
       }
@@ -279,39 +279,31 @@ namespace mariadb
    */
   void Results::loadFully(bool skip, Protocol *guard) {
 
-    if (fetchSize != 0) {
-      fetchSize= 0;
-      ResultSet* rs= resultSet;
+    ResultSet* rs= resultSet;
 
-      if (rs == nullptr) {
-        rs= currentRs.get();
+    if (rs == nullptr) {
+      rs= currentRs.get();
+    }
+    if (rs == nullptr && !executionResults.empty()) {
+      rs= executionResults.front().get();
+    }
+    if (rs) {
+      if (skip) {
+        rs->close();
       }
-      if (rs) {
-        if (skip) {
-          rs->close();
-        }else {
-          rs->fetchRemaining();
-        }
+      else if (fetchSize != 0) {
+        fetchSize= 0;
+        rs->fetchRemaining();
       }
-      else {
-        Unique::ResultSet firstResult;
-        auto it= executionResults.begin();
-
-        if (it != executionResults.end())
-        {
-          firstResult.reset(it->release());
-          if (skip){
-            firstResult->close();
-          }else {
-            firstResult->fetchRemaining();
-          }
-        }
+      else if (guard->hasMoreResults()) {
+        // Caching it on our side only if it's not the last rs. Otherwise we can leave it in C/C statement handle
+        rs->cacheCompleteLocally();
       }
     }
+
     while (guard->hasMoreResults()) {
       // moveToNextResult does that - getResult in case of success
       guard->moveToNextResult(this, serverPrepResult);
-      //guard->getResult(this);
     }
   }
 
@@ -365,14 +357,16 @@ namespace mariadb
    */
   bool Results::getMoreResults(bool closeCurrent, Protocol *guard) {
 
-    if (fetchSize != 0 && resultSet) {
+    if (resultSet) {
 
-        if (closeCurrent && resultSet) {
-          resultSet->realClose(true);
-        }
-        else {
-          resultSet->fetchRemaining();
-        }
+      if (closeCurrent) {
+        resultSet->realClose(true);
+      }
+      else {
+        // for binary results we need to copy everything on our side even if we are not streaming, as it won't be available otherwise
+        // once we move to the next result
+        resultSet->cacheCompleteLocally();
+      }
     }
 
     bool haveCachedResult= cmdInformation && cmdInformation->moreResults() && !batch;
