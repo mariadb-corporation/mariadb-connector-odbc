@@ -31,7 +31,7 @@ class CmdInformationMultiple  : public CmdInformation
 {
   std::vector<int64_t>updateCounts;
   std::size_t expectedSize;
-  int32_t moreResultsIdx;
+  uint32_t moreResultsIdx;
   bool hasException;
   bool rewritten;
 
@@ -48,6 +48,7 @@ public:
   int64_t getUpdateCount();
   int32_t getCurrentStatNumber();
   bool moreResults();
+  uint32_t hasMoreResults();
   bool isCurrentUpdateCount();
   void setRewrite(bool rewritten);
 };

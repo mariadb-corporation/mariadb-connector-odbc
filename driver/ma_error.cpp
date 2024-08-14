@@ -461,9 +461,17 @@ SQLRETURN MADB_FromException(MADB_Error &Err, SQLException& e)
 
   strcpy_s(Err.SqlState, SQLSTATE_LENGTH + 1, SqlState);
   Err.NativeError= NativeError;
-  if (Err.SqlState[0] == '0')
+  // Must be something, for what C/C does not set error correctly, but we trust the throwing side - it must had good reason
+  // to throw an exception
+  if (std::strncmp(Err.SqlState, "00000", 5) == 0)
+  {
+    return MADB_SetError(&Err, MADB_ERR_HY000, "Internal Error Occurred", 0);
+  }
+  else if (Err.SqlState[0] == '0')
+  {
     Err.ReturnValue= (Err.SqlState[1] == '0') ? SQL_SUCCESS :
-    (Err.SqlState[1] == '1') ? SQL_SUCCESS_WITH_INFO : SQL_ERROR;
+      (Err.SqlState[1] == '1') ? SQL_SUCCESS_WITH_INFO : SQL_ERROR;
+  }
 
   return Err.ReturnValue;
 }

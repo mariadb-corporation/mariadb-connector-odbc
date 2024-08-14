@@ -122,11 +122,10 @@ namespace mariadb
       fetchRemaining();
     }
     else {
-      auto preservePosition= rowPointer;
-
       if (rowPointer > -1) {
-        first();
-        resetRow();
+        beforeFirst();
+        row->installCursorAtPosition(rowPointer > -1 ? rowPointer : 0);
+        lastRowPointer= -1;
       }
       growDataArray(true);
 
@@ -228,18 +227,6 @@ namespace mariadb
   }
 
 
-  void ResultSetBin::handleIoException(std::exception& ioe) const
-  {
-    throw 1; /*SQLException(
-        "Server has closed the connection. \n"
-        "Please check net_read_timeout/net_write_timeout/wait_timeout server variables. "
-        "If result set contain huge amount of data, Server expects client to"
-        " read off the result set relatively fast. "
-        "In this case, please consider increasing net_read_timeout session variable"
-        " / processing your result set faster (check Streaming result sets documentation for more information)",
-        "HY000", &ioe);*/
-  }
-
   /**
     * Read next value.
     *
@@ -252,30 +239,15 @@ namespace mariadb
     switch (row->fetchNext()) {
     case 1: {
       SQLString err("Internal error: most probably fetch on not yet executed statment handle. ");
-      unsigned int nativeErrno= getErrNo();
       err.append(getErrMessage());
-      throw SQLException(err, "HY000", nativeErrno );
+      throw SQLException(err, "HY000", getErrNo());
     }
     case MYSQL_DATA_TRUNCATED: {
-      /*protocol->removeActiveStreamingResult();
-      protocol->removeHasMoreResults();*/
-      //protocol->setHasWarnings(true);
       break;
-
-      /*resetVariables();
-      throw *ExceptionFactory::INSTANCE.create(
-        getErrMessage(),
-        getSqlState(),
-        getErrNo(),
-        nullptr,
-        false);*/
     }
 
     case MYSQL_NO_DATA: {
-      uint32_t serverStatus;
-      uint32_t warnings= warningCount();
-
-      mariadb_get_infov(capiStmtHandle->mysql, MARIADB_CONNECTION_SERVER_STATUS, (void*)&serverStatus);
+      uint32_t serverStatus= protocol->getServerStatus();
 
       if (callableResult) {
         serverStatus|= SERVER_MORE_RESULTS_EXIST;
@@ -419,58 +391,7 @@ namespace mariadb
     }
   }
 
-  /** Close resultSet. */
-  void ResultSetBin::close() {
-    isClosedFlag= true;
-    if (!isEof) {
-      try {
-        while (!isEof) {
-          dataSize= 0; // to avoid storing data
-          readNextValue();
-        }
-      }
-      catch (SQLException& queryException) {
-        throw queryException;
-      }
-      catch (std::runtime_error& ioe) {
-        resetVariables();
-        handleIoException(ioe);
-      }
-    }
 
-    checkOut();
-    resetVariables();
-
-    data.clear();
-
-    if (statement != nullptr) {
-      //statement->checkCloseOnCompletion(this);
-      statement= nullptr;
-    }
-  }
-
-
-  void ResultSetBin::resetVariables() {
-    isEof= true;
-  }
-
-
-  /*bool ResultSetBin::fetchNext()
-  {
-    ++rowPointer;
-    if (data.size() > 0) {
-      row->resetRow(data[rowPointer]);
-    }
-    else {
-      if (row->fetchNext() == MYSQL_NO_DATA) {
-        return false;
-      }
-    }
-    lastRowPointer= rowPointer;
-    return true;
-  }*/
-
-  
   bool ResultSetBin::isBeforeFirst() const {
     checkClose();
     return (dataFetchTime >0) ? rowPointer == -1 && dataSize > 0 : rowPointer == -1;
@@ -548,8 +469,8 @@ namespace mariadb
       throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     rowPointer= -1;
-    row->installCursorAtPosition(0);
-    lastRowPointer= -1;
+    /*row->installCursorAtPosition(0);
+    lastRowPointer= -1;*/
   }
 
   void ResultSetBin::afterLast() {
@@ -839,13 +760,6 @@ namespace mariadb
     rowPointer= pointer;
   }
 
-  void ResultSetBin::checkOut()
-  {
-    if (statement != nullptr && statement->getInternalResults()) {
-      statement->getInternalResults()->checkOut(this);
-    }
-  }
-
 
   std::size_t ResultSetBin::getDataSize() {
     return dataSize;
@@ -861,8 +775,6 @@ namespace mariadb
   {
     isClosedFlag= true;
     if (!isEof) {
-      if (!noLock) {
-      }
       try {
         while (!isEof) {
           dataSize= 0; // to avoid storing data
@@ -870,12 +782,8 @@ namespace mariadb
         }
       }
       catch (SQLException & queryException) {
-        if (!noLock) {
-        }
         resetVariables();
         throw queryException;
-      }
-      if (!noLock) {
       }
     }
 
@@ -905,7 +813,7 @@ namespace mariadb
     }
     if (dataSize > 0) {
       mysql_stmt_bind_result(capiStmtHandle, resultBind.get());
-      //lastRowPointer= -1; //We need to force fetch. Otherwise fetch_column may fail
+      reBound= true; //We need to force fetch. Otherwise fetch_column may fail
     }
   }
 
@@ -927,10 +835,11 @@ namespace mariadb
   {
     bool truncations= false;
     if (resultBind) {
-      // Ugly like my life - we don't want resetRow to call mysql_stmt_fetch. Maybe it just never should,
+      // Ugly - we don't want resetRow to call mysql_stmt_fetch. Maybe it just never should,
       // but it is like it is, and now is not the right time to change that.
-      if (lastRowPointer != rowPointer && (rowPointer != lastRowPointer + 1 || streaming)) {
+      if (lastRowPointer != rowPointer || reBound/* && (rowPointer != lastRowPointer + 1 || streaming)*/) {
         resetRow();
+        reBound= false;
       }
       if (resultCodec.empty()) {
         for (int32_t i= 0; i < columnInformationLength; ++i) {
@@ -946,7 +855,7 @@ namespace mariadb
       }
       else {
         lastRowPointer= rowPointer;
-        return mysql_stmt_fetch(capiStmtHandle);
+        return false;
       }
     }
     return truncations;

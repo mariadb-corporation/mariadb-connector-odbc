@@ -86,7 +86,7 @@ public:
     return MYSQL_TYPE_STRING;
   }
   bool hasMoreResults();
-  void moveToNextResult();
+  bool getMoreResults();
   bool setParamCallback(ParamCodec* callback, uint32_t param) { return true; }
   bool setCallbackData(void* data) { return true;  }
   bool isOutParams() { return false; }

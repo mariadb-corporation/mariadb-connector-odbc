@@ -82,7 +82,7 @@ class Protocol
   int32_t socketTimeout= 0;
 
   SQLString serverVersion;
-  bool serverMariaDb= true;
+  bool      serverMariaDb= true;
   uint32_t majorVersion= 11;
   uint32_t minorVersion= 0;
   uint32_t patchVersion= 0;
@@ -107,8 +107,8 @@ class Protocol
   void destroySocket();
   void abortActiveStream();
   void sendSessionInfos(const char *trIsolVarName);
-  uint32_t errorOccurred(ServerPrepareResult *pr);
-  SQLException processError(Results*, ServerPrepareResult *pr);
+  uint32_t             errorOccurred(ServerPrepareResult *pr);
+  SQLException         processError(Results*, ServerPrepareResult *pr);
   ServerPrepareResult* prepareInternal(const SQLString& sql);
   Protocol()= delete;
   void unsyncedReset();
@@ -155,6 +155,8 @@ public:
   void executeBatchStmt(bool mustExecuteOnMaster, Results*, const std::vector<SQLString>& queries);
   void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
   void moveToNextSpsResult(Results*, ServerPrepareResult* spr);
+  //void skipNextResult(ServerPrepareResult* spr= nullptr);
+  void skipAllResults(ServerPrepareResult* spr= nullptr);
   void moveToNextResult(Results*, ServerPrepareResult* spr= nullptr);
   void getResult(Results*, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
   //void cancelCurrentQuery();
@@ -182,6 +184,7 @@ public:
   void setActiveStreamingResult(Results* mariaSelectResultSet);
   std::mutex& getLock();
   bool hasMoreResults();
+  bool hasMoreResults(Results *results);
   bool hasSpOutparams();
   void setServerStatus(uint32_t serverStatus);
   uint32_t getServerStatus();

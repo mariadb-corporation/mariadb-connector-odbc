@@ -48,19 +48,20 @@ protected:
 
   static int32_t TINYINT1_IS_BIT; /*1*/
   static int32_t YEAR_IS_DATE_TYPE; /*2*/
-  Protocol *protocol=     nullptr;
-  int32_t dataFetchTime=  0;
-  bool streaming=         false;
-  int32_t fetchSize=      0;
+
+  Protocol*           protocol=      nullptr;
+  int32_t             dataFetchTime= 0;
+  bool                streaming=     false;
+  int32_t             fetchSize=     0;
   mutable Unique::Row row;
-  bool isEof=             false;
+  bool                isEof=         false;
   std::vector<ColumnDefinition> columnsInformation;
-  int32_t columnInformationLength= 0;
-  int32_t rowPointer=             -1;
-  mutable int32_t lastRowPointer= -1;
+  int32_t         columnInformationLength= 0;
+  int32_t         rowPointer=             -1;
+  mutable int32_t lastRowPointer=         -1;
   std::vector<std::vector<mariadb::bytes_view>> data;
-  std::size_t dataSize= 0; //Should go after data
-  bool noBackslashEscapes= false;
+  std::size_t dataSize=           0; //Should go after data
+  bool        noBackslashEscapes= false;
   // we don't create buffers for all columns without call. Thus has to be mutable while getters are const
   mutable std::map<int32_t, std::unique_ptr<memBuf>> blobBuffer;
   int32_t resultSetScrollType= TYPE_SCROLL_INSENSITIVE;
@@ -133,8 +134,8 @@ public:
 
   virtual ~ResultSet();
 
-  virtual void close()=0;
-  virtual bool next();
+  void close();
+  bool next();
 
   virtual bool isFullyLoaded() const=0;
   // Fetches remaining result set from the server
@@ -158,16 +159,24 @@ public:
   virtual bool previous()=0;
  
 protected:
+  void resetVariables();
+  void handleIoException(std::exception& ioe) const;
+  /* Some classes(Results) may hold pointer to this object - it may be required in case of RS streaming to
+     to fetch remaining rows in order to unblock connection for new queries, or to close RS, if next RS is requested or statements is destructed.
+     After releasing the RS by API methods, it's owned by application. If app destructs the RS, this method is called by destructor, and
+     implementation should do the job on checking out of the object, so it can't be attempted to use any more */
+  void checkOut();
+
   virtual std::vector<bytes_view>& getCurrentRowData()=0;
   virtual void updateRowData(std::vector<bytes_view>& rawData)=0;
   virtual void deleteCurrentRowData()=0;
   virtual void addRowData(std::vector<bytes_view>& rawData)=0;
-  void addStreamingValue(bool cacheLocally= false);
+          void addStreamingValue(bool cacheLocally= false);
   virtual bool readNextValue(bool cacheLocally= false)=0;
   virtual void setRowPointer(int32_t pointer)=0;
-  bool fillBuffers(MYSQL_BIND* resBind);
-  bool getCached(MYSQL_BIND* bind, uint32_t column0basedIdx, uint64_t offset);
-  void nextStreamingValue();
+          bool fillBuffers(MYSQL_BIND* resBind);
+          bool getCached(MYSQL_BIND* bind, uint32_t column0basedIdx, uint64_t offset);
+          void nextStreamingValue();
 
   // Keeping them private so far
   virtual std::istream* getBinaryStream(int32_t columnIndex) const=0;
@@ -198,14 +207,8 @@ public:
   virtual bool get()= 0;
   virtual bool setResultCallback(ResultCodec* callback, uint32_t column= uint32_t(-1))= 0;
   virtual bool setCallbackData(void* data)= 0;
-  /* Some classes(Results) may hold pointer to this object - it may be required in case of RS streaming to
-     to fetch remaining rows in order to unblock connection for new queries, or to close RS, if next RS is requested or statements is destructed.
-     After releasing the RS by API methods, it's owned by application. If app destructs the RS, this method is called by destructor, and
-     implementation should do the job on checking out of the object, so it can't be attempted to use any more */
-  virtual void checkOut()= 0;
   virtual std::size_t getDataSize()=0;
   virtual bool isBinaryEncoded()=0;
-  virtual void realClose(bool noLock=true)=0;
 };
 
 } // namespace mariadb

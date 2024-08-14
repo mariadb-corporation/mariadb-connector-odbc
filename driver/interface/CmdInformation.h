@@ -38,7 +38,7 @@ public:
   virtual ~CmdInformation(){}
 
   enum {
-    RESULT_SET_VALUE= -1
+    RESULT_SET_VALUE= -2
   };
   virtual std::vector<int64_t>& getUpdateCounts()=0;
   virtual std::vector<int64_t>& getServerUpdateCounts()=0;
@@ -49,6 +49,7 @@ public:
   virtual void addResultSetStat()=0;
   virtual int32_t getCurrentStatNumber()=0;
   virtual bool moreResults()=0;
+  virtual uint32_t hasMoreResults()=0;
   virtual bool isCurrentUpdateCount()=0;
   virtual void setRewrite(bool rewritten)=0;
 };

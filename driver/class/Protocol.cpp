@@ -77,10 +77,12 @@ namespace mariadb
     return query;
   }
 
+
   SQLException fromStmtError(MYSQL_STMT* stmt)
   {
     return SQLException(mysql_stmt_error(stmt), mysql_stmt_sqlstate(stmt), mysql_stmt_errno(stmt));
   }
+
 
   void throwStmtError(MYSQL_STMT* stmt) {
     throw fromStmtError(stmt);
@@ -199,15 +201,15 @@ namespace mariadb
   {
     std::lock_guard<std::mutex> localScopeLock(lock);
     cmdPrologue();
-    try {
-      realQuery(sql);
-      getResult(results);
+    
+    realQuery(sql);
+    getResult(results);
 
-    } catch (SQLException& sqlException) {
-      if (sqlException.getSQLState().compare("70100") == 0 && 1927 == sqlException.getErrorCode()) {
+    // There is not need ot catch if we just throw rfurther. But just to remember it was here for some reason
+    /*catch (SQLException& sqlException) {
+     if (sqlException.getSQLState().compare("70100") == 0 && 1927 == sqlException.getErrorCode()) {
         throw sqlException;
-      }
-    }
+    }*/
   }
 
 
@@ -1283,6 +1285,25 @@ namespace mariadb
     cmdEpilog();
   }
 
+  void Protocol::skipAllResults(ServerPrepareResult *spr)
+  {
+    if (hasMoreResults()) {
+      if (spr != nullptr) {
+        auto stmt= spr->getStatementId();
+        while (mysql_stmt_more_results(stmt)) mysql_stmt_next_result(stmt);
+        return;
+      }
+      else
+      {
+        //std::lock_guard<std::mutex> localScopeLock(lock);
+        auto conn= connection.get();
+        while (mysql_more_results(conn) && mysql_next_result(conn) == 0);
+      }
+      // Server and session can be changed
+      cmdEpilog();
+    }
+  }
+
 
   void Protocol::moveToNextResult(Results *results, ServerPrepareResult *spr)
   {
@@ -1297,7 +1318,7 @@ namespace mariadb
     //std::lock_guard<std::mutex> localScopeLock(lock);
     rc= mysql_next_result(connection.get());
 
-    getResult(results, spr);
+    getResult(results, nullptr);
     // Server and session can be changed
     cmdEpilog();
   }
@@ -1950,6 +1971,11 @@ namespace mariadb
   bool Protocol::hasMoreResults()
   {
     return (serverStatus & SERVER_MORE_RESULTS_EXIST) != 0;
+  }
+
+  bool Protocol::hasMoreResults(Results *results)
+  {
+    return results == activeStreamingResult && serverStatus & SERVER_MORE_RESULTS_EXIST;
   }
 
 

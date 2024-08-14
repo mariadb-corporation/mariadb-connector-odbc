@@ -221,17 +221,6 @@ namespace mariadb
     }
   }
 
-  void ResultSetText::handleIoException(std::exception& ioe) const
-  {
-    throw 1/*SQLException(
-        "Server has closed the connection. \n"
-        "Please check net_read_timeout/net_write_timeout/wait_timeout server variables. "
-        "If result set contain huge amount of data, Server expects client to"
-        " read off the result set relatively fast. "
-        "In this case, please consider increasing net_read_timeout session variable"
-        " / processing your result set faster (check Streaming result sets documentation for more information)",
-        CONNECTION_EXCEPTION.getSqlState(), &ioe)*/;
-  }
 
   /**
     * Read next value.
@@ -247,25 +236,17 @@ namespace mariadb
       protocol->removeActiveStreamingResult();
       protocol->removeHasMoreResults();
       break;
-
-      /*resetVariables();
-      throw *ExceptionFactory::INSTANCE.create(
-        getErrMessage(),
-        getSqlState(),
-        getErrNo(),
-        nullptr,
-        false);*/
     }
     case 1: {
       // mysql_fetch_row may return NULL if there are no more rows, but also possible an error, that in case of result use, detected on first fetch
       if (capiConnHandle != nullptr && mysql_errno(capiConnHandle) != 0) {
-        throw 1;
+        throw SQLException(getErrMessage(), "HY000", getErrNo());;
       }
       // else we are falling thru to MYSQL_NO_DATA
     }
     case MYSQL_NO_DATA: {
       uint32_t serverStatus= protocol->getServerStatus();
-      //protocol->setHasWarnings(warningCount() > 0); */
+      //protocol->setHasWarnings(warningCount() > 0);
 
       if ((serverStatus & SERVER_MORE_RESULTS_EXIST) == 0) {
         protocol->removeActiveStreamingResult();
@@ -373,28 +354,6 @@ namespace mariadb
   }
 
 
-  void ResultSetText::resetVariables() {
-    isEof= true;
-  }
-
-
-  /*bool ResultSetText::fetchNext()
-  {
-    ++rowPointer;
-    if (data.size() > 0) {
-      row->resetRow(data[rowPointer]);
-    }
-    else {
-      if (row->fetchNext() == MYSQL_NO_DATA) {
-        return false;
-      }
-    }
-    lastRowPointer= rowPointer;
-
-    return true;
-  }*/
-
- 
   bool ResultSetText::isBeforeFirst() const {
     checkClose();
     return (dataFetchTime >0) ? rowPointer == -1 && dataSize > 0 : rowPointer == -1;
@@ -795,8 +754,7 @@ namespace mariadb
   {
     isClosedFlag= true;
     if (!isEof) {
-      if (!noLock) {
-      }
+
       try {
         while (!isEof) {
           dataSize= 0; // to avoid storing data
@@ -804,28 +762,20 @@ namespace mariadb
         }
       }
       catch (SQLException& queryException) {
-        if (!noLock) {
-        }
         throw queryException;
       }
       catch (std::runtime_error & ioe) {
-        if (!noLock) {
-        }
         resetVariables();
         handleIoException(ioe);
-      }
-      if (!noLock) {
       }
     }
 
     checkOut();
-
     resetVariables();
 
     data.clear();
 
     if (statement != nullptr) {
-      //statement->checkCloseOnCompletion(this);
       statement= nullptr;
     }
   }

@@ -47,7 +47,6 @@ class Results  {
   SQLString sql;
   MYSQL_BIND* parameters;
   bool cachingLocally= false;
-  bool skippig=        false;
 
 public:
   enum {
@@ -103,6 +102,7 @@ public:
   void abort();
   bool isFullyLoaded();
   bool getMoreResults(bool closeCurrent, Protocol *guard);
+  bool hasMoreResults(Protocol *guard);
   int32_t getFetchSize();
   PreparedStatement* getStatement();
   bool isBatch();

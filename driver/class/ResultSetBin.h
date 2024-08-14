@@ -58,6 +58,7 @@ class ResultSetBin : public ResultSet
   // or have one special codec. That makes sense since we don't won't to transcode all possible type combinations.
   ResultCodec* nullResultCodec= nullptr;
   void* callbackData= nullptr;
+  bool reBound= false;
 
 public:
 
@@ -81,7 +82,6 @@ private:
   uint32_t warningCount();
 
 private:
-  void handleIoException(std::exception& ioe) const;
   bool readNextValue(bool cacheLocally= false);
 
 protected:
@@ -92,7 +92,6 @@ protected:
 
 private:
   void growDataArray(bool complete= false);
-  void resetVariables();
 
 public:
   void abort();
@@ -154,7 +153,6 @@ private:
 
 protected:
   void setRowPointer(int32_t pointer);
-  void checkOut();
 
 public:
   int32_t getRowPointer();

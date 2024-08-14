@@ -59,6 +59,11 @@ namespace mariadb
     , batchRes(0)
   {}
 
+
+  PreparedStatement::~PreparedStatement()
+  {
+  }
+
   /**
    * Check if statement is closed, and throw exception if so.
    *

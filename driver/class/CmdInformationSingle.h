@@ -42,6 +42,7 @@ public:
   void addResultSetStat();
   int32_t getCurrentStatNumber();
   bool moreResults();
+  inline uint32_t hasMoreResults() override { return 0; }
   bool isCurrentUpdateCount();
   void addSuccessStat(int64_t updateCount);
   void setRewrite(bool rewritten);

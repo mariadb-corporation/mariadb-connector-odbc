@@ -76,7 +76,6 @@ public:
   void fetchRemaining();
 
 private:
-  void handleIoException(std::exception& ioe) const;
   bool readNextValue(bool cacheLocally= false);
 
 protected:
@@ -91,9 +90,6 @@ private:
 public:
   void abort();
   void close();
-
-private:
-  void resetVariables();
 
 public:
   //bool fetchNext();

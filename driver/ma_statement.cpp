@@ -86,20 +86,13 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         try
         {
           Stmt->rs.reset();
-          while (Stmt->stmt->hasMoreResults())
+          while (Stmt->stmt->getMoreResults() || Stmt->stmt->getUpdateCount() > -1)
           {
-            Stmt->stmt->moveToNextResult();
           }
-          //// One more time if last result has resultset, and to bring C/C to conciousness
-          //Stmt->stmt->moveToNextResult();
-          //Stmt->Connection->guard->reset();
         }
-        catch (int)
+        catch (...)
         {
           // eating errors
-        }
-        catch (SQLException&)
-        {
         }
       }
 
@@ -859,7 +852,7 @@ SQLRETURN MADB_Stmt::GetOutParams(int CurrentOffset)
     }
   }
   rs->bind(result);
-  rs->first();
+  rs->next();
   rs->get();
   rs->beforeFirst();
 

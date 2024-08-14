@@ -134,6 +134,7 @@ namespace mariadb
       //resultSet->setStatement(nullptr);
     }
     if (statement && statement->getProtocol()->getActiveStreamingResult() == this) {
+      statement->getProtocol()->skipAllResults();
       statement->getProtocol()->removeActiveStreamingResult();
     }
   }
@@ -151,6 +152,7 @@ namespace mariadb
         cmdInformation.reset(new CmdInformationBatch(expectedSize));
       }else if (moreResultAvailable){
         cmdInformation.reset(new CmdInformationMultiple(expectedSize));
+        statement->getProtocol()->setActiveStreamingResult(this);
       }else {
         cmdInformation.reset(new CmdInformationSingle(updateCount));
         return;
@@ -198,12 +200,16 @@ namespace mariadb
     }*/
 
     executionResults.emplace_back(_resultSet);
+    if (cachingLocally) {
+      _resultSet->cacheCompleteLocally();
+    }
 
     if (!cmdInformation) {
       if (batch) {
         cmdInformation.reset(new CmdInformationBatch(expectedSize));
       } else if (moreResultAvailable) {
         cmdInformation.reset(new CmdInformationMultiple(expectedSize));
+        statement->getProtocol()->setActiveStreamingResult(this);
       } else {
         cmdInformation.reset(new CmdInformationSingle(CmdInformation::RESULT_SET_VALUE));
         return;
@@ -291,20 +297,24 @@ namespace mariadb
       if (skip) {
         rs->close();
       }
-      else if (fetchSize != 0) {
+      else {
         fetchSize= 0;
-        rs->fetchRemaining();
-      }
-      else if (guard->hasMoreResults()) {
-        // Caching it on our side only if it's not the last rs. Otherwise we can leave it in C/C statement handle
+        //cacheCompleteLocally does fetchRemaining in case of RS streaming
         rs->cacheCompleteLocally();
       }
     }
+    
+    if (skip) {
+      guard->skipAllResults();
+      return;
+    }
 
+    cachingLocally= true;
     while (guard->hasMoreResults()) {
       // moveToNextResult does that - getResult in case of success
       guard->moveToNextResult(this, serverPrepResult);
     }
+    cachingLocally= false;
   }
 
   /**
@@ -360,7 +370,7 @@ namespace mariadb
     if (resultSet) {
 
       if (closeCurrent) {
-        resultSet->realClose(true);
+        resultSet->close();
       }
       else {
         // for binary results we need to copy everything on our side even if we are not streaming, as it won't be available otherwise
@@ -370,7 +380,7 @@ namespace mariadb
     }
 
     bool haveCachedResult= cmdInformation && cmdInformation->moreResults() && !batch;
-    if (!haveCachedResult && statement->hasMoreResults()) {
+    if (!haveCachedResult && guard->hasMoreResults(this)) {
       guard->moveToNextResult(this, serverPrepResult);
       haveCachedResult= true;
     }
@@ -390,12 +400,23 @@ namespace mariadb
       return (currentRs.get() != nullptr);
     } else {
 
-      if (closeCurrent && resultSet) {
-        resultSet->close();
-      }
       currentRs.reset(nullptr);
       return false;
     }
+  }
+
+
+  /**
+   * Tells if there is at least one more result
+   *
+   * @param protocol current protocol
+   * @return true if there is any additional result.
+   * @throws SQLException if any connection error occur.
+   */
+  bool Results::hasMoreResults(Protocol *guard) {
+    // cmdInformation->moreResults() as a matter of fact increments internal result index, so it's not good
+    bool haveCachedResult= cmdInformation && cmdInformation->hasMoreResults() && !batch;
+    return haveCachedResult || guard->hasMoreResults(this);
   }
 
 
@@ -493,7 +514,7 @@ namespace mariadb
           // if it's an error - not the last for sure
           return false;
         }
-        return !statement->hasMoreResults();
+        return !protocol->hasMoreResults(this);
       }
     }
     return false;

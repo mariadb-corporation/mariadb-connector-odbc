@@ -83,7 +83,7 @@ namespace mariadb
 
   bool CmdInformationSingle::moreResults()
   {
-    updateCount= RESULT_SET_VALUE;
+    updateCount= RESULT_SET_VALUE;// -1?
     return false;
   }
 

@@ -23,6 +23,7 @@
 #include "interface/PreparedStatement.h"
 #include "ResultSetMetaData.h"
 #include "Results.h"
+#include <algorithm>
 
 namespace mariadb
 {
@@ -38,7 +39,7 @@ namespace mariadb
     , hasException(false)
     , rewritten(false)
   {
-    updateCounts.reserve(expectedSize);
+    updateCounts.reserve(expectedSize > 4U ? expectedSize : 4U); // let's assume SP is RS, outparams and result code + 1 reserve is kinda normal
   }
 
 
@@ -131,6 +132,11 @@ namespace mariadb
   //    && updateCounts[moreResultsIdx] == RESULT_SET_VALUE;
   }
 
+  uint32_t CmdInformationMultiple::hasMoreResults()
+  {
+    uint32_t size= static_cast<uint32_t>(updateCounts.size());
+    return size > moreResultsIdx ? size - moreResultsIdx - 1 : 0U;
+  }
   bool CmdInformationMultiple::isCurrentUpdateCount()
   {
     return updateCounts[moreResultsIdx] != RESULT_SET_VALUE;

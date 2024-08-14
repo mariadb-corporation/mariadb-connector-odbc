@@ -28,24 +28,22 @@
 ODBC_TEST(test_multi_statements)
 {
   SQLLEN    num_inserted;
-  SQLRETURN rc;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t1");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (a int)");
 
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2), (3)");
 
-  SQLRowCount(Stmt, &num_inserted);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &num_inserted));
   diag("inserted: %ld", (long)num_inserted);
   is_num(1, num_inserted);
   
   CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
   num_inserted= 0;
-  rc= SQLRowCount(Stmt, &num_inserted);
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &num_inserted));
   is_num(2, num_inserted);
 
-  rc= SQLMoreResults(Stmt);
-  FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
 
   return OK;
 }
@@ -797,12 +795,12 @@ ODBC_TEST(t_odbc423)
   return OK;
 }
 
-/* ODBC-432 */
+/* ODBC-432 Connector should cache all pending results in case if another query requires connection */
 ODBC_TEST(multirs_caching)
 {
   SQLHSTMT Stmt1, Stmt2;
   SQLCHAR buffer[16];
-  //int value[]= {2,4,3,1};
+  SQLLEN rowCount= -1;
 
   SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
   OK_SIMPLE_STMT(Stmt1, "SELECT 2 UNION SELECT 4;SELECT 3;SELECT 1");
@@ -865,6 +863,10 @@ ODBC_TEST(multirs_caching)
   is_num(2, my_fetch_int(Stmt1, 1));
 
   EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  // One more last result of SP execution result
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+  is_num(0, rowCount);
   EXPECT_STMT(Stmt1, SQLMoreResults(Stmt1), SQL_NO_DATA);
 
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
@@ -875,9 +877,50 @@ ODBC_TEST(multirs_caching)
 }
 
 
+/* ODBC-433 In case of text protocol if we have query with cached last result, and another query with multiple results
+   has been executed, the SQLMoreResults on first statement handle should not pick those pending results from 2nd query */
+ODBC_TEST(otherstmts_result)
+{
+  SQLHSTMT Stmt1;
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
+  OK_SIMPLE_STMT(Stmt, "SELECT 100");
+  /*Fetching result for the case of streaming*/
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  OK_SIMPLE_STMT(Stmt1, "SELECT 3;SELECT 2 UNION SELECT 4");
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  /* The subcase, and it's probably even worse than the main case, is that on SQL_CLOSE of the stmt driver reads all pending
+     results, and in case of text protocol it will read "strange" results */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 100");
+  /*Fetching result for the case of streaming*/
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  OK_SIMPLE_STMT(Stmt1, "SELECT 3;SELECT 2 UNION SELECT 4");
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt1, SQLMoreResults(Stmt1));
+
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
-  /*{test_multi_statements, "test_multi_statements"},
+  {test_multi_statements, "test_multi_statements"},
   {test_multi_on_off, "test_multi_on_off"},
   {test_params, "test_params"},
   {test_params_last_count_smaller, "test_params_last_count_smaller"},
@@ -893,8 +936,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc219, "t_odbc219"},
   {test_autocommit, "test_autocommit"},
   {t_odbc375, "t_odbc375_reStoreError"},
-  {t_odbc423, "t_odbc423_batchWithPrepare"},*/
+  {t_odbc423, "t_odbc423_batchWithPrepare"},
   {multirs_caching, "t_odbc432_test_multirs_caching"},
+  {otherstmts_result, "t_odbc433_otherstmts_results"},
   {NULL, NULL}
 };
 

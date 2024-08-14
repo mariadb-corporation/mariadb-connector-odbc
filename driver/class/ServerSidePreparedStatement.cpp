@@ -33,16 +33,6 @@ namespace mariadb
 {
   ServerSidePreparedStatement::~ServerSidePreparedStatement()
   {
-    if (results) {
-      try
-      {
-        results->loadFully(false, guard);
-      }
-      catch (...)
-      {
-      }
-      results.reset();
-    }
     if (serverPrepareResult) {
       if (serverPrepareResult->canBeDeallocate()) {
         delete serverPrepareResult;
@@ -320,7 +310,7 @@ namespace mariadb
 
   bool ServerSidePreparedStatement::hasMoreResults()
   {
-    return mysql_stmt_more_results(serverPrepareResult->getStatementId());
+    return results && results->hasMoreResults(guard);//It maybe still safer to call this || mysql_stmt_more_results(serverPrepareResult->getStatementId());
   }
 
 

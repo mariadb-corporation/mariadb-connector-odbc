@@ -25,6 +25,7 @@
 #include "class/Results.h"
 #include "class/TextRow.h"
 #include "interface/Exception.h"
+#include "PreparedStatement.h"
 
 namespace mariadb
 {
@@ -179,6 +180,7 @@ namespace mariadb
     return new ResultSetText(INSERT_ID_COLUMNS, rows, nullptr, TYPE_SCROLL_SENSITIVE);
   }
 
+
   ResultSet* ResultSet::createEmptyResultSet() {
     static std::vector<std::vector<mariadb::bytes_view>> emptyRs;
 
@@ -205,6 +207,51 @@ namespace mariadb
 
   ResultSet::~ResultSet()
   {
+  }
+
+  /** Close resultSet. */
+  void ResultSet::close() {
+    isClosedFlag= true;
+    if (!isEof) {
+      while (!isEof) {
+        dataSize= 0; // to avoid storing data
+        readNextValue();
+      }
+    }
+    checkOut();
+    resetVariables();
+
+    data.clear();
+
+    if (statement != nullptr) {
+      statement= nullptr;
+    }
+  }
+
+
+  void ResultSet::resetVariables() {
+    isEof= true;
+  }
+
+
+  void ResultSet::handleIoException(std::exception& ioe) const
+  {
+    throw 1; /*SQLException(
+        "Server has closed the connection. \n"
+        "Please check net_read_timeout/net_write_timeout/wait_timeout server variables. "
+        "If result set contain huge amount of data, Server expects client to"
+        " read off the result set relatively fast. "
+        "In this case, please consider increasing net_read_timeout session variable"
+        " / processing your result set faster (check Streaming result sets documentation for more information)",
+        "HY000", &ioe);*/
+  }
+
+
+  void ResultSet::checkOut()
+  {
+    if (statement != nullptr && statement->getInternalResults()) {
+      statement->getInternalResults()->checkOut(this);
+    }
   }
 
 
@@ -473,7 +520,7 @@ namespace mariadb
     }
     else {
       if (rowPointer != lastRowPointer + 1) {
-        row->installCursorAtPosition(rowPointer);
+        row->installCursorAtPosition(rowPointer > -1 ? rowPointer : 0);
       }
       //if (!streaming) {
       row->fetchNext();

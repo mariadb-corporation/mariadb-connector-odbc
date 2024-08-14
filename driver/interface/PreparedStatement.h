@@ -102,7 +102,7 @@ public:
     SUCCESS_NO_INFO= -2
   };
 
-  virtual ~PreparedStatement(){}
+  virtual ~PreparedStatement();
 
 protected:
   virtual bool executeInternal(int32_t fetchSize)=0;
@@ -139,7 +139,7 @@ public:
   bool getMoreResults();
 
   virtual bool        hasMoreResults()=0;
-  virtual void        moveToNextResult()=0;
+  //virtual bool        getMoreResults()=0;
   virtual const char* getError()=0;
   virtual uint32_t    getErrno()=0;
   virtual const char* getSqlState()= 0;;

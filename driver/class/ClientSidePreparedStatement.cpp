@@ -63,17 +63,15 @@ namespace mariadb
   ClientSidePreparedStatement::~ClientSidePreparedStatement()
   {
     // This is important - to read and release results before statement object itself is destroyed.
-    // Probably means, that redesign is required
     if (results) {
       // in case of multistatment and some of queries fail - we need catch and eat it
       try {
-        results->loadFully(false, guard);
+        // If RS object can exist w/out stmt object, then we cannot just skip resultset. as we need to 
+        // leave current result alive, and skip all pending. Need 
+        results.reset();
       }
-      catch (SQLException&)
+      catch (...)
       {}
-      catch (int32_t)
-      {}
-      results.reset();
     }
   }
 
@@ -115,12 +113,11 @@ namespace mariadb
     prepareResult->assembleQuery(sql, param, longData);
 
     try {
-      std::lock_guard<std::mutex> localScopeLock(guard->getLock());
-      guard->safeRealQuery(sql);
-      getResult();
+      //std::lock_guard<std::mutex> localScopeLock(guard->getLock());
+      guard->executeQuery(results.get(), sql);
       results->commandEnd();
 
-      return results->getResultSet();
+      return results->getResultSet() != nullptr;
     }
     catch (SQLException &e) {
       // Do we reallly need it if something goes wrong?
@@ -350,17 +347,13 @@ namespace mariadb
 
   bool ClientSidePreparedStatement::hasMoreResults()
   {
-    return guard->hasMoreResults();
+    return results && results->hasMoreResults(guard);
   }
 
 
-  void ClientSidePreparedStatement::moveToNextResult()
+  bool ClientSidePreparedStatement::getMoreResults()
   {
-    int rc= mysql_next_result(guard->getCHandle());
-    if (rc) {
-      throw rc;
-    }
-    getSingleResult();
+    return results && results->getMoreResults(false, guard);
   }
 
   /*SQLString ClientSidePreparedStatement::toString()
