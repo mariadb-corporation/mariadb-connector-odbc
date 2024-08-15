@@ -135,9 +135,9 @@ if ! [ "$TRAVIS_OS_NAME" = "windows" ] ; then
   cat $ODBCSYSINI/odbcinst.ini
   cat $ODBCSYSINI/odbc.ini | grep -v PASSWORD
 else
-  TEST_DRIVER="MariaDB ODBC 3.1 Driver"
+  TEST_DRIVER="MariaDB ODBC 3.2 Driver"
   # INSTALLFOLDER=''
-  cd ../wininstall && for msi in mariadb-connector-odbc-*.msi ; do msiexec /i $msi  /qn /norestart; done
+  cd ../packaging/windows && for msi in mariadb-connector-odbc-*.msi ; do msiexec /i $msi  /qn /norestart; done
   set +x
   odbcconf CONFIGDSN "$TEST_DRIVER" "DSN=$TEST_DSN;SERVER=$TEST_SERVER;DATABASE=$TEST_SCHEMA;USER=$TEST_UID;PASSWORD=$TEST_PASSWORD;PORT=$TEST_PORT;$TEST_ADD_PARAM"
   set -ex

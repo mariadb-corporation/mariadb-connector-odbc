@@ -788,10 +788,10 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   }
 
   p= StmtStr;
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
-                           "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
-                           "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
-                           "COLUMN_KEY= 'PRI' AND ");
+  p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,"
+                           "TABLE_NAME,COLUMN_NAME, ORDINAL_POSITION KEY_SEQ,"
+                           "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE "
+                           "CONSTRAINT_NAME='PRIMARY' AND ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
@@ -816,7 +816,7 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
     }
     p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND TABLE_NAME");
     p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), TableName, NameLength3);
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
+    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
