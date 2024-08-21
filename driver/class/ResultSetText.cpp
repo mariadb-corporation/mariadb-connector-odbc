@@ -71,7 +71,7 @@ namespace mariadb
     for (size_t i= 0; i < fieldCnt; ++i) {
       columnsInformation.emplace_back(mysql_fetch_field(textNativeResults));
     }
-    row.reset(new TextRow(textNativeResults));
+    row= new TextRow(textNativeResults);
 
     columnInformationLength= static_cast<int32_t>(columnsInformation.size());
 

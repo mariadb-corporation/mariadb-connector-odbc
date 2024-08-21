@@ -207,6 +207,7 @@ namespace mariadb
 
   ResultSet::~ResultSet()
   {
+    delete row;
   }
 
   /** Close resultSet. */

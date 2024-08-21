@@ -70,7 +70,7 @@ protected:
   Protocol* guard;
 
   SQLString sql;
-  std::size_t parameterCount= 0; // Do we need it here if we can get it pro prepare result class
+  std::size_t parameterCount= 0; // Do we need it here if we can get it from prepare result class
   bool hasLongData= false;
   bool useFractionalSeconds= true;
   int32_t fetchSize= 0;
@@ -78,7 +78,7 @@ protected:
   bool closed= false;
   Longs batchRes;
   Unique::ResultSetMetaData metadata;
-  Unique::Results results; // Should be shared because of activeStreamingResult in Protocol guard
+  Unique::Results results;
   MYSQL_BIND* param= nullptr;
   uint32_t batchArraySize= 0;
   bool continueBatchOnError= false;
@@ -139,7 +139,6 @@ public:
   bool getMoreResults();
 
   virtual bool        hasMoreResults()=0;
-  //virtual bool        getMoreResults()=0;
   virtual const char* getError()=0;
   virtual uint32_t    getErrno()=0;
   virtual const char* getSqlState()= 0;;

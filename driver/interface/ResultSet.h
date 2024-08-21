@@ -53,7 +53,7 @@ protected:
   int32_t             dataFetchTime= 0;
   bool                streaming=     false;
   int32_t             fetchSize=     0;
-  mutable Unique::Row row;
+  mutable Row*        row= nullptr;
   bool                isEof=         false;
   std::vector<ColumnDefinition> columnsInformation;
   int32_t         columnInformationLength= 0;

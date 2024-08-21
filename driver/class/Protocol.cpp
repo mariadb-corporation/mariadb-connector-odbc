@@ -1285,20 +1285,30 @@ namespace mariadb
     cmdEpilog();
   }
 
+  void Protocol::skipAllResults()
+  {
+    if (hasMoreResults()) {
+      //std::lock_guard<std::mutex> localScopeLock(lock);
+      auto conn= connection.get();
+      MYSQL_RES *res= nullptr;
+      while (mysql_more_results(conn) && mysql_next_result(conn) == 0) {
+        res= mysql_use_result(conn);
+        mysql_free_result(res);
+      }
+      // Server and session can be changed
+      cmdEpilog();
+    }
+    
+
+  }
+
+
   void Protocol::skipAllResults(ServerPrepareResult *spr)
   {
     if (hasMoreResults()) {
-      if (spr != nullptr) {
-        auto stmt= spr->getStatementId();
-        while (mysql_stmt_more_results(stmt)) mysql_stmt_next_result(stmt);
-        return;
-      }
-      else
-      {
-        //std::lock_guard<std::mutex> localScopeLock(lock);
-        auto conn= connection.get();
-        while (mysql_more_results(conn) && mysql_next_result(conn) == 0);
-      }
+      auto stmt= spr->getStatementId();
+      while (mysql_stmt_more_results(stmt)) mysql_stmt_next_result(stmt);
+      return;
       // Server and session can be changed
       cmdEpilog();
     }

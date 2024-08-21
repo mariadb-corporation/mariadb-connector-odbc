@@ -156,7 +156,8 @@ public:
   void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
   void moveToNextSpsResult(Results*, ServerPrepareResult* spr);
   //void skipNextResult(ServerPrepareResult* spr= nullptr);
-  void skipAllResults(ServerPrepareResult* spr= nullptr);
+  void skipAllResults(ServerPrepareResult* spr);
+  void skipAllResults();
   void moveToNextResult(Results*, ServerPrepareResult* spr= nullptr);
   void getResult(Results*, ServerPrepareResult *pr=nullptr, bool readAllResults= false);
   //void cancelCurrentQuery();

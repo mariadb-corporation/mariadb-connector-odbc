@@ -85,9 +85,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
         try
         {
+          // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
+          std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
           Stmt->rs.reset();
-          while (Stmt->stmt->getMoreResults() || Stmt->stmt->getUpdateCount() > -1)
-          {
+          if (Stmt->stmt->hasMoreResults()) {
+            Stmt->Connection->guard->skipAllResults();
           }
         }
         catch (...)

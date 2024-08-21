@@ -138,7 +138,7 @@ namespace mariadb
 
   bool PreparedStatement::getMoreResults()
   {
-    return results && results->getMoreResults(true, guard);
+    return results && results->getMoreResults(false, guard);
   }
 
 

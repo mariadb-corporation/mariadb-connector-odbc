@@ -279,39 +279,18 @@ namespace mariadb
     checkClose();
   }
 
-  void ClientSidePreparedStatement::getSingleResult()
-  {
-    bool moreResults= hasMoreResults();
-    Results *rr= results.get();
-    if (fieldCount() == 0) {
-      rr->addStats(mysql_affected_rows(guard->getCHandle()), moreResults);
-    }
-    else {
-      ResultSet* rs= ResultSet::create(rr, guard, guard->getCHandle());
-      rr->addResultSet(rs, moreResults);
-    }
-  }
-
-  void ClientSidePreparedStatement::getResult(bool readAllResults)
-  {
-    getSingleResult();
-
-    if (readAllResults) {
-      while (hasMoreResults()) {
-        getMoreResults();
-      }
-    }
-  }
 
   void ClientSidePreparedStatement::close()
   {
     markClosed();
   }
 
+
   uint32_t ClientSidePreparedStatement::getParameterCount()
   {
     return static_cast<uint32_t>(prepareResult->getParamCount());
   }
+
 
   const char* ClientSidePreparedStatement::getError()
   {
@@ -350,11 +329,6 @@ namespace mariadb
     return results && results->hasMoreResults(guard);
   }
 
-
-  bool ClientSidePreparedStatement::getMoreResults()
-  {
-    return results && results->getMoreResults(false, guard);
-  }
 
   /*SQLString ClientSidePreparedStatement::toString()
   {

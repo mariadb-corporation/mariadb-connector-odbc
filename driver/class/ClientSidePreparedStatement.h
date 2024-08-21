@@ -67,9 +67,7 @@ public:
 private:
   void loadParametersData();
   void executeQueryPrologue(bool isBatch= false);
-  void getSingleResult();
-  void getResult(bool getAllResults= false);
-    ;
+
 public:
   void close();
   uint32_t getParameterCount();
@@ -86,7 +84,6 @@ public:
     return MYSQL_TYPE_STRING;
   }
   bool hasMoreResults();
-  bool getMoreResults();
   bool setParamCallback(ParamCodec* callback, uint32_t param) { return true; }
   bool setCallbackData(void* data) { return true;  }
   bool isOutParams() { return false; }

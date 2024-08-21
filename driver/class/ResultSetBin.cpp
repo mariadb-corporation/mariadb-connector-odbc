@@ -66,7 +66,7 @@ namespace mariadb
       }
       dataSize= static_cast<std::size_t>(mysql_stmt_num_rows(capiStmtHandle));
       resetVariables();
-      row.reset(new BinRow(columnsInformation, columnInformationLength, capiStmtHandle));
+      row= new BinRow(columnsInformation, columnInformationLength, capiStmtHandle);
     }
     else {
 
@@ -74,7 +74,7 @@ namespace mariadb
       //protocol->removeHasMoreResults();
 
       data.reserve(std::max(10, fetchSize)); // Same
-      row.reset(new BinRow(columnsInformation, columnInformationLength, capiStmtHandle));
+      row= new BinRow(columnsInformation, columnInformationLength, capiStmtHandle);
       //nextStreamingValue();
       streaming= true;
     }
@@ -129,7 +129,7 @@ namespace mariadb
       }
       growDataArray(true);
 
-      BinRow *br= dynamic_cast<BinRow*>(row.get());
+      BinRow *br= dynamic_cast<BinRow*>(row);
       // Probably is better to make a copy
       MYSQL_BIND *bind= br->getDefaultBind();
 

@@ -22,6 +22,7 @@
 #include "interface/PreparedStatement.h"
 #include "interface/ResultSet.h"
 #include "ResultSetMetaData.h"
+#include "class/Protocol.h"
 
 /* {{{ MADB_StmtResetResultStructures */
 void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
@@ -156,6 +157,8 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   Stmt->rs.reset();
 
   try {
+    // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
+    std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
     if (Stmt->stmt->getMoreResults())
     {
       unsigned int ServerStatus;

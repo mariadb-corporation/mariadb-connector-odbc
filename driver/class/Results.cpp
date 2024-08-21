@@ -285,13 +285,18 @@ namespace mariadb
    */
   void Results::loadFully(bool skip, Protocol *guard) {
 
-    ResultSet* rs= resultSet;
+    ResultSet* rs= nullptr;
 
+    // Only very last of already loaded resultsets might need fetching of remaining rows or caching on our side
+    // (i.e. making copy of datat that is already cached on C/C side)
+    if (!executionResults.empty()) {
+      rs= executionResults.front().get();
+    }
     if (rs == nullptr) {
       rs= currentRs.get();
     }
-    if (rs == nullptr && !executionResults.empty()) {
-      rs= executionResults.front().get();
+    if (rs == nullptr) {
+      rs= resultSet;
     }
     if (rs) {
       if (skip) {

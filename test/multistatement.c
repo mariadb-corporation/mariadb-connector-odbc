@@ -828,6 +828,7 @@ ODBC_TEST(multirs_caching)
   EXPECT_STMT(Stmt1, SQLMoreResults(Stmt1), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
 
+  /* Now the same with binary results. For CALL statement prepared statements always used. */
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbc432");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbc432()\
                         BEGIN\
@@ -917,6 +918,48 @@ ODBC_TEST(otherstmts_result)
   return OK;
 }
 
+/* Checking, if nothing gets broken if we close the cursor before all results are read */
+ODBC_TEST(multirs_skip)
+{
+  SQLHSTMT Stmt1, Stmt2;
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt1);
+  OK_SIMPLE_STMT(Stmt1, "SELECT 2 UNION SELECT 4;SELECT 3 UNION SELECT 1;SELECT 5");
+
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2);
+  // Checking that we are still in sync
+  OK_SIMPLE_STMT(Stmt2, "SELECT 100");
+  CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+  is_num(100, my_fetch_int(Stmt2, 1));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_CLOSE));
+
+  /* Now the same with binary results. For CALL statement prepared statements always used. */
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbc_multirs_skip");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbc_multirs_skip()\
+                        BEGIN\
+                          SELECT 1 as id, 'text' as val UNION SELECT 7 as id, 'seven' as val;\
+                          SELECT 'some text';\
+                          SELECT 2;\
+                        END");
+
+  OK_SIMPLE_STMT(Stmt1, "CALL t_odbc_multirs_skip()");
+  CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
+
+  // Checking that we are still in sync
+  OK_SIMPLE_STMT(Stmt2, "SELECT 100");
+  CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
+  is_num(100, my_fetch_int(Stmt2, 1));
+ 
+  CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE t_odbc_multirs_skip");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -939,6 +982,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc423, "t_odbc423_batchWithPrepare"},
   {multirs_caching, "t_odbc432_test_multirs_caching"},
   {otherstmts_result, "t_odbc433_otherstmts_results"},
+  {multirs_skip, "test_multirs_skip"},
   {NULL, NULL}
 };
 
