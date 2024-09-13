@@ -24,23 +24,6 @@
 
 #define MADB_FIELD_IS_BINARY(_field) ((_field)->charsetnr == BINARY_CHARSETNR)
 
-void MADB_NewStmtHandle(MADB_Stmt *Stmt)
-{
-  // static const my_bool UpdateMaxLength= 1;
-  Stmt->stmt.reset();
-
-  /*if (stmt != NULL)
-  {
-    mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &UpdateMaxLength);
-  }
-  else
-  {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-  }
-
-  return stmt;*/
-}
-
 /* Required, but not sufficient condition */
 bool QueryIsPossiblyMultistmt(MADB_QUERY *Query)
 {

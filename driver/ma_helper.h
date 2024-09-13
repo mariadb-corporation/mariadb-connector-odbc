@@ -20,7 +20,6 @@
 #define _ma_helper_h_
 
 void CloseMultiStatements(MADB_Stmt *Stmt);
-void MADB_NewStmtHandle(MADB_Stmt *Stmt);
 bool QueryIsPossiblyMultistmt(MADB_QUERY *Query);
 int  SqlRtrim(char *StmtStr, int Length);
 int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount);

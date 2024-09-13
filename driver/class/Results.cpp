@@ -372,15 +372,16 @@ namespace mariadb
    */
   bool Results::getMoreResults(bool closeCurrent, Protocol *guard) {
 
-    if (resultSet) {
+    auto rs= currentRs.get() ? currentRs.get() : resultSet;
+    if (rs) {
 
       if (closeCurrent) {
-        resultSet->close();
+        rs->close();
       }
       else {
         // for binary results we need to copy everything on our side even if we are not streaming, as it won't be available otherwise
         // once we move to the next result
-        resultSet->cacheCompleteLocally();
+        rs->cacheCompleteLocally();
       }
     }
 

@@ -265,13 +265,14 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
 {
   if (Stmt->State > MADB_SS_PREPARED)
   {
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt.get());
+    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->rs.get());
     Stmt->rs.reset();
   }
 
   if (Stmt->State >= MADB_SS_PREPARED)
   {
-    MADB_NewStmtHandle(Stmt);
+    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt.get());
+    Stmt->stmt.reset();
   }
 
   switch (Stmt->State)

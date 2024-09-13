@@ -1405,11 +1405,22 @@ ODBC_TEST(psCache)
   // This should push other INSERT out of the cache, as it is full by now, and the query in the getPsCount
   // was last requested from cache.
   CHECK_STMT_RC(hstmt2, SQLPrepare(hstmt2, "INSERT INTO psCache(val) values('0')", SQL_NTS));
-  // Statement count is the same, as last SELECT PS is now closed, but pstmt is not closed, and holds reference to 1st INSERT PS
+  // Statement count is the same, as last SELECT PS is now closed, but hstmt is not closed, and holds reference to 1st INSERT PS
   newCount= getPsCount(hdbc);
   is_num(initialCount + 2, newCount);
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
 
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 1, newCount);
+  // Closing last INSERT, but it's still staying in the cache
+  CHECK_STMT_RC(hstmt2, SQLFreeStmt(hstmt2, SQL_DROP));
+  newCount= getPsCount(hdbc);
+  is_num(initialCount + 1, newCount);
+
+  CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt2));
+  // The last used is the one reading PS count, thus the other insert has to be closed
+  CHECK_STMT_RC(hstmt2, SQLPrepare(hstmt2, "INSERT INTO psCache(val) values('notcached')", SQL_NTS));
+  // Count should stay the same
   newCount= getPsCount(hdbc);
   is_num(initialCount + 1, newCount);
 
@@ -1421,6 +1432,50 @@ ODBC_TEST(psCache)
 
   return OK;
 }
+
+
+/** Another test of prepared statement cache. To ensure that PS are closed on the server propery when cache is used.
+ *  psCache does that, at least supposed too, but somehow looks like it does not cover all cases.
+ * Requires exclusive server - otherwise may fail
+ */
+ODBC_TEST(t_odbc438)
+{
+  SQLHANDLE hdbc= NULL, hstmt, hstmt2= NULL;
+  char cacheParams[64], query[16];
+  const unsigned int cacheSize= 5;
+  unsigned int i;
+
+  _snprintf(cacheParams, sizeof(cacheParams), "PREPONCLIENT=0;PSCACHESIZE=%u", cacheSize);
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
+  hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, cacheParams);
+
+  FAIL_IF(hstmt == NULL, "Could not connect or allocate stmt handle")
+
+  // getPsCount uses PS and thus - adds to cache and to total number of statements
+  int initialCount= getPsCount(hdbc);
+
+  for (i= 1; i < cacheSize*2 + 1; ++i)
+  {
+    int newCount= 0, expectedCount= (i >= cacheSize ? initialCount + cacheSize - 1/*one from initialCount is in our cache - we should not count it twice*/
+                                                    : initialCount + i);
+    int len= _snprintf(query, sizeof(query), "SELECT %u", i); 
+    CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, query, len));
+    newCount= getPsCount(hdbc);
+    is_num(expectedCount, newCount);
+    CHECK_STMT_RC(hstmt, SQLExecute(hstmt));
+    CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+    newCount= getPsCount(hdbc);
+    is_num(expectedCount, newCount);
+    CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
+  }
+
+  CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_DROP));
+  CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
+  CHECK_DBC_RC(hdbc, SQLFreeConnect(hdbc));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1446,6 +1501,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_mdev16708, "t_mdev16708-new_supported_statements"},
   {t_odbc378, "t_odbc378-optimize_table"},
   {psCache,   "psCache"},
+  {t_odbc438, "odbc-438-psservercount"},
   {NULL, NULL}
 };
 

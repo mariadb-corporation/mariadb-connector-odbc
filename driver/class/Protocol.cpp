@@ -1079,7 +1079,13 @@ namespace mariadb
    */
   void Protocol::forceReleaseWaitingPrepareStatement()
   {
-    if (statementIdToRelease != nullptr && forceReleasePrepareStatement(statementIdToRelease)){
+    if (statementIdToRelease != nullptr) {
+      if (mysql_stmt_close(statementIdToRelease))
+      {
+        // Assuming we shouldn't be out of sync - that's the whole idea. thus if we tried - that all we could do
+        statementIdToRelease= nullptr;
+        throw SQLException("Could not deallocate query");
+      }
       statementIdToRelease= nullptr;
     }
   }
