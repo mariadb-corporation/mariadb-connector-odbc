@@ -17,9 +17,9 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
-const char OldVersionsDriverName[][32]=  {"MariaDB ODBC 1.0 Driver", "MariaDB ODBC 2.0 Driver", "MariaDB ODBC 3.0 Driver"};
-const char *DriverVersionBeingInstalled= "MariaDB ODBC 3.1 Driver";
-const char *OldVersionsString=           "MariaDB ODBC 1.0 Driver, MariaDB ODBC 2.0 Driver, MariaDB ODBC 3.0 Driver";
+const char OldVersionsDriverName[][32]=  {"MariaDB ODBC 1.0 Driver", "MariaDB ODBC 2.0 Driver", "MariaDB ODBC 3.0 Driver", "MariaDB ODBC 3.1 Driver"};
+const char *DriverVersionBeingInstalled= "MariaDB ODBC 3.2 Driver";
+const char *OldVersionsString=           "MariaDB ODBC 1.0 Driver, MariaDB ODBC 2.0 Driver, MariaDB ODBC 3.0 Driver, MariaDB ODBC 3.1 Driver";
 
 #include <stdio.h>
 
