@@ -1758,6 +1758,50 @@ ODBC_TEST(t_odbc418)
   return OK;
 }
 
+/* ODBC-437 
+ */
+ODBC_TEST(t_odbc437)
+{
+  SQLWCHAR a[2];
+  SQLWCHAR a_ref[] ={0xe9, 0}, query[]= {'S','E','L','E','C','T',' ','\'',0xe9,'\'',0};
+  SQLLEN   len, coLen;
+  SQLSMALLINT colType, colScale, colNullable;
+
+  OK_SIMPLE_STMTW(wStmt, query);
+
+  CHECK_STMT_RC(wStmt, SQLDescribeColW(wStmt, 1, NULL, 0, NULL, &colType, &coLen, &colScale, &colNullable));
+  is_num(1, coLen);
+  CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 1, SQL_C_WCHAR, a, sizeof(a), &len));
+
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  IS_WSTR(a, a_ref, sizeof(a_ref) / sizeof(SQLWCHAR));
+  if (!iOdbc())
+  {
+    is_num(len, 1/**/ * sizeof(SQLWCHAR));
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(wStmt, SQLPrepare(wStmt, "SELECT ?", SQL_NTS));
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR,
+    SQL_WVARCHAR, 0, 0, a, sizeof(a),
+    NULL));
+  CHECK_STMT_RC(wStmt, SQLExecute(wStmt));
+  CHECK_STMT_RC(wStmt, SQLDescribeColW(wStmt, 1, NULL, 0, NULL, &colType, &coLen, &colScale, &colNullable));
+  is_num(1, coLen);
+  CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 1, SQL_C_WCHAR, a, sizeof(a), &len));
+
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  IS_WSTR(a, a_ref, sizeof(a_ref) / sizeof(SQLWCHAR));
+  if (!iOdbc())
+  {
+    is_num(len, 1/**/ * sizeof(SQLWCHAR));
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1,        "test_CONO1",         NORMAL},
@@ -1791,6 +1835,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc253,         "t_odbc253_empty_str_crash", NORMAL},
   {t_odbc321,         "t_odbc321_short_buffer", NORMAL},
   {t_odbc418,         "t_odbc418_0in_string", NORMAL},
+  {t_odbc437,         "t_odbc447_stringlen", NORMAL},
   {NULL, NULL}
 };
 
@@ -1799,14 +1844,14 @@ int main(int argc, char **argv)
 {
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   int result;
-  char setpcallback[256];
-  sprintf(setpcallback, "%s;RCALLBACK=0", add_connstr);
-  add_connstr= setpcallback;
+  char setrcallback[256];
+  sprintf(setrcallback, "%s;RCALLBACK=0", add_connstr);
+  add_connstr= setrcallback;
   get_options(argc, argv);
   plan(tests);
   result= run_tests_ex(my_tests, TRUE);
 
-  sprintf(setpcallback, "%s;RCALLBACK=1", add_connstr);
-  add_connstr= setpcallback;
+  sprintf(setrcallback, "%s;RCALLBACK=1", add_connstr);
+  add_connstr= setrcallback;
   return run_tests_ex(my_tests, TRUE) || result;
 }

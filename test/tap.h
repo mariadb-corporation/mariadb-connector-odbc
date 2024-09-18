@@ -1173,11 +1173,19 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     {
       SQLFreeStmt(Stmt, SQL_DROP);
     }
-
+    if (wStmt != NULL)
+    {
+      SQLFreeStmt(wStmt, SQL_DROP);
+    }
     fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
     tests++;
 
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
+    if (ProvideWConnection)
+    {
+      SQLAllocHandle(SQL_HANDLE_STMT, wConnection, &wStmt);
+    }
+
     /* Relieving tests from resoting my_options and/or add_connstr. Also, a test may fail */
     my_options= defaultOptions;
     add_connstr= storedAddConnstr;

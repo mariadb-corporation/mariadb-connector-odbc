@@ -1836,7 +1836,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
            */
           if (ArdRec->OctetLength)
           {
-            MADB_SetString(&Connection->Charset, DataPtr, ArdRec->OctetLength / sizeof(SQLWCHAR), (char *)result[i].buffer,
+            CharLen= MADB_SetString(&Connection->Charset, DataPtr, ArdRec->OctetLength / sizeof(SQLWCHAR), (char *)result[i].buffer,
               *result[i].length, &Error);
           }
           /* If returned len is 0 while source len is not - taking it as error occurred */
