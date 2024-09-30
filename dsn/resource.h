@@ -2,10 +2,13 @@
 // Microsoft Visual C++ generated include file.
 // Used by odbc_dsn.rc
 //
+#define TOOLTIP_TEXT_OFFSET             2000
+
 #define PB_NEXT                         3
 #define IDCANCEL3                       4
 #define PB_PREV                         5
 #define IDCANCEL4                       6
+#define lblDsn                          50
 #define IDD_DIALOG1                     101
 #define Tab_DSN                         102
 #define Page_0                          103
@@ -80,6 +83,9 @@
 #define txtAttr                         1311
 #define ckServerDirectExec              1312
 #define ckClientPrepare                 1313
+#define txtPsCacheSize                  1315
+#define txtMaxCacheKey                  1316
+#define lblMaxKeyLengthTooltip          1317
 #define ckParamCallbacks                1314
 #define txtSslKey                       1117
 #define txtSslCert                      1118
@@ -107,6 +113,9 @@
 #define pbCrlBrowse                     1214
 #define cbInteractive                   1220
 #define ckNoBigint                      1221
+
+/* 1317(lblMaxKeyLengthTooltip) + 2000(TOOLTIP_TEXT_OFFSET) */
+#define IDS_TOOLTIP_MAXKEYLEN           3317
 
 // Next default values for new objects
 // 

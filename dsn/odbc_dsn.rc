@@ -44,10 +44,13 @@ BEGIN
     "\r\n"
     "\0"
 END
-
 #endif    // APSTUDIO_INVOKED
 
 
+STRINGTABLE
+BEGIN
+  IDS_TOOLTIP_MAXKEYLEN "In fact this limits cache key length: (query + schema name) length + 1"
+END
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
@@ -68,15 +71,16 @@ BEGIN
     LTEXT           "Welcome to the MariaDB ODBC Data Source Wizard!",IDC_STATIC,7,7,287,25,0,WS_EX_TRANSPARENT
     LTEXT           "This wizard will help you to create an ODBC data source that you can use to connect to a MariaDB server.",IDC_STATIC,7,33,287,21,0,WS_EX_TRANSPARENT
     LTEXT           "What name do you want to use to refer to your data source ?",IDC_STATIC,7,60,287,12,0,WS_EX_TRANSPARENT
-    LTEXT           "Name:",IDC_STATIC,44,78,22,8,0,WS_EX_TRANSPARENT
+    LTEXT           "Name:",lblDsn,44,78,22,8,0,SS_NOTIFY
+//,WS_EX_TRANSPARENT
     EDITTEXT        txtDsnName,73,77,169,14,ES_AUTOHSCROLL | WS_GROUP
     LTEXT           "How do you want to describe the data source ?",IDC_STATIC,7,101,287,12,0,WS_EX_TRANSPARENT
     LTEXT           "Description:",IDC_STATIC,27,117,39,8,0,WS_EX_TRANSPARENT
     EDITTEXT        txtDSNDescription,73,116,169,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14,WS_DISABLED
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
     EDITTEXT        txtDriver,233,7,53,15,ES_AUTOHSCROLL | NOT WS_VISIBLE
 END
 
@@ -101,10 +105,10 @@ BEGIN
     EDITTEXT        txtPassword,71,86,142,14,ES_PASSWORD | ES_AUTOHSCROLL
     PUSHBUTTON      "&Test DSN",pbTestDSN,223,86,50,14
     COMBOBOX        cbDatabase,71,119,93,80,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
 END
 
 Page_2 DIALOGEX 0, 0, 299, 182
@@ -135,17 +139,18 @@ BEGIN
     EDITTEXT        txtServerKey,113,129,110,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",pbServerKeyBrowse,224,128,30,14
 
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
 END
 
-Page_3 DIALOGEX -10, -9, 320, 188
+Page_3 DIALOGEX -10, -10, 320, 188
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    GROUPBOX        "Miscellanous Options",IDC_STATIC,1,-2,303,151,0,WS_EX_TRANSPARENT
+                                                      // With less with -2 the caption is not visible
+    GROUPBOX        "Miscellanous Options",IDC_STATIC,1,-2,303,156,0,WS_EX_TRANSPARENT
     CONTROL         "Ignore schema in column specification",ckIgnoreSchema,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,10,136,10,WS_EX_TRANSPARENT
     CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,24,97,10,WS_EX_TRANSPARENT
@@ -160,13 +165,18 @@ BEGIN
     CONTROL         "Use parameter conversions callbacks on bulk operations",ckParamCallbacks,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,114,237,10,WS_EX_TRANSPARENT
 //    CONTROL         "Prepare by default on server for direct execution",ckServerDirectExec,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,114,177,10,WS_EX_TRANSPARENT
     CONTROL         "Prepare by default on client in SQLPrepare",ckClientPrepare,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,128,177,10,WS_EX_TRANSPARENT
+    LTEXT           "PS cache size", IDC_STATIC, 15, 142, 46, 8, 0, WS_EX_TRANSPARENT
+    EDITTEXT        txtPsCacheSize, 62, 142, 24, 10, ES_AUTOHSCROLL
+    LTEXT           "Max length of a query to cache", IDC_STATIC, 93, 142, 108, 8, 0, SS_NOTIFY
+    PUSHBUTTON      "*", lblMaxKeyLengthTooltip, 194, 141, 6, 10, 0
+    EDITTEXT        txtMaxCacheKey, 202, 142, 28, 10, ES_AUTOHSCROLL
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
+END
 //    CONTROL         "Disable catalog support",IDC_CHECK3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,39,91,10,WS_EX_TRANSPARENT
 //    CONTROL         "Ignore space after function names",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,53,127,10,WS_EX_TRANSPARENT
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
-END
 
 Page_4 DIALOGEX -10, -9, 320, 188
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
@@ -213,26 +223,26 @@ BEGIN
     EDITTEXT        txtTlsPeerFpList, 84, 132, 110, 10, ES_AUTOHSCROLL
     PUSHBUTTON      "Browse", pbFpListBrowse, 195, 130, 30, 14
 
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14,WS_DISABLED
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
 END
 
 Page_5 DIALOGEX 0, 0, 299, 182
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14,WS_DISABLED
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
     GROUPBOX        "Cursor/Results",IDC_STATIC,7,7,277,132,0,WS_EX_TRANSPARENT
     CONTROL         "Enable dynamic cursors",ckEnableDynamicCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,19,91,10,WS_EX_TRANSPARENT
     CONTROL         "Disable driver provided cursor support",ckDisableDriverCursor,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,33,138,10,WS_EX_TRANSPARENT
     CONTROL         "Return matched instead of affected rows",ckReturnMatchedRows,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,47,150,10,WS_EX_TRANSPARENT
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,47,146,10,WS_EX_TRANSPARENT
     CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,61,105,10,WS_EX_TRANSPARENT
     CONTROL         "Allow spaces after function names",ckIgnoreSpace,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,75,124,10,WS_EX_TRANSPARENT

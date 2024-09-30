@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation AB
+   Copyright (C) 2013,2024 MariaDB plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -47,6 +47,7 @@ HWND          hwndTab[7], hwndMain;
 const int    *EffectiveDisabledPages=    NULL,
              *EffectiveDisabledControls= NULL;
 BOOL          OpenCurSelection=          TRUE;
+char          tipText[256];
 
 /* On Windows we are supposed to have schannel, or we can have openssl */
 #if defined(_WIN32) || defined(HAVE_OPENSSL) 
@@ -95,6 +96,8 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[44], 3, txtAttr,            260, 0},
   {&DsnKeys[45], 3, ckServerDirectExec,   0, 0},
   {&DsnKeys[46], 3, ckClientPrepare,      0, 0},
+  {&DsnKeys[47], 3, txtPsCacheSize,       0, 0},
+  {&DsnKeys[48], 3, txtMaxCacheKey,       0, 0},
   {&DsnKeys[49], 3, ckParamCallbacks,     0, 0},
   {&DsnKeys[19], 4, txtSslKey,          260, 0},
   {&DsnKeys[20], 4, txtSslCert,         260, 0},
@@ -415,7 +418,7 @@ void GetDialogFields()
   }
 }
 
-void DSN_Set_Database(SQLHANDLE Connection)
+void DSN_SetDatabase(SQLHANDLE Connection)
 {
   SQLHANDLE Stmt= NULL;
   SQLRETURN ret= SQL_ERROR;
@@ -454,7 +457,7 @@ end:
 	  SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 }
 
-void DSN_Set_CharacterSets(SQLHANDLE Connection)
+void DSN_SetCharacterSets(SQLHANDLE Connection)
 {
   SQLHANDLE Stmt= NULL;
   SQLRETURN ret= SQL_ERROR;
@@ -631,8 +634,8 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
   if (SQL_SUCCEEDED(ret))
   {
     ConnectionOK= TRUE;
-    DSN_Set_CharacterSets(Connection);
-    DSN_Set_Database(Connection);
+    DSN_SetCharacterSets(Connection);
+    DSN_SetDatabase(Connection);
 
     SQLDisconnect(Connection);
   }
@@ -716,6 +719,44 @@ INT_PTR SelectPath(HWND ParentWnd, int BoundEditId, const wchar_t *Caption, BOOL
 }
 
 
+BOOL CALLBACK addTooltips(HWND hwnd, LPARAM lParam)
+{
+  char className[256];
+  HWND hwndDlg= (HWND)lParam;
+  int  resourceId = GetDlgCtrlID(hwnd);
+  GetClassName(hwnd, className, sizeof(className));
+
+  if (resourceId != -1) //(resourceId == lblMaxKeyLengthTooltip)
+  {
+    if (_strnicmp(className, "Button", 6) == 0)//_strnicmp(className, "STATIC", 6) == 0)
+    {
+      int nChars= LoadString(hInstance, resourceId + TOOLTIP_TEXT_OFFSET, tipText, sizeof(tipText));
+
+      if (nChars > 0)
+      {
+        HWND hwndTip= CreateWindowEx(0, TOOLTIPS_CLASS, NULL, WS_POPUP | TTS_ALWAYSTIP | TTS_BALLOON, CW_USEDEFAULT, CW_USEDEFAULT,
+          CW_USEDEFAULT, CW_USEDEFAULT, hwndDlg, NULL, hInstance, NULL);
+
+        if (!hwndTip) {
+          return TRUE;
+        }
+        TOOLINFO toolInfo={0};
+        toolInfo.cbSize= sizeof(toolInfo);
+        toolInfo.hwnd= hwndDlg;
+        toolInfo.uFlags= TTF_IDISHWND | TTF_SUBCLASS;
+        toolInfo.uId= (UINT_PTR)hwnd;
+        toolInfo.lpszText= tipText;
+        //GetClientRect(hwnd, &toolInfo.rect);
+        SendMessage(hwndTip, TTM_ADDTOOL, 0, (LPARAM)&toolInfo);
+        SendMessage(hwndTip, TTM_ACTIVATE, TRUE, 0);
+        SetWindowPos(hwndTip, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+      }
+    }
+  }
+  return TRUE;
+}
+
+
 INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   INT_PTR res;
@@ -724,16 +765,28 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
   {
   case WM_CTLCOLORDLG:
     if (!hbrBg)
-      hbrBg= CreateSolidBrush(RGB(255,255,255));
-      return (INT_PTR)hbrBg;
-    break;
-   case WM_CTLCOLORSTATIC:
-   {
-     HDC hdcStatic = (HDC)wParam;
-     SetTextColor(hdcStatic, RGB(0, 0, 0));
-     SetBkMode(hdcStatic, TRANSPARENT);
-     return (INT_PTR)hbrBg;
+    {
+      hbrBg= CreateSolidBrush(RGB(255, 255, 255));
+    }
+    return (INT_PTR)hbrBg;
+
+  case WM_CTLCOLORSTATIC:
+  {
+    HDC hdcStatic = (HDC)wParam;
+    SetTextColor(hdcStatic, RGB(0, 0, 0));
+    SetBkMode(hdcStatic, TRANSPARENT);
+    return (INT_PTR)hbrBg;
   }
+  /*case WM_NOTIFY:
+  {
+    LPNMHDR lpnmhdr = (LPNMHDR)lParam;
+    if (lpnmhdr->code == TTN_GETDISPINFO)
+    {
+      NMTTDISPINFO* pDispInfo = (NMTTDISPINFO*)lParam;
+      pDispInfo->lpszText = "----Short tooltip!----";
+    }
+    break;
+  }*/
   case WM_COMMAND:
     switch(LOWORD(wParam))
     {
@@ -741,15 +794,19 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
       SendMessage(GetParent(hDlg), WM_CLOSE, 0, 0);
       notCanceled= FALSE;
       return TRUE;
+
     case PB_PREV:
-	  SetPage(hDlg, -1);
-	  return TRUE;
+	    SetPage(hDlg, -1);
+	    return TRUE;
+
     case PB_NEXT:
-	  SetPage(hDlg, 1);
-	  return TRUE;
+	    SetPage(hDlg, 1);
+	    return TRUE;
+
     case pbTestDSN:
       MADB_WIN_TestDsn(TRUE);
-    return TRUE;
+      return TRUE;
+
 	  case cbDatabase:
     case cbCharset:
       if(HIWORD(wParam) == CBN_DROPDOWN)
@@ -762,34 +819,42 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	    return TRUE;
     case pbPlugindirBrowse:
       return SelectPath(hDlg, txtPluginDir,   L"Select Plugins Directory",          /* Folder*/ TRUE, TRUE);
+
     case pbCaPathBrowse:
       res=   SelectPath(hDlg, txtSslCaPath,   L"Select CA Path",                                TRUE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
+
     case pbKeyBrowse:
       res=   SelectPath(hDlg, txtSslKey,      L"Select Client Private Key File",    /* File */  FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
+
     case pbCertBrowse:
       res=   SelectPath(hDlg, txtSslCert,     L"Select Public Key Certificate File",            FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
+
     case pbCaCertBrowse:
       res=   SelectPath(hDlg, txtSslCertAuth, L"Select Certificate Authority Certificate File", FALSE,OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
+
     case pbServerKeyBrowse:
       res=   SelectPath(hDlg, txtServerKey, L"Select Server Public Key File", FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
+
     case pbFpListBrowse:
       res=   SelectPath(hDlg, txtTlsPeerFpList, L"Select File with SHA1 fingerprints of server certificates", FALSE, OpenCurSelection);
       OpenCurSelection= OpenCurSelection && !res;
       return res;
+
     case pbCrlBrowse:
       res = SelectPath(hDlg, txtCrl, L"Select PEM File Certificate Revocation List(CRL)", FALSE, OpenCurSelection);
       OpenCurSelection = OpenCurSelection && !res;
       return res;
+
     case rbTCP:
 	  case rbPipe:
 		  if (HIWORD(wParam) == BN_CLICKED)
@@ -811,6 +876,7 @@ INT_PTR CALLBACK DialogDSNProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	}
 	return FALSE;
 }
+
 
 INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -844,6 +910,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   	{
       hwndTab[i]= CreateDialog(hInstance, MAKEINTRESOURCE(Dialogs[i]), hDlg, DialogDSNProc);
 	    SetWindowPos(hwndTab[i], 0, 120, 5, (rc.right-rc.left)-120, (rc.bottom-rc.top), SWP_NOZORDER | SWP_NOACTIVATE);
+      EnumChildWindows(hwndTab[i], addTooltips, (LPARAM)hwndTab[i]);
 	    ShowWindow(hwndTab[i], (i == 0) ? SW_SHOW : SW_HIDE);
   	}
     i= 0;
@@ -853,8 +920,22 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         MA_WIN_SET_MAXLEN(DsnMap[i].Page, DsnMap[i].Item, DsnMap[i].MaxLength);
       ++i;
     }
+    /*HWND hwndTip= CreateWindowEx(0, TOOLTIPS_CLASS, NULL, WS_POPUP | TTS_ALWAYSTIP | TTS_BALLOON, CW_USEDEFAULT, CW_USEDEFAULT,
+      CW_USEDEFAULT, CW_USEDEFAULT, hwndTab[0], NULL, hInstance, NULL);
+    HWND hwnd= GetDlgItem(hwndTab[0], lblDsn);
+    if (!hwndTip) {
+      return TRUE;
+    }
+    TOOLINFO toolInfo={0};
+    toolInfo.cbSize= sizeof(toolInfo);
+    toolInfo.hwnd= hwndTab[0];
+    toolInfo.uFlags= TTF_IDISHWND | TTF_SUBCLASS;
+    toolInfo.uId= (UINT_PTR)hwnd;
+    toolInfo.lpszText= "---- Short tooltip! ----";
+    SendMessage(hwndTip, TTM_ADDTOOL, 0, (LPARAM)&toolInfo);
+    SendMessage(hwndTip, TTM_ACTIVATE, TRUE, 0);
+    SetWindowPos(hwndTip, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);*/
     
-    return TRUE; 
   }
   }
   return FALSE;
@@ -898,7 +979,7 @@ BOOL DSNDialog(HWND     hwndParent,
 {
   MSG     msg;
   BOOL    ret;
-  const char    *DsnName=  NULL;
+  const char *DsnName= NULL;
   my_bool DsnExists= FALSE;
   char    Delimiter= ';';
 
@@ -1018,10 +1099,14 @@ BOOL DSNDialog(HWND     hwndParent,
     }
   }
 
-  InitCommonControls();
+  INITCOMMONCONTROLSEX icc;
+  BOOL initResult= FALSE;
+  icc.dwSize = sizeof(INITCOMMONCONTROLSEX);
+  icc.dwICC = ICC_WIN95_CLASSES;
+  initResult= InitCommonControlsEx(&icc);
 
-  EffectiveDisabledPages=     DisabledPages[Dsn->isPrompt];
-  EffectiveDisabledControls=  DisabledControls[Dsn->isPrompt];
+  EffectiveDisabledPages=    DisabledPages[Dsn->isPrompt];
+  EffectiveDisabledControls= DisabledControls[Dsn->isPrompt];
 
   if (fRequest == ODBC_ADD_DSN && Dsn->isPrompt == MAODBC_CONFIG && Dsn->DSNName != NULL)
   {
