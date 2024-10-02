@@ -190,8 +190,11 @@ my_bool SetDialogFields()
     case DSN_TYPE_BOOL:
       {
         my_bool Val= *(my_bool *)((char *)Dsn + DsnMap[i].Key->DsnOffset);
-        SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
-                           Val ? BST_CHECKED : BST_UNCHECKED, 0);
+        if (Val != DSN_DEFAULT_TRUE)
+        {
+          SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
+            Val ? BST_CHECKED : BST_UNCHECKED, 0);
+        }
       }
       break;
     case DSN_TYPE_CBOXGROUP:
@@ -389,8 +392,14 @@ void GetDialogFields()
        *(int *)((char *)Dsn + DsnMap[i].Key->DsnOffset)= GetFieldIntVal(DsnMap[i].Page, DsnMap[i].Item);
        break;
     case DSN_TYPE_BOOL:
-      *GET_FIELD_PTR(Dsn, DsnMap[i].Key, my_bool)=  IS_CB_CHECKED(i);
+    {
+      my_bool *fieldPtr= GET_FIELD_PTR(Dsn, DsnMap[i].Key, my_bool), buttonState= IS_CB_CHECKED(i);
+      if (*fieldPtr != DSN_DEFAULT_TRUE || buttonState)
+      {
+        *fieldPtr=  buttonState;
+      }
       break;
+    }
     case DSN_TYPE_CBOXGROUP:
       if (IS_CB_CHECKED(i) != '\0')
       {

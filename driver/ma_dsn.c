@@ -468,9 +468,14 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
       /* We do not save DSN_TYPE_OPTION - they are saved as OPTIONS bits */
       switch (DsnKeys[i].Type) {
       case DSN_TYPE_BOOL:
-        ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, 
-          *GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool) ? "1" : "0", "ODBC.INI");
+      { 
+        my_bool fieldValue= *GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool);
+        if (fieldValue != DSN_DEFAULT_TRUE)
+        {
+          ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, fieldValue ? "1" : "0", "ODBC.INI");
+        }
         break;
+      }
       case DSN_TYPE_INT:
         {
           _snprintf(Value ,32, "%d", *(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
@@ -724,12 +729,15 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         }
         break;
       case DSN_TYPE_BOOL:
-        if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool))
+      {
+        my_bool fieldValue= *GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool);
+        if (fieldValue && fieldValue != DSN_DEFAULT_TRUE)
         {
           Value= "1";
         }
         break;
-      case DSN_TYPE_CBOXGROUP:
+      }
+       case DSN_TYPE_CBOXGROUP:
       case DSN_TYPE_RBGROUP:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
         {
