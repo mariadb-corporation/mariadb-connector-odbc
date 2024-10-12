@@ -20,6 +20,7 @@
 #include "ma_odbc.h"
 
 #include "ResultSetMetaData.h"
+#include "interface/ResultSet.h"
 
 extern MARIADB_CHARSET_INFO*  DmUnicodeCs;
 
@@ -398,7 +399,7 @@ my_bool MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString)
 }
 
 
-my_bool MADB_ValidateStmt(MADB_QUERY *Query)
+bool MADB_ValidateStmt(MADB_QUERY *Query)
 {
   return Query->QueryType != MADB_QUERY_SET_NAMES;
 }
@@ -490,7 +491,7 @@ SQLLEN MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
 }
 
 
-/* Number of characters in given number of bytes */
+/* Number of wchar units in given number of bytes */
 SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs)
 {
   SQLLEN       result= 0;
@@ -508,7 +509,7 @@ SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *
       charlen= cs->mb_charlen((unsigned char)*ptr);
       if (charlen == 0)
       {
-        /* Dirty hack to avoid dead loop - Has to be the error! */
+        /* Dirty hack to avoid dead loop - Has to be the error! but there is no way to set it here */
         charlen= 1;
       }
 
@@ -526,7 +527,17 @@ SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *
       }*/
       /* else we increment ptr for number of left bytes */
       ptr+= charlen;
-      ++result;
+
+      if (charlen == 4 && sizeof(SQLWCHAR) == 2)
+      {
+        // Thinking mostly about UTF8 and if it needs 4 bytes to encode the character, then it needs 2
+        // sqlwchar units.
+        result+= 2;
+      }
+      else
+      {
+        ++result;
+      }
     }
   }
 
@@ -593,4 +604,144 @@ SQLLEN SafeStrlen(SQLCHAR *str, SQLLEN buff_length)
     }
   }
   return result;
+}
+
+/* Bind is not really needed, but since the caller already allocates it... */
+void StreamWstring(MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec, MYSQL_BIND& Bind,
+                   SQLWCHAR* TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr)
+{
+  char* ClientValue= NULL;
+  size_t CharLength= 0;
+
+  /* Kinda this it not 1st call for this value, and we have it nice and recoded */
+  if (IrdRec->InternalBuffer == nullptr/* && Stmt->Lengths[Offset] == 0*/)
+  {
+    unsigned long FieldBufferLen= 0;
+    Bind.length= &FieldBufferLen;
+    Bind.buffer_type= MYSQL_TYPE_STRING;
+    /* Getting value's length to allocate the buffer */
+    if (Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]))
+    {
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+      throw Stmt->Error;
+    }
+    /* Adding byte for terminating null */
+    ++FieldBufferLen;
+    if (!(ClientValue= (char*)MADB_CALLOC(FieldBufferLen)))
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      throw Stmt->Error;
+    }
+    Bind.buffer= ClientValue;
+    Bind.buffer_length= FieldBufferLen;
+    Bind.length= &Bind.length_value;
+
+    if (Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]))
+    {
+      MADB_FREE(ClientValue);
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+      throw Stmt->Error;
+    }
+
+    /* check total length: if not enough space, we need to calculate new CharOffset for next fetch */
+    if (Bind.length_value > 0)
+    {
+      size_t ReqBuffOctetLen;
+      /* Size in -chars- wchar units */
+      CharLength= MbstrCharLen(ClientValue, Bind.length_value - Stmt->CharOffset[Offset],
+        Stmt->Connection->Charset.cs_info);
+      /* MbstrCharLen gave us length in SQLWCHAR units, not in characters. */
+      ReqBuffOctetLen= (CharLength + 1)*sizeof(SQLWCHAR);
+
+      if (BufferLength)
+      {
+        /* Buffer is not big enough. Alocating InternalBuffer.
+           MADB_SetString would do that anyway if - allocate buffer fitting the whole wide string,
+           and then copied its part to the application's buffer */
+        if (ReqBuffOctetLen > (size_t)BufferLength)
+        {
+          IrdRec->InternalBuffer= (char*)MADB_CALLOC(ReqBuffOctetLen);
+
+          if (IrdRec->InternalBuffer == nullptr)
+          {
+            MADB_FREE(ClientValue);
+            MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+            throw Stmt->Error;
+          }
+
+          CharLength= MADB_SetString(&Stmt->Connection->Charset, IrdRec->InternalBuffer, (SQLINTEGER)ReqBuffOctetLen / sizeof(SQLWCHAR),
+            ClientValue, Bind.length_value - Stmt->CharOffset[Offset], &Stmt->Error);
+        }
+        else
+        {
+          /* Application's buffer is big enough - writing directly there */
+          CharLength= MADB_SetString(&Stmt->Connection->Charset, TargetValuePtr, (SQLINTEGER)(BufferLength / sizeof(SQLWCHAR)),
+            ClientValue, Bind.length_value - Stmt->CharOffset[Offset], &Stmt->Error);
+        }
+
+        if (!SQL_SUCCEEDED(Stmt->Error.ReturnValue))
+        {
+          MADB_FREE(ClientValue);
+          MADB_FREE(IrdRec->InternalBuffer);
+
+          throw Stmt->Error;
+        }
+      }
+      if (!Stmt->CharOffset[Offset])
+      {
+        Stmt->Lengths[Offset]= (unsigned long)(CharLength * sizeof(SQLWCHAR));
+      }
+    }
+    else if (BufferLength >= sizeof(SQLWCHAR)) //else to if (Bind.length_value > 0)
+    {
+      // There is nothing left - writing terminating null
+      *(SQLWCHAR*)TargetValuePtr= 0;
+    }
+  }
+  else  /* IrdRec->InternalBuffer == NULL */
+  {
+    // Length and offset are in bytes, but simply dividing by sizeof(SQLWCHAR) doesn't look right
+    CharLength= (Stmt->Lengths[Offset] - Stmt->CharOffset[Offset]) / sizeof(SQLWCHAR);
+    /* SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]), -1);*/
+  }
+
+  if (StrLen_or_IndPtr)
+  {
+    *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
+  }
+
+  if (!BufferLength)
+  {
+    MADB_FREE(ClientValue);
+    MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+    throw Stmt->Error;
+  }
+
+  if (IrdRec->InternalBuffer)
+  {
+    /* If we have more place than only for the TN */
+    if (BufferLength > sizeof(SQLWCHAR))
+    {
+      memcpy(TargetValuePtr, (char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset],
+        MIN(BufferLength - sizeof(SQLWCHAR), CharLength * sizeof(SQLWCHAR)));
+    }
+    /* Terminating Null */
+    *(SQLWCHAR*)((char*)TargetValuePtr + MIN(BufferLength - sizeof(SQLWCHAR), CharLength * sizeof(SQLWCHAR)))= 0;
+  }
+
+  if (CharLength >= BufferLength / sizeof(SQLWCHAR))
+  {
+    /* Calculate new offset and substract 1 byte for null termination */
+    Stmt->CharOffset[Offset] += (unsigned long)BufferLength - sizeof(SQLWCHAR);
+    MADB_FREE(ClientValue);
+
+    MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+    throw Stmt->Error;
+  }
+  else
+  {
+    Stmt->CharOffset[Offset]= Stmt->Lengths[Offset];
+    MADB_FREE(IrdRec->InternalBuffer);
+  }
+  MADB_FREE(ClientValue);
 }

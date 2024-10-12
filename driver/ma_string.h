@@ -26,22 +26,24 @@ int MADB_ConvertAnsi2Unicode(Client_Charset* cc, const char *AnsiString, SQLLEN 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error);
 char*     MADB_GetTableName(MADB_Stmt *Stmt);
 char*     MADB_GetCatalogName(MADB_Stmt *Stmt);
-bool   MADB_DynStrUpdateSet(MADB_Stmt *Stmt, SQLString& DynString);
+bool      MADB_DynStrUpdateSet(MADB_Stmt *Stmt, SQLString& DynString);
 my_bool   MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString);
-bool   MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString& DynString, char *TableName, bool ParameterMarkers);
+bool      MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString& DynString, char *TableName, bool ParameterMarkers);
 my_bool   MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String);
 my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString);
 my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString);
 SQLWCHAR* MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc);
 SQLLEN    MADB_SetString(Client_Charset* cc, void *Dest, SQLULEN DestLength,
                         const char *Src, SQLLEN SrcLength, MADB_Error *Error);
-my_bool   MADB_ValidateStmt(MADB_QUERY *Query);
+bool      MADB_ValidateStmt(MADB_QUERY *Query);
 
 SQLLEN     MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs);
 SQLLEN     MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLLEN     SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length);
 SQLLEN     SafeStrlen(SQLCHAR *str, SQLLEN buff_length);
+void       StreamWstring (MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec, MYSQL_BIND& Bind,
+                          SQLWCHAR* TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr);
 
 #define ADJUST_LENGTH(__ptr, __len)\
   if((__ptr) == NULL || (__len) == SQL_NTS)\

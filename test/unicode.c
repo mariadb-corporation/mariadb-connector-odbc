@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1806,6 +1806,45 @@ ODBC_TEST(t_odbc437)
 }
 
 
+/* ODBC-443
+ */
+ODBC_TEST(t_odbc443)
+{
+  SQLWCHAR a[5], a_ref[]= {0xD83E, 0xDD23, 0xD83D, 0xDC4D};
+  SQLLEN   len;
+
+  if (iOdbc())
+  {
+    a_ref[0]= (SQLWCHAR)0x1F923;
+    a_ref[1]= (SQLWCHAR)0x1F44D;
+    a_ref[2]= 0;
+  }
+
+  OK_SIMPLE_STMTW(wStmt, WW("SELECT _utf8mb4 0xF09FA4A3F09F918D"));
+
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  EXPECT_STMT(wStmt, SQLGetData(wStmt, 1, SQL_C_WCHAR, a, 0, &len), SQL_SUCCESS_WITH_INFO);
+  if (!iOdbc())
+  {
+    //2 surrogate pairs in utf16= 4 * sizeof(SQLWCHAR). in utf32 it's 2*sizeof(SQLWCHAR) = 8 bytes in each case
+    is_num(len, 8);
+  }
+  CHECK_STMT_RC(wStmt, SQLGetData(wStmt, 1, SQL_C_WCHAR, a, len + sizeof(SQLWCHAR), &len));
+  if (iOdbc())
+  {
+    IS_WSTR(a, a_ref, 3);
+  }
+  else
+  {
+    is_num(len, 8);
+    IS_WSTR(a, a_ref, len / sizeof(SQLWCHAR));
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1,        "test_CONO1",         NORMAL},
@@ -1839,7 +1878,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc253,         "t_odbc253_empty_str_crash", NORMAL},
   {t_odbc321,         "t_odbc321_short_buffer", NORMAL},
   {t_odbc418,         "t_odbc418_0in_string", NORMAL},
-  {t_odbc437,         "t_odbc447_stringlen", NORMAL},
+  {t_odbc437,         "t_odbc437_stringlen", NORMAL},
+  {t_odbc443,         "t_odbc443_SQLGetData_surrogatePair", NORMAL},
+
   {NULL, NULL}
 };
 
