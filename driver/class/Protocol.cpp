@@ -173,7 +173,7 @@ namespace mariadb
     if (!serverMariaDb) {
       sessionOption.append(",sql_mode");
       // Getting initial value
-      realQuery("SELECT 1 WHERE @@sql_mode LIKE '%ansi_quotes%'");
+      realQuery("SELECT 1 FROM DUAL WHERE @@sql_mode LIKE '%ansi_quotes%'");
       auto res= mysql_store_result(connection.get());
       ansiQuotes= (mysql_fetch_row(res) != nullptr);
       mysql_free_result(res);
