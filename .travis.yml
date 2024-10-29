@@ -21,9 +21,6 @@ jobs:
     - os: linux
       arch: s390x
       dist: focal
-    - env: srv=maxscale
-    - env: srv=build
-    - env: srv=xpand
   include:
     - stage: Language
       os: osx
