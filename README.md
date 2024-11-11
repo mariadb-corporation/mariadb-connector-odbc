@@ -12,7 +12,7 @@
 [![Windows status](https://ci.appveyor.com/api/projects/status/1fv21j33a6mpkxq5/branch/master?svg=true)](https://ci.appveyor.com/project/LawrinNovitsky/mariadb-connector-odbc)
 
 
-This is a Alpha release of the MariaDB Connector/ODBC.
+This is a GA release of the MariaDB Connector/ODBC.
 MariaDB Connector/ODBC is released under version 2.1 of the
 GNU Lesser Public License.
 
