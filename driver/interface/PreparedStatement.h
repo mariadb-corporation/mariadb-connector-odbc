@@ -69,7 +69,8 @@ class PreparedStatement
 protected:
   Protocol* guard;
 
-  SQLString sql;
+  //PrepareResult owns query string
+  const SQLString* sql= nullptr;
   std::size_t parameterCount= 0; // Do we need it here if we can get it from prepare result class
   bool hasLongData= false;
   bool useFractionalSeconds= true;

@@ -62,7 +62,7 @@ namespace mariadb
 
   ClientPrepareResult::ClientPrepareResult(
     const SQLString& _sql,
-    std::vector<SQLString>& _queryParts,
+    std::vector<std::pair<std::size_t, std::size_t>>& _queryParts,
     bool _isQueryMultiValuesRewritable,
     bool _isQueryMultipleRewritable,
     bool _rewriteType,
@@ -77,153 +77,6 @@ namespace mariadb
   {
   }
 
-  /**
-    * Separate query in a String list and set flag isQueryMultipleRewritable. The resulting string
-    * list is separed by ? that are not in comments. isQueryMultipleRewritable flag is set if query
-    * can be rewrite in one query (all case but if using "-- comment"). example for query : "INSERT
-    * INTO tableName(id, name) VALUES (?, ?)" result list will be : {"INSERT INTO tableName(id, name)
-    * VALUES (", ", ", ")"}
-    *
-    * @param queryString query
-    * @param noBackslashEscapes escape mode
-    * @return ClientPrepareResult
-    */
-  ClientPrepareResult* ClientPrepareResult::parameterParts(const SQLString& queryString, bool noBackslashEscapes)
-  {
-    bool multipleQueriesPrepare= true;
-    std::vector<SQLString> partList;
-    LexState state= LexState::Normal;
-    char lastChar= '\0';
-    bool endingSemicolon= false;
-
-    bool singleQuotes= false;
-    std::size_t lastParameterPosition= 0;
-
-    const char* query= queryString.c_str();
-    std::size_t queryLength= queryString.length();
-    for (std::size_t i= 0; i < queryLength; i++) {
-
-      char car= query[i];
-      if (state == LexState::Escape
-        &&!((car == '\''&&singleQuotes)||(car == '"'&&!singleQuotes))) {
-        state= LexState::SqlString;
-        lastChar= car;
-        continue;
-      }
-      switch (car) {
-      case '*':
-        if (state == LexState::Normal &&lastChar == '/') {
-          state= LexState::SlashStarComment;
-        }
-        break;
-
-      case '/':
-        if (state == LexState::SlashStarComment &&lastChar == '*') {
-          state= LexState::Normal;
-        }
-        else if (state == LexState::Normal &&lastChar == '/') {
-          state= LexState::EOLComment;
-        }
-        break;
-
-      case '#':
-        if (state == LexState::Normal) {
-          state= LexState::EOLComment;
-        }
-        break;
-
-      case '-':
-        if (state == LexState::Normal &&lastChar == '-') {
-          state= LexState::EOLComment;
-          multipleQueriesPrepare= false;
-        }
-        break;
-
-      case '\n':
-        if (state == LexState::EOLComment) {
-          multipleQueriesPrepare= true;
-          state= LexState::Normal;
-        }
-        break;
-
-      case '"':
-        if (state == LexState::Normal) {
-          state= LexState::SqlString;
-          singleQuotes= false;
-        }
-        else if (state == LexState::SqlString && !singleQuotes) {
-          state= LexState::Normal;
-        }
-        else if (state == LexState::Escape && !singleQuotes) {
-          state= LexState::SqlString;
-        }
-        break;
-
-      case '\'':
-        if (state == LexState::Normal) {
-          state= LexState::SqlString;
-          singleQuotes= true;
-        }
-        else if (state == LexState::SqlString &&singleQuotes) {
-          state= LexState::Normal;
-        }
-        else if (state == LexState::Escape &&singleQuotes) {
-          state= LexState::SqlString;
-        }
-        break;
-
-      case '\\':
-        if (noBackslashEscapes) {
-          break;
-        }
-        if (state == LexState::SqlString) {
-          state= LexState::Escape;
-        }
-        break;
-      case ';':
-        if (state == LexState::Normal) {
-          endingSemicolon= true;
-          multipleQueriesPrepare= false;
-        }
-        break;
-      case '?':
-        if (state == LexState::Normal) {
-          partList.push_back(
-            queryString.substr(lastParameterPosition, i - lastParameterPosition)/*.getBytes(StandardCharsets.UTF_8)*/);
-          lastParameterPosition= i + 1;
-        }
-        break;
-      case '`':
-        if (state == LexState::Backtick) {
-          state= LexState::Normal;
-        }
-        else if (state == LexState::Normal) {
-          state= LexState::Backtick;
-        }
-        break;
-      default:
-
-        if (state == LexState::Normal && endingSemicolon && ((int8_t)car >= 40)) {
-          endingSemicolon= false;
-          multipleQueriesPrepare= true;
-        }
-        break;
-      }
-      lastChar= car;
-    }
-    if (lastParameterPosition == 0) {
-      partList.push_back(queryString/*.getBytes(StandardCharsets.UTF_8)*/);
-    }
-    else {
-      partList.push_back(
-        queryString
-        .substr(lastParameterPosition, queryLength)
-        /*.getBytes(StandardCharsets.UTF_8)*/);
-    }
-
-    return new ClientPrepareResult(
-      queryString, partList, false, multipleQueriesPrepare, false, noBackslashEscapes);
-  }
 
   /**
     * Valid that query is valid (no ending semi colon, or end-of line comment ).
@@ -338,6 +191,24 @@ namespace mariadb
     return state != LexState::EOLComment && !endingSemicolon;
   }
 
+
+  std::pair<std::size_t, std::size_t>& partAppend(std::pair<std::size_t, std::size_t>& part, std::size_t curPos, std::size_t len= 1) {
+    // First one should begin from 0
+    if (part.second == 0) { 
+      part.first= curPos;
+    }
+    part.second+= len;
+    return part;
+  }
+
+  // Need evaluation for max vector size
+  void smartPush(std::vector<std::pair<std::size_t, std::size_t>>& partList, std::pair<std::size_t, std::size_t>& item) {
+    if (partList.capacity() <= partList.size() + 1 + 4/* max we might need later*/) {
+      partList.reserve(partList.size() * 2);
+    }
+    partList.push_back(item);
+  }
+
   /**
     * Separate query in a String list and set flag isQueryMultiValuesRewritable The parameters "?"
     * (not in comments) emplacements are to be known.
@@ -384,15 +255,15 @@ namespace mariadb
   {
     bool reWritablePrepare= true;
     bool multipleQueriesPrepare= true;
-    std::vector<SQLString> partList;
+    std::vector<std::pair<std::size_t, std::size_t>> partList;
     LexState state= LexState::Normal;
     char lastChar= '\0';
 
-    SQLString sb("");
-
-    SQLString preValuePart1;
-    SQLString preValuePart2;
-    SQLString postValuePart;
+    std::pair<std::size_t, std::size_t> sb(0,0);
+    partList.reserve(std::max(std::size_t(10), queryString.length()/64)); // TODO: consts with some meaningful names in appropriate place
+    std::pair<std::size_t, std::size_t> preValuePart1;
+    std::pair<std::size_t, std::size_t> preValuePart2;
+    std::pair<std::size_t, std::size_t> postValuePart;
 
     bool singleQuotes= false, preValuePart2isNotSet= true; //that preValuePart2 is kind of null
 
@@ -410,8 +281,8 @@ namespace mariadb
 
       char car= query[i];
       if (state == LexState::Escape
-        &&!((car == '\''&&singleQuotes)||(car == '"'&&!singleQuotes))) {
-        sb.append(1, car);
+        && !((car == '\'' && singleQuotes) || (car == '"' && !singleQuotes))) {
+        partAppend(sb, i);
         lastChar= car;
         state= LexState::SqlString;
         continue;
@@ -419,12 +290,12 @@ namespace mariadb
 
       switch (car) {
       case '*':
-        if (state == LexState::Normal &&lastChar == '/') {
+        if (state == LexState::Normal && lastChar == '/') {
           state= LexState::SlashStarComment;
         }
         break;
       case '/':
-        if (state == LexState::SlashStarComment &&lastChar == '*') {
+        if (state == LexState::SlashStarComment && lastChar == '*') {
           state= LexState::Normal;
         }
         break;
@@ -436,7 +307,7 @@ namespace mariadb
         break;
 
       case '-':
-        if (state == LexState::Normal &&lastChar == '-') {
+        if (state == LexState::Normal && lastChar == '-') {
           state= LexState::EOLComment;
           multipleQueriesPrepare= false;
         }
@@ -453,10 +324,10 @@ namespace mariadb
           state= LexState::SqlString;
           singleQuotes= false;
         }
-        else if (state == LexState::SqlString &&!singleQuotes) {
+        else if (state == LexState::SqlString && !singleQuotes) {
           state= LexState::Normal;
         }
-        else if (state == LexState::Escape &&!singleQuotes) {
+        else if (state == LexState::Escape && !singleQuotes) {
           state= LexState::SqlString;
         }
         break;
@@ -471,10 +342,10 @@ namespace mariadb
           state= LexState::SqlString;
           singleQuotes= true;
         }
-        else if (state == LexState::SqlString &&singleQuotes) {
+        else if (state == LexState::SqlString && singleQuotes) {
           state= LexState::Normal;
         }
-        else if (state == LexState::Escape &&singleQuotes) {
+        else if (state == LexState::Escape && singleQuotes) {
           state= LexState::SqlString;
         }
         break;
@@ -491,25 +362,26 @@ namespace mariadb
       case '?':
         if (state == LexState::Normal) {
           hasParam= true;
-          if (preValuePart1.empty()) {
+          if (preValuePart1.second == 0) {
             preValuePart1= sb;
-            sb.clear();
+            sb= {0,0};
           }
           if (preValuePart2isNotSet) {
             preValuePart2= sb;
-            sb.clear();
+            sb= {0,0};
             preValuePart2isNotSet= false;
           }
           else {
-            if (!postValuePart.empty()) {
+            if (postValuePart.second != 0) {
 
               reWritablePrepare= false;
 
-              sb= postValuePart.append(sb);
-              postValuePart.clear();
+              sb.first= postValuePart.first;
+              sb.second+= postValuePart.second;
+              postValuePart= {0,0};
             }
-            partList.push_back(sb/*.getBytes(StandardCharsets.UTF_8)*/);
-            sb.clear();
+            smartPush(partList, sb);
+            sb= {0,0};
           }
 
           skipChar= true;
@@ -527,7 +399,7 @@ namespace mariadb
       case 's':
       case 'S':
         if (state == LexState::Normal
-          && postValuePart.empty()
+          && postValuePart.second == 0
           && queryLength > i + 7
           && (query[i + 1] == 'e' || query[i + 1] == 'E')
           && (query[i + 2] == 'l' || query[i + 2] == 'L')
@@ -538,7 +410,7 @@ namespace mariadb
           if (i > 0 && (query[i - 1] > ' ' && SpecChars.find_first_of(query[i - 1]) == std::string::npos)) {
             break;
           }
-          if (query[i + 6] >' '&& SpecChars.find_first_of(query[i + 6]) == std::string::npos) {
+          if (query[i + 6] > ' ' && SpecChars.find_first_of(query[i + 6]) == std::string::npos) {
             break;
           }
           reWritablePrepare= false;
@@ -547,46 +419,46 @@ namespace mariadb
       case 'v':
       case 'V':
         if (state == LexState::Normal
-          && preValuePart1.empty()
-          && (lastChar == ')'||((int8_t)lastChar <=40))
-          && queryLength >i +7
+          && preValuePart1.second == 0
+          && (lastChar == ')' || ((int8_t)lastChar <= 40))
+          && queryLength > i +7
           && (query[i + 1] == 'a' || query[i + 1] == 'A')
           && (query[i + 2] == 'l' || query[i + 2] == 'L')
           && (query[i + 3] == 'u' || query[i + 3] == 'U')
           && (query[i + 4] == 'e' || query[i + 4] == 'E')
           && (query[i + 5] == 's' || query[i + 5] == 'S')
           && (query[i + 6] == '(' || ((int8_t)query[i + 6] <= 40))) {
-          sb.append(1, car);
-          sb.append(1, query[i + 1]);
-          sb.append(1, query[i + 2]);
-          sb.append(1, query[i + 3]);
-          sb.append(1, query[i + 4]);
-          sb.append(1, query[i + 5]);
+          partAppend(sb, i, 6);
+          /*streamAppend(sb, query[i + 1]);
+          streamAppend(sb, query[i + 2]);
+          streamAppend(sb, query[i + 3]);
+          streamAppend(sb, query[i + 4]);
+          streamAppend(sb, query[i + 5]);*/
           i= i + 5;
           preValuePart1= sb;
-          sb.clear();
+          sb= {0,0};
           skipChar= true;
         }
         break;
       case 'l':
       case 'L':
         if (state == LexState::Normal
-          &&queryLength >i +14
-          &&(query[i +1] =='a'||query[i +1] =='A')
-          &&(query[i +2] =='s'||query[i +2] =='S')
-          &&(query[i +3] =='t'||query[i +3] =='T')
-          &&query[i +4] =='_'
-          &&(query[i +5] =='i'||query[i +5] =='I')
-          &&(query[i +6] =='n'||query[i +6] =='N')
-          &&(query[i +7] =='s'||query[i +7] =='S')
-          &&(query[i +8] =='e'||query[i +8] =='E')
-          &&(query[i +9] =='r'||query[i +9] =='R')
-          &&(query[i +10] =='t'||query[i +10] =='T')
-          &&query[i +11] =='_'
-          &&(query[i +12] =='i'||query[i +12] =='I')
-          &&(query[i +13] =='d'||query[i +13] =='D')
-          &&query[i +14] =='(') {
-          sb.append(1, car);
+          && queryLength > i + 14
+          && (query[i + 1] == 'a' || query[i + 1] == 'A')
+          && (query[i + 2] == 's' || query[i + 2] == 'S')
+          && (query[i + 3] == 't' || query[i + 3] == 'T')
+          && query[i + 4] == '_'
+          && (query[i + 5] == 'i' || query[i + 5] == 'I')
+          && (query[i + 6] == 'n' || query[i + 6] == 'N')
+          && (query[i + 7] == 's' || query[i + 7] == 'S')
+          && (query[i + 8] == 'e' || query[i + 8] == 'E')
+          && (query[i + 9] == 'r' || query[i + 9] == 'R')
+          && (query[i + 10] == 't' || query[i + 10] == 'T')
+          && query[i + 11] == '_'
+          && (query[i + 12] == 'i' || query[i + 12] == 'I')
+          && (query[i + 13] == 'd' || query[i + 13] == 'D')
+          && query[i + 14] == '(') {
+          partAppend(sb, i);
           reWritablePrepare= false;
           skipChar= true;
         }
@@ -599,10 +471,10 @@ namespace mariadb
       case ')':
         if (state == LexState::Normal) {
           isInParenthesis--;
-          if (isInParenthesis == 0 && !preValuePart2.empty() && postValuePart.empty()) {
-            sb.append(1, car);
+          if (isInParenthesis == 0 && preValuePart2.second != 0 && postValuePart.second == 0) {
+            partAppend(sb, i);
             postValuePart= sb;
-            sb.clear();
+            sb= {0,0};
             skipChar= true;
           }
         }
@@ -627,52 +499,54 @@ namespace mariadb
         skipChar= false;
       }
       else {
-        sb.append(1, car);
+        partAppend(sb, i);
       }
     }
-
+    // We have 3 or 4 more entries to add 
+    partList.reserve(partList.size() + 3 + (hasParam ? 1 : 0));
     if (!hasParam) {
 
-      if (preValuePart1.empty()) {
-        partList.insert(partList.begin(), sb/*.getBytes(StandardCharsets.UTF_8)*/);
-        partList.insert(partList.begin(), "");
+      if (preValuePart1.second == 0) {
+        partList.insert(partList.begin(), sb);
+        partList.insert(partList.begin(), {0,0});
       }
       else {
 
-        partList.insert(partList.begin(), preValuePart1/*.getBytes(StandardCharsets.UTF_8)*/);
-        partList.insert(partList.begin(), sb/*.getBytes(StandardCharsets.UTF_8)*/);
+        partList.insert(partList.begin(), preValuePart1);
+        partList.insert(partList.begin(), sb);
       }
-      sb.clear();
+      sb= {0,0};
     }
     else {
-      partList.insert(partList.begin(), preValuePart1/*.getBytes(StandardCharsets.UTF_8)*/);
-      partList.insert(partList.begin(), preValuePart2/*.getBytes(StandardCharsets.UTF_8)*/);
+      partList.insert(partList.begin(), preValuePart1);
+      partList.insert(partList.begin(), preValuePart2);
     }
 
     if (!isInsert) {
       reWritablePrepare= false;
     }
 
-
     if (hasParam) {
       partList.push_back(postValuePart);
     }
     partList.push_back(sb);
 
-
     return new ClientPrepareResult(
       queryString, partList, reWritablePrepare, multipleQueriesPrepare, true, noBackslashEscapes);
   }
+
 
   const SQLString& ClientPrepareResult::getSql() const
   {
     return sql;
   }
 
-  const std::vector<SQLString>& ClientPrepareResult::getQueryParts() const
+
+  const std::vector<std::pair<std::size_t, std::size_t>>& ClientPrepareResult::getQueryParts() const
   {
     return queryParts;
   }
+
 
   bool ClientPrepareResult::isQueryMultiValuesRewritable() const
   {
@@ -695,18 +569,18 @@ namespace mariadb
   }
 
 
-  std::size_t estimatePreparedQuerySize(const ClientPrepareResult* clientPrepareResult, const std::vector<SQLString>& queryPart,
+  std::size_t estimatePreparedQuerySize(const ClientPrepareResult* clientPrepareResult, const std::vector<std::pair<std::size_t, std::size_t>>& queryPart,
     MYSQL_BIND* parameters)
   {
-    std::size_t estimate= queryPart.front().length() + 1/* for \0 */, offset= 0;
+    std::size_t estimate= queryPart.front().second + 1/* for \0 */, offset= 0;
     if (clientPrepareResult->isRewriteType()) {
-      estimate += queryPart[1].length() + queryPart[clientPrepareResult->getParamCount() + 2].length();
+      estimate += queryPart[1].second + queryPart[clientPrepareResult->getParamCount() + 2].second;
       offset= 1;
     }
     for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); ++i) {
       estimate += (parameters)[i].buffer_length*2 + 2; // The string needs to be escaped - all characters in the worst case,
                                                        // + 2 quotes
-      estimate += queryPart[i + 1 + offset].length();
+      estimate += queryPart[i + 1 + offset].second;
     }
     estimate= ((estimate + 7) / 8) * 8;
     return estimate;
@@ -720,7 +594,9 @@ namespace mariadb
     std::map<uint32_t,std::string>& longData,
     bool noBackSlashEscapes)
   {
-    const std::vector<SQLString>& queryPart= clientPrepareResult->getQueryParts();
+    const std::vector<std::pair<std::size_t, std::size_t>>& queryPart= clientPrepareResult->getQueryParts();
+    const SQLString &query= clientPrepareResult->getSql();
+    const auto paramCount= clientPrepareResult->getParamCount();
 
     for (auto pair : longData) {
       if (parameters[pair.first].buffer == nullptr) {
@@ -736,20 +612,20 @@ namespace mariadb
     }
     if (clientPrepareResult->isRewriteType()) {
 
-      out.append(queryPart[1]);
-      out.append(queryPart[0]);
+      out.append(query.c_str() + queryPart[1].first, queryPart[1].second);
+      out.append(query.c_str() + queryPart[0].first, queryPart[0].second);
 
       for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
         Parameter::toString(out, parameters[i], noBackSlashEscapes);
-        out.append(queryPart[i + 2]);
+        out.append(query.c_str() + queryPart[i + 2].first, queryPart[i + 2].second);
       }
-      out.append(queryPart[clientPrepareResult->getParamCount() + 2]);
+      out.append(query.c_str() + queryPart[paramCount + 2].first, queryPart[paramCount + 2].second);
     }
     else {
-      out.append(queryPart.front());
+      out.append(query.c_str() + queryPart.front().first, queryPart.front().second);
       for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
         Parameter::toString(out, parameters[i], noBackSlashEscapes);
-        out.append(queryPart[i + 1]);
+        out.append(query.c_str() + queryPart[i + 1].first, queryPart[i + 2].second);
       }
     }
   }
@@ -760,21 +636,7 @@ namespace mariadb
     if (getParamCount() == 0) {
       return sql.append(this->sql);
     }
-    /*if (!isQueryMultiValuesRewritable()) {
-      if (getQueryParts().size() == 1) {
-        sql.append(getQueryParts().front());
-      }
-      else {
-        for (const auto& query : getQueryParts())
-        {
-          sql.append(query);
-        }
-      }
-    }
-    else {*/
-    /* Timeout has been added already, thus passing -1 for its value */
     assemblePreparedQueryForExec(sql, this, parameters, longData, noBackslashEscapes);
-    //}
     return sql;
   }
 
@@ -793,23 +655,21 @@ namespace mariadb
     MYSQL_BIND* parameters, uint32_t arraySize, std::size_t currentIndex, bool noBackslashEscapes)
   {
     std::size_t index= currentIndex, capacity= pos.capacity(), estimatedLength= 0;
-    const std::vector<SQLString>& queryParts= clientPrepareResult->getQueryParts();
+    const std::vector<std::pair<std::size_t, std::size_t>> &queryParts= clientPrepareResult->getQueryParts();
     const std::size_t paramCount= clientPrepareResult->getParamCount();
+    const char *query= clientPrepareResult->getSql().c_str();
 
-    const SQLString& firstPart= queryParts[1];
-    const SQLString& secondPart= queryParts.front();
-
-    pos.append(firstPart);
-    pos.append(secondPart);
-    size_t lastPartLength= queryParts[paramCount + 2].length();
-    size_t intermediatePartLength= queryParts[1].length();
+    pos.append(query + queryParts[1].first, queryParts[1].second); // firstPart
+    pos.append(query + queryParts.front().first, queryParts.front().second); // secondPart)
+    size_t lastPartLength= queryParts[paramCount + 2].second;
+    size_t intermediatePartLength= queryParts[1].second;
 
     while (skipParamRow(parameters, paramCount, index)) { ++index; }
     estimatedLength= pos.length();
     for (size_t i= 0; i < paramCount; ++i) {
       Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
-      pos.append(queryParts[i + 2]);
-      intermediatePartLength+= queryParts[i + 2].length();
+      pos.append(query + queryParts[i + 2].first, queryParts[i + 2].second);
+      intermediatePartLength+= queryParts[i + 2].second;
     }
     ++index;
     // Now we have one paramset length in estimatedLength, that we can take for estimation
@@ -839,11 +699,11 @@ namespace mariadb
 
         if (Protocol::checkRemainingSize(pos.length() + 1 + parameterLength + intermediatePartLength + lastPartLength)) {
           pos.append(1, ',');
-          pos.append(secondPart);
+          pos.append(query + queryParts.front().first, queryParts.front().second);
 
           for (size_t i= 0; i < paramCount; i++) {
             Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
-            pos.append(queryParts[i + 2]);
+            pos.append(query + queryParts[i + 2].first, queryParts[i + 2].second);
           }
           ++index;
         }
@@ -853,17 +713,17 @@ namespace mariadb
       }
       else {
         pos.append(1, ',');
-        pos.append(secondPart);
+        pos.append(query + queryParts.front().first, queryParts.front().second);
 
         for (size_t i= 0; i < paramCount; i++) {
           Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
-          pos.append(queryParts[i + 2]);
+          pos.append(query + queryParts[i + 2].first, queryParts[i + 2].second);
         }
         ++index;
         break;
       }
     }
-    pos.append(queryParts[paramCount + 2]);
+    pos.append(query + queryParts[paramCount + 2].first, queryParts[paramCount + 2].second);
     return index;
   }
 
@@ -872,7 +732,7 @@ namespace mariadb
     MYSQL_BIND* parameters, uint32_t arraySize, std::size_t currentIndex, bool noBackslashEscapes)
   {
     std::size_t index= currentIndex, capacity= pos.capacity(), estimatedLength;
-    const std::vector<SQLString>& queryParts= clientPrepareResult->getQueryParts();
+    const std::vector<SQLString> queryParts;// = clientPrepareResult->getQueryParts();
     const std::size_t paramCount= clientPrepareResult->getParamCount();
     const SQLString& firstPart= queryParts[1];
     const SQLString& secondPart= queryParts.front();

@@ -375,8 +375,9 @@ namespace mariadb
     if (bind->is_null == nullptr) {
       bind->is_null= &bind->is_null_value;
     }
-    if (isNull(position)) {
+    if (row->lastValueWasNull()) {
       *bind->is_null= '\1';
+      checkObjectRange(position);
       return true;
     }
     else {
@@ -422,9 +423,7 @@ namespace mariadb
       *bind->length= 8;
       break;
     case MYSQL_TYPE_NULL:
-      if (bind->is_null != nullptr) {
-        *bind->is_null= isNull(column0basedIdx) ? '\1' : '\0';
-      }
+      *bind->is_null= isNull(column0basedIdx) ? '\1' : '\0';
       *bind->length= 0;
       break;
     case MYSQL_TYPE_LONGLONG:

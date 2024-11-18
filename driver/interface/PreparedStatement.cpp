@@ -54,7 +54,7 @@ namespace mariadb
     const SQLString& _sql,
     int32_t resultSetScrollType)
     : guard(handle)
-    , sql(_sql)
+    , sql(&_sql)
     , resultSetScrollType(resultSetScrollType)
     , batchRes(0)
   {}

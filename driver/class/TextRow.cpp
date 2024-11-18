@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022,2023 MariaDB Corporation AB
+   Copyright (C) 2022,2024 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -388,6 +388,7 @@ namespace mariadb
    return static_cast<int32_t>(value);
  }
 
+ 
  /**
   * Get long from raw text format.
   *
@@ -432,7 +433,8 @@ namespace mariadb
      case MYSQL_TYPE_LONG:
      case MYSQL_TYPE_INT24:
      case MYSQL_TYPE_LONGLONG:
-       return std::stoll(std::string(fieldBuf.arr + pos, length));
+       return safer_strtoll(fieldBuf.arr + pos, length);
+         //std::stoll(std::string(fieldBuf.arr + pos, length));
      case MYSQL_TYPE_TIMESTAMP:
      case MYSQL_TYPE_DATETIME:
      case MYSQL_TYPE_TIME:
@@ -441,7 +443,8 @@ namespace mariadb
          "Conversion to integer not available for data field type "
          + std::to_string(columnInfo->getColumnType()));
      default:
-       return std::stoll(std::string(fieldBuf.arr + pos, length));
+       return safer_strtoll(fieldBuf.arr + pos, length);
+         //std::stoll(std::string(fieldBuf.arr + pos, length));
      }
 
    }

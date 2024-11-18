@@ -37,6 +37,7 @@ extern Date nullDate;
 extern const SQLString emptyStr;
 class ColumnDefinition;
 
+int64_t safer_strtoll(const char* str, uint32_t len);
 uint64_t stoull(const SQLString& str, std::size_t* pos= nullptr);
 uint64_t stoull(const char* str, std::size_t len= -1, std::size_t* pos= nullptr);
 
@@ -140,7 +141,7 @@ protected:
   bool convertStringToBoolean(const char* str, std::size_t len);
 
 public:
-  void rangeCheck(const SQLString& className,int64_t minValue, int64_t maxValue, int64_t value, const ColumnDefinition* columnInfo);
+  void rangeCheck(const char* className,int64_t minValue, int64_t maxValue, int64_t value, const ColumnDefinition* columnInfo);
 
 protected:
   int32_t extractNanos(const SQLString& timestring);

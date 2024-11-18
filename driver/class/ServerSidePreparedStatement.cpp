@@ -61,16 +61,15 @@ namespace mariadb
     int32_t resultSetScrollType)
     : PreparedStatement(_connection, _sql, resultSetScrollType)
   {
-    prepare(sql);
+    prepare(_sql);
   }
 
 
   ServerSidePreparedStatement::ServerSidePreparedStatement(
     Protocol* connection, ServerPrepareResult* pr, int32_t resultSetScrollType)
     : PreparedStatement(connection, pr->getSql(), resultSetScrollType)
-    , serverPrepareResult (pr)
+    , serverPrepareResult(pr)
   {
-    //serverPrepareResult->incrementShareCounter(); // ?
   }
 
   ServerSidePreparedStatement::ServerSidePreparedStatement(
@@ -91,15 +90,16 @@ namespace mariadb
   {
     ServerSidePreparedStatement* clone= new ServerSidePreparedStatement(connection, this->resultSetScrollType);
     clone->metadata.reset(new ResultSetMetaData(*metadata));
-    clone->prepare(sql);
+    clone->prepare(*sql);
 
     return clone;
   }
 
 
-  void ServerSidePreparedStatement::prepare(const SQLString& sql)
+  void ServerSidePreparedStatement::prepare(const SQLString& _sql)
   {
-    serverPrepareResult= new ServerPrepareResult(sql, guard);
+    serverPrepareResult= new ServerPrepareResult(_sql, guard);
+    sql= &serverPrepareResult->getSql();
     setMetaFromResult();
   }
 
@@ -231,21 +231,12 @@ namespace mariadb
         1,
         true,
         resultSetScrollType,
-        sql,
+        *sql,
         param));
 
       
     guard->executePreparedQuery(serverPrepareResult, results.get());
 
-    //try
-    //{
-    //  getResult();
-    //}
-    //catch (int)
-    //{
-    //  results->commandEnd();
-    //  throwStmtError(serverPrepareResult->getStatementId()); // or further int?
-    //}
     results->commandEnd();
     return results->getResultSet() != nullptr;
   }

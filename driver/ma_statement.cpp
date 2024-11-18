@@ -1016,7 +1016,7 @@ void MADB_Stmt::AfterExecute()
 /* {{{ MADB_StmtExecute */
 SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, bool ExecDirect)
 {
-  unsigned int          i;
+  unsigned int i;
   MYSQL_RES   *DefaultResult= nullptr;
   SQLRETURN    ret= SQL_SUCCESS, IntegralRc= SQL_SUCCESS;
   unsigned int ErrorCount=    0;

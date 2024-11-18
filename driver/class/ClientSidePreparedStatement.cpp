@@ -52,12 +52,12 @@ namespace mariadb
     */
   ClientSidePreparedStatement::ClientSidePreparedStatement(Protocol* _connection, const SQLString& _sql,
     int32_t resultSetScrollType, bool _noBackslashEscapes)
-    : PreparedStatement(_connection, resultSetScrollType),
+    : PreparedStatement(_connection, _sql, resultSetScrollType),
       noBackslashEscapes(_noBackslashEscapes)
   {
-    sql= _sql;
-    prepareResult.reset(ClientPrepareResult::rewritableParts(sql, noBackslashEscapes));
-    //prepareResult.reset(ClientPrepareResult::parameterParts(sql, protocol->noBackslashEscapes()));
+    prepareResult.reset(ClientPrepareResult::rewritableParts(_sql, noBackslashEscapes));
+    // Prepare results owns query string, PS objects only have pointer. Thus it needs to be updated.
+    sql= &prepareResult->getSql();
   }
 
   ClientSidePreparedStatement::~ClientSidePreparedStatement()
@@ -105,10 +105,13 @@ namespace mariadb
         1,
         false,
         resultSetScrollType,
-        sql,
+        *sql,
         param));
 
     SQLString sql;
+    // Rough allocation
+    sql.reserve(prepareResult->getSql().length() + (queryTimeout > 0 ? 42/* need const for this */ : 0) +
+      prepareResult->getParamCount()*8/*and for this*/);
     addQueryTimeout(sql, queryTimeout);
     prepareResult->assembleQuery(sql, param, longData);
 
@@ -263,7 +266,7 @@ namespace mariadb
     try {
       ServerSidePreparedStatement ssps(
         guard,
-        sql,
+        *sql,
         ResultSet::TYPE_SCROLL_INSENSITIVE);
       metadata.reset(ssps.getMetaData());
       //parameterMetaData.reset(ssps.getParameterMetaData());

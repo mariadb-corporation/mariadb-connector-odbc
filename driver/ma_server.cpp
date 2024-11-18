@@ -72,7 +72,7 @@ void MADB_SetCapabilities(MADB_Dbc *Dbc, unsigned long ServerVersion, const char
   mariadb_get_infov(Dbc->mariadb, MARIADB_CONNECTION_EXTENDED_SERVER_CAPABILITIES, (void*)&ServerExtCapabilities);
   for (i= 0; i < sizeof(ExtCapabilitiesMap)/sizeof(ExtCapabilitiesMap[0]); ++i)
   {
-    if (!(Dbc->mariadb->server_capabilities & CLIENT_MYSQL)
+    if (!(ServerCapabilities & CLIENT_MYSQL)
       && (ServerExtCapabilities & ExtCapabilitiesMap[i][0]))
     {
       Dbc->ServerCapabilities|= ExtCapabilitiesMap[i][1];

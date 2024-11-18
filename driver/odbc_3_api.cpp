@@ -1308,6 +1308,10 @@ SQLRETURN SQL_API SQLSetDescField(SQLHDESC DescriptorHandle,
     SQLINTEGER BufferLength)
 {
   CHECK_DESC_CLEAR_ERROR(DescriptorHandle);
+  if (MADB_ValidateDescFieldAccess(DescriptorHandle, FieldIdentifier, ValuePtr))
+  {
+    return SQL_ERROR;
+  }
   return MADB_DescSetField(DescriptorHandle, RecNumber, FieldIdentifier, ValuePtr, BufferLength, FALSE); 
 }
 /* }}} */
@@ -1320,6 +1324,11 @@ SQLRETURN SQL_API SQLSetDescFieldW(SQLHDESC DescriptorHandle,
     SQLINTEGER BufferLength)
 {
   CHECK_DESC_CLEAR_ERROR(DescriptorHandle);
+  if (MADB_ValidateDescFieldAccess(DescriptorHandle, FieldIdentifier, ValuePtr))
+  {
+    return SQL_ERROR; /* (MADB_Desc*)DescriptorHandle->Error.ReturnValue would be better, but SQL_ERROR is good enough,
+                         as this is the only possible value */
+  }
   return MADB_DescSetField(DescriptorHandle, RecNumber, FieldIdentifier, ValuePtr, BufferLength, TRUE); 
 }
 /* }}} */

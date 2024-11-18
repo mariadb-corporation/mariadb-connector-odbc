@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2024 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -52,9 +52,6 @@ namespace mariadb
        bind.emplace_back();
        ColumnDefinition::fieldDeafaultBind(columnInfo, bind.back());
      }
-     /*if (mysql_stmt_bind_result(stmt, bind.data())) {
-       throw 1;
-     }*/
    }
 
 
@@ -243,18 +240,15 @@ namespace mariadb
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
-      try {
-        std::string str(fieldBuf.arr, length);
-        value= std::stoll(str);
-      }
+      value= safer_strtoll(fieldBuf.arr, length);
       // Common parent for std::invalid_argument and std::out_of_range
-      catch (std::logic_error&) {
+      /*catch (std::logic_error&) {
 
         throw SQLException(
           "Out of range value for column '" + columnInfo->getName() + "' : value " + SQLString(fieldBuf.arr, length),
           "22003",
           1264);
-      }
+      }*/
       break;
     default:
       throw SQLException(
@@ -365,8 +359,7 @@ namespace mariadb
       case MYSQL_TYPE_VARCHAR:
       case MYSQL_TYPE_STRING:
       {
-        std::string str(fieldBuf.arr, length);
-        return std::stoll(str);
+        return safer_strtoll(fieldBuf.arr, length);
       }
       default:
         throw SQLException(
@@ -1018,8 +1011,7 @@ namespace mariadb
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
     {
-      std::string str(fieldBuf.arr, length);
-      value= std::stoll(str);
+      value= safer_strtoll(fieldBuf.arr, length);
       break;
     }
     default:
@@ -1076,8 +1068,7 @@ namespace mariadb
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_STRING:
     {
-      std::string str(fieldBuf.arr, length);
-      value= std::stoll(str);
+      value= safer_strtoll(fieldBuf.arr, length);
       break;
     }
     default:
@@ -1085,7 +1076,6 @@ namespace mariadb
         "getShort not available for data field type "
         + std::to_string(columnInfo->getColumnType()));
     }
-    // TODO: dirty hack(INT32_MAX->UINT32_MAX to make ODBC happy atm). Maybe it's not that dirty after all...
     rangeCheck("int16_t", INT16_MIN, UINT16_MAX, value, columnInfo);
     return static_cast<int16_t>(value);
   }

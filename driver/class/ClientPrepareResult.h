@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2024 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,7 +26,6 @@
 
 #include "PrepareResult.h"
 
-
 namespace mariadb
 {
 
@@ -43,9 +42,9 @@ class ClientPrepareResult : public PrepareResult
   };
 
   const SQLString& sql;
-  const std::vector<SQLString> queryParts;
-  bool rewriteType;
-  uint32_t paramCount;
+  const std::vector<std::pair<std::size_t, std::size_t>> queryParts;
+  bool rewriteType= false;
+  uint32_t paramCount= 0;
   bool isQueryMultiValuesRewritableFlag= true;
   bool isQueryMultipleRewritableFlag= true;
   bool noBackslashEscapes= false;
@@ -53,19 +52,18 @@ class ClientPrepareResult : public PrepareResult
 
  ClientPrepareResult(
    const SQLString& sql,
-   std::vector<SQLString>& queryParts,
+   std::vector<std::pair<std::size_t, std::size_t>>& queryParts,
    bool isQueryMultiValuesRewritable,
    bool isQueryMultipleRewritable,
    bool rewriteType,
    bool noBackslashEscapes);
 
 public:
-  static ClientPrepareResult* parameterParts(const SQLString& queryString, bool noBackslashEscapes);
   static bool canAggregateSemiColon(const SQLString& queryString,bool noBackslashEscapes);
   static ClientPrepareResult* rewritableParts(const SQLString& queryString, bool noBackslashEscapes);
 
   const SQLString& getSql() const;
-  const std::vector<SQLString>& getQueryParts() const;
+  const std::vector<std::pair<std::size_t,std::size_t>>& getQueryParts() const;
   bool isQueryMultiValuesRewritable() const;
   bool isQueryMultipleRewritable() const;
   bool isRewriteType() const;

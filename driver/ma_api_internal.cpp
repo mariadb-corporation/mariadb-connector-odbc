@@ -1086,7 +1086,7 @@ SQLRETURN MA_SQLExecute(SQLHSTMT StatementHandle)
   
   try
   {
-    return Stmt->Methods->Execute(Stmt, FALSE);
+    return Stmt->Methods->Execute(Stmt, false);
   }
   catch (SQLException &e)
   {

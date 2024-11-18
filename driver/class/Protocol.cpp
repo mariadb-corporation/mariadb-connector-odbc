@@ -590,8 +590,8 @@ namespace mariadb
     // check that queries are rewritable
     bool canAggregateSemiColumn= true;
     std::size_t totalLen= 0;
-    for (SQLString query : queries){
-      if (!ClientPrepareResult::canAggregateSemiColon(query,noBackslashEscapes())){
+    for (SQLString query : queries) {
+      if (!ClientPrepareResult::canAggregateSemiColon(query, noBackslashEscapes())) {
         canAggregateSemiColumn= false;
         break;
       }

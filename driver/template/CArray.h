@@ -204,6 +204,13 @@ public:
     length= static_cast<int64_t>(_vector.size());
     return *this;
   }
+
+  // Makes sense only for view, i.e. wrapped array - it's basically the same as wrap(arr, length + units). 
+  CArrView<T>& append(int64_t units=1)
+  {
+    //assert(length > 0);
+    length+= units;
+  }
 };
 //--------------------- <CArrView - End> ---------------------
 

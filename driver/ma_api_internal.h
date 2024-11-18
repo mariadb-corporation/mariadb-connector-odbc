@@ -76,6 +76,8 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 
 SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle, SQLSMALLINT DataType);
 SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle);
+
+bool MADB_ValidateDescFieldAccess(SQLHDESC DescriptorHandle, SQLSMALLINT FieldIdentifier, SQLPOINTER ValuePtr);
 SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
   SQLSMALLINT RecNumber,
   SQLSMALLINT FieldIdentifier,

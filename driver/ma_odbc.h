@@ -192,12 +192,6 @@ typedef struct
   my_bool AppType;      /* Allocated by Application ? */
 } MADB_Desc;
 
-struct st_ma_desc_fldid
-{
-  SQLSMALLINT FieldIdentifier;
-  SQLSMALLINT Access[4];
-};
-
 struct st_ma_stmt_methods;
 
 typedef struct 
