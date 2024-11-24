@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -80,14 +80,14 @@ ODBC_TEST(simple_test)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMTW(Stmt, CW("DROP TABLE IF EXISTS smpltest"));
-  OK_SIMPLE_STMTW(Stmt, CW("CREATE TABLE smpltest (a int, b varchar(25))"));
+  OK_SIMPLE_STMTW(Stmt, CW("CREATE TABLE smpltest (a INT, b VARCHAR(25))"));
   OK_SIMPLE_STMTW(Stmt, CW("INSERT INTO smpltest VALUES (1, 'Row no 1')"));
   OK_SIMPLE_STMTW(Stmt, CW("INSERT INTO smpltest VALUES (2, 'Row no 2')"));
   
   CHECK_STMT_RC(Stmt, SQLPrepareW(Stmt, CW("SELECT a, b FROM smpltest"), SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
   
-  SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
   SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, sizeof(Buffer), 0);
   is_num(value, 1);

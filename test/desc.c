@@ -171,7 +171,7 @@ ODBC_TEST(t_sqlbindcol_count_reset)
                                SQL_IS_INTEGER, NULL));
   is_num(count, 0);
 
-  OK_SIMPLE_STMT(Stmt, "select 1,2,3,4,5");
+  OK_SIMPLE_STMT(Stmt, "SELECT 1,2,3,4,5");
 
   CHECK_DESC_RC(ard, SQLGetDescField(ard, 0, SQL_DESC_COUNT, &count,
                                SQL_IS_INTEGER, NULL));
@@ -225,7 +225,7 @@ ODBC_TEST(t_desc_default_type)
   SQLHANDLE ard, apd;
   SQLINTEGER inval= 20, outval= 0;
 
-  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"select ?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR *)"SELECT ?", SQL_NTS));
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_PARAM_DESC,
                                 &apd, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC,

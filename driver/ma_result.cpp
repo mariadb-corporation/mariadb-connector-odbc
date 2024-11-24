@@ -153,8 +153,8 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
      Thus we free-ing bind structs on move to new result only */
   MADB_FREE(Stmt->result);
-  Stmt->metadata.reset();
-  Stmt->rs.reset();
+  MADB_DELETE(Stmt->metadata);
+  MADB_DELETE(Stmt->rs);
 
   try {
     // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
@@ -163,7 +163,7 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
     {
       unsigned int ServerStatus;
       mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_SERVER_STATUS, (void*)&ServerStatus);
-      Stmt->rs.reset(Stmt->stmt->getResultSet());
+      MADB_CXX_RESET(Stmt->rs, Stmt->stmt->getResultSet());
       bool itsOutParams= ServerStatus & SERVER_PS_OUT_PARAMS;
       bool haveOutParams= HasOutParams(Stmt);
 
@@ -198,7 +198,7 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
     ret= MADB_FromException(Stmt->Error, e);
   }
   catch (int32_t /*rc*/) {
-    ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+    ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
 
   MADB_StmtResetResultStructures(Stmt);

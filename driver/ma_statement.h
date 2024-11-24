@@ -116,7 +116,6 @@ SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt);
 #define MADB_POS_COMM_IDX_FIELD_COUNT(aStmt) (MADB_STMT_HAS_UNIQUE_IDX((aStmt)->PositionedCursor)?(aStmt)->PositionedCursor->UniqueIndex[0]:MADB_STMT_COLUMN_COUNT((aStmt)->PositionedCursor))
 #define MADB_STMT_FORGET_NEXT_POS(aStmt) (aStmt)->Cursor.Next= -1
 #define MADB_STMT_RESET_CURSOR(aStmt) (aStmt)->Cursor.Position= 0; MADB_STMT_FORGET_NEXT_POS(aStmt)
-#define MADB_STMT_CLOSE_STMT(aStmt)  (aStmt)->stmt.reset()
 #define MADB_STMT_SHOULD_STREAM(_a) (DSN_OPTION((_a)->Connection, MADB_OPT_FLAG_NO_CACHE) &&\
   (_a)->Options.CursorType == SQL_CURSOR_FORWARD_ONLY)
 /* Checks if given Stmt handle is currently streaming (prev variant (MADB_STMT_SHOULD_STREAM(_a) && STMT_EXECUTED(_a) && MADB_STMT_COLUMN_COUNT(_a) > 0) */

@@ -356,6 +356,7 @@ MADB_DescSetIrdMetadata(MADB_Stmt *Stmt, const MYSQL_FIELD *Fields, unsigned int
     {
       return 1;
     }
+    Stmt->Ird->Header.Count= i + 1;
   }
   return 0;
 }
@@ -638,31 +639,33 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
 }
 /* }}} */
 
-/* {{{ MADB_DescGetInternalRecord */
-MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type)
+/* {{{ MADB_DescGetInternalRecord
+   [in] ReorordNumber - 0 based record index */
+MADB_DescRecord* MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type)
 {
   MADB_DescRecord *DescRecord;
 
-  if (RecordNumber > (SQLINTEGER)Desc->Records.elements &&
-      Type == MADB_DESC_READ)
+  if (RecordNumber >= (SQLINTEGER)Desc->Records.elements)
   {
-    MADB_SetError(&Desc->Error, MADB_ERR_07009, nullptr, 0);
-    return nullptr;
-  }
-
-  while (RecordNumber >= (SQLINTEGER)Desc->Records.elements)
-  {
-    if (!(DescRecord= (MADB_DescRecord *)MADB_AllocDynamic(&Desc->Records)))
+    if (Type == MADB_DESC_READ)
     {
-      MADB_SetError(&Desc->Error, MADB_ERR_HY001, nullptr, 0);
+      MADB_SetError(&Desc->Error, MADB_ERR_07009, nullptr, 0);
       return nullptr;
     }
- 
-    MADB_DescSetRecordDefaults(Desc, DescRecord);
-  }
+  
+    do {
+        if (!(DescRecord= (MADB_DescRecord *)MADB_AllocDynamic(&Desc->Records)))
+        {
+          MADB_SetError(&Desc->Error, MADB_ERR_HY001, nullptr, 0);
+          return nullptr;
+        }
 
-  if (RecordNumber + 1 > Desc->Header.Count)
-    Desc->Header.Count= (SQLSMALLINT)(RecordNumber + 1);
+      MADB_DescSetRecordDefaults(Desc, DescRecord);
+    } while (RecordNumber >= (SQLINTEGER)Desc->Records.elements);
+
+    if (RecordNumber + 1 > Desc->Header.Count)
+      Desc->Header.Count= (SQLSMALLINT)(RecordNumber + 1);
+  }
 
   DescRecord= ((MADB_DescRecord *)Desc->Records.buffer) + RecordNumber;
 

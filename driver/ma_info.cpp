@@ -247,10 +247,10 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
 
   std::vector<std::vector<mariadb::bytes_view>> row;
 
-  Stmt->stmt.reset();
+  MADB_DELETE(Stmt->stmt);
   if (DataType == SQL_ALL_TYPES)
   {
-    Stmt->rs.reset(ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, *TypeInfo));
+    MADB_CXX_RESET(Stmt->rs, ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, *TypeInfo));
   }
   else
   {
@@ -262,7 +262,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
         row.push_back(cit);
       }
     }
-    Stmt->rs.reset(ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, row));
+    MADB_CXX_RESET(Stmt->rs, ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, row));
   }
 
   Stmt->State= MADB_SS_EXECUTED;

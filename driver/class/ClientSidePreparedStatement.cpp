@@ -236,7 +236,7 @@ namespace mariadb
     if (!metadata) {
       loadParametersData();
     }
-    return metadata.get();
+    return metadata.release();
   }
 
 

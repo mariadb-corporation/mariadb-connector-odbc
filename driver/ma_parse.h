@@ -61,8 +61,6 @@ typedef struct {
   SQLString     RefinedText;
   enum enum_madb_query_type QueryType= MADB_QUERY_NO_RESULT;
   bool          MultiStatement= false;
-  /* Keeping it so far */
-  bool       ReturnsResult= false;
   bool       PoorManParsing= false;
 
   bool       BatchAllowed= false;

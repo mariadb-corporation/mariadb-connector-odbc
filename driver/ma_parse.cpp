@@ -119,7 +119,7 @@ void MADB_QUERY::reset()
   Original.assign("");
   RefinedText.assign("");
   Tokens.clear();
-  PoorManParsing= ReturnsResult= false;
+  PoorManParsing= false;
 }
 
 int MADB_ParseQuery(MADB_QUERY * Query)
@@ -396,8 +396,6 @@ int ParseQuery(MADB_QUERY *Query)
       {
         /* We are currently at 2nd token of statement, and getting previous token position from Tokens array*/
         StmtType= MADB_GetQueryType(MADB_Token(Query, Query->Tokens.size() - 2), p);
-
-        Query->ReturnsResult= Query->ReturnsResult || !QUERY_DOESNT_RETURN_RESULT(StmtType);
 
         /* If we on first statement, setting QueryType*/
         if (Query->Tokens.size() == 2)

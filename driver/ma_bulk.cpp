@@ -473,7 +473,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
 
   if (Stmt->stmt->isServerSide() && !MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_PARAM_ARRAYS))
   {
-    Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->Options.CursorType
+    MADB_CXX_RESET(Stmt->stmt, new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->Options.CursorType
       , Stmt->Query.NoBackslashEscape));
     // So far
     useCallbacks= false;

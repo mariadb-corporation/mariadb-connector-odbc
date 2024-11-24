@@ -1020,7 +1020,7 @@ int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
   }
 
   CHECK_STMT_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_VER, DriverVersion, sizeof(DriverVersion), &len));
-  OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM dual where @@performance_schema=1");
+  OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM dual WHERE @@performance_schema=1");
   if (SQL_SUCCEEDED(SQLFetch(Stmt)))
   {
     PerfSchema= TRUE;

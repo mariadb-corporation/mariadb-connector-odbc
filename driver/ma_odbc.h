@@ -291,9 +291,9 @@ struct MADB_Stmt
   long long                 AffectedRows= 0;
   MADB_Dbc                  *Connection;
   struct st_ma_stmt_methods *Methods;
-  Unique::ResultSet         rs;
-  Unique::PreparedStatement stmt;
-  Unique::ResultSetMetaData metadata;
+  ResultSet*                rs= nullptr;
+  PreparedStatement*        stmt= nullptr;
+  mariadb::ResultSetMetaData* metadata= nullptr;
   Unique::MYSQL_RES         DefaultsResult;
   MADB_DescRecord           *PutDataRec= nullptr;
   MADB_Stmt                 *DaeStmt= nullptr;

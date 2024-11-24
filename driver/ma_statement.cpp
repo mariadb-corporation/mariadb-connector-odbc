@@ -82,12 +82,12 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         MADB_DescFree(Stmt->Ird, TRUE);
       if (Stmt->State > MADB_SS_PREPARED)
       {
-        MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
+        MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt);
         try
         {
           // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
           std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
-          Stmt->rs.reset();
+          MADB_DELETE(Stmt->rs);
           if (Stmt->stmt->hasMoreResults()) {
             Stmt->Connection->guard->skipAllResults();
           }
@@ -97,8 +97,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
           // eating errors
         }
       }
-
-      Stmt->metadata.reset();
+      MADB_DELETE(Stmt->metadata);
      
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
@@ -127,7 +126,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->CatalogName);
     MADB_FREE(Stmt->TableName);
     MADB_FREE(Stmt->UniqueIndex);
-    //Stmt->metadata.reset();
+    delete Stmt->metadata;
 
     /* For explicit descriptors we only remove reference to the stmt*/
     if (Stmt->Apd->AppType)
@@ -165,8 +164,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 
     if (Stmt->stmt != nullptr)
     {
-      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt.get());
-      MADB_STMT_CLOSE_STMT(Stmt);
+      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt);
+      MADB_DELETE(Stmt->stmt);
     }
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
     std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
@@ -247,16 +246,17 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 /* {{{ FetchMetadata */
 ResultSetMetaData* FetchMetadata(MADB_Stmt *Stmt, bool early)
 {
+  delete Stmt->metadata;
   /* TODO early probably is not needed here at all */
   if (early)
   {
-    Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
+    Stmt->metadata= Stmt->stmt->getEarlyMetaData();
   }
   else
   {
-    Stmt->metadata.reset(Stmt->rs->getMetaData());
+    Stmt->metadata= Stmt->rs->getMetaData();
   }
-  return Stmt->metadata.get();
+  return Stmt->metadata;
 }
 /* }}} */
 
@@ -265,14 +265,14 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
 {
   if (Stmt->State > MADB_SS_PREPARED)
   {
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->rs.get());
-    Stmt->rs.reset();
+    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->rs);
+    MADB_DELETE(Stmt->rs);
   }
 
   if (Stmt->State >= MADB_SS_PREPARED)
   {
-    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt.get());
-    Stmt->stmt.reset();
+    MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
+    MADB_DELETE(Stmt->stmt);
   }
 
   switch (Stmt->State)
@@ -286,8 +286,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     RESET_DAE_STATUS(Stmt);
 
   case MADB_SS_PREPARED:
-    Stmt->metadata.reset();
-
+    MADB_DELETE(Stmt->metadata);
     Stmt->PositionedCursor= nullptr;
     Stmt->Ird->Header.Count= 0;
 
@@ -305,7 +304,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
 /* {{{ MADB_CsPrepare - Method called if we do client side prepare */
 SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 {
-  Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->Options.CursorType
+  MADB_CXX_RESET(Stmt->stmt, new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->Options.CursorType
     , Stmt->Query.NoBackslashEscape));
   if ((Stmt->ParamCount= static_cast<SQLSMALLINT>(Stmt->stmt->getParamCount())/* + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)*/) != 0)
   {
@@ -324,8 +323,7 @@ SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 void MADB_Stmt::AfterPrepare()
 {
   State= MADB_SS_PREPARED;
-
-  metadata.reset(stmt->getEarlyMetaData());
+  MADB_CXX_RESET(metadata, stmt->getEarlyMetaData());
   /* If we have result returning query - fill descriptor records with metadata */
   if (metadata && metadata->getColumnCount() > 0)
   {
@@ -339,6 +337,8 @@ void MADB_Stmt::AfterPrepare()
       MADB_FREE(params);
     }
     params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * ParamCount);
+    // Creating IPD records for all params
+    MADB_DescGetInternalRecord(Ipd, ParamCount - 1, MADB_DESC_WRITE);
   }
 }
 
@@ -348,19 +348,19 @@ void MADB_Stmt::AfterPrepare()
  */
 SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 {
-  MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt.get(), STMT_STRING(Stmt).c_str());
+  MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_prepare(%0x,%s)", Stmt->stmt, STMT_STRING(Stmt).c_str());
 
   try
   {
     ServerPrepareResult *pr= Stmt->Connection->guard->prepare(STMT_STRING(Stmt));
-    Stmt->stmt.reset(new ServerSidePreparedStatement(Stmt->Connection->guard.get(), pr, Stmt->Options.CursorType));
+    MADB_CXX_RESET(Stmt->stmt, new ServerSidePreparedStatement(Stmt->Connection->guard.get(), pr, Stmt->Options.CursorType));
   }
   catch (SQLException& e)
   {
     // First condition is probably means we can a multistatement, that can't be prepared, 2nd - that the query is not preparable
     if ((e.getErrorCode() == 1064 && Stmt->Query.BatchAllowed) || e.getErrorCode() == 1295)
     {
-      Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
+      MADB_CXX_RESET(Stmt->stmt, new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
     }
     else
@@ -368,16 +368,15 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
       ///* Need to save error first */
       MADB_FromException(Stmt->Error, e);
       ///* We need to close the stmt here, or it becomes unusable like in ODBC-21 */
-      MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt.get());
+      MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_close(%0x)", Stmt->stmt);
       return Stmt->Error.ReturnValue;
     }
   }
   catch (int)
   {
-    Stmt->stmt.reset(new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
+    MADB_CXX_RESET(Stmt->stmt, new ClientSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType, Stmt->Query.NoBackslashEscape));
   }
-
   Stmt->AfterPrepare();
   return SQL_SUCCESS;
 }
@@ -392,14 +391,14 @@ void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
   if (!Stmt->metadata && Stmt->State < MADB_SS_EXECUTED && Stmt->Connection->Dsn->PrepareOnClient && !Stmt->stmt->isServerSide())
   {
     // We need it for the case server side prepare fails, but MADB_RegularPrepare falls back to CS on its own, if SS goes wrong.
-    PreparedStatement *currenCs= Stmt->stmt.release();
+    PreparedStatement *currentCs= Stmt->stmt;
     if (MADB_RegularPrepare(Stmt) == SQL_ERROR)
     {
-      Stmt->stmt.reset(currenCs);
+      Stmt->stmt= currentCs;
     }
     else
     {
-      delete currenCs;
+      delete currentCs;
     }
   }
 }
@@ -444,12 +443,6 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
 
   MADB_ResetParser(this, StatementText, TextLength);
   MADB_ParseQuery(&Query);
-
-  if ((Query.QueryType == MADB_QUERY_INSERT || Query.QueryType == MADB_QUERY_UPDATE || Query.QueryType == MADB_QUERY_DELETE)
-    && MADB_FindToken(&Query, "RETURNING"))
-  {
-    Query.ReturnsResult= '\1';
-  }
 
   if (Query.QueryType == MADB_QUERY_CALL)
   {
@@ -700,7 +693,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
      buffer. This means we need to process Update and Insert statements row by row. */
   if (MyStmt->stmt->sendLongData(Stmt->PutParam, static_cast<const char*>(ConvertedDataPtr ? ConvertedDataPtr : DataPtr), Length))
   {
-    MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt.get());
+    MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, MyStmt->stmt);
   }
   else
   {
@@ -737,13 +730,14 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
   
   MADB_InitDynamicArray(&DynData, sizeof(char *), 8, 8);
 
-  for (j= 1; j < MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor) + 1; ++j)
+  for (j= 0; j < MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor); ++j)
   {
     if (Stmt->PositionedCursor->UniqueIndex == nullptr ||
-      (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx] + 1))
+      (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx]))
     {
       SQLLEN Length;
-      MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
+      MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_WRITE/* Should be WRITE so it gets created
+                                                                                                      if it does not exist */);
       SQLUSMALLINT ParamNumber= 0;
 
       Length= Rec->OctetLength;
@@ -755,19 +749,15 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
       }
       else
       {
-        ParamNumber= /* Param ordnum in pos.cursor condition */ j +
+        ParamNumber= /* Param ordnum in pos.cursor condition */ j + 1 +
                       /* Num of params in main stmt */(Stmt->ParamCount - MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor));
       }
-      /* if (Rec->inUse)
-           MA_SQLBindParameter(Stmt, j+1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type, Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Length, Rec->OctetLengthPtr);
-         else */
-      {
-        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, nullptr, 0, &Length, true);
-        p= (char*)MADB_CALLOC(Length + 2);
-        MADB_InsertDynamic(&DynData, (char*)&p);
-        Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, nullptr, true);
-        Stmt->Methods->BindParam(Stmt, ParamNumber, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, nullptr);
-      }
+
+      Stmt->Methods->GetData(Stmt->PositionedCursor, j + 1, SQL_CHAR, nullptr, 0, &Length, true);
+      p= (char*)MADB_CALLOC(Length + 2);
+      MADB_InsertDynamic(&DynData, (char*)&p);
+      Stmt->Methods->GetData(Stmt->PositionedCursor, j + 1, SQL_CHAR, p, Length + 1, nullptr, true);
+      Stmt->Methods->BindParam(Stmt, ParamNumber, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, nullptr);
     }
   }
 
@@ -820,12 +810,12 @@ SQLRETURN MADB_Stmt::GetOutParams(int CurrentOffset)
   
   try
   {
-    metadata.reset(rs->getMetaData());
+    MADB_CXX_RESET(metadata, rs->getMetaData());
     columnCount= metadata->getColumnCount();
   }
   catch(int)
   {
-    return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
+    return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt);
   }
 
   MADB_FREE(result);
@@ -894,17 +884,17 @@ SQLRETURN MADB_Stmt::DoExecuteBatch()
   try
   {
     const Longs &batchRes= stmt->executeBatch();
-    rs.reset();
+    MADB_DELETE(rs);
   }
   catch (int32_t /*rc*/)
   {
     MDBUG_C_PRINT(Connection, "execute:ERROR%s", "");
-    if (stmt.get()->getErrno() == CR_ERR_STMT_PARAM_CALLBACK && Error.ReturnValue == SQL_ERROR)
+    if (stmt->getErrno() == CR_ERR_STMT_PARAM_CALLBACK && Error.ReturnValue == SQL_ERROR)
     {
       //Rerturning error set by callback
       return SQL_ERROR;
     }
-    return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt.get());
+    return MADB_SetNativeError(&Error, SQL_HANDLE_STMT, stmt);
   }
   catch (SQLException &e)
   {
@@ -937,18 +927,18 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt)
     }
     if (Stmt->stmt->execute())
     {
-      Stmt->rs.reset(Stmt->stmt->getResultSet());
+      MADB_CXX_RESET(Stmt->rs, Stmt->stmt->getResultSet());
     }
     else
     {
-      Stmt->rs.reset();
+      MADB_DELETE(Stmt->rs);
       Stmt->AffectedRows+= Stmt->stmt->getUpdateCount();
     }
   }
   catch (int32_t /*rc*/)
   {
     MDBUG_C_PRINT(Stmt->Connection, "execute:ERROR%s", "");
-    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
 
   Stmt->State= MADB_SS_EXECUTED;
@@ -1219,7 +1209,7 @@ end:
     try {
       ServerSidePreparedStatement* ssps= new ServerSidePreparedStatement(Stmt->Connection->guard.get(), STMT_STRING(Stmt),
         Stmt->Options.CursorType);
-      Stmt->stmt.reset(ssps);
+      MADB_CXX_RESET(Stmt->stmt, ssps);
     }
     catch (int32_t) {
       // going further with csps
@@ -1269,18 +1259,25 @@ SQLRETURN MADB_StmtBindCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLSMALLI
   {
     int i;
     Record->inUse= 0;
-    /* Update counter */
-    for (i= Ard->Records.elements; i > 0; i--)
+    /* Update counter if needed */
+    if (Ard->Header.Count == ColumnNumber)
     {
-      MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Ard, i-1, MADB_DESC_READ);
-      if (Rec && Rec->inUse)
+      for (i= ColumnNumber; i > 0; i--)
       {
-        Ard->Header.Count= i;
-        return SQL_SUCCESS;
+        MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Ard, i - 1, MADB_DESC_READ);
+        if (Rec && Rec->inUse)
+        {
+          Ard->Header.Count= i;
+          return SQL_SUCCESS;
+        }
       }
+      Ard->Header.Count= 0;
     }
-    Ard->Header.Count= 0;
     return SQL_SUCCESS;
+  }
+  else if (Ard->Header.Count < ColumnNumber)
+  {
+    Ard->Header.Count= ColumnNumber;
   }
 
   if (!SQL_SUCCEEDED(MADB_DescSetField(Ard, ColumnNumber, SQL_DESC_TYPE, (SQLPOINTER)(SQLLEN)TargetType, SQL_IS_SMALLINT, 0)) ||
@@ -2140,7 +2137,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     {
       switch (rc) {
       case 1:
-        RowResult= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+        RowResult= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         /* If mysql_stmt_fetch returned error, there is no sense to continue */
         if (Stmt->Ird->Header.ArrayStatusPtr)
         {
@@ -2550,14 +2547,14 @@ SQLRETURN MADB_GetBookmark(MADB_Stmt  *Stmt,
 {
   if (Stmt->Options.UseBookmarks == SQL_UB_OFF)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && TargetType != SQL_C_VARBOOKMARK) ||
     (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && TargetType == SQL_C_VARBOOKMARK))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY003, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY003, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
@@ -2621,7 +2618,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, Offset, MADB_DESC_READ);
   if (!IrdRec)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
@@ -2632,7 +2629,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (!Ard)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_07009, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       OdbcType= Ard->ConciseType;
@@ -2856,7 +2853,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (Stmt->rs->get(&Bind, Offset, CurrentOffset))
       {
-        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         return Stmt->Error.ReturnValue;
       }
       /* Dirty temporary hack before we know what is going on. Yes, there is nothing more eternal, than temporary
@@ -3001,7 +2998,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
     return MADB_FromException(Stmt->Error, e);
   }
   catch (int32_t /*rc*/) {
-    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+    return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
   catch (std::invalid_argument &ia) {
     return MADB_SetError(&Stmt->Error, MADB_ERR_22018, ia.what(), 0);
@@ -3107,13 +3104,13 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
   SwitchToSsIfNeeded(Stmt);
   if (!Stmt->metadata || Stmt->metadata->getColumnCount() == 0)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07005, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07005, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
   if (ColumnNumber < 1 || ColumnNumber > Stmt->metadata->getColumnCount())
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
@@ -3122,7 +3119,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
 
   if (!(Record= MADB_DescGetInternalRecord(Stmt->Ird, ColumnNumber, MADB_DESC_READ)))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
@@ -3521,7 +3518,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         MADB_DescRecord *Rec=          MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ),
                         *ApdRec=       NULL;
 
-        if (Rec->inUse && MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == FALSE)
+        if (Rec && Rec->inUse && !MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec))
         {
           Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, Rec->ConciseType, Rec->Type,
             Rec->DisplaySize, Rec->Scale, Rec->DataPtr, Rec->OctetLength, Rec->OctetLengthPtr);
@@ -3633,16 +3630,16 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           for(column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
           {
             SQLLEN          *LengthPtr= NULL;
-            my_bool         GetDefault= FALSE;
+            bool            GetDefault= false;
             MADB_DescRecord *Rec=       MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ);
 
             /* TODO: shouldn't here be IndicatorPtr? */
-            if (Rec->OctetLengthPtr)
+            if (Rec && Rec->OctetLengthPtr)
               LengthPtr= static_cast<SQLLEN*>(GetBindOffset(Stmt->Ard->Header, Rec->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN)));
-            if (!Rec->inUse ||
+            if (!Rec || !Rec->inUse ||
                 (LengthPtr && *LengthPtr == SQL_COLUMN_IGNORE))
             {
-              GetDefault= TRUE;
+              GetDefault= true;
               continue;
             }
             
@@ -3982,7 +3979,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
  
-  Stmt->stmt.reset();
+  MADB_DELETE(Stmt->stmt);
 
   if (!(Stmt->IApd= MADB_DescInit(Connection, MADB_DESC_APD, FALSE)) ||
     !(Stmt->IArd= MADB_DescInit(Connection, MADB_DESC_ARD, FALSE)) ||
@@ -3992,7 +3989,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
     goto error;
   }
 
-  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt.get());
+  MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
 
   Stmt->Methods= &MADB_StmtMethods;
 
@@ -4019,7 +4016,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 error:
   if (Stmt && Stmt->stmt)
   {
-    MADB_STMT_CLOSE_STMT(Stmt);
+    MADB_DELETE(Stmt->stmt);
   }
   MADB_DescFree(Stmt->IApd, TRUE);
   MADB_DescFree(Stmt->IArd, TRUE);

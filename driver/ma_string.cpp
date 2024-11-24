@@ -124,10 +124,10 @@ bool MADB_DynStrUpdateSet(MADB_Stmt* Stmt, SQLString& DynString)
   {
     SQLLEN *IndicatorPtr= nullptr;
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
-    if (Record->IndicatorPtr)
+    if (Record && Record->IndicatorPtr)
       IndicatorPtr= (SQLLEN *)GetBindOffset(Stmt->Ard->Header, Record->IndicatorPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber-1 : 0,
                                             sizeof(SQLLEN)/*Record->OctetLength*/);
-    if ((IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
+    if (!Record || (IndicatorPtr && *IndicatorPtr == SQL_COLUMN_IGNORE) || !Record->inUse)
     {
       ++IgnoredColumns;
       continue;
@@ -167,8 +167,9 @@ my_bool MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString)
      TODO: we gave to use this column count in most, if not all, places, where it's got via API function */
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
   {
+    // Shouldn't it be really IRD here?
     Record= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
-    if (!Record->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Record) == TRUE)
+    if (!Record || !Record->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Record) == TRUE)
     {
       continue;
     }
@@ -244,7 +245,7 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
   {
     for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
     {
-      const MYSQL_FIELD* field= FetchMetadata(Stmt)->getField(i);
+      const MYSQL_FIELD* field= Stmt->metadata->getField(i);
       if (field->flags & PRI_KEY_FLAG)
       {
         ++PrimaryCount;
@@ -622,7 +623,7 @@ void StreamWstring(MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec
     /* Getting value's length to allocate the buffer */
     if (Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]))
     {
-      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
       throw Stmt->Error;
     }
     /* Adding byte for terminating null */
@@ -639,7 +640,7 @@ void StreamWstring(MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec
     if (Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]))
     {
       MADB_FREE(ClientValue);
-      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+      MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
       throw Stmt->Error;
     }
 

@@ -53,7 +53,7 @@ const char *  MADB_GetTypeName(const MYSQL_FIELD *Field);
 my_bool MADB_CheckPtrLength(SQLINTEGER MaxLength, char *Ptr, SQLINTEGER NameLen);
 std::size_t getArrayStep(MADB_Header& header, std::size_t pointedSize);
 void *  GetBindOffset(MADB_Header& DescHeader, void *Ptr, SQLULEN RowNumber, size_t PtrSize);
-BOOL    MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);
+bool    MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec);
 
 SQLRETURN     MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation);
 MYSQL_RES *   MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *fields);
@@ -108,5 +108,8 @@ extern my_bool DummyError;
 }
 
 #define MADB_FRACTIONAL_PART(_decimals) ((_decimals) > 0 ? (_decimals) + 1/*Decimal point*/ : 0)
+
+#define MADB_DELETE(PTR) do {delete (PTR); (PTR)= nullptr;} while(false)
+#define MADB_CXX_RESET(PTR,NEWPTR) do {delete (PTR); (PTR)= (NEWPTR);} while(false)
 
 #endif

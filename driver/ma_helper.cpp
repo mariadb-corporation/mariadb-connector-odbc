@@ -257,9 +257,10 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *field
 
   for (i= 0; i < Stmt->metadata->getColumnCount(); i++)
   {
+    // TODO: Shouldn't it be really IRD here?
     MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
 
-    if (!Rec->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == TRUE)
+    if (!Rec || !Rec->inUse || MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == TRUE)
     {
       continue;
     }
@@ -864,7 +865,7 @@ void* GetBindOffset(MADB_Header& Header, void* Ptr, SQLULEN RowNumber, std::size
 }
 
 /* Checking if column ignored in all bound rows. Should hel*/
-BOOL MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec)
+bool MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec)
 {
   SQLULEN row;
   SQLLEN *IndicatorPtr;
@@ -873,13 +874,13 @@ BOOL MADB_ColumnIgnoredInAllRows(MADB_Desc *Desc, MADB_DescRecord *Rec)
   {
     IndicatorPtr= (SQLLEN *)GetBindOffset(Desc->Header, Rec->IndicatorPtr, row, sizeof(SQLLEN));
 
-    if (IndicatorPtr == NULL || *IndicatorPtr != SQL_COLUMN_IGNORE)
+    if (IndicatorPtr == nullptr || *IndicatorPtr != SQL_COLUMN_IGNORE)
     {
-      return FALSE;
+      return false;
     }
   }
 
-  return TRUE;
+  return true;
 }
 
 
