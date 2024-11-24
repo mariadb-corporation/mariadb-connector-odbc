@@ -293,7 +293,7 @@ struct MADB_Stmt
   struct st_ma_stmt_methods *Methods;
   Unique::ResultSet         rs;
   Unique::PreparedStatement stmt;
-  Unique::ResultSetMetaData metadata;
+  mariadb::ResultSetMetaData* metadata= nullptr;
   Unique::MYSQL_RES         DefaultsResult;
   MADB_DescRecord           *PutDataRec= nullptr;
   MADB_Stmt                 *DaeStmt= nullptr;

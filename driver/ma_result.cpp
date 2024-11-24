@@ -153,7 +153,11 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
      Thus we free-ing bind structs on move to new result only */
   MADB_FREE(Stmt->result);
-  Stmt->metadata.reset();
+  if (Stmt->metadata)
+  {
+    delete Stmt->metadata;
+    Stmt->metadata= nullptr;
+  }
   Stmt->rs.reset();
 
   try {

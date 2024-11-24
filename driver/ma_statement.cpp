@@ -98,7 +98,11 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
         }
       }
 
-      Stmt->metadata.reset();
+      if (Stmt->metadata)
+      {
+        delete Stmt->metadata;
+        Stmt->metadata= nullptr;
+      }
      
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
@@ -247,16 +251,20 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 /* {{{ FetchMetadata */
 ResultSetMetaData* FetchMetadata(MADB_Stmt *Stmt, bool early)
 {
+  if (Stmt->metadata) {
+    delete Stmt->metadata;
+  }
   /* TODO early probably is not needed here at all */
   if (early)
   {
-    Stmt->metadata.reset(Stmt->stmt->getEarlyMetaData());
+    Stmt->metadata= Stmt->stmt->getEarlyMetaData();
+
   }
   else
   {
-    Stmt->metadata.reset(Stmt->rs->getMetaData());
+    Stmt->metadata= Stmt->rs->getMetaData();
   }
-  return Stmt->metadata.get();
+  return Stmt->metadata;
 }
 /* }}} */
 
@@ -286,8 +294,11 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     RESET_DAE_STATUS(Stmt);
 
   case MADB_SS_PREPARED:
-    Stmt->metadata.reset();
-
+    if (Stmt->metadata)
+    {
+      delete Stmt->metadata;
+      Stmt->metadata= nullptr;
+    }
     Stmt->PositionedCursor= nullptr;
     Stmt->Ird->Header.Count= 0;
 
@@ -324,8 +335,11 @@ SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 void MADB_Stmt::AfterPrepare()
 {
   State= MADB_SS_PREPARED;
-
-  metadata.reset(stmt->getEarlyMetaData());
+  if (metadata)
+  {
+    delete metadata;
+  }
+  metadata= stmt->getEarlyMetaData();
   /* If we have result returning query - fill descriptor records with metadata */
   if (metadata && metadata->getColumnCount() > 0)
   {
@@ -820,7 +834,11 @@ SQLRETURN MADB_Stmt::GetOutParams(int CurrentOffset)
   
   try
   {
-    metadata.reset(rs->getMetaData());
+    if (metadata)
+    {
+      delete metadata;
+    }
+    metadata= rs->getMetaData();
     columnCount= metadata->getColumnCount();
   }
   catch(int)
