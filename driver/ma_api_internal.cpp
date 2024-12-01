@@ -1496,7 +1496,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   SQLLEN* StrLen_or_IndPtr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
-  unsigned int i;
+  unsigned int i, columnCount;
   MADB_DescRecord* IrdRec;
 
   /* In case we don't have DM(it check for that) */
@@ -1522,9 +1522,9 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
   }
-
+  columnCount= Stmt->metadata->getColumnCount();
   /* reset offsets for other columns. Doing that here since "internal" calls should not do that */
-  for (i= 0; i < Stmt->metadata->getColumnCount(); i++)
+  for (i= 0; i < columnCount; i++)
   {
     if (i != Col_or_Param_Num - 1)
     {

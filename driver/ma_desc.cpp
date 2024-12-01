@@ -123,7 +123,7 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
 /* }}} */
 
 /* {{{ MADB_DescFree */
-SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
+SQLRETURN MADB_DescFree(MADB_Desc *Desc, bool RecordsOnly)
 {
   MADB_DescRecord *Record;
   unsigned int i;

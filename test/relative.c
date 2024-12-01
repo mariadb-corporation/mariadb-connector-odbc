@@ -858,12 +858,13 @@ ODBC_TEST(bench3)
   SQLRETURN rc= SQL_SUCCESS;
 
   SQLPrepare(Stmt, (SQLCHAR*)"SELECT * FROM test100", SQL_NTS);
-  for (auto j= 0; j < 50; ++j) {
+  for (auto j= 0; j < 500; ++j) {
     SQLExecute(Stmt);
 
     while ((rc= SQLFetch(Stmt)) != SQL_NO_DATA && SQL_SUCCEEDED(rc)) {
       for (size_t i= 0; i < 100; ++i) {
         SQLGetData(Stmt, (SQLUSMALLINT)(i + 1), SQL_INTEGER, &id, 0, NULL);
+        is_num(id, i + 1);
       }
     }
     SQLFreeStmt(Stmt, SQL_CLOSE);

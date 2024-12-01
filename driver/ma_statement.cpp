@@ -78,8 +78,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
   case SQL_CLOSE:
     if (Stmt->stmt)
     {
-      if (Stmt->Ird)
-        MADB_DescFree(Stmt->Ird, TRUE);
+      /*if (Stmt->Ird)
+        MADB_DescFree(Stmt->Ird, true);*/
       if (Stmt->State > MADB_SS_PREPARED)
       {
         MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt);
@@ -100,8 +100,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
       MADB_DELETE(Stmt->metadata);
      
       MADB_FREE(Stmt->result);
-      MADB_FREE(Stmt->CharOffset);
-      MADB_FREE(Stmt->Lengths);
+      /*MADB_FREE(Stmt->CharOffset);
+      MADB_FREE(Stmt->Lengths);*/
 
       RESET_STMT_STATE(Stmt);
       RESET_DAE_STATUS(Stmt);
@@ -736,8 +736,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
       (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx]))
     {
       SQLLEN Length;
-      MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_WRITE/* Should be WRITE so it gets created
-                                                                                                      if it does not exist */);
+      MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_WRITE/* Should be WRITE so it gets created                                                                                                     if it does not exist */);
       SQLUSMALLINT ParamNumber= 0;
 
       Length= Rec->OctetLength;
@@ -982,7 +981,9 @@ void MADB_Stmt::ProcessRsMetadata()
 {
   /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
+  //if (!metadata || metadata->getColumnCount() == 0 || metadata->getFields() == nullptr) {
   FetchMetadata(this);
+  //}
   MADB_StmtResetResultStructures(this);
   MADB_DescSetIrdMetadata(this, metadata->getFields(), metadata->getColumnCount());
 

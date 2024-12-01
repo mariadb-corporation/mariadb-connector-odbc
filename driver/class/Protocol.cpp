@@ -646,10 +646,6 @@ namespace mariadb
       throw SQLException(mysql_error(connection.get()), mysql_sqlstate(connection.get()), mysql_errno(connection.get()));
     }
 
-    static const my_bool updateMaxLength= 1;
-
-    mysql_stmt_attr_set(stmtId, STMT_ATTR_UPDATE_MAX_LENGTH, &updateMaxLength);
-
     if (mysql_stmt_prepare(stmtId, sql.c_str(), static_cast<unsigned long>(sql.length())))
     {
       SQLString err(mysql_stmt_error(stmtId)), sqlState(mysql_stmt_sqlstate(stmtId));
