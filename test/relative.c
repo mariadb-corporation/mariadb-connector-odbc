@@ -838,7 +838,7 @@ ODBC_TEST(bench2)
     "i80 int,i81 int,i82 int,i83 int,i84 int,i85 int,i86 int,i87 int,i88 int,i89 int,i90 int,i91 int,i92 int,i93 int,i94 int,i95 int,i96 int,i97 int,i98 int,i99 int,i100 int)", SQL_NTS);
   SQLExecDirect(Stmt, (SQLCHAR*)"INSERT INTO test100 value (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,"
     "42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100)", SQL_NTS);*/
-  for (auto j= 0; j < 20000; ++j) {
+  for (int j= 0; j < 20000; ++j) {
     SQLExecDirect(Stmt, (SQLCHAR*)"SELECT * FROM test100", SQL_NTS);
 
     while ((rc= SQLFetch(Stmt)) != SQL_NO_DATA && SQL_SUCCEEDED(rc)) {
@@ -858,7 +858,7 @@ ODBC_TEST(bench3)
   SQLRETURN rc= SQL_SUCCESS;
 
   SQLPrepare(Stmt, (SQLCHAR*)"SELECT * FROM test100", SQL_NTS);
-  for (auto j= 0; j < 500; ++j) {
+  for (int j= 0; j < 500; ++j) {
     SQLExecute(Stmt);
 
     while ((rc= SQLFetch(Stmt)) != SQL_NO_DATA && SQL_SUCCEEDED(rc)) {
