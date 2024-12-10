@@ -203,7 +203,7 @@ namespace mariadb
 
   int64_t PreparedStatement::getUpdateCount()
   {
-    auto cmdInfo= results->getCmdInformation();
+    auto cmdInfo= results ? results->getCmdInformation() : nullptr;
     if (cmdInfo) {
       return cmdInfo->getUpdateCount();
     }

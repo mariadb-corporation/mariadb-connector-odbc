@@ -1690,7 +1690,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
       }
 
       IrdRec= MADB_DescGetInternalRecord(Ird, i, MADB_DESC_READ);
-      /* assert(IrdRec != NULL) */
+      /* assert(IrdRec != nullptr) */
 
       if (*result[i].is_null)
       {
@@ -1704,7 +1704,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
           {
             rs->absolute(SaveCursor);
           }
-          aggRc= MADB_SetError(&Error, MADB_ERR_22002, NULL, 0);
+          aggRc= MADB_SetError(&Error, MADB_ERR_22002, nullptr, 0);
           continue;
         }
       }
@@ -1787,11 +1787,11 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
           }
 
           /* If we have ts == NULL we (may) have tm also NULL, since we didn't really bind this column */
-          if (ts != NULL)
+          if (ts)
           {
             if (tm->hour > 99999)
             {
-              FieldRc= MADB_SetError(&Error, MADB_ERR_22015, NULL, 0);
+              FieldRc= MADB_SetError(&Error, MADB_ERR_22015, nullptr, 0);
               CALC_ALL_FLDS_RC(aggRc, FieldRc);
               break;
             }
@@ -1806,7 +1806,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
               ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_MINUTE;
               if (tm->second)
               {
-                FieldRc= MADB_SetError(&Error, MADB_ERR_01S07, NULL, 0);
+                FieldRc= MADB_SetError(&Error, MADB_ERR_01S07, nullptr, 0);
                 CALC_ALL_FLDS_RC(aggRc, FieldRc);
                 break;
               }
@@ -1825,16 +1825,16 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
         {
           int LocalRc= 0;
           MADB_CLEAR_ERROR(&Error);
-          if (DataPtr != NULL && result[i].buffer_length < *result[i].length)
+          if (DataPtr && result[i].buffer_length < *result[i].length)
           {
-            MADB_SetError(&Error, MADB_ERR_22003, NULL, 0);
+            MADB_SetError(&Error, MADB_ERR_22003, nullptr, 0);
             ArdRec->InternalBuffer[result[i].buffer_length - 1]= 0;
             return Error.ReturnValue;
           }
 
-          if ((LocalRc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Ard, ArdRec, NULL, RowNumber)))
+          if ((LocalRc= MADB_CharToSQLNumeric(ArdRec->InternalBuffer, Ard, ArdRec, nullptr, RowNumber)))
           {
-            FieldRc= MADB_SetError(&Error, LocalRc, NULL, 0);
+            FieldRc= MADB_SetError(&Error, LocalRc, nullptr, 0);
             CALC_ALL_FLDS_RC(aggRc, FieldRc);
           }
           /* TODO: why is it here individually for Numeric type?! */
@@ -1859,13 +1859,13 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
           }
           /* If returned len is 0 while source len is not - taking it as error occurred */
           if ((CharLen == 0 ||
-            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *result[i].length != 0 && result[i].buffer != NULL &&
+            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *result[i].length != 0 && result[i].buffer &&
             *(char*)result[i].buffer != '\0' && Error.ReturnValue != SQL_SUCCESS)
           {
             CALC_ALL_FLDS_RC(aggRc, Error.ReturnValue);
           }
           /* If application didn't give data buffer and only want to know the length of data to fetch */
-          if (CharLen == 0 && *result[i].length != 0 && result[i].buffer == NULL)
+          if (CharLen == 0 && *result[i].length != 0 && result[i].buffer == nullptr)
           {
             CharLen= *result[i].length;
           }
@@ -1887,7 +1887,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
         case SQL_C_DOUBLE:
           if (MADB_BinaryFieldType(IrdRec->ConciseType))
           {
-            if (DataPtr != NULL)
+            if (DataPtr)
             {
               if (result[i].buffer_length >= (unsigned long)ArdRec->OctetLength)
               {
@@ -1927,7 +1927,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
           }
           /* else {we are falling through below} */
         default:
-          if (DataPtr != NULL)
+          if (DataPtr)
           {
             if (Ard->Header.ArraySize > 1)
             {
@@ -2004,8 +2004,8 @@ SQLRETURN MADB_ProcessTruncation(MADB_Stmt *Stmt)
       /* For numeric types we return either 22003 or 01S07, 01004 for the rest.
          if ird type is not fractional - we return 22003. But as a matter of fact, it's possible that we have 22003 if converting
          from fractional types */
-      return MADB_SetError(&Stmt->Error, ArdRec != NULL && MADB_IsNumericType(ArdRec->ConciseType) ?
-        (MADB_IsIntType(IrdRec->ConciseType) ? MADB_ERR_22003 : MADB_ERR_01S07) : MADB_ERR_01004, NULL, 0);
+      return MADB_SetError(&Stmt->Error, ArdRec && MADB_IsNumericType(ArdRec->ConciseType) ?
+        (MADB_IsIntType(IrdRec->ConciseType) ? MADB_ERR_22003 : MADB_ERR_01S07) : MADB_ERR_01004, nullptr, 0);
       /* One found such column is enough */
     }
   }
@@ -2025,13 +2025,13 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 
   if (!(MADB_STMT_COLUMN_COUNT(Stmt) > 0))
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, nullptr, 0);
   }
 
   if ((Stmt->Options.UseBookmarks == SQL_UB_VARIABLE && Stmt->Options.BookmarkType == SQL_C_BOOKMARK) ||
       (Stmt->Options.UseBookmarks != SQL_UB_VARIABLE && Stmt->Options.BookmarkType == SQL_C_VARBOOKMARK))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07006, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
@@ -2045,11 +2045,11 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   Rows2Fetch= MADB_RowsToFetch(&Stmt->Cursor, Stmt->Ard->Header.ArraySize,
     MADB_STMT_SHOULD_STREAM(Stmt) ? (unsigned long long)-1 : Stmt->rs->rowsCount());
 
-  if (Stmt->result == NULL)
+  if (Stmt->result == nullptr)
   {
     if (!(Stmt->result= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->metadata->getColumnCount())))
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       return Stmt->Error.ReturnValue;
     }
     if (Rows2Fetch > 1)
@@ -2114,7 +2114,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     /************************ Bind! ********************************/  
     Stmt->rs->bind(Stmt->result);
 
-    if (Stmt->Options.UseBookmarks && Stmt->Options.BookmarkPtr != NULL)
+    if (Stmt->Options.UseBookmarks && Stmt->Options.BookmarkPtr)
     {
       /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
       long *p= (long *)Stmt->Options.BookmarkPtr;
@@ -2353,12 +2353,12 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
        MADB_Desc *Desc= (MADB_Desc *)ValuePtr;
       if (!Desc->AppType && Desc != Stmt->IApd)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY017, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY017, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       if (Desc->DescType != MADB_DESC_APD && Desc->DescType != MADB_DESC_UNKNOWN)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY024, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       RemoveStmtRefFromDesc(Stmt->Apd, Stmt, FALSE);
@@ -2384,12 +2384,12 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
 
       if (!Desc->AppType && Desc != Stmt->IArd)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY017, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY017, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       if (Desc->DescType != MADB_DESC_ARD && Desc->DescType != MADB_DESC_UNKNOWN)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY024, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       RemoveStmtRefFromDesc(Stmt->Ard, Stmt, FALSE);
@@ -2507,7 +2507,7 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     break;
   case SQL_ATTR_ENABLE_AUTO_IPD:
     /* MariaDB doesn't deliver param metadata after prepare, so we can't autopopulate ird */
-    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
     return Stmt->Error.ReturnValue;
     break;
   case SQL_ATTR_MAX_LENGTH:
@@ -2548,11 +2548,11 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Options.UseBookmarks= (SQLUINTEGER)(SQLULEN)ValuePtr;
    break;
   case SQL_ATTR_FETCH_BOOKMARK_PTR:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
     return Stmt->Error.ReturnValue;
     break;
   default:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY024, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY024, nullptr, 0);
     return Stmt->Error.ReturnValue;
     break;
   }
@@ -2620,14 +2620,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
    */
   if (Stmt->result == nullptr)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
   }
   /* Will it be set with all dummies? */
-  if (Stmt->result[Offset].is_null != NULL && *Stmt->result[Offset].is_null != '\0')
+  if (Stmt->result[Offset].is_null && *Stmt->result[Offset].is_null != '\0')
   {
     if (!StrLen_or_IndPtr)
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, nullptr, 0);
     }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
     return SQL_SUCCESS;
@@ -2691,12 +2691,12 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
       {
-        char *ClientValue= NULL;
+        char *ClientValue= nullptr;
         bool isTime;
 
         Bind.buffer_length= (Field->max_length != 0 ? Field->max_length : Field->length) + 1;
 
-        if (IrdRec->InternalBuffer != NULL)
+        if (IrdRec->InternalBuffer)
         {
           IrdRec->InternalBuffer= (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
         }
@@ -2705,9 +2705,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
           IrdRec->InternalBuffer= (char*)MADB_ALLOC(Bind.buffer_length);
         }
           
-        if (IrdRec->InternalBuffer == NULL)
+        if (IrdRec->InternalBuffer == nullptr)
         {
-          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
         }
         Bind.buffer=        IrdRec->InternalBuffer;
         Bind.buffer_type=   MYSQL_TYPE_STRING;
@@ -2748,7 +2748,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         Bind.buffer_length= (Field->max_length != 0 ? Field->max_length :
           Field->length) + 1;
 
-        if (IrdRec->InternalBuffer != NULL)
+        if (IrdRec->InternalBuffer)
         {
           IrdRec->InternalBuffer= (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
         }
@@ -2757,9 +2757,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
           IrdRec->InternalBuffer= (char*)MADB_ALLOC(Bind.buffer_length);
         }
 
-        if (IrdRec->InternalBuffer == NULL)
+        if (IrdRec->InternalBuffer == nullptr)
         {
-          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+          return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
         }
         Bind.buffer=        IrdRec->InternalBuffer;
         Bind.buffer_type=   MYSQL_TYPE_STRING;
@@ -2777,7 +2777,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (tm.hour > 99999)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_22015, NULL, 0);
+        return MADB_SetError(&Stmt->Error, MADB_ERR_22015, nullptr, 0);
       }
 
       ts->intval.day_second.hour= tm.hour;
@@ -2790,7 +2790,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         ts->interval_type= /*SQLINTERVAL::*/SQL_IS_HOUR_TO_MINUTE;
         if (tm.second)
         {
-          return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, NULL, 0);
+          return MADB_SetError(&Stmt->Error, MADB_ERR_01S07, nullptr, 0);
         }
       }
       else
@@ -2817,7 +2817,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       {
         if (!BufferLength && StrLen_or_IndPtr)
         {
-          Bind.buffer= NULL;
+          Bind.buffer= nullptr;
           Bind.buffer_length= 0;
           Stmt->rs->get(&Bind, Offset, 0);
           *StrLen_or_IndPtr= Bind.length_value * 2;
@@ -2867,7 +2867,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
           *StrLen_or_IndPtr= Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
         }
 
-        MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
 
         return SQL_SUCCESS_WITH_INFO;
       }
@@ -2912,24 +2912,24 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         Stmt->CharOffset[Offset] += MIN((unsigned long)BufferLength - ZeroTerminated, *Bind.length);
         if ((BufferLength - ZeroTerminated) && Stmt->Lengths[Offset] > Stmt->CharOffset[Offset])
         {
-          return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+          return MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
         }
       }
 
       if (StrLen_or_IndPtr && BufferLength - ZeroTerminated < *StrLen_or_IndPtr)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+        return MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
       }
     }
     break;
     case SQL_NUMERIC:
     {
       SQLRETURN rc;
-      char *tmp= NULL;
+      char *tmp= nullptr;
       MADB_DescRecord *Ard= MADB_DescGetInternalRecord(Stmt->Ard, Offset, MADB_DESC_READ);
 
       Bind.buffer_length= MADB_DEFAULT_PRECISION + 1/*-*/ + 1/*.*/;
-      if (IrdRec->InternalBuffer != NULL)
+      if (IrdRec->InternalBuffer)
       {
         tmp= (char*)MADB_REALLOC(IrdRec->InternalBuffer, Bind.buffer_length);
       }
@@ -2938,9 +2938,9 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
         tmp= (char*)MADB_ALLOC(Bind.buffer_length);
       }
 
-      if (tmp == NULL)
+      if (tmp == nullptr)
       {
-        return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+        return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
       }
       else
       {
@@ -2955,7 +2955,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (Bind.buffer_length < *Bind.length)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_22003, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_22003, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
 
@@ -2964,14 +2964,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       /* Ugly */
       if (rc != SQL_SUCCESS)
       {
-        MADB_SetError(&Stmt->Error, rc, NULL, 0);
+        MADB_SetError(&Stmt->Error, rc, nullptr, 0);
         if (rc == SQL_ERROR)
         {
           return SQL_ERROR;
         }
       }
 
-      if (StrLen_or_IndPtr != NULL)
+      if (StrLen_or_IndPtr)
       {
         *StrLen_or_IndPtr= sizeof(SQL_NUMERIC_STRUCT);
       }
@@ -2988,7 +2988,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       Stmt->rs->get(&Bind, Offset, 0);
 
-      if (StrLen_or_IndPtr != NULL)
+      if (StrLen_or_IndPtr)
       {
         /* We get here only for fixed data types. Thus, according to the specs
            "this is the length of the data after conversion; that is, it is the size of the type to which the data was converted".
@@ -3041,7 +3041,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   {
     if (!StrLen_or_IndPtr)
     {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, NULL, 0);
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, nullptr, 0);
     }
     *StrLen_or_IndPtr= SQL_NULL_DATA;
   }
@@ -3159,13 +3159,13 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= (SQLLEN)Record->AutoUniqueValue != 0 ? SQL_TRUE : SQL_FALSE;
     break;
   case SQL_DESC_BASE_COLUMN_NAME:
-    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->Charset : NULL,
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->Charset : nullptr,
                                               CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                               Record->BaseColumnName, strlen(Record->BaseColumnName), &Stmt->Error);
     IsNumericAttr= FALSE;
     break;
   case SQL_DESC_BASE_TABLE_NAME:
-    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->Charset : NULL,
+    StringLength= (SQLSMALLINT)MADB_SetString(IsWchar ? &Stmt->Connection->Charset : nullptr,
                                               CharacterAttributePtr, (IsWchar) ? BufferLength / sizeof(SQLWCHAR) : BufferLength,
                                               Record->BaseTableName, strlen(Record->BaseTableName), &Stmt->Error);
     IsNumericAttr= FALSE;
@@ -3267,7 +3267,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     NumericAttribute= Stmt->metadata->getColumnCount();
     break;
   default:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
   /* We need to return the number of bytes, not characters! */
@@ -3276,7 +3276,7 @@ SQLRETURN MADB_StmtColAttr(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, SQLUSMALL
     if (StringLengthPtr)
       *StringLengthPtr= (SQLSMALLINT)StringLength;
     if (!BufferLength && CharacterAttributePtr)
-      MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
   }
   /* We shouldn't touch application memory without purpose, writing garbage there. Thus IsNumericAttr.
      Besides .Net was quite disappointed about that */
@@ -3301,13 +3301,13 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
   SwitchToSsIfNeeded(Stmt);
   if (!Stmt->metadata || Stmt->metadata->getColumnCount() == 0)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07005, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07005, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
   if (ColumnNumber < 1 || ColumnNumber > Stmt->metadata->getColumnCount())
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_07009, nullptr, 0);
     return SQL_ERROR;
   }
   if (!(Record= MADB_DescGetInternalRecord(Stmt->Ird, ColumnNumber - 1, MADB_DESC_WRITE)))
@@ -3336,7 +3336,7 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
     if (NameLengthPtr)
       *NameLengthPtr= (SQLSMALLINT)Length;
     if (!BufferLength)
-      MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
   }
   return Stmt->Error.ReturnValue;
 }
@@ -3349,20 +3349,20 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
 
   if (!Buffer)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, nullptr, 0);
     return SQL_ERROR;
   }
   if (BufferLength == SQL_NTS)
     BufferLength= (SQLINTEGER)strlen(Buffer);
   if (BufferLength < 0)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, nullptr, 0);
     return SQL_ERROR;
   }
   if ((BufferLength > 5 && strncmp(Buffer, "SQLCUR", 6) == 0) ||
       (BufferLength > 6 && strncmp(Buffer, "SQL_CUR", 7) == 0))
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_34000, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_34000, nullptr, 0);
     return SQL_ERROR;
   }
   /* check if cursor name is unique */
@@ -3374,13 +3374,13 @@ SQLRETURN MADB_SetCursorName(MADB_Stmt *Stmt, char *Buffer, SQLINTEGER BufferLen
     if (Stmt != (MADB_Stmt *)LStmt->data &&
         Cursor->Name && strncmp(Cursor->Name, Buffer, BufferLength) == 0)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_3C000, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_3C000, nullptr, 0);
       return SQL_ERROR;
     }
   }
   MADB_FREE(Stmt->Cursor.Name);
   Stmt->Cursor.Name= static_cast<char*>(MADB_CALLOC(BufferLength + 1));
-  MADB_SetString(0, Stmt->Cursor.Name, BufferLength + 1, Buffer, BufferLength, NULL);
+  MADB_SetString(0, Stmt->Cursor.Name, BufferLength + 1, Buffer, BufferLength, nullptr);
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -3394,7 +3394,7 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
 
   if (BufferLength < 0)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
   if (!Stmt->Cursor.Name)
@@ -3408,7 +3408,7 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
   if (NameLengthPtr)
     *NameLengthPtr= (SQLSMALLINT)Length;
   if (!BufferLength)
-    MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
    
   return Stmt->Error.ReturnValue;
   
@@ -3459,19 +3459,19 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 {
   if (!Stmt->result && !Stmt->rs)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, nullptr, 0);
   }
 
   /* This RowNumber != 1 is based on current SQL_POSITION implementation, and actually does not look to be quite correct
    */
   if (Stmt->Options.CursorType == SQL_CURSOR_FORWARD_ONLY && Operation == SQL_POSITION && RowNumber != 1)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
   }
 
   if (LockType != SQL_LOCK_NO_CHANGE)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
   }
 
   switch(Operation) {
@@ -3479,7 +3479,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     {
       if (RowNumber < 1 || RowNumber > Stmt->rs->rowsCount())
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
@@ -3536,8 +3536,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       /* Bind parameters - DaeStmt will process whole array of values, thus we don't need to iterate through the array*/
       for (column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
       {
-        MADB_DescRecord *Rec=          MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ),
-                        *ApdRec=       NULL;
+        MADB_DescRecord *Rec=    MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ),
+                        *ApdRec= nullptr;
 
         if (Rec->inUse && MADB_ColumnIgnoredInAllRows(Stmt->Ard, Rec) == FALSE)
         {
@@ -3547,7 +3547,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         else
         {
           /*Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
-                            ApdRec->DefaultValue, strlen(ApdRec->DefaultValue), NULL);*/
+                            ApdRec->DefaultValue, strlen(ApdRec->DefaultValue), nullptr);*/
           continue;
         }
         
@@ -3575,7 +3575,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
       Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-      Stmt->DaeStmt= NULL;
+      Stmt->DaeStmt= nullptr;
     }
     break;
   case SQL_UPDATE:
@@ -3595,13 +3595,13 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
       if ((SQLLEN)RowNumber > Stmt->LastRowFetched)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_S1107, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_S1107, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
 
       if (RowNumber < 0 || RowNumber > End)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
 
@@ -3650,8 +3650,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
           for(column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
           {
-            SQLLEN          *LengthPtr= NULL;
-            my_bool         GetDefault= FALSE;
+            SQLLEN          *LengthPtr= nullptr;
+            bool            GetDefault= false;
             MADB_DescRecord *Rec=       MADB_DescGetInternalRecord(Stmt->Ard, column, MADB_DESC_READ);
 
             /* TODO: shouldn't here be IndicatorPtr? */
@@ -3669,7 +3669,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             {
               SQLLEN Length= 0;
               /* set a default value */
-              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, NULL, 0, &Length, true) != SQL_ERROR && Length)
+              if (Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, nullptr, 0, &Length, true) != SQL_ERROR && Length)
               {
                 MADB_FREE(Rec->DefaultValue);
                 if (Length > 0) 
@@ -3678,7 +3678,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
                   Stmt->Methods->GetData(Stmt, column + 1, SQL_C_CHAR, Rec->DefaultValue, Length+1, 0, true);
                 }
                 Stmt->DaeStmt->Methods->BindParam(Stmt->DaeStmt, param + 1, SQL_PARAM_INPUT, SQL_CHAR, SQL_C_CHAR, 0, 0,
-                              Rec->DefaultValue, Length, NULL);
+                              Rec->DefaultValue, Length, nullptr);
                 ++param;
                 continue;
               }
@@ -3719,7 +3719,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       }                                 /* End of while (Start <= End) */
 
       Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-      Stmt->DaeStmt= NULL;
+      Stmt->DaeStmt= nullptr;
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
 
       /* Making sure we do not return initial value */
@@ -3747,7 +3747,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       Stmt->AffectedRows= 0;
       if (RowNumber < 0 || RowNumber > End)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, NULL, 0);
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
         return Stmt->Error.ReturnValue;
       }
       Start= (RowNumber) ? Stmt->Cursor.Position + RowNumber - 1 : Stmt->Cursor.Position;
@@ -3811,12 +3811,12 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   
   if (!Stmt->rs)
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, NULL, 0);
+    return MADB_SetError(&Stmt->Error, MADB_ERR_24000, nullptr, 0);
   }
   if (Stmt->Options.CursorType == SQL_CURSOR_FORWARD_ONLY &&
       FetchOrientation != SQL_FETCH_NEXT)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY106, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY106, nullptr, 0);
     return Stmt->Error.ReturnValue;
   }
 
@@ -3873,12 +3873,12 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
   case SQL_FETCH_BOOKMARK:
     if (Stmt->Options.UseBookmarks == SQL_UB_OFF)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY106, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY106, nullptr, 0);
       return Stmt->Error.ReturnValue;
     }
     if (!Stmt->Options.BookmarkPtr)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY111, NULL, 0);
+      MADB_SetError(&Stmt->Error, MADB_ERR_HY111, nullptr, 0);
       return Stmt->Error.ReturnValue;
     }
 
@@ -3889,7 +3889,7 @@ SQLRETURN MADB_StmtFetchScroll(MADB_Stmt *Stmt, SQLSMALLINT FetchOrientation,
     }
    break;
   default:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY106, NULL, 0);
+    MADB_SetError(&Stmt->Error, MADB_ERR_HY106, nullptr, 0);
     return Stmt->Error.ReturnValue;
     break;
   }
