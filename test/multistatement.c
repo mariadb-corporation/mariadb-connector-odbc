@@ -759,6 +759,7 @@ ODBC_TEST(t_odbc375)
   return OK;
 }
 
+
 ODBC_TEST(t_odbc423)
 {
   SQLRETURN rc= SQL_SUCCESS;
@@ -961,6 +962,23 @@ ODBC_TEST(multirs_skip)
   return OK;
 }
 
+/* ODBC-447 Somehow .Net in that case sends SQLMoreResults w/out actually executing the statement. That comes unexpected
+ * for the driver and it gets so surpised, that crashes. It looks like good case for DM to return "HY010 Function sequence error",
+ * but it does not, and specs doesn't list it for this error. So, SQL_NO_DATA_FOUND must be and no crash for sure.
+ */
+ODBC_TEST(t_odbc447)
+{
+  SQLCHAR *Query= "SELECT ?";
+
+  /* In 3.2 with client side prepare we don't get error here, but we get error on SQLMoreResults */
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, Query, SQL_NTS));
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA_FOUND);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_multi_statements, "test_multi_statements"},
@@ -983,6 +1001,7 @@ MA_ODBC_TESTS my_tests[]=
   {multirs_caching, "t_odbc432_test_multirs_caching"},
   {otherstmts_result, "t_odbc433_otherstmts_results"},
   {multirs_skip, "test_multirs_skip"},
+  {t_odbc447, "t_odbc447_moreResultsAfterPrepare"},
   {NULL, NULL}
 };
 
