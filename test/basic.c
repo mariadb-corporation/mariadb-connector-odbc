@@ -284,8 +284,7 @@ ODBC_TEST(test_reconnect)
     rc= SQLDisconnect(hdbc1);
     CHECK_DBC_RC(hdbc1, rc);
     rc= SQLFreeHandle(SQL_HANDLE_DBC, hdbc1);
-    if (!SQL_SUCCEEDED(rc))
-      CHECK_DBC_RC(hdbc1, rc);
+    CHECK_DBC_RC(hdbc1, rc);
   }
 
   return OK;

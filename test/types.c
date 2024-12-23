@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1415,6 +1415,32 @@ ODBC_TEST(t_odbc305)
   return OK;
 }
 
+/* ODBC-448 big bigint values gets truncated if read as double. We used to return error in this case. 
+ * Specs appear to say that it is ok, if the converted value is withing the range for double(or float in case of float)
+ */
+ODBC_TEST(t_bigint_as_double)
+{
+  SQLDOUBLE val= 0.;
+  SQLFLOAT floatVal= 0.;
+  SQLLEN   len= 8, asLong= 0;
+  
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 36028797018963970");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_DOUBLE, &val, 8, &len));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  //CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DOUBLE, &Val, 8, &Len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 36028797018963970");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_FLOAT, &floatVal, 4, &len));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  //CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DOUBLE, &Val, 8, &Len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_longlong1,        "t_longlong1",       NORMAL},
@@ -1442,6 +1468,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
   {t_odbc158,          "odbc158_bigintcolumn_as_c_long", NORMAL},
   {t_odbc305,          "odbc305_numeric_as_numeric", NORMAL},
+  {t_bigint_as_double, "odbc448_bigint_as_double", NORMAL},
   {NULL, NULL, NORMAL}
 };
 

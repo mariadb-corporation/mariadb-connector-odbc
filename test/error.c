@@ -717,7 +717,7 @@ ODBC_TEST(t_odbc115)
   SQLCHAR Str[8];
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  OK_SIMPLE_STMT(Stmt, "select 9223372036854809");
+  OK_SIMPLE_STMT(Stmt, "SELECT 9223372036854809");
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &Big, 0, NULL));
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
@@ -727,7 +727,7 @@ ODBC_TEST(t_odbc115)
   /* Now testing 01004 for strings */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "select '123456789'");
+  OK_SIMPLE_STMT(Stmt, "SELECT '123456789'");
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, &Str, sizeof(Str), NULL));
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS_WITH_INFO);
@@ -737,7 +737,7 @@ ODBC_TEST(t_odbc115)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* Now testing 01S07 for fractional truncation */
-  OK_SIMPLE_STMT(Stmt, "select 1.02");
+  OK_SIMPLE_STMT(Stmt, "SELECT 1.02");
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &Big, 0, NULL));
 
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_SUCCESS_WITH_INFO);

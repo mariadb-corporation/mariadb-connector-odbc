@@ -1304,18 +1304,23 @@ int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumb
   return MADB_NOPARAM;
 }
 
-
-BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
+/* Returns true if the type is */
+BOOL MADB_IsDecimalType(SQLSMALLINT ConciseType)
 {
   switch (ConciseType)
   {
     case SQL_C_DOUBLE:
     case SQL_C_FLOAT:
     case SQL_DECIMAL:
+    case SQL_C_NUMERIC:
       return TRUE;
   }
+  return FALSE;
+}
 
-  return MADB_IsIntType(ConciseType);
+BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
+{
+  return MADB_IsDecimalType(ConciseType) || MADB_IsIntType(ConciseType);
 }
 
 

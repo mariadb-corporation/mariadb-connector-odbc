@@ -27,7 +27,6 @@ struct st_ma_stmt_rsstore MADB_StmtStreamer;
 struct st_ma_stmt_rsstore MADB_StmtStreamerNotAbleCacheTheRest;
 
 
-
 /* {{{ MADB_CacheCurrentRow
  * We can store the rest of the resultset with mysql_stmt_store_result, but we are losing current(last fetched) row.
  * Currently we can't do that, and will only return error. In case of rowset, we will need to cache it anyway, and thus
@@ -2389,9 +2388,12 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
           /* If (numeric) field value and buffer are of the same size - ignoring truncation.
           In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
           some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
-          signed, or vice versa, why we should prevent that. */
-          if (ArdRec->OctetLength == IrdRec->OctetLength
-            && MADB_IsIntType(IrdRec->ConciseType) && (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType)))
+          signed, or vice versa, why we should prevent that.
+          All int values are within range for decimal types - float, double, numeric. Thus exluding them as well */
+          if (MADB_IsIntType(IrdRec->ConciseType) &&
+            ((ArdRec->OctetLength == IrdRec->OctetLength &&
+              (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType))) ||
+            MADB_IsDecimalType(ArdRec->ConciseType)))
           {
             continue;
           }
