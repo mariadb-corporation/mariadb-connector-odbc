@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2021 MariaDB Corporation AB
+   Copyright (C) 2021,2024 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,7 +16,7 @@
    or write to the Free Software Foundation, Inc.,
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 /*
  * Group of helper functions to add condition to the query based on SQL_ATTR_METADATA_ID attribute value
@@ -358,17 +358,22 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
     ((!strcmp(SchemaName, SQL_ALL_SCHEMAS) && CatalogName && CatalogNameLength == 0 && TableName && TableNameLength == 0) ||
       *SchemaName == '\0'))
   {
-    MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
+    if (MADB_InitDynamicString(&StmtStr, "SELECT NULL AS TABLE_CAT, NULL AS TABLE_SCHEM, "
       "NULL AS TABLE_NAME, NULL AS TABLE_TYPE, NULL AS REMARKS "
-      "FROM DUAL WHERE 1=0", 8192, 512);
+      "FROM DUAL WHERE 1=0", 8192, 512))
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    }
   }
   else
   {
-    MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
-                                  "if(TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='SYSTEM VERSIONED','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
-                                  "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1=1 ",
-                                  8192, 512);
-
+    if (MADB_InitDynamicString(&StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+      "if(TABLE_TYPE='BASE TABLE' OR TABLE_TYPE='SYSTEM VERSIONED','TABLE',TABLE_TYPE) AS TABLE_TYPE ,"
+      "TABLE_COMMENT AS REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE 1",
+      8192, 512))
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    }
 
     if (CatalogName != NULL)
     {
@@ -388,7 +393,7 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
     if (TableType && TableTypeLength && strcmp(TableType, SQL_ALL_TABLE_TYPES) != 0)
     {
       unsigned int i;
-      char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};
+      const char *myTypes[3]= {"TABLE", "VIEW", "SYNONYM"};
       MADB_DYNAPPENDCONST(&StmtStr, " AND TABLE_TYPE IN (''");
       for (i= 0; i < 3; i++)
       {
@@ -706,10 +711,10 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   }
 
   p= StmtStr;
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, "
-                           "TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION KEY_SEQ, "
-                           "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "
-                           "COLUMN_KEY = 'pri' AND ");
+  p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,"
+                           "TABLE_NAME,COLUMN_NAME, ORDINAL_POSITION KEY_SEQ,"
+                           "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE "
+                           "CONSTRAINT_NAME='PRIMARY' AND ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
@@ -896,8 +901,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   /* PKTableName and FKTableName are mandatory. The requirement is only about NULL names */
   if (PKTableName == NULL && FKTableName == NULL)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "PKTableName or FKTableName are required", 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY009, "PKTableName or FKTableName are required", 0);
   }
   ADJUST_LENGTH(PKSchemaName, NameLength2);
   ADJUST_LENGTH(FKSchemaName, NameLength5);
