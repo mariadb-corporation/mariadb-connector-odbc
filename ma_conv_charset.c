@@ -1,5 +1,5 @@
 /****************************************************************************
-   Copyright (C) 2012, 2020, MariaDB Corporation.
+   Copyright (C) 2012, 2024, MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -22,22 +22,25 @@
 
 
 #ifndef _WIN32
-#include <strings.h>
-#include <string.h>
-#include <iconv.h>
-#include <errno.h>
+# include <strings.h>
+# include <string.h>
+# include <iconv.h>
+# include <errno.h>
 #else
-#include <string.h>
+# include <string.h>
 #endif
+
 #include <ma_odbc.h>
 
 #if defined(SOLARIS) || defined(__sun)
-#define IF_SOLARIS(A,B) A
+# define IF_SOLARIS(A,B) A
 #else
-#define IF_SOLARIS(A,B) B
+# define IF_SOLARIS(A,B) B
 #endif
 
-#define HAVE_ICONV
+#ifndef HAVE_ICONV
+# define HAVE_ICONV
+#endif
 
 #ifdef HAVE_ICONV
 /* {{{ MADB_MapCharsetName

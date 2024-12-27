@@ -873,6 +873,7 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
   SQLULEN     InStrAOctLen= 0;
   char        *OutConnStrA= NULL;
   MADB_Dbc    *Dbc=         (MADB_Dbc *)ConnectionHandle;
+  SQLSMALLINT OutStrLengthA= 0;
    
   if (!ConnectionHandle)
   {
@@ -904,19 +905,22 @@ SQLRETURN SQL_API SQLDriverConnectW(SQLHDBC      ConnectionHandle,
       goto end;
     }
   }
-
+  if (!StringLength2Ptr)
+  {
+    StringLength2Ptr= &OutStrLengthA;
+  }
   ret= Dbc->Methods->DriverConnect(Dbc, WindowHandle, (SQLCHAR *)InConnStrA, InStrAOctLen, (SQLCHAR *)OutConnStrA,
                                      Length, StringLength2Ptr, DriverCompletion); 
   MDBUG_C_DUMP(Dbc, ret, d);
   if (!SQL_SUCCEEDED(ret))
     goto end;
 
-  if (OutConnectionString)
+  /* If we have what to transcode.And we would have something, if we had where to write it */
+  if (OutConnStrA)
   {
-    Length= MADB_SetString(&utf8, OutConnectionString, BufferLength,
+    /* Above we've made sure, that StringLength2Ptr is not null */
+    *StringLength2Ptr= (SQLSMALLINT)MADB_SetString(&utf8, OutConnectionString, BufferLength,
                                         OutConnStrA, SQL_NTS, &((MADB_Dbc *)ConnectionHandle)->Error);
-    if (StringLength2Ptr)
-      *StringLength2Ptr= (SQLSMALLINT)Length;
   }
   
 end:

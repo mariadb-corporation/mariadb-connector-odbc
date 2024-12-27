@@ -745,7 +745,7 @@ ODBC_TEST(t_odbc375)
   EXPECT_STMT(Stmt, SQLExecDirect(Stmt, Query, SQL_NTS), SQL_ERROR);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (SkipIfRsStreming())
+  if (SkipIfRsStreaming())
   {
     skip("The error is not detectable atm in case of result streaming");
   }

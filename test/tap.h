@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -147,9 +147,10 @@ static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port=        3306;
 char                 ma_strport[12]= "PORT=3306";
-char                 my_host[256], sql_mode[512];
+char                 my_host[256], DriverVersion[12], sql_mode[512];
 static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE/*, PerfSchema= FALSE*/
+, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -368,16 +369,9 @@ int myrowcount(SQLHSTMT Stmt)
 {
   int Rows=0;
   while (SQLFetch(Stmt) != SQL_NO_DATA)
-    Rows++;
+    ++Rows;
   return Rows;
 }
-
-
-#define mystmt(hstmt,r)  \
-  do { \
-    if (r != SQL_SUCCESS && r != SQL_SUCCESS_WITH_INFO) \
-      return FAIL; \
-  } while (0)
 
 
 void diag(const char *fstr, ...)
@@ -393,9 +387,9 @@ void diag(const char *fstr, ...)
 
 void odbc_print_error(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
-  SQLCHAR SQLState[6];
-  SQLINTEGER NativeError;
-  SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
+  SQLCHAR SQLState[6]= {'\0'};
+  SQLINTEGER NativeError= 0;
+  SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH]= {'\0'};
   SQLSMALLINT TextLengthPtr;
 
   SQLGetDiagRec(HandleType, Handle, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
@@ -465,7 +459,7 @@ int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
 
     for (nIndex = 1; nIndex <= ncol; ++nIndex)
     {
-        rc = SQLDescribeCol(Stmt,nIndex,szColName, MAX_NAME_LEN, NULL,
+        rc= SQLDescribeCol(Stmt,nIndex,szColName, MAX_NAME_LEN, NULL,
                             &pfSqlType,&pcColDef,&pcbScale,&pfNullable);
         /* Returning in case of an error -nIndex we will see in the log column# */
         mystmt_rows(Stmt,rc,-nIndex);
@@ -473,14 +467,14 @@ int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
 
         fprintf(stdout, "%s\t", szColName);
 
-        rc = SQLBindCol(Stmt, nIndex, SQL_C_CHAR, szData[nIndex-1],
+        rc= SQLBindCol(Stmt, nIndex, SQL_C_CHAR, szData[nIndex-1],
                         MAX_ROW_DATA_LEN+1, &ind_strlen);
         mystmt_rows(Stmt, rc, -nIndex);
     }
 
     fprintf(stdout, "\n");
 
-    rc = SQLFetch(Stmt);
+    rc= SQLFetch(Stmt);
     while (SQL_SUCCEEDED(rc))
     {
         ++nRowCount;
@@ -488,7 +482,7 @@ int my_print_non_format_result_ex(SQLHSTMT Stmt, BOOL CloseCursor)
             fprintf(stdout, "%s\t", szData[nIndex]);
 
         fprintf(stdout, "\n");
-        rc = SQLFetch(Stmt);
+        rc= SQLFetch(Stmt);
     }
 
     SQLFreeStmt(Stmt, SQL_UNBIND);
@@ -618,7 +612,7 @@ int ma_print_result_getdata(SQLHSTMT Stmt)
 
 
 #define OK_SIMPLE_STMT(stmt, stmtstr)\
-if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen((const char*)stmtstr))))\
+if (!SQL_SUCCEEDED(SQLExecDirect((stmt), (SQLCHAR*)(stmtstr), (SQLINTEGER)strlen((const char*)(stmtstr)))))\
 {\
   fprintf(stdout, "Error in %s:%d:\n", __FILE__, __LINE__);\
   odbc_print_error(SQL_HANDLE_STMT, (stmt));\
@@ -806,6 +800,7 @@ SQLExecDirect(_STMT, _QUERYONFAILURE, SQL_NTS);\
 SKIP_IF_NOT_GRANTED(_STMT);\
 return FAIL;\
 } } while (0)
+
 
 int using_dm(HDBC hdbc)
 {
@@ -1011,6 +1006,75 @@ int reset_changed_server_variables(void)
   return error;
 }
 
+/* Things to read once and not each time the connection is made*/
+int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
+{
+  SQLRETURN rc;
+  SQLCHAR val[20], DbmsName[16];
+  SQLSMALLINT len;
+  SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
+
+  if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
+  {
+    sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
+  }
+
+  CHECK_STMT_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_VER, DriverVersion, sizeof(DriverVersion), &len));
+  /*OK_SIMPLE_STMT(Stmt, "SELECT 1 FROM dual WHERE @@performance_schema=1");
+  if (SQL_SUCCEEDED(SQLFetch(Stmt)))
+  {
+    PerfSchema= TRUE;
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));*/
+
+  OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+
+  if (SQL_SUCCEEDED(SQLGetInfo(Connection, SQL_DBMS_NAME, DbmsName, sizeof(DbmsName), NULL))
+    && _strnicmp(DbmsName, "MySQL", 5) == 0)
+  {
+    IsMysql= TRUE;
+  }
+
+  /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
+  rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
+
+  if (rc == SQL_SUCCESS_WITH_INFO)
+  {
+    SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&SetCursorType, 0, NULL);
+
+    /* Other cases are not interesting for us. If it's static - means dynamic is not allowed, but DynamicAllowed is FALSE by default.
+     * If it was dynamic, then SQLGetStmtAttr would not return SQL_SUCCESS_WITH_INFO, but SQL_SUCCESS
+     */
+    if (SetCursorType == SQL_CURSOR_FORWARD_ONLY)
+    {
+      SQLLEN rowCount= 0;
+
+      ForwardOnly=  TRUE;
+      OK_SIMPLE_STMT(Stmt, "SELECT 1 UNION SELECT 2");
+      CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+      CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+
+      NoCache= (rowCount == 1);
+      CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    }
+  }
+  else
+  {
+    DynamicAllowed= TRUE;
+  }
+  if (SetCursorType != CurCursorType)
+  {
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)CurCursorType, 0));
+  }
+
+  return OK;
+}
 
 int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
 {
@@ -1068,77 +1132,10 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     return 1;
   }
 
+  if (ReadInfoOneTime(Connection, Stmt) == FAIL )
   {
-    SQLCHAR val[20];
-    SQLSMALLINT len;
-    SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
-
-    if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
-    {
-      sscanf((const char*)val, "%u.%u.%u", &DmMajor, &DmMinor, &DmPatch);
-    }
-
-    OK_SIMPLE_STMT(Stmt, "SELECT substring(HOST,1,instr(HOST,':')-1), @@sql_mode FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=connection_id()");
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, my_host, sizeof(my_host), NULL));
-    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, sql_mode, sizeof(sql_mode), NULL));
-    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
-    if (Travis)
-    {
-      diag("Sql mode: %s", sql_mode);
-    }
-    /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */
-    CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&CurCursorType, 0, NULL));
-    rc= SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0);
-
-    if (rc == SQL_SUCCESS_WITH_INFO)
-    {
-      SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)&SetCursorType, 0, NULL);
-
-      /* Other cases are not interesting for us. If it's static - means dynamic is not allowed, but DynamicAllowed is FALSE by default.
-       * If it was dynamic, then SQLGetStmtAttr would not return SQL_SUCCESS_WITH_INFO, but SQL_SUCCESS
-       */
-      if (SetCursorType == SQL_CURSOR_FORWARD_ONLY)
-      {
-        SQLHANDLE Stmt2;
-
-        ForwardOnly=  TRUE;
-        OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS codbc_checkcaching");
-        OK_SIMPLE_STMT(Stmt, "CREATE TABLE codbc_checkcaching (id INT NOT NULL)");
-        OK_SIMPLE_STMT(Stmt, "INSERT INTO codbc_checkcaching VALUES(1),(2)");
-        OK_SIMPLE_STMT(Stmt, "SELECT * FROM codbc_checkcaching");
-        CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-
-        CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt2));
-        /* Currently if "NO CACHE" aka streaming is endabled, any query will error */
-        rc= SQLExecDirect(Stmt2, "INSERT INTO codbc_checkcaching VALUES(3)", SQL_NTS);
-
-        if (!SQL_SUCCEEDED(rc))
-        {
-          SQLCHAR SQLState[6];
-          SQLINTEGER NativeError;
-          SQLCHAR SQLMessage[SQL_MAX_MESSAGE_LENGTH];
-          SQLSMALLINT TextLengthPtr;
-
-          SQLGetDiagRec(SQL_HANDLE_STMT, Stmt2, 1, SQLState, &NativeError, SQLMessage, SQL_MAX_MESSAGE_LENGTH, &TextLengthPtr);
-          if (strncmp("HY000", SQLState, 6) == 0 && strstr(SQLMessage, "The requested operation is blocked by another streaming operation") != NULL)
-          {
-            NoCache= TRUE;
-          }
-        }
-        CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-        CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
-      }
-    }
-    else
-    {
-      DynamicAllowed= TRUE;
-    }
-    if (SetCursorType != CurCursorType)
-    {
-      CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)CurCursorType, 0));
-    }
+    fprintf(stdout, "HALT! An error occurred while reading some information from the driver\n");
+    return 1;
   }
 
   fprintf(stdout, "1..%d\n", tests_planned);
@@ -1176,11 +1173,19 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     {
       SQLFreeStmt(Stmt, SQL_DROP);
     }
-
+    if (wStmt != NULL)
+    {
+      SQLFreeStmt(wStmt, SQL_DROP);
+    }
     fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
     tests++;
 
     SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
+    if (ProvideWConnection)
+    {
+      SQLAllocHandle(SQL_HANDLE_STMT, wConnection, &wStmt);
+    }
+
     /* Relieving tests from resoting my_options and/or add_connstr. Also, a test may fail */
     my_options= defaultOptions;
     add_connstr= storedAddConnstr;
@@ -1525,7 +1530,7 @@ BOOL WindowsDM(HDBC hdbc)
 
 #define SKIPIF(_COND, _MSG) do {if (_COND) {skip(_MSG);}} while(0)
 
-int SkipIfRsStreming()
+int SkipIfRsStreaming()
 {
   if (ForwardOnly == TRUE && NoCache == TRUE)
   {

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,7 +16,7 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 extern MARIADB_CHARSET_INFO*  DmUnicodeCs;
 
@@ -520,14 +520,23 @@ SQLLEN MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *
           ++ptr;
       }
 
-      /* Stopping if current character is terminating NULL - charlen == 0 means all bytes of current char was 0 */
-      if (charlen == 0)
+      /* Stopping if current character is terminating nullptr - charlen == 0 means all bytes of current char was 0 */
+      /*if (charlen == 0)
       {
         return result;
-      }
+      }*/
       /* else we increment ptr for number of left bytes */
       ptr+= charlen;
-      ++result;
+      if (charlen == 4 && sizeof(SQLWCHAR) == 2)
+      {
+        // Thinking mostly about UTF8 and if it needs 4 bytes to encode the character, then it needs 2
+        // sqlwchar units.
+        result+= 2;
+      }
+      else
+      {
+        ++result;
+      }
     }
   }
 

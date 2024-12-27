@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -74,7 +74,7 @@ ODBC_TEST(test_count)
   rc= SQLExecDirectW(Stmt, CW("INSERT INTO test_count VALUES (1),(2)"), SQL_NTS);
   rc= SQLExecDirectW(Stmt, CW("SELECT count(*) RELEATED FROM test_count"), SQL_NTS);
 
-  SQLBindCol(Stmt, 1, SQL_INTEGER, &columnsize, sizeof(SQLINTEGER), NULL);
+  SQLBindCol(Stmt, 1, SQL_C_LONG, &columnsize, sizeof(SQLINTEGER), NULL);
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L));  
   SQLDescribeColW(Stmt,1, columnname, 64, &columnlength, &datatype, &columnsize, &digits, &nullable);
 
@@ -105,6 +105,7 @@ ODBC_TEST(sqlprepare)
   HSTMT hstmt1;
   SQLINTEGER data;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
+  SQLLEN len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
@@ -129,9 +130,10 @@ ODBC_TEST(sqlprepare)
 
   data= 1;
   CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
-
+  CHECK_STMT_RC(hstmt1, SQLBindCol(hstmt1, 1, SQL_C_WCHAR, wbuff, sizeof(wbuff), &len));
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
-
+  IS_WSTR(wbuff, W(L"\x30a1"), 1);
+  wbuff[0]= (SQLWCHAR)0;
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), W(L"\x30a1"), 1);
 
   FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
@@ -1145,7 +1147,7 @@ ODBC_TEST(t_bug28168)
   SQLINTEGER native_error= 0;
 
   SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
-
+  SKIPIF(IsMysql, "MySQL does not support the syntax used in this test");
   /* Create tables to give permissions */
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug28168");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug28168 (x int)");
@@ -1388,13 +1390,13 @@ ODBC_TEST(t_odbc19)
 
   a[0]= b[0]= c[0]= 0;
 
-  OK_SIMPLE_STMT(Stmt, "DROP table IF EXISTS t_odbc19");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc19");
 
-  OK_SIMPLE_STMT(Stmt, "CREATE table t_odbc19(a varchar(10), b varchar(10), c varchar(10))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc19(a VARCHAR(10), b VARCHAR(10), c VARCHAR(10))");
 
-  OK_SIMPLE_STMT(Stmt, "insert into t_odbc19(a, c) values( 'MariaDB', 'Sky')");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc19(a, c) VALUES( 'MariaDB', 'Sky')");
 
-  OK_SIMPLE_STMTW(Stmt, CW("select a, b, c from t_odbc19"));
+  OK_SIMPLE_STMTW(Stmt, CW("SELECT a, b, c FROM t_odbc19"));
 
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_WCHAR, a, sizeof(a), &lenPtr));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, b, sizeof(b), &lenPtr));
@@ -1407,7 +1409,7 @@ ODBC_TEST(t_odbc19)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "DROP table t_odbc19");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc19");
 
   return OK;
 }
@@ -1440,19 +1442,29 @@ ODBC_TEST(t_odbc72)
     {
     case 1:
       EXPECT_STMT(Stmt1, rc, SQL_SUCCESS_WITH_INFO);
-      is_num(len, 8);
+      /* Here \0 is part of data, not terminating NULL, thus it has to be included into total length, as it would also be
+       * included while inserting data and having it included in the given length of the data buffer. Otherwise written and
+       * read data will be different
+       */
+      is_num(len, 10);
       is_num(a[0], 'a');
       is_num(a[1], 0xd83d);
       is_num(a[2], 0);
       break;
     case 2:
-      EXPECT_STMT(Stmt1, rc, SQL_SUCCESS);
-      is_num(len, 4);
+      EXPECT_STMT(Stmt1, rc, SQL_SUCCESS_WITH_INFO);
+      is_num(len, 6);
       is_num(a[0], 0xde18);
       is_num(a[1], 'd');
       is_num(a[2], 0);
       break;
     case 3:
+      EXPECT_STMT(Stmt1, rc, SQL_SUCCESS);
+      is_num(len, 2);
+      is_num(a[0], 0);
+      is_num(a[1], 0);
+      break;
+    case 4:
       FAIL_IF(1, "SQLGetData's \"stuck\" in eternal cycle");
     }
   }
@@ -1519,9 +1531,7 @@ ODBC_TEST(t_odbc203)
   SQLWCHAR    ColumnData[MAX_ROW_DATA_LEN]= {0};
 
   OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE IF EXISTS t_odbc203"));
-
   OK_SIMPLE_STMTW(wStmt, WW("CREATE TABLE t_odbc203(col1 INT, col2 INT, col3 varchar(32) not null)"));
-
   OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc203 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')"));
 
   for (i= 0; i < sizeof(Query)/sizeof(Query[0]); ++i)
@@ -1600,6 +1610,236 @@ ODBC_TEST(t_odbc321)
   return OK;
 }
 
+/* ODBC-418 It boils down to widechar string got truncated if the field contained \0 */
+ODBC_TEST(t_odbc418)
+{
+  SQLWCHAR wparam[]= {'a', 0, 'b', 0, 0}, wvalue[sizeof(wparam)];
+  SQLCHAR  aparam[]= {'a', 0, 'b', 0, 0}, avalue[7];// just to shut up warnings - sizeof(aparam)] should be really enough;
+  SQLLEN   len= 4*sizeof(SQLWCHAR);
+  int i= 0, j;
+
+  /* Somehow iOdbc does its values sanitation that nobody asks it for. In the first run of
+   * SQLExecDirectW here after SQLBindParameter the value pointed by SQL_DESC_OCTET_LENGTH_PTR
+   * descriptor field(i.e. len), which was 16 after SQLBindParameter, happens to be already 4
+   * If we change param valus so 2nd charector is not null, that value will be 12. i.e. seems
+   * like iOdbc does smth like _wcslen on param value, and cnahges the length accordingly.
+   */
+  if (iOdbc())
+  {
+    skip("The test won't work due to iOdbc pecularities");
+  }
+  OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE IF EXISTS t_odbc418"));
+  OK_SIMPLE_STMTW(wStmt, WW("CREATE TABLE t_odbc418(id INT NOT NULL PRIMARY KEY, value  varchar(5) not null)"));
+
+  /* First as WCHAR on both connections connection */
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, 0, 0, wparam, sizeof(wparam), &len));
+  OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc418 VALUES(1,?)"));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, 0, 0, wparam, sizeof(wparam), &len));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc418 VALUES(3,?)");
+  /* Now the same as ansi CHAR */
+  len= 4;
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, aparam, sizeof(aparam), &len));
+  OK_SIMPLE_STMTW(wStmt, WW("INSERT INTO t_odbc418 VALUES(2,?)"));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 0, 0, aparam, sizeof(aparam), &len));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc418 VALUES(4,?)");
+
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLSetStmtAttr(wStmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  OK_SIMPLE_STMTW(wStmt, WW("SELECT id, value FROM t_odbc418 ORDER BY id"));
+  CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 2, SQL_C_WCHAR, wvalue, sizeof(wvalue), &len));
+  //1st run - getting data as WCHAR types, 2nd run - as CHAR. Both times both ways - SQLFetch and SQLGetData
+  for (j= 0; j < 2; ++j)
+  {
+    for (i=1; i < 5; ++i)
+    {
+      switch (i)
+      {
+      case 1: diag("Checking inserted as WCHAR on W connection ");
+        break;
+      case 2: diag("Checking inserted as CHAR on W connection ");
+        break;
+      case 3: diag("Checking inserted as WCHAR on A connection ");
+        break;
+      case 4: diag("Checking inserted as CHAR on A connection ");
+        break;
+      }
+      len= 0;
+      if (i == 1)
+      {
+        CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+        OK_SIMPLE_STMTW(wStmt, WW("SELECT id, value FROM t_odbc418 ORDER BY id"));
+      }
+      CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+      
+      is_num(i, my_fetch_int(wStmt, 1));
+      if (j)
+      {
+        is_num(4, len);
+        IS_STR(aparam, avalue, len);
+        memset(avalue, 0xfe, sizeof(avalue));
+        IS_STR(aparam, my_fetch_str(wStmt, avalue, 2), len);
+        memset(avalue, 0xfe, sizeof(avalue));
+      }
+      else
+      {
+        is_num(4 * sizeof(SQLWCHAR), len);
+        IS_WSTR(wparam, wvalue, len/sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+        IS_WSTR(wparam, my_fetch_wstr(wStmt, wvalue, 2, sizeof(wvalue)), len/sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+      }
+    }
+    if (!j)
+    {
+      CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
+    }
+  }
+  
+  /* Now the same on ANSI connection */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  OK_SIMPLE_STMT(Stmt, "SELECT id, value FROM t_odbc418 ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_WCHAR, wvalue, sizeof(wvalue), &len));
+  //1st run - getting data as WCHAR types, 2nd run - as CHAR. Both times both ways - SQLFetch and SQLGetData
+  for (j= 0; j < 2; ++j)
+  {
+    for (i=1; i < 5; ++i)
+    {
+      switch (i)
+      {
+      case 1: diag("Checking inserted as WCHAR on W connection ");
+        break;
+      case 2: diag("Checking inserted as CHAR on W connection ");
+        break;
+      case 3: diag("Checking inserted as WCHAR on A connection ");
+        break;
+      case 4: diag("Checking inserted as CHAR on A connection ");
+        break;
+      }
+      len= 0;
+      if (i == 1)
+      {
+        CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+        OK_SIMPLE_STMT(Stmt, "SELECT id, value FROM t_odbc418 ORDER BY id");
+      }
+      CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+
+      is_num(i, my_fetch_int(Stmt, 1));
+      if (j)
+      {
+        is_num(4, len);
+        IS_STR(aparam, avalue, len);
+        memset(avalue, 0xfe, sizeof(avalue));
+        IS_STR(aparam, my_fetch_str(Stmt, avalue, 2), len);
+        memset(avalue, 0xfe, sizeof(avalue));
+      }
+      else
+      {
+        is_num(4 * sizeof(SQLWCHAR), len);
+        IS_WSTR(wparam, wvalue, len / sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+        IS_WSTR(wparam, my_fetch_wstr(Stmt, wvalue, 2, sizeof(wvalue)), len / sizeof(SQLWCHAR));
+        memset(wvalue, 0xfe, sizeof(wvalue));
+      }
+    }
+    if (!j)
+    {
+      CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
+    }
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+  OK_SIMPLE_STMTW(wStmt, WW("DROP TABLE t_odbc418"));
+
+  return OK;
+}
+
+/* ODBC-437 
+ */
+ODBC_TEST(t_odbc437)
+{
+  SQLWCHAR a[2];
+  SQLWCHAR a_ref[] ={0xe9, 0}, query[]= {'S','E','L','E','C','T',' ','\'',0xe9,'\'',0};
+  SQLLEN   len, coLen;
+  SQLSMALLINT colType, colScale, colNullable;
+
+  OK_SIMPLE_STMTW(wStmt, query);
+
+  CHECK_STMT_RC(wStmt, SQLDescribeColW(wStmt, 1, NULL, 0, NULL, &colType, &coLen, &colScale, &colNullable));
+  is_num(1, coLen);
+  CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 1, SQL_C_WCHAR, a, sizeof(a), &len));
+
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  IS_WSTR(a, a_ref, sizeof(a_ref) / sizeof(SQLWCHAR));
+  if (!iOdbc())
+  {
+    is_num(len, 1/**/ * sizeof(SQLWCHAR));
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(wStmt, SQLPrepare(wStmt, "SELECT ?", SQL_NTS));
+  CHECK_STMT_RC(wStmt, SQLBindParameter(wStmt, 1, SQL_PARAM_INPUT, SQL_C_WCHAR,
+    SQL_WVARCHAR, 0, 0, a, sizeof(a),
+    NULL));
+  CHECK_STMT_RC(wStmt, SQLExecute(wStmt));
+  CHECK_STMT_RC(wStmt, SQLDescribeColW(wStmt, 1, NULL, 0, NULL, &colType, &coLen, &colScale, &colNullable));
+  /* MySQL returns some strange metadata in this case */
+  if (!IsMysql)
+  {
+    is_num(1, coLen);
+  }
+  CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 1, SQL_C_WCHAR, a, sizeof(a), &len));
+
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  IS_WSTR(a, a_ref, sizeof(a_ref) / sizeof(SQLWCHAR));
+  if (!iOdbc())
+  {
+    is_num(len, 1/**/ * sizeof(SQLWCHAR));
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
+/* ODBC-443
+ */
+ODBC_TEST(t_odbc443)
+{
+  SQLWCHAR a[5], a_ref[]= {0xD83E, 0xDD23, 0xD83D, 0xDC4D};
+  SQLLEN   len;
+
+  if (iOdbc())
+  {
+    a_ref[0]= (SQLWCHAR)0x1F923;
+    a_ref[1]= (SQLWCHAR)0x1F44D;
+    a_ref[2]= 0;
+  }
+
+  OK_SIMPLE_STMTW(wStmt, WW("SELECT _utf8mb4 0xF09FA4A3F09F918D"));
+
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  EXPECT_STMT(wStmt, SQLGetData(wStmt, 1, SQL_C_WCHAR, a, 0, &len), SQL_SUCCESS_WITH_INFO);
+  if (!iOdbc())
+  {
+    //2 surrogate pairs in utf16= 4 * sizeof(SQLWCHAR). in utf32 it's 2*sizeof(SQLWCHAR) = 8 bytes in each case
+    is_num(len, 8);
+  }
+  CHECK_STMT_RC(wStmt, SQLGetData(wStmt, 1, SQL_C_WCHAR, a, len + sizeof(SQLWCHAR), &len));
+  if (iOdbc())
+  {
+    IS_WSTR(a, a_ref, 3);
+  }
+  else
+  {
+    is_num(len, 8);
+    IS_WSTR(a, a_ref, len / sizeof(SQLWCHAR));
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1611,7 +1851,7 @@ MA_ODBC_TESTS my_tests[]=
   {sqlchar,           "sqlchar",            NORMAL},
   {sqldriverconnect,  "sqldriverconnect",   NORMAL},
   {sqlnativesql,      "sqlnativesql",       NORMAL},
-  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL, SkipIfRsStreming},
+  {sqlsetcursorname,  "sqlsetcursorname",   NORMAL, SkipIfRsStreaming},
   {sqlgetcursorname,  "sqlgetcursorname",   NORMAL},
   {sqlcolattribute,   "sqlcolattribute",    NORMAL},
   {sqldescribecol,    "sqldescribecol",     NORMAL},
@@ -1633,6 +1873,10 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc203,         "t_odbc203",          NORMAL},
   {t_odbc253,         "t_odbc253_empty_str_crash", NORMAL},
   {t_odbc321,         "t_odbc321_short_buffer", NORMAL},
+  {t_odbc418,         "t_odbc418_0in_string", NORMAL},
+  {t_odbc437,         "t_odbc437_stringlen", NORMAL},
+  {t_odbc443,         "t_odbc443_SQLGetData_surrogatePair", NORMAL},
+
   {NULL, NULL}
 };
 

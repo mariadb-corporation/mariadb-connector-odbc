@@ -3082,6 +3082,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
         if (mysql_stmt_fetch_column(Stmt->stmt, &Bind, Offset, Stmt->CharOffset[Offset]))
         {
+          MADB_FREE(ClientValue);
           return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         }
 
@@ -3143,7 +3144,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       else  /* IrdRec->InternalBuffer == NULL && Stmt->Lengths[Offset] == 0 */
       {
-        CharLength= SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]), -1);
+        CharLength= CharLength= (Stmt->Lengths[Offset] - Stmt->CharOffset[Offset]) / sizeof(SQLWCHAR);
+          /*SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]), -1);*/
       }
 
       if (StrLen_or_IndPtr)
