@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -170,12 +170,12 @@ ODBC_TEST(t_decimal)
 ODBC_TEST(t_bigint)
 {
 #if SQLBIGINT_MADE_PORTABLE || defined(_WIN32)
-    SQLRETURN rc;
-    SQLLEN nlen = 4;
-    union {                    /* An union to get 4 byte alignment */
-      SQLCHAR buf[20];
-      SQLINTEGER dummy;
-    } id = {"99998888"};       /* Just to get a binary pattern for some 64 bit big int */
+  SQLRETURN rc;
+  SQLLEN nlen = 4;
+  union {                    /* An union to get 4 byte alignment */
+    SQLCHAR buf[20];
+    SQLINTEGER dummy;
+  } id = {"99998888"};       /* Just to get a binary pattern for some 64 bit big int */
 
     OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS t_bigint");
 
@@ -347,32 +347,32 @@ ODBC_TEST(t_enumset)
     SQLCHAR szEnum[40]="MYSQL_E1";
     SQLCHAR szSet[40]="THREE,ONE,TWO";
 
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_enumset");
+    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_enumset");
 
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+    rc= SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_enumset(col1 enum('MYSQL_E1','MYSQL_E2'),col2 set('ONE','TWO','THREE'))");
+    OK_SIMPLE_STMT(Stmt,"CREATE TABLE t_enumset(col1 ENUM('MYSQL_E1','MYSQL_E2'),col2 SET('ONE','TWO','THREE'))");
    
-    rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+    rc= SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    rc= SQLFreeStmt(Stmt,SQL_CLOSE);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    OK_SIMPLE_STMT(Stmt, "insert into t_enumset values('MYSQL_E2','TWO,THREE')");
+    OK_SIMPLE_STMT(Stmt, "INSERT INTO t_enumset VALUES('MYSQL_E2','TWO,THREE')");
 
-    rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    rc= SQLFreeStmt(Stmt,SQL_CLOSE);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
     CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLPrepare(Stmt, (SQLCHAR *)
-                              "insert into t_enumset values(?,?)", SQL_NTS));
+                              "INSERT INTO t_enumset VALUES(?,?)", SQL_NTS));
 
-    rc = SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_CHAR,SQL_CHAR,0,0,&szEnum,sizeof(szEnum),NULL);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    rc= SQLBindParameter(Stmt,1,SQL_PARAM_INPUT,SQL_C_CHAR,SQL_CHAR,0,0,&szEnum,sizeof(szEnum),NULL);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
-    rc = SQLBindParameter(Stmt,2,SQL_PARAM_INPUT,SQL_C_CHAR,SQL_CHAR,0,0,&szSet,sizeof(szSet),NULL);
-   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
+    rc= SQLBindParameter(Stmt,2,SQL_PARAM_INPUT,SQL_C_CHAR,SQL_CHAR,0,0,&szSet,sizeof(szSet),NULL);
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
 
     rc = SQLExecute(Stmt);
    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, rc);
@@ -386,7 +386,7 @@ ODBC_TEST(t_enumset)
     rc = SQLTransact(NULL,Connection,SQL_COMMIT);
     CHECK_HANDLE_RC(SQL_HANDLE_DBC, Connection,rc);
 
-    OK_SIMPLE_STMT(Stmt,"select * from t_enumset");
+    OK_SIMPLE_STMT(Stmt,"SELECT * FROM t_enumset");
   
     FAIL_IF( 2 != myrowcount(Stmt), "expected 2 rows");
 
@@ -1366,7 +1366,7 @@ ODBC_TEST(t_odbc158)
   SQLLEN     Len;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc158");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc158(bi bigint not null, si smallint not null)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc158(bi BIGINT NOT NULL, si SMALLINT NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc158(bi, si) VALUES(1, 2)");
 
   OK_SIMPLE_STMT(Stmt, "SELECT bi, si FROM t_odbc158");
@@ -1415,7 +1415,31 @@ ODBC_TEST(t_odbc305)
   return OK;
 }
 
-/* ODBC-448 big bigint values gets truncated if read as double. We used to return error in this case. 
+/* ODBC-405 */
+ODBC_TEST(t_odbc405)
+{
+  SQLINTEGER maxDecPrecision= 65;
+  SQLULEN colLen= 0;
+  SQLCHAR dummy[16];
+
+  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_DECIMAL));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(maxDecPrecision, my_fetch_int(Stmt, 3));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SET @testDECIMAL= CAST(1.5 AS DECIMAL(15,2))");
+  /* For variables precision is max possible, and for some reason for variables it's higher,
+     than for nomal one for fields */
+  OK_SIMPLE_STMT(Stmt, "SELECT @testDECIMAL");
+  /* iOdbc crashes if not giver buffer for name */
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, dummy, sizeof(dummy), NULL, NULL, &colLen, NULL, NULL));
+  FAIL_IF(colLen > maxDecPrecision, "Column length is greater than max precision for decimal");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+/* ODBC-448 big bigint values gets truncated if read as double. We used to return error in this case.
  * Specs appear to say that it is ok, if the converted value is withing the range for double(or float in case of float)
  */
 ODBC_TEST(t_bigint_as_double)
@@ -1423,7 +1447,6 @@ ODBC_TEST(t_bigint_as_double)
   SQLDOUBLE val= 0.;
   SQLFLOAT floatVal= 0.;
   SQLLEN   len= 8, asLong= 0;
-  
 
   OK_SIMPLE_STMT(Stmt, "SELECT 36028797018963970");
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_DOUBLE, &val, 8, &len));
@@ -1468,6 +1491,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
   {t_odbc158,          "odbc158_bigintcolumn_as_c_long", NORMAL},
   {t_odbc305,          "odbc305_numeric_as_numeric", NORMAL},
+  {t_odbc405,          "odbc405_dec_precision", NORMAL},
   {t_bigint_as_double, "odbc448_bigint_as_double", NORMAL},
   {NULL, NULL, NORMAL}
 };

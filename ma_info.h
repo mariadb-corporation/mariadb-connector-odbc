@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2016 MariaDB Corporation AB
+   Copyright (C) 2013, 2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -18,6 +18,9 @@
 *************************************************************************************/
 #ifndef _ma_info_h_
 #define _ma_info_h_
+
+// In fact atm for variables it's srangely 81.
+#define MADB_DECIMAL_MAX_PRECISION 65
 
 typedef struct
 {

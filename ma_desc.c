@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2019 MariaDB Corporation AB
+   Copyright (C) 2013, 2024 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,7 +16,7 @@
    or write to the Free Software Foundation, Inc., 
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
-#include <ma_odbc.h>
+#include "ma_odbc.h"
 
 extern Client_Charset utf8;
 
@@ -212,7 +212,8 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
   case MYSQL_TYPE_NEWDECIMAL:
     Record->NumPrecRadix= 10;
     Record->Scale= Field->decimals;
-    Record->Precision= (SQLSMALLINT)Field->length - test(Record->Unsigned == SQL_FALSE) - test(Record->Scale > 0);
+    Record->Precision= MIN((SQLSMALLINT)Field->length - test(Record->Unsigned == SQL_FALSE) - test(Record->Scale > 0),
+      MADB_DECIMAL_MAX_PRECISION);
     if (Record->Precision == 0)
     {
       Record->Precision= Record->Scale;
