@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1590,6 +1590,16 @@ ODBC_TEST(t_odbc350)
 }
 
 
+ODBC_TEST(t_odbc429)
+{
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT * FROM non_existent", SQL_NTS), SQL_ERROR);
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1623,6 +1633,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc274, "t_odbc274_InsDelReplace_returning"},
   {t_odbc214, "t_odbc214_medium"},
   {t_odbc350, "t_odbc350_bit_in_subquery"},
+  {t_odbc429, "t_odbc429odbc425_moreresults_after_error"},
   {NULL, NULL}
 };
 
