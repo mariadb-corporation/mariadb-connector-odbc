@@ -140,18 +140,18 @@ ODBC_TEST(t_bug49660)
 {
   SQLLEN rowsCount;
 
-  OK_SIMPLE_STMT(Stmt, "drop database if exists bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660_r");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug49660_r");
 
-  OK_SIMPLE_STMT(Stmt, "create database bug49660");
-  OK_SIMPLE_STMT(Stmt, "create table bug49660.t_bug49660_r (id int unsigned not null primary key, name varchar(10) not null) ENGINE=InnoDB");
-  OK_SIMPLE_STMT(Stmt, "create table bug49660.t_bug49660 (id int unsigned not null primary key, refid int unsigned not null,"
-                "foreign key t_bug49660fk (id) references bug49660.t_bug49660_r (id)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE DATABASE bug49660");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug49660.t_bug49660_r (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(10) NOT NULL) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug49660.t_bug49660 (id INT UNSIGNED NOT NULL PRIMARY KEY, refid INT UNSIGNED NOT NULL,"
+                "FOREIGN KEY t_bug49660fk (id) REFERENCES bug49660.t_bug49660_r (id)) ENGINE=InnoDB");
 
-  OK_SIMPLE_STMT(Stmt, "create table t_bug49660_r (id int unsigned not null primary key, name varchar(10) not null) ENGINE=InnoDB");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug49660 (id int unsigned not null primary key, refid int unsigned not null,"
-                "foreign key t_bug49660fk (id) references t_bug49660_r (id)) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug49660_r (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(10) NOT NULL) ENGINE=InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug49660 (id INT UNSIGNED NOT NULL PRIMARY KEY, refid INT UNSIGNED NOT NULL,"
+                "FOREIGN KEY t_bug49660fk (id) REFERENCES t_bug49660_r (id)) ENGINE=InnoDB");
 
   CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0,
                                 NULL, 0, (SQLCHAR *)"t_bug49660", SQL_NTS));
@@ -163,9 +163,9 @@ ODBC_TEST(t_bug49660)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop database if exists bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660");
-  OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug49660_r");
+  OK_SIMPLE_STMT(Stmt, "DROP DATABASE bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug49660");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_bug49660_r");
 
   return OK;
 }
@@ -214,13 +214,13 @@ ODBC_TEST(t_bug36441)
   SQLSMALLINT key_seq, i;
   SQLLEN      keyname_len, key_seq_len, rowCount;
 
-OK_SIMPLE_STMT(Stmt, "drop table if exists t_bug36441_0123456789");
-  OK_SIMPLE_STMT(Stmt, "create table t_bug36441_0123456789("
-	              "pk_for_table1 integer not null auto_increment,"
-	              "c1_for_table1 varchar(128) not null unique,"
-	              "c2_for_table1 binary(32) null,"
-                "unique_key int unsigned not null unique,"
-	              "primary key(pk_for_table1, c1_for_table1))");
+OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug36441_0123456789");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_bug36441_0123456789("
+	              "pk_for_table1 INTEGER NOT NULL AUTO_INCREMENT,"
+	              "c1_for_table1 VARCHAR(128) NOT NULL UNIQUE,"
+	              "c2_for_table1 BINARY(32) NULL,"
+                "unique_key INT UNSIGNED NOT NULL UNIQUE,"
+	              "PRIMARY KEY(pk_for_table1, c1_for_table1))");
 
   CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_bug36441_0123456789", SQL_NTS));
 
@@ -1992,6 +1992,29 @@ ODBC_TEST(odbc391)
 }
 
 
+ODBC_TEST(odbc435)
+{
+  char buffer[12];
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc435");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc435(f1 INT, f2 INT, key_part2 INT NOT NULL, key_part1 INT NOT NULL,"
+                       "PRIMARY KEY(key_part1,key_part2))");
+
+
+  CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_odbc435", 9));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(1, my_fetch_int(Stmt, 5));
+  IS_STR("key_part1", my_fetch_str(Stmt, buffer, 4), 10/*lenght of key_part1*/);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(2, my_fetch_int(Stmt, 5));
+  IS_STR("key_part2", my_fetch_str(Stmt, buffer, 4), 10/*lenght of key_part2*/);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc435");
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -2022,6 +2045,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc324, "odbc324_sqltables_versioned_table",NORMAL},
   {odbc361, "odbc361_unique_with_nulls",        NORMAL},
   {odbc391, "odbc391_mixed_case_names",         NORMAL},
+  {odbc435, "odbc435_PK_flds_order_and_seq_num",NORMAL},
   {NULL, NULL}
 };
 
