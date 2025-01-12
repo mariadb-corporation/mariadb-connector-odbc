@@ -342,7 +342,27 @@ namespace mariadb
     time->second= static_cast<uint32_t>(std::stoll(str.substr(offset + 6, 2)));
     time->second_part= 0;
     if (str[offset + 8] == '.') {
-      time->second_part= static_cast<uint32_t>(std::stoll(str.substr(offset + 9, std::min(str.length() - offset - 9, static_cast<std::size_t>(6)))));
+      auto fractPartLen= std::min(str.length() - offset - 9, std::size_t(6));
+      time->second_part= static_cast<unsigned long>(std::stoll(str.substr(offset + 9, fractPartLen)));
+      // Need to make it microseconds
+      switch (fractPartLen) {
+      case 1:
+        time->second_part*= 10000;
+        break;
+      case 2:
+        time->second_part*= 10000;
+        break;
+      case 3:
+        time->second_part*= 1000;
+        break;
+      case 4:
+        time->second_part*= 100;
+        break;
+      case 5:
+        time->second_part*= 10;
+      default:
+        break;
+      }
     }
   }
 

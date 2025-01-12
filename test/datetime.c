@@ -1523,7 +1523,7 @@ ODBC_TEST(t_odbc199_time2timestamp)
   SQL_TIME_STRUCT t;
   SQL_TIMESTAMP_STRUCT ts= {0}, ts1= {0};
   time_t sec_time;
-  struct tm * cur_tm;
+  struct tm *cur_tm;
 
   sec_time= time(NULL);
   cur_tm= localtime(&sec_time);
@@ -1641,6 +1641,56 @@ ODBC_TEST(t_odbc345)
 }
 
 
+ODBC_TEST(t_odbc449)
+{
+  SQL_TIMESTAMP_STRUCT ts= {0}, r1= {0};
+  unsigned long fractional[]= {0,100000000,120000000,20000000,23000000,3000000,0};
+  char asStr[32];
+  size_t rowNum= 0;
+
+  ts.year= 2025;
+  ts.month= 1;
+  ts.day= 1;
+  ts.hour= 12;
+  ts.minute= 0;
+  ts.second= 0;
+  ts.fraction= 123000000;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc449");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc449 (dtf DATETIME(3) NOT NULL)");
+
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc449(dtf) VALUES ('2025-01-01 12:00:00.123'),('2025-01-01 12:00:00.1'),\
+('2025-01-01 12:00:00.12'),('2025-01-01 12:00:00.02'),('2025-01-01 12:00:00.023'),('2025-01-01 12:00:00.003')", SQL_NTS));;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT dtf FROM t_odbc449");
+
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_TIMESTAMP, &r1,sizeof(r1), NULL));
+
+  while (SQL_SUCCEEDED(SQLFetch(Stmt)))
+  {
+    is_num(ts.year, r1.year);
+    is_num(ts.month, r1.month);
+    is_num(ts.day, r1.day);
+    is_num(ts.hour, r1.hour);
+    is_num(ts.minute, r1.minute);
+    is_num(ts.second, r1.second);
+    is_num(ts.fraction, r1.fraction);
+
+    if (!rowNum)
+    {
+      IS_STR("2025-01-01 12:00:00.123", my_fetch_str(Stmt, asStr, 1), sizeof("2025-01-01 12:00:00.123"));
+    }
+    ++rowNum;
+    ts.fraction= fractional[rowNum];
+  }
+  is_num(6, rowNum);
+  CHECK_STMT_RC(Stmt, SQLCloseCursor(Stmt));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc449");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_ts,         "my_ts",       NORMAL},
@@ -1669,6 +1719,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc148,     "t_odbc148_datatypes_values_len", NORMAL},
   {t_odbc199_time2timestamp, "t_odbc199_time2timestamp", NORMAL},
   {t_odbc345,     "t_odbc345", NORMAL},
+  {t_odbc449,     "t_odbc449", NORMAL},
   {NULL, NULL}
 };
 

@@ -742,6 +742,7 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER Dat
           ts->year= tm->year;
           ts->month= tm->month;
           ts->day= tm->day;
+          // Microseconds of MYSQL_TIME to nanoseconds of SQL_TIMESTAMP_STRUCT
           ts->fraction= tm->second_part * 1000;
         }
         ts->hour= tm->hour;
