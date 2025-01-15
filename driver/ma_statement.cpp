@@ -97,13 +97,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
           // eating errors
         }
       }
-
-      if (Stmt->metadata)
-      {
-        delete Stmt->metadata;
-        Stmt->metadata= nullptr;
-      }
-     
+      MADB_DELETE(Stmt->metadata);
       MADB_FREE(Stmt->result);
       MADB_FREE(Stmt->CharOffset);
       MADB_FREE(Stmt->Lengths);
@@ -159,7 +153,8 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
-    //Stmt->DefaultsResult.reset();
+    
+    MADB_DELETE(Stmt->metadata);
 
     if (Stmt->DaeStmt != nullptr)
     {
@@ -251,14 +246,11 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 /* {{{ FetchMetadata */
 ResultSetMetaData* FetchMetadata(MADB_Stmt *Stmt, bool early)
 {
-  if (Stmt->metadata) {
-    delete Stmt->metadata;
-  }
+  delete Stmt->metadata;
   /* TODO early probably is not needed here at all */
   if (early)
   {
     Stmt->metadata= Stmt->stmt->getEarlyMetaData();
-
   }
   else
   {
@@ -294,11 +286,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     RESET_DAE_STATUS(Stmt);
 
   case MADB_SS_PREPARED:
-    if (Stmt->metadata)
-    {
-      delete Stmt->metadata;
-      Stmt->metadata= nullptr;
-    }
+    MADB_DELETE(Stmt->metadata);
     Stmt->PositionedCursor= nullptr;
     Stmt->Ird->Header.Count= 0;
 
@@ -335,10 +323,7 @@ SQLRETURN MADB_CsPrepare(MADB_Stmt *Stmt)
 void MADB_Stmt::AfterPrepare()
 {
   State= MADB_SS_PREPARED;
-  if (metadata)
-  {
-    delete metadata;
-  }
+  delete metadata;
   metadata= stmt->getEarlyMetaData();
   /* If we have result returning query - fill descriptor records with metadata */
   if (metadata && metadata->getColumnCount() > 0)
@@ -834,10 +819,7 @@ SQLRETURN MADB_Stmt::GetOutParams(int CurrentOffset)
   
   try
   {
-    if (metadata)
-    {
-      delete metadata;
-    }
+    delete metadata;
     metadata= rs->getMetaData();
     columnCount= metadata->getColumnCount();
   }
@@ -3647,7 +3629,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
             continue;
           }
-
           for(column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
           {
             SQLLEN          *LengthPtr= nullptr;
@@ -3663,7 +3644,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
               GetDefault= TRUE;
               continue;
             }
-            
             /* TODO: Looks like this whole thing is not really needed. Not quite clear if !InUse should result in going this way */
             if (GetDefault)
             {

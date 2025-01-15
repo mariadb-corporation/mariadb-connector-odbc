@@ -393,6 +393,10 @@ void  CloseClientCharset(Client_Charset *cc);
 } while(0)
 
 #define iOdbc() (sizeof(SQLWCHAR)==4)
+#define MADB_DELETE(a) do { \
+  delete (a);\
+  (a)= nullptr; \
+} while(0)
 
 #include "ma_error.h"
 #include "ma_info.h"

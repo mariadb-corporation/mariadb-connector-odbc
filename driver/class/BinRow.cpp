@@ -597,7 +597,7 @@ namespace mariadb
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_DECIMAL:
       try {
-        return std::stold(fieldBuf.arr);
+        return safer_strtod(fieldBuf.arr, length);
       }
       // Common parent for std::invalid_argument and std::out_of_range
       catch (std::logic_error& nfe) {

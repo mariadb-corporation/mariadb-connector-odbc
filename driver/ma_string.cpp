@@ -100,6 +100,7 @@ char *MADB_GetCatalogName(MADB_Stmt *Stmt)
   return Stmt->CatalogName;
 }
 
+
 my_bool MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String)
 {
   if (MADB_DynstrAppendMem(DynString, "`", 1) ||

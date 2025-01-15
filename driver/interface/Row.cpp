@@ -17,15 +17,14 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
-
+#include <cmath>
 #include "Row.h"
 #include "ColumnDefinition.h"
-
 
 namespace mariadb
 {
   //
-  int64_t core_strtoll(const char* str, uint32_t len) {
+  int64_t core_strtoll(const char* str, uint32_t len, const char **stopChar) {
 
     int64_t result=0, digit= 0;
     const char* end= str + len;
@@ -63,15 +62,21 @@ namespace mariadb
         digit= 9;
         break;
       default:
+        if (stopChar) {
+          *stopChar= str;
+        }
         return result;
       }
       result= result * 10 + digit;
       ++str;
     }
+    if (stopChar) {
+      *stopChar= str;
+    }
     return result;
   }
 
-  int64_t safer_strtoll(const char* str, uint32_t len) {
+  int64_t safer_strtoll(const char* str, uint32_t len, const char **stopChar) {
 
     int64_t sign= 1;
 
@@ -85,8 +90,12 @@ namespace mariadb
       ++str;
       --len;
     }
+    else if (*str == '+') {
+      ++str;
+      --len;
+    }
 
-    return core_strtoll(str, len)*sign;
+    return core_strtoll(str, len, stopChar)*sign;
   }
 
 
@@ -106,6 +115,46 @@ namespace mariadb
     if (negative && result != 0)
     {
       throw std::out_of_range("String represents number beyond uint64_t range");
+    }
+    return result;
+  }
+
+
+  long double safer_strtod(const char* str, uint32_t len)
+  {
+    const char *stop= nullptr, *end= str + len;
+    int64_t sign= 1;
+
+    while (*str == ' ') {
+      ++str;
+      --len;
+    }
+
+    if (*str == '-') {
+      sign= -1;
+      ++str;
+      --len;
+    }
+    else if (*str == '+') {
+      ++str;
+      --len;
+    }
+
+    int64_t intPart= sign*core_strtoll(str, len, &stop), fractional= 0;
+    long double result= static_cast<long double>(intPart);
+
+    if (stop < end && *stop == '.') { // locale?
+      str= stop + 1;
+      // We can't have sign here thus using the functions that onlye translates numbers
+      fractional= core_strtoll(str, static_cast<uint32_t>(end - str), &stop);
+      result+= sign*static_cast<long double>(fractional / std::pow(10.0, stop - str));
+    }
+    if (stop < end && (*stop == 'e' || *stop == 'E')) {
+      str= stop + 1;
+      //reusing fractional for exponent
+      fractional= 0;
+      fractional= safer_strtoll(str, static_cast<uint32_t>(end - str), &stop);
+      result*= std::pow(10.0, fractional);
     }
     return result;
   }
@@ -248,19 +297,6 @@ namespace mariadb
       return true;
     }
     return false;
-  }
-
-
-  long double Row::stringToDouble(const char* str, uint32_t len)
-  {
-    std::string doubleAsString(str, len);
-    std::istringstream convStream(doubleAsString);
-    std::locale C("C");
-    long double result;
-    convStream.imbue(C);
-    convStream >> result;
-
-    return result;
   }
 
 

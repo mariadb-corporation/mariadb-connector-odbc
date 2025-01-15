@@ -44,6 +44,7 @@
 #include <assert.h>
 #include <time.h>
 #include <sqlext.h>
+
 #define MADB_FREE(a) do { \
   free((void*)(a));\
   (a)= NULL; \

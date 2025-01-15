@@ -1385,6 +1385,34 @@ ODBC_TEST(t_odbc405)
   return OK;
 }
 
+/* Testing correct convertsion double literals to double type */
+ODBC_TEST(t_odbc_double)
+{
+  SQLDOUBLE ref[]= {1.23,-2.34,5.,-6.,700000.,0.123,-1230.,1.234}, val[sizeof(ref) / sizeof(ref[0])]= {.0};
+  size_t i= 0;
+  OK_SIMPLE_STMT(Stmt, "SELECT '1.23','-2.34','5','-6.0','7.e+5','1.23e-1','-0.0123e5','+123.4e-2'");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  for (i= 0; i < sizeof(val) / sizeof(val[0]); ++i) {
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, (SQLUSMALLINT)(i + 1), SQL_C_DOUBLE, &val[i], sizeof(val[0]), NULL));
+    diag("Field %u: value: %f expected: %f", i, val[i], ref[i]);
+    FUZZY_EQUAL(val[i], ref[i], 0.001);
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* Now the same with SQLPrepare/SQLExecute, i.e. with binary protocol by default */
+  memset((void*)val, 0, sizeof(val));
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, "SELECT '1.23','-2.34','5','-6.0','7.e+5','1.23e-1','-0.0123e5','+123.4e-2'", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  for (i= 0; i < sizeof(val) / sizeof(val[0]); ++i) {
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, (SQLUSMALLINT)(i + 1), SQL_C_DOUBLE, &val[i], sizeof(val[0]), NULL));
+    diag("Field %u: value: %f expected: %f", i, val[i], ref[i]);
+    FUZZY_EQUAL(val[i], ref[i], 0.001);
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1412,8 +1440,9 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug29402,         "t_bug29402",        NORMAL},
   {t_sqlnum_truncate,  "t_sqlnum_truncate", NORMAL},
   {t_odbc158,          "odbc158_bigintcolumn_as_c_long", NORMAL},
-  {t_odbc305,          "odbc305_numeric_as_numeric", NORMAL},
-  {t_odbc405,          "odbc405_dec_precision", NORMAL},
+  {t_odbc305,          "odbc305_numeric_as_numeric",     NORMAL},
+  {t_odbc405,          "odbc405_dec_precision",          NORMAL},
+  {t_odbc_double,      "t_fetch_double",    NORMAL},
   {NULL, NULL, NORMAL}
 };
 

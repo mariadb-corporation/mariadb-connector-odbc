@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <math.h>
 
 #ifdef _WIN32
 # define _WINSOCKAPI_
@@ -689,6 +690,10 @@ do {\
   }\
 } while(0)
 
+#define FUZZY_EQUAL(DOUBLE1,DOUBLE2,DELTA) do { if (!(DOUBLE1 == DOUBLE2 || fabs(DOUBLE1 - DOUBLE2) < DELTA))\
+{\
+  diag("%s %d: %s(%Lf)!=%s(%Lf)", __FILE__, __LINE__, #DOUBLE1, DOUBLE1, #DOUBLE2, DOUBLE2);\
+}} while(0)
 #define EXPECT_DBC(_Dbc, _Function, _Expected)\
 do {\
   SQLRETURN ret= (_Function);\

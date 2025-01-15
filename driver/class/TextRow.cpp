@@ -407,7 +407,7 @@ namespace mariadb
      case MYSQL_TYPE_FLOAT:
      case MYSQL_TYPE_DOUBLE:
      {
-       long double doubleValue= std::stold(fieldBuf.arr);
+       long double doubleValue= safer_strtod(fieldBuf.arr + pos, length);
        if (doubleValue > static_cast<long double>(INT64_MAX)) {
          throw SQLException(
            "Out of range value for column '"
@@ -472,7 +472,7 @@ namespace mariadb
      case MYSQL_TYPE_FLOAT:
      case MYSQL_TYPE_DOUBLE:
      {
-       long double doubleValue= std::stold(fieldBuf.arr);
+       long double doubleValue= safer_strtod(fieldBuf.arr, length);
        if (doubleValue < 0 || doubleValue > static_cast<long double>(UINT64_MAX)) {
          throw SQLException(
            "Out of range value for column '"
@@ -596,7 +596,7 @@ namespace mariadb
    case MYSQL_TYPE_DECIMAL:
    case MYSQL_TYPE_LONGLONG:
      try {
-       return stringToDouble(fieldBuf.arr + pos, length);
+       return mariadb::safer_strtod(fieldBuf.arr + pos, length);
      }
      // Common parent for std::invalid_argument and std::out_of_range
      catch (std::logic_error& nfe) {

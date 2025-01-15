@@ -37,9 +37,10 @@ extern Date nullDate;
 extern const SQLString emptyStr;
 class ColumnDefinition;
 
-int64_t safer_strtoll(const char* str, uint32_t len);
+int64_t safer_strtoll(const char* str, uint32_t len, const char **stopChar= nullptr);
 uint64_t stoull(const SQLString& str, std::size_t* pos= nullptr);
 uint64_t stoull(const char* str, std::size_t len= -1, std::size_t* pos= nullptr);
+long double safer_strtod(const char* str, uint32_t len);
 
 struct memBuf : public std::streambuf
 {
@@ -80,8 +81,6 @@ public:
   static const int32_t BIT_LAST_ZERO_DATE= 0b000010;
   static const int32_t TINYINT1_IS_BIT= 1;
   static const int32_t YEAR_IS_DATE_TYPE= 2;
-
-  static long double stringToDouble(const char* str, uint32_t len);
 
 protected:
   static const int32_t NULL_LENGTH_= -1;
