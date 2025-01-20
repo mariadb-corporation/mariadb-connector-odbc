@@ -137,10 +137,10 @@ namespace mariadb
   }
 
 
-  uint32_t ClientSidePreparedStatement::fieldCount() const
-  {
-    return mysql_field_count(guard->getCHandle());// guard->fieldCount(nullptr);
-  }
+  //uint32_t ClientSidePreparedStatement::fieldCount() const
+  //{
+  //  return mysql_field_count(guard->getCHandle());// guard->fieldCount(nullptr);
+  //}
 
   /**  */
   mariadb::Longs& ClientSidePreparedStatement::executeBatch()
@@ -326,30 +326,4 @@ namespace mariadb
     buf.append(data, length);
     return true;
   }
-
-  bool ClientSidePreparedStatement::hasMoreResults()
-  {
-    return results && results->hasMoreResults(guard);
-  }
-
-
-  /*SQLString ClientSidePreparedStatement::toString()
-  {
-    SQLString sb("sql : '"+sql +"'");
-    sb.append(", parameters : [");
-    for (const auto& cit: parameters ) {
-      if (!cit) {
-        sb.append("NULL");
-      }
-      else {
-        sb.append(cit->toString());
-      }
-      if (cit != parameters.back()) {
-        sb.append(",");
-      }
-    }
-    sb.append("]");
-    return sb;
-  }*/
-
 }

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2024 MariaDB Corporation plc
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,6 +19,7 @@
 
 #include "ServerSidePreparedStatement.h"
 #include "ClientSidePreparedStatement.h"
+#include "class/SSPSDirectExec.h"
 #include "interface/ResultSet.h"
 #include "ResultSetMetaData.h"
 #include "interface/Exception.h"
@@ -205,18 +206,11 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
 {
   SQLRETURN ret;
 
-  ret= Stmt->Prepare(StatementText, TextLength, false);
-  /* In case statement is not supported, we use mysql_query instead */
+  ret= Stmt->Prepare(StatementText, TextLength, Stmt->Connection->Dsn->EdPrepareOnServer, true);
   if (!SQL_SUCCEEDED(ret))
   {
-    /* Can't be really - we now run here CS prepare */
-    //if ((Stmt->Error.NativeError == 1295/*ER_UNSUPPORTED_PS*/ ||
-    //     Stmt->Error.NativeError == 1064/*ER_PARSE_ERROR*/))
-    //{}
-    //else
     return ret;
   }
-
   return Stmt->Methods->Execute(Stmt, true);
 }
 /* }}} */
@@ -297,6 +291,25 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     MADB_FREE(Stmt->UniqueIndex);
     MADB_FREE(Stmt->TableName);
   }
+  return SQL_SUCCESS;
+}
+/* }}} */
+
+/* {{{ MADB_EDPrepare - Method called from SQLPrepare in case it is SQLExecDirect and if server >= 10.2
+      (i.e. we gonna do mariadb_stmt_exec_direct) */
+SQLRETURN MADB_EDPrepare(MADB_Stmt *Stmt)
+{
+  /* TODO: In case of positioned command it shouldn't be always */
+  if ((Stmt->ParamCount= Stmt->Apd->Header.Count + (MADB_POSITIONED_COMMAND(Stmt) ? MADB_POS_COMM_IDX_FIELD_COUNT(Stmt) : 0)) != 0)
+  {
+    if (Stmt->params)
+    {
+      MADB_FREE(Stmt->params);
+    }
+    /* If we have "WHERE CURRENT OF", we will need bind additionaly parameters for each field in the index */
+    Stmt->params= (MYSQL_BIND *)MADB_CALLOC(sizeof(MYSQL_BIND) * Stmt->ParamCount);
+  }
+  Stmt->stmt.reset(new SSPSDirectExec(Stmt->Connection->guard.get(), STMT_STRING(Stmt), Stmt->ParamCount, Stmt->Options.CursorType));
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -420,7 +433,7 @@ void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout/*, bool sel
 /* }}} */
 
 /* {{{ MADB_Stmt::Prepare */
-SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, bool ServerSide)
+SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, bool ServerSide, bool DirectExecution)
 {
   const char   *CursorName= nullptr;
   unsigned int  WhereOffset;
@@ -526,10 +539,24 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
       MADB_AddQueryTime(&Query, Options.Timeout);
     }
   }
-
+  if (DirectExecution && ServerSide)
+  {
+    //Looking at some conditions we don't do direct server side exectution, but regular prepare
+    if (Apd->Header.ArraySize > 1)
+    {
+      DirectExecution= false;
+    }
+  }
   if (ServerSide)
   {
-    MADB_RegularPrepare(this);
+    if (DirectExecution)
+    {
+      MADB_EDPrepare(this);
+    }
+    else
+    {
+      MADB_RegularPrepare(this);
+    }
   }
   else
   {

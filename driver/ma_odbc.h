@@ -332,7 +332,7 @@ struct MADB_Stmt
   bool                      bind_done= false;
 
   MADB_Stmt(MADB_Dbc *Connection);
-  SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true);
+  SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true, bool DirectExecution= false);
   SQLRETURN GetOutParams(int CurrentOffset);
   SQLRETURN DoExecuteBatch();
   void AfterExecute();

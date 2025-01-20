@@ -154,6 +154,7 @@ public:
   void executeQuery(Results*, const SQLString& sql);
   void executeBatchStmt(bool mustExecuteOnMaster, Results*, const std::vector<SQLString>& queries);
   void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
+  void directExecutePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
   void moveToNextSpsResult(Results*, ServerPrepareResult* spr);
   //void skipNextResult(ServerPrepareResult* spr= nullptr);
   void skipAllResults(ServerPrepareResult* spr);

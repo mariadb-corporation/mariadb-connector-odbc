@@ -53,6 +53,12 @@ public:
     const SQLString& sql,
     Protocol* dbc);
 
+  /* For the direct execution*/
+  ServerPrepareResult(
+    const SQLString& sql,
+    unsigned long paramCount,
+    Protocol* dbc);
+
   ServerPrepareResult(
     const SQLString& sql,
     MYSQL_STMT* statementId,
@@ -65,15 +71,13 @@ public:
   MYSQL_STMT* getStatementId();
   const MYSQL_FIELD* getFields() const;
   const std::vector<ColumnDefinition>& getColumns() const;
-  const MYSQL_BIND* getParameters() const;
-  const SQLString& getSql() const;
+  //const MYSQL_BIND* getParameters() const;
+  const SQLString&   getSql() const;
   ResultSetMetaData* getEarlyMetaData();
-  bool incrementShareCounter();
-  void decrementShareCounter();
-  bool canBeDeallocate();
+  bool    incrementShareCounter();
+  void    decrementShareCounter();
+  bool    canBeDeallocate();
   int32_t getShareCounter();
-  /*void bindParameters(std::vector<Unique::ParameterHolder>& parameters);
-  void bindParameters(MYSQL_BIND* parameters, const int16_t *type= nullptr);*/
 };
 
 namespace Unique

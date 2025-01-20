@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2024 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -92,7 +92,7 @@ MADB_DsnKey DsnKeys[]=
   {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent),DSN_TYPE_BOOL, 0, 0},
   {"STREAMRS",       offsetof(MADB_Dsn, StreamResult),      DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_CACHE, 0},
   {"ATTR",           offsetof(MADB_Dsn, Attributes),        DSN_TYPE_STRING, 0, 0},
-  {"EXECDSERVER",    offsetof(MADB_Dsn, EdPrepareOnServer), DSN_TYPE_BOOL,   0, 0},
+  {"EDSERVER",       offsetof(MADB_Dsn, EdPrepareOnServer), DSN_TYPE_BOOL,   0, 0},
   {"PREPONCLIENT",   offsetof(MADB_Dsn, PrepareOnClient),   DSN_TYPE_BOOL,   0, 0},
   {"PSCACHESIZE",    offsetof(MADB_Dsn, PsCacheSize),       DSN_TYPE_INT,    0, 0},
   {"MAXCACHEKEY",    offsetof(MADB_Dsn, PsCacheMaxKeyLen),  DSN_TYPE_INT,    0, 0},

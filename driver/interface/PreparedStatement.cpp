@@ -141,6 +141,11 @@ namespace mariadb
     return results && results->getMoreResults(false, guard);
   }
 
+  bool PreparedStatement::hasMoreResults()
+  {
+    return results && results->hasMoreResults(guard);
+  }
+
 
   ResultSetMetaData* PreparedStatement::getEarlyMetaData()
   {

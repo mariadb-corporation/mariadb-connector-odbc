@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2025 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -28,19 +28,20 @@
 namespace mariadb
 {
 
-  extern "C"
-  {
-    // C/C's callback running param column callbacks 
-    my_bool* defaultParamCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
-    // C/C's callback running callback for the row, and then indivivual param column callbacks
-    my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
-  }
+extern "C"
+{
+  // C/C's callback running param column callbacks 
+  my_bool* defaultParamCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+  // C/C's callback running callback for the row, and then indivivual param column callbacks
+  my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
+}
 
 class ServerSidePreparedStatement : public PreparedStatement
 {
   friend my_bool* withRowCheckCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr);
   friend my_bool* defaultParamCallback(void* data, MYSQL_BIND* binds, uint32_t row_nr);
 
+protected:
   ServerPrepareResult* serverPrepareResult= nullptr;
 
 public:
@@ -51,6 +52,7 @@ public:
   ServerSidePreparedStatement* clone(Protocol* connection);
 
 private:
+  /* For cloning */
   ServerSidePreparedStatement(
     Protocol* connection,
     int32_t resultSetScrollType
@@ -58,27 +60,26 @@ private:
 
   void prepare(const SQLString& sql);
   void setMetaFromResult();
+  virtual void executeBatchInternal(uint32_t queryParameterSize);
 
 public:
   //void setParameter(int32_t parameterIndex,/*const*/ ParameterHolder* holder);
   //ParameterMetaData* getParameterMetaData();
   ResultSetMetaData* getMetaData();
 
-private:
-  void executeBatchInternal(uint32_t queryParameterSize);
+protected:
   void executeQueryPrologue(ServerPrepareResult* serverPrepareResult);
   void getResult();
 
 public:
   PrepareResult* getPrepareResult() { return dynamic_cast<PrepareResult*>(serverPrepareResult); }
   bool executeInternal(int32_t fetchSize);
-  uint32_t fieldCount() const;
 
   void close();
 
-  const char* getError();
-  uint32_t    getErrno();
-  const char* getSqlState();
+  const char* getError() override;
+  uint32_t    getErrno() override;
+  const char* getSqlState() override;
 
   bool bind(MYSQL_BIND* param);
   bool sendLongData(uint32_t paramNum, const char* data, std::size_t length);
@@ -87,8 +88,6 @@ public:
   {
     return appType;
   }
-  bool hasMoreResults();
-  void moveToNextResult();
 
   bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1));
   bool setCallbackData(void* data);

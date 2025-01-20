@@ -53,6 +53,7 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           class/BinRow.cpp
                           class/ClientSidePreparedStatement.cpp
                           class/ServerSidePreparedStatement.cpp
+                          class/SSPSDirectExec.cpp
                           class/ClientPrepareResult.cpp
                           class/ServerPrepareResult.cpp
                           class/CmdInformationSingle.cpp
@@ -107,6 +108,7 @@ IF(WIN32)
                           class/BinRow.h
                           class/ClientSidePreparedStatement.h
                           class/ServerSidePreparedStatement.h
+                          class/SSPSDirectExec.h
                           class/ClientPrepareResult.h
                           class/ServerPrepareResult.h
                           class/CmdInformationSingle.h

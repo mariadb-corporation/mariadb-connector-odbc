@@ -1008,16 +1008,26 @@ namespace mariadb
     std::lock_guard<std::mutex> localScopeLock(lock);
     cmdPrologue();
 
-    //try {
     if (mysql_stmt_execute(serverPrepareResult->getStatementId()) != 0) {
       throwStmtError(serverPrepareResult->getStatementId());
     }
     /*CURSOR_TYPE_NO_CURSOR);*/
     getResult(results, serverPrepareResult);
-    //}
-    //  catch (SQLException& qex){
-    //  throw //logQuery->exceptionWithQuery(parameters, qex, serverPrepareResult);
-    //}
+  }
+
+  /* Direct exectution of server-side prepared statement */
+  void Protocol::directExecutePreparedQuery(
+      ServerPrepareResult* serverPrepareResult,
+      Results* results)
+  {
+    std::lock_guard<std::mutex> localScopeLock(lock);
+    cmdPrologue();
+    auto& query= serverPrepareResult->getSql();
+    if (mariadb_stmt_execute_direct(serverPrepareResult->getStatementId(), query.c_str(), query.length()) != 0) {
+      throwStmtError(serverPrepareResult->getStatementId());
+    }
+    /*CURSOR_TYPE_NO_CURSOR);*/
+    getResult(results, serverPrepareResult);
   }
 
   /** Rollback transaction. */

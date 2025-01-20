@@ -28,6 +28,8 @@
 
 namespace mariadb
 {
+  static constexpr my_bool myboolTrue= 1;
+
   ServerPrepareResult::~ServerPrepareResult()
   {
     if (statementId) {
@@ -48,13 +50,12 @@ namespace mariadb
     , connection(guard)
     , statementId(mysql_stmt_init(guard->getCHandle()))
   {
-    static const my_bool updateMaxLength= 1;
     int rc= 1;
 
     if (statementId == nullptr) {
       throw rc;
     }
-    mysql_stmt_attr_set(statementId, STMT_ATTR_UPDATE_MAX_LENGTH, &updateMaxLength);
+    mysql_stmt_attr_set(statementId, STMT_ATTR_UPDATE_MAX_LENGTH, &myboolTrue);
 
     if ((rc= mysql_stmt_prepare(statementId, sql.c_str(), static_cast<unsigned long>(sql.length()))) != 0) {
       SQLException e(mysql_stmt_error(statementId), mysql_stmt_sqlstate(statementId), mysql_stmt_errno(statementId));
@@ -66,6 +67,17 @@ namespace mariadb
     if (metadata) {
       init(mysql_fetch_fields(metadata.get()), mysql_stmt_field_count(statementId));
     }
+  }
+
+  ServerPrepareResult::ServerPrepareResult(const SQLString& _sql, unsigned long _paramCount, Protocol* guard)
+    : sql(_sql)
+    , connection(guard)
+    , statementId(mysql_stmt_init(guard->getCHandle()))
+    , paramCount(_paramCount)
+  {
+    mysql_stmt_attr_set(statementId, STMT_ATTR_UPDATE_MAX_LENGTH, &myboolTrue);
+    unsigned int pCount= static_cast<unsigned int>(paramCount); // TODO: consider to change paramCount to uint
+    mysql_stmt_attr_set(statementId, STMT_ATTR_PREBIND_PARAMS, &pCount);
   }
 
   /**

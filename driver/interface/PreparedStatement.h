@@ -71,18 +71,18 @@ protected:
 
   //PrepareResult owns query string
   const SQLString* sql= nullptr;
-  std::size_t parameterCount= 0; // Do we need it here if we can get it from prepare result class
+  std::size_t      parameterCount= 0; // Do we need it here if we can get it from prepare result class
   bool hasLongData= false;
   bool useFractionalSeconds= true;
   int32_t fetchSize= 0;
   int32_t resultSetScrollType= 0;
-  bool closed= false;
+  bool  closed= false;
   Longs batchRes;
   Unique::ResultSetMetaData metadata;
   Unique::Results results;
-  MYSQL_BIND* param= nullptr;
-  uint32_t batchArraySize= 0;
-  bool continueBatchOnError= false;
+  MYSQL_BIND*     param= nullptr;
+  uint32_t        batchArraySize= 0;
+  bool     continueBatchOnError= false;
   uint32_t queryTimeout= 0;
   std::map<std::size_t, ParamCodec*> parColCodec;
   ParamCodec* parRowCallback= nullptr;
@@ -109,10 +109,7 @@ protected:
   virtual bool executeInternal(int32_t fetchSize)=0;
   virtual PrepareResult* getPrepareResult()=0;
   virtual void executeBatchInternal(uint32_t queryParameterSize)=0;
-  // For internal use - app should use metadata object
-  virtual uint32_t fieldCount() const=0;
-;
-  //void initParamset(std::size_t paramCount);
+
   /**
    * Check if statement is closed, and throw exception if so.
    *
@@ -123,23 +120,24 @@ protected:
   void validateParamset(std::size_t paramCount);
 
 public:
-  int64_t getServerThreadId();
-  inline Protocol* getProtocol() { return guard; }
-  void    clearBatch();
+  int64_t    getServerThreadId();
+  inline
+   Protocol* getProtocol() { return guard; }
+  void       clearBatch();
   int64_t    executeUpdate();
   bool       execute();
   ResultSet* executeQuery();
   ResultSet* getResultSet();
   int64_t    getUpdateCount();
 
-  const Longs&  executeBatch();
+  const Longs&        executeBatch();
   ResultSetMetaData*  getEarlyMetaData();
   std::size_t         getParamCount();
 
   void setBatchSize(int32_t batchSize);
   bool getMoreResults();
+  bool hasMoreResults();
 
-  virtual bool        hasMoreResults()=0;
   virtual const char* getError()=0;
   virtual uint32_t    getErrno()=0;
   virtual const char* getSqlState()= 0;;
@@ -148,7 +146,7 @@ public:
   virtual bool sendLongData(uint32_t paramNum, const char* data, std::size_t length)=0;
   virtual bool isServerSide() const=0;
   virtual enum enum_field_types getPreferredParamType(enum enum_field_types appType) const=0;
-  Results* getInternalResults() { return results.get(); }
+  Results*    getInternalResults() { return results.get(); }
   inline void setFetchSize(int32_t _fetchSize) { fetchSize= _fetchSize; }
   inline int32_t getFetchSize() { return fetchSize; }
   // Return false if callbacks are not supported
@@ -156,44 +154,6 @@ public:
   virtual bool setCallbackData(void* data)= 0;
   // Returns if current result is out params
   virtual bool isOutParams()= 0;
-  //void validateParamset(std::size_t paramCount);
-  /**
-  * Retrieves the number, types and properties of this <code>PreparedStatement</code> object's
-  * parameters.
-  *
-  * @return a <code>ParameterMetaData</code> object that contains information about the number,
-  *     types and properties for each parameter marker of this <code>PreparedStatement</code>
-  *     object
-  * @throws SQLException if a database access error occurs or this method is called on a closed
-  *     <code>PreparedStatement</code>
-  * @see ParameterMetaData
-  */
-  /* virtual ParameterMetaData* getParameterMetaData()=0;
-  virtual void setParameter(int32_t parameterIndex, ParameterHolder* holder)=0;
-
-  void setNull(int32_t parameterIndex, int32_t sqlType);
-  void setNull(int32_t parameterIndex, const ColumnType& mariadbType);
-  void setNull(int32_t parameterIndex, int32_t sqlType, const SQLString& typeName);
-  void setBlob(int32_t parameterIndex, std::istream* inputStream, const int64_t length);
-  void setBlob(int32_t parameterIndex, std::istream* inputStream);
-
-  void setBoolean(int32_t parameterIndex,bool value);
-  void setByte(int32_t parameterIndex, int8_t byte);
-  void setShort(int32_t parameterIndex, int16_t value);
-  void setString(int32_t parameterIndex, const SQLString& str);
-  void setBytes(int32_t parameterIndex, odbc::bytes* bytes);
-  void setInt(int32_t column, int32_t value);
-  void setLong(int32_t parameterIndex, int64_t value);
-  void setInt64(int32_t parameterIndex, int64_t value) { setLong(parameterIndex, value); }
-  void setUInt64(int32_t parameterIndex, uint64_t value);
-  void setUInt(int32_t parameterIndex, uint32_t value);
-  void setFloat(int32_t parameterIndex, float value);
-  void setDouble(int32_t parameterIndex, double value);
-  void setDateTime(int32_t parameterIndex, const SQLString& dt);
-  void setBigInt(int32_t column, const SQLString& value); 
-
-  void clearParameters();
-  void addBatch(); */
   };
 
 } // namespace mariadb

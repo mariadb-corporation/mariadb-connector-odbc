@@ -152,24 +152,24 @@ BEGIN
                                                       // With less with -2 the caption is not visible
     GROUPBOX        "Miscellanous Options",IDC_STATIC,1,-2,303,156,0,WS_EX_TRANSPARENT
     CONTROL         "Ignore schema in column specification",ckIgnoreSchema,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,10,136,10,WS_EX_TRANSPARENT
-    CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,24,97,10,WS_EX_TRANSPARENT
-    CONTROL         "No error on schema parameters in catalog functions",ckSchParamNoError,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,38,177,10,WS_EX_TRANSPARENT
-    LTEXT           "Plugins Directory",IDC_STATIC,15,52,56,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtPluginDir,72,52,110,10,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",pbPlugindirBrowse,183,50,30,14
-    CONTROL         "Disable LOAD DATA LOCAL INFILE statements",ckNoLocalInfile,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,66,170,10,WS_EX_TRANSPARENT
-    CONTROL         "SQLTables: NULL Catalog means 'current'(default), otherwise 'any'",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,80,232,10,WS_EX_TRANSPARENT
-    LTEXT           "Performance schema attributes(format: name=val,name1=val1)",IDC_STATIC,15,92,210,8,0,WS_EX_TRANSPARENT
-    EDITTEXT        txtAttr,15,100,210,11,ES_AUTOHSCROLL
-    CONTROL         "Use parameter conversions callbacks on bulk operations",ckParamCallbacks,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,114,237,10,WS_EX_TRANSPARENT
-//    CONTROL         "Prepare by default on server for direct execution",ckServerDirectExec,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,114,177,10,WS_EX_TRANSPARENT
-    CONTROL         "Prepare by default on client in SQLPrepare",ckClientPrepare,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,128,177,10,WS_EX_TRANSPARENT
-    LTEXT           "PS cache size", IDC_STATIC, 15, 142, 46, 8, 0, WS_EX_TRANSPARENT
-    EDITTEXT        txtPsCacheSize, 62, 142, 24, 10, ES_AUTOHSCROLL
-    LTEXT           "Max length of a query to cache", IDC_STATIC, 93, 142, 108, 8, 0, SS_NOTIFY
-    PUSHBUTTON      "*", lblMaxKeyLengthTooltip, 194, 141, 6, 10, 0
-    EDITTEXT        txtMaxCacheKey, 202, 142, 28, 10, ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,7,136,10,WS_EX_TRANSPARENT
+    CONTROL         "Allow multiple statements",ckMultiStmt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,19,97,10,WS_EX_TRANSPARENT
+    CONTROL         "No error on schema parameters in catalog functions",ckSchParamNoError,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,31,177,10,WS_EX_TRANSPARENT
+    LTEXT           "Plugins Directory",IDC_STATIC,15,43,56,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtPluginDir,72,43,110,10,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",pbPlugindirBrowse,183,41,30,14
+    CONTROL         "Disable LOAD DATA LOCAL INFILE statements",ckNoLocalInfile,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,55,170,10,WS_EX_TRANSPARENT
+    CONTROL         "SQLTables: NULL Catalog means 'current'(default), otherwise 'any'",ckNullSchemaMeansCurrent,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,67,232,10,WS_EX_TRANSPARENT
+    LTEXT           "Performance schema attributes(format: name=val,name1=val1)",IDC_STATIC,15,79,210,8,0,WS_EX_TRANSPARENT
+    EDITTEXT        txtAttr,15,89,210,11,ES_AUTOHSCROLL
+    CONTROL         "Use parameter conversions callbacks on bulk operations",ckParamCallbacks,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,101,237,10,WS_EX_TRANSPARENT
+    CONTROL         "Prepare by default on client in SQLPrepare",ckClientPrepare,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,113,177,10,WS_EX_TRANSPARENT
+    CONTROL         "Prepare by default on server for direct execution",ckServerDirectExec,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,125,177,10,WS_EX_TRANSPARENT
+    LTEXT           "PS cache size", IDC_STATIC, 15, 137, 46, 8, 0, WS_EX_TRANSPARENT
+    EDITTEXT        txtPsCacheSize, 62, 137, 24, 10, ES_AUTOHSCROLL
+    LTEXT           "Max length of a query to cache", IDC_STATIC, 93, 137, 108, 8, 0, SS_NOTIFY
+    PUSHBUTTON      "*", lblMaxKeyLengthTooltip, 194, 136, 6, 10, 0
+    EDITTEXT        txtMaxCacheKey, 202, 137, 28, 10, ES_AUTOHSCROLL
     PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
     PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
     PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14
