@@ -27,6 +27,7 @@
       <ComponentRef Id="Driver" />
       <@PLUGINS_BEGIN@ComponentRef Id="CcPlugins" /@PLUGINS_END@>
       <ComponentRef Id="InstallerTools" />
+      <ComponentRef Id="Headers" />
       <@TLS_LIB_BEGIN@ComponentRef Id="TlsLib" /@TLS_LIB_END@>
     </Feature>
     <Feature Id="DebugFeature" Title="Debug Information" Level="2">
@@ -47,6 +48,10 @@
         <Directory Id="MariaDB" Name="@PRODUCT_MANUFACTURER@">
           <Directory Id="INSTALLFOLDER" Name="@PRODUCT_NAME@">
             <Directory Id="PLUGINSFOLDER" Name="$(var.plugins_subdir_name)">
+            </Directory>
+            <Directory Id="INCLUDEFOLDER" Name="include">
+              <Directory Id="INCLUDEMARIADBFOLDER" Name="mariadb">
+              </Directory>
             </Directory>
           </Directory>
         </Directory>
@@ -93,6 +98,9 @@
     </Component@PLUGINS_END@>
     <Component Id="InstallerTools" Guid="@GUID_INSTALLER_TOOLS@" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
         <File Id="change_dsns_driver" Name="change_dsns_driver.exe"  DiskId="1"  Source="$(var.installer_tools_dir)/change_dsns_driver.exe" />
+    </Component>
+    <Component Id="Headers" Guid="@GUID_HEADERS@" Directory="INCLUDEMARIADBFOLDER" DiskId="1" Win64="@IS_WIN64@">
+      <File Id="sqlmariadb" Name="sqlmariadb.h"  DiskId="1"  Source="$(var.source_root_dir)/include/mariadb/sqlmariadb.h" />
     </Component>
     <@TLS_LIB_BEGIN@Component Id="TlsLib" Guid="@GUID_TLS_LIB@" Directory="INSTALLFOLDER" DiskId="1" Win64="@IS_WIN64@">
       <File Id="TlsLibFile1" Name="libgnutls-30.dll"  DiskId="1"  Source="@LIB_GNUTLS_LOCATION@/libgnutls-30.dll" />

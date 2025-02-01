@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -127,9 +127,8 @@ ODBC_TEST(test_params_last_count_smaller)
 #define TEST_MAX_PS_COUNT 25
 ODBC_TEST(t_odbc_16)
 {
-  SQLLEN    num_inserted;
-  SQLRETURN rc;
-  int       i, prev_ps_count, curr_ps_count, increment= 0, no_increment_iterations= 0;
+  SQLLEN  num_inserted;
+  int     i, prev_ps_count, curr_ps_count, increment= 0, no_increment_iterations= 0;
 
   /* This would be valuable for the test, as driver could even crash when PS number is exhausted.
      But changing such sensible variable in production environment can lead to a problem (if
@@ -145,17 +144,16 @@ ODBC_TEST(t_odbc_16)
 
     OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(1);INSERT INTO t1 VALUES(2)");
 
-    SQLRowCount(Stmt, &num_inserted);
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &num_inserted));
     is_num(num_inserted, 1);
   
-    rc= SQLMoreResults(Stmt);
+    CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
     num_inserted= 0;
-    rc= SQLRowCount(Stmt, &num_inserted);
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &num_inserted));
     is_num(num_inserted, 1);
 
-    rc= SQLMoreResults(Stmt);
-    FAIL_IF(rc != SQL_NO_DATA, "expected no more results");
-    SQLFreeStmt(Stmt, SQL_CLOSE);
+    EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
     GET_SERVER_STATUS(curr_ps_count, GLOBAL, "Prepared_stmt_count" );
 
@@ -168,7 +166,7 @@ ODBC_TEST(t_odbc_16)
       /* If only test ran on the server, then increment would be constant on each iteration */
       if (curr_ps_count - prev_ps_count != increment)
       {
-        fprintf(stdout, "# This test makes sense to run only on dedicated server!\n");
+        diag("This test makes sense to run only on dedicated server!\n");
         return SKIP;
       }
     }

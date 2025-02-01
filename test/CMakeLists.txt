@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2021 MariaDB Corporation AB
+#   Copyright (C) 2013,2025 MariaDB Corporation plc
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -60,7 +60,7 @@ SET (ODBC_TESTS
      "basic" "types" "blob" "desc" "info" "tran" "catalog1" "catalog2"
      "use_result" "scroll" "bulk" "prepare" "datetime" "keys"
      "curext" "relative" "unicode" "cursor" "dyn_cursor"
-     "error" "param" "result1" "result2" "multistatement")
+     "error" "param" "result1" "result2" "multistatement" "mariadb_specific")
 SET(COMMON_TEST_SOURCES tap.h)
 # Interactive makes sense on WIN32 only atm
 IF (BUILD_INTERACTIVE_TESTS)

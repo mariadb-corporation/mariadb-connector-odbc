@@ -285,6 +285,8 @@ IF(APPLE OR CMAKE_SYSTEM_NAME MATCHES AIX)
   ENDIF()
 ENDIF()
 
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+
 # By now we have everything needed by tests. If we need to build them only - firing config now and exit
 # There is "normal" tests config below
 IF(BUILD_TESTS_ONLY)
@@ -306,7 +308,7 @@ ENDIF()
 
 SET(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
-SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation)
+SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation Development)
 SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
 
 # We need to determine the last parameter for SQLColAttribute:
@@ -337,8 +339,8 @@ ELSE()
 ENDIF()
 
 SET(LIBRARY_NAME "maodbc")
-
 ADD_SUBDIRECTORY(driver)
+ADD_SUBDIRECTORY(include)
 
 ####### MAODBCS #######
 ADD_SUBDIRECTORY(dsn)

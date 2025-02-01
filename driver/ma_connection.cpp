@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -178,6 +178,7 @@ SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
   MDBUG_C_RETURN(Connection, ret, &Connection->Error);
 }
 /* }}} */
+
 /* {{{ MADB_DbcSetAttr */
 SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength, bool isWChar)
 {
@@ -347,7 +348,18 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     }
     TxnIsolation= (SQLINTEGER)(SQLLEN)ValuePtr;
     break;
+  case SQL_ATTR_EXECDIRECT_ON_SERVER:
+    ExecDirectOnServer= ((SQLULEN)ValuePtr != SQL_FALSE);
+    break;
+  case SQL_ATTR_PREPARE_ON_CLIENT:
+    PrepareOnClient= ((SQLULEN)ValuePtr != SQL_FALSE);
+    break;
   default:
+    if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE)
+    {
+      // The error is for unknown by us attributes from driver specific attributes range
+      return MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
+    }
     break;
   }
   return Error.ReturnValue;
@@ -467,9 +479,19 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     }
     break;
 
-  default:
-    MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
+  case SQL_ATTR_EXECDIRECT_ON_SERVER:
+    *(SQLULEN*)ValuePtr= ExecDirectOnServer ? SQL_TRUE : SQL_FALSE;
     break;
+  case SQL_ATTR_PREPARE_ON_CLIENT:
+    *(SQLULEN*)ValuePtr= PrepareOnClient ? SQL_TRUE : SQL_FALSE;
+    break;
+  default:
+    if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE && Attribute < 0x00008000)
+    {
+      // The error is for unknown by us attributes from driver specific attributes range
+      return MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
+    }
+    return MADB_SetError(&Error, MADB_ERR_HY024, nullptr, 0);
   }
   return Error.ReturnValue;
 }
@@ -658,6 +680,12 @@ const char* MADB_Dbc::getDefaultSchema(MADB_Dsn *Dsn)
     return Dsn->Catalog;
   }
   return nullptr;
+}
+
+void MADB_Dbc::setDefaultAttributeValues(MADB_Dsn* _Dsn)
+{
+  ExecDirectOnServer= (_Dsn->EdPrepareOnServer != '\0');
+  PrepareOnClient=    (_Dsn->PrepareOnClient != '\0');
 }
 
 /* {{{ MADB_Dbc::CoreConnect
@@ -1022,6 +1050,9 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
       TxnIsolation ? static_cast<enum IsolationLevel>(TxnIsolation) : TRANSACTION_REPEATABLE_READ));
   }
 
+  setDefaultAttributeValues(Dsn);
+
+  // TODO: Looks like this can be removed
   if (Error.ReturnValue == SQL_ERROR && mariadb)
   {
     mysql_close(mariadb);

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -30,6 +30,7 @@
 #include "template/CArray.h"
 #include "class/pimpls.h"
 #include "class/Results.h"
+#include "mariadb/sqlmariadb.h"
 
 namespace mariadb
 {
@@ -209,6 +210,8 @@ typedef struct
   SQLUINTEGER RetrieveData;
 	SQLUINTEGER UseBookmarks;
   SQLSMALLINT BookmarkType;
+  bool ExecDirectOnServer;
+  bool PrepareOnClient;
 } MADB_StmtOptions;
 
 /* TODO: To check is it 0 or 1 based? not quite clear from its usage */

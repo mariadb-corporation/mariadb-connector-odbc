@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2020,2024 MariaDB Corporation plc
+#   Copyright (C) 2020,2025 MariaDB Corporation plc
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -228,6 +228,7 @@ IF(WITH_MSI)
                                     -DIMPORT_LIB_DIR=$<TARGET_LINKER_FILE_DIR:${LIBRARY_NAME}>
                                     -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
                                     -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
+                                    -DSOURCE_ROOT_DIR=${CMAKE_SOURCE_DIR}
                                     -DFILE_IN=${CMAKE_SOURCE_DIR}/packaging/windows/binaries_dir.xml.in
                                     -DFILE_OUT=${CMAKE_BINARY_DIR}/packaging/windows/binaries_dir.xml
                                     -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)
@@ -239,6 +240,7 @@ IF(WITH_MSI)
                                     -DIMPORT_LIB_DIR=$<TARGET_LINKER_FILE_DIR:${LIBRARY_NAME}>
                                     -DINSTALLER_TOOLS_DIR=$<TARGET_FILE_DIR:change_dsns_driver>
                                     -DPLUGINS_SUBDIR_NAME=${MARIADB_DEFAULT_PLUGINS_SUBDIR}
+                                    -DSOURCE_ROOT_DIR=${CMAKE_SOURCE_DIR}
                                     -DFILE_IN=${CMAKE_SOURCE_DIR}/packaging/windows/binaries_dir.xml.in
                                     -DFILE_OUT=${CMAKE_BINARY_DIR}/packaging/windows/binaries_dir.xml
                                     -P ${CMAKE_SOURCE_DIR}/cmake/ConfigureFile.cmake)

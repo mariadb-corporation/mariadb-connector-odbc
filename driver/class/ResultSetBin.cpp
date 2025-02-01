@@ -124,6 +124,7 @@ namespace mariadb
     else {
       if (rowPointer > -1) {
         beforeFirst();
+        // after beforeFirst rowPointer is supposed to be -1, i'd say
         row->installCursorAtPosition(rowPointer > -1 ? rowPointer : 0);
         lastRowPointer= -1;
       }
@@ -469,8 +470,6 @@ namespace mariadb
       throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     rowPointer= -1;
-    /*row->installCursorAtPosition(0);
-    lastRowPointer= -1;*/
   }
 
   void ResultSetBin::afterLast() {

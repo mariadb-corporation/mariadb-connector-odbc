@@ -542,9 +542,7 @@ namespace mariadb
       if (rowPointer != lastRowPointer + 1) {
         row->installCursorAtPosition(rowPointer > -1 ? rowPointer : 0);
       }
-      //if (!streaming) {
       row->fetchNext();
-      //}
     }
     lastRowPointer= rowPointer;
   }

@@ -1,6 +1,5 @@
-#!/bin/bash
 # ************************************************************************************
-#   Copyright (C) 2019,2025 MariaDB Corporation plc
+#   Copyright (C) 2025 MariaDB Corporation plc
 #   
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -18,35 +17,8 @@
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 
-LibPath="Library/MariaDB/MariaDB-Connector-ODBC"
 
-set -e
-rm -rf ./ROOT
-
-mkdir -p ./ROOT/${LibPath}/bin
-cp $1/libmaodbc.dylib ./ROOT/${LibPath}/
-cp $2//install_driver ./ROOT/${LibPath}/bin
-
-CURRENTDIR=$(dirname "$0")
-
-mkdir -p ./ROOT/${LibPath}/include/mariadb
-cp $SRCROOTDIR/../../include/mariadb/sqlmariadb.h ./ROOT/${LibPath}/include/mariadb/
-if [ $3 ]; then
-  mkdir ./ROOT/${LibPath}/plugin
-  cp $3/dialog.so ./ROOT/${LibPath}/plugin/
-  cp $3/auth_gssapi_client.so ./ROOT/${LibPath}/plugin/
-  cp $3/caching_sha2_password.so ./ROOT/${LibPath}/plugin/
-  cp $3/mysql_clear_password.so ./ROOT/${LibPath}/plugin/
-  cp $3/client_ed25519.so ./ROOT/${LibPath}/plugin/
-  cp $3/sha256_password.so ./ROOT/${LibPath}/plugin/
-fi
-
-if [ $4 ]; then
-  if [ -L $4 ]; then
-    LibRealName=`readlink $4`
-    cp $4 ./ROOT/${LibPath}/${LibRealName}
-    cp -a $4 ./ROOT/${LibPath}/
-  else
-    cp $4 ./ROOT/${LibPath}/
-  fi
-fi
+INSTALL(FILES
+   mariadb/sqlmariadb.h
+   DESTINATION ${INSTALL_INCLUDEDIR}/mariadb
+   COMPONENT Development)

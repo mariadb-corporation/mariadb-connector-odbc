@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2024 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1907,7 +1907,7 @@ ODBC_TEST(t_local_data_infile)
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
 
   /* Connection with *disabled* LOAD DATA LOCAL INFILE */
-  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NOLOCALINFILE=1");
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "NOLOCALINFILE=1");
   EXPECT_STMT(Hstmt, SQLExecDirect(Hstmt, "LOAD DATA LOCAL INFILE 'nonexistent.txt' INTO TABLE nonexistent(b)", SQL_NTS), SQL_ERROR);
   check_sqlstate(Hstmt, "42000");
   CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
@@ -2209,7 +2209,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug44971,     "t_bug44971",     NORMAL},
   {t_bug48603,     "t_bug48603",     NORMAL},
   {t_bug45378,     "t_bug45378",     NORMAL},
-  {t_mysqld_stmt_reset, "tmysqld_stmt_reset bug", NORMAL},
+  {t_mysqld_stmt_reset, "tmysqld_stmt_reset_bug", NORMAL},
   {t_odbc32,      "odbc32_SQL_ATTR_PACKET_SIZE_option", NORMAL},
   {t_gh_issue3,   "leading_space_gh_issue3",  NORMAL},
   {t_odbc48,      "odbc48_iso_call_format",   NORMAL},

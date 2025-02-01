@@ -206,7 +206,7 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
 {
   SQLRETURN ret;
 
-  ret= Stmt->Prepare(StatementText, TextLength, Stmt->Connection->Dsn->EdPrepareOnServer, true);
+  ret= Stmt->Prepare(StatementText, TextLength, Stmt->Options.ExecDirectOnServer, true);
   if (!SQL_SUCCEEDED(ret))
   {
     return ret;
@@ -401,7 +401,7 @@ SQLRETURN MADB_RegularPrepare(MADB_Stmt *Stmt)
 void SwitchToSsIfNeeded(MADB_Stmt* Stmt)
 {
   /* Query was prepared on client, and now application requested metadata */
-  if (!Stmt->metadata && Stmt->State < MADB_SS_EXECUTED && Stmt->Connection->Dsn->PrepareOnClient && !Stmt->stmt->isServerSide())
+  if (!Stmt->metadata && Stmt->State < MADB_SS_EXECUTED && Stmt->Options.PrepareOnClient && !Stmt->stmt->isServerSide())
   {
     // We need it for the case server side prepare fails, but MADB_RegularPrepare falls back to CS on its own, if SS goes wrong.
     PreparedStatement *currenCs= Stmt->stmt.release();
@@ -2341,11 +2341,26 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
   case SQL_ATTR_RETRIEVE_DATA:
     *(SQLULEN *)ValuePtr= SQL_RD_ON;
     break;
+  case SQL_ATTR_EXECDIRECT_ON_SERVER:
+    *(SQLULEN*)ValuePtr= Stmt->Options.ExecDirectOnServer ? SQL_TRUE : SQL_FALSE;
+    break;
+  case SQL_ATTR_PREPARE_ON_CLIENT:
+    *(SQLULEN*)ValuePtr= Stmt->Options.PrepareOnClient ? SQL_TRUE : SQL_FALSE;
+    break;
+  default:
+    if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE && Attribute < 0x00008000)
+    {
+      // The error is for unknown by us attributes from driver specific attributes range
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
+    }
+    // Should probably return error here as in other Attr functions, but not gonna change that
+    // in GA. TODO: for 3.3 of will it be 4.0
+
+    break;
   }
   return ret;
 }
 /* }}} */
-
 
 /* {{{ MADB_StmtSetAttr */
 SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength)
@@ -2560,10 +2575,21 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
     return Stmt->Error.ReturnValue;
     break;
-  default:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY024, nullptr, 0);
-    return Stmt->Error.ReturnValue;
+  case SQL_ATTR_EXECDIRECT_ON_SERVER:
+    Stmt->Options.ExecDirectOnServer= ((SQLULEN)ValuePtr != SQL_FALSE);
     break;
+  case SQL_ATTR_PREPARE_ON_CLIENT:
+    Stmt->Options.PrepareOnClient= ((SQLULEN)ValuePtr != SQL_FALSE);
+    break;
+  default:
+    if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE && Attribute < 0x00008000)
+    {
+      // The error is for unknown by us attributes from driver specific attributes range
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
+    }
+    // HY024(that was here before) does not look correct - it's about wrong value, and not attribute. HY092 is also for DM
+    // But for the case of direct linking it looks legit.
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY024, nullptr, 0);
   }
   return ret;
 }
@@ -3987,14 +4013,14 @@ struct st_ma_stmt_methods MADB_StmtMethods=
   MADB_RefreshRowPtrs
 };
 
-MADB_Stmt::MADB_Stmt(MADB_Dbc * Dbc)
+MADB_Stmt::MADB_Stmt(MADB_Dbc* Dbc)
   : Connection(Dbc),
   DefaultsResult(nullptr, &mysql_free_result)
 {
-  std::memset(&Error, 0, sizeof(MADB_Error));
-  std::memset(&Bulk, 0, sizeof(MADB_BulkOperationInfo));
-  std::memset(&Options, 0, sizeof(MADB_StmtOptions));
-  std::memset(&Cursor, 0, sizeof(MADB_Cursor));
+  std::memset(&Error,    0, sizeof(MADB_Error));
+  std::memset(&Bulk,     0, sizeof(MADB_BulkOperationInfo));
+  std::memset(&Options,  0, sizeof(MADB_StmtOptions));
+  std::memset(&Cursor,   0, sizeof(MADB_Cursor));
   std::memset(&ListItem, 0, sizeof(MADB_List));
 }
 
@@ -4024,7 +4050,10 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   Stmt->Options.CursorType= SQL_CURSOR_FORWARD_ONLY;
 
   Stmt->Options.UseBookmarks= SQL_UB_OFF;
-  Stmt->Options.MetadataId= Connection->MetadataId;
+  // Attributes defaults form connection
+  Stmt->Options.MetadataId=         Connection->MetadataId;
+  Stmt->Options.ExecDirectOnServer= Connection->ExecDirectOnServer;
+  Stmt->Options.PrepareOnClient=    Connection->PrepareOnClient;
 
   Stmt->Apd= Stmt->IApd;
   Stmt->Ard= Stmt->IArd;

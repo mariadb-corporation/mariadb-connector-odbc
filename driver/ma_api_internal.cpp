@@ -1944,7 +1944,7 @@ SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, TextLength, d);
   try
   {
-    return Stmt->Prepare((char*)StatementText, TextLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+    return Stmt->Prepare((char*)StatementText, TextLength, !Stmt->Options.PrepareOnClient);
   }
   catch (SQLException &e)
   {
@@ -1986,7 +1986,7 @@ SQLRETURN MA_SQLPrepareW(SQLHSTMT StatementHandle,
     }
     else
     {
-      ret= Stmt->Prepare(StmtStr, (SQLINTEGER)StmtLength, Stmt->Connection->Dsn->PrepareOnClient == '\0');
+      ret= Stmt->Prepare(StmtStr, (SQLINTEGER)StmtLength, !Stmt->Options.PrepareOnClient);
     }
   }
   catch (SQLException &e)
