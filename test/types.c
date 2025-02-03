@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation plc
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1414,6 +1414,36 @@ ODBC_TEST(t_odbc_double)
 }
 
 
+/* Error while fetching as decimal as NUMERIC */
+ODBC_TEST(t_odbc322)
+{
+  SQLHANDLE ard;
+  SQL_NUMERIC_STRUCT sqlnum;
+  //SQLCHAR exp_data[3]= {0xbd, 0xda, 0x0};
+
+  OK_SIMPLE_STMT(Stmt, "SELECT  ROUND(1234567890123456789012345678901234567890.740325, 1);");
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &ard, 0, NULL));
+
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_TYPE,
+    (SQLPOINTER)SQL_C_NUMERIC, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_SCALE,
+    (SQLPOINTER)1, SQL_IS_INTEGER));
+  CHECK_HANDLE_RC(SQL_HANDLE_DESC, ard, SQLSetDescField(ard, 1, SQL_DESC_DATA_PTR,
+    &sqlnum, SQL_IS_POINTER));
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+
+  /*is_num(sqlnum.sign, 1);
+  is_num(sqlnum.precision, 38);
+  is_num(sqlnum.scale, 1);
+  IS(!memcmp(sqlnum.val, exp_data, sizeof(exp_data)));*/
+
+  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_longlong1,        "t_longlong1",       NORMAL},
@@ -1443,6 +1473,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc305,          "odbc305_numeric_as_numeric",     NORMAL},
   {t_odbc405,          "odbc405_dec_precision",          NORMAL},
   {t_odbc_double,      "t_fetch_double",    NORMAL},
+  {t_odbc322,          "odbc322_decimal_as_numeric",     NORMAL},
   {NULL, NULL, NORMAL}
 };
 
