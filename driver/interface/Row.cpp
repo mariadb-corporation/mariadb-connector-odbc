@@ -122,9 +122,11 @@ namespace mariadb
 
   long double safer_strtod(const char* str, uint32_t len)
   {
+    char *notConstStop= nullptr;
     const char *stop= nullptr, *end= str + len;
     int64_t sign= 1;
 
+    return strtold(str, &notConstStop);
     while (*str == ' ') {
       ++str;
       --len;
@@ -145,9 +147,52 @@ namespace mariadb
 
     if (stop < end && *stop == '.') { // locale?
       str= stop + 1;
-      // We can't have sign here thus using the functions that onlye translates numbers
-      fractional= core_strtoll(str, static_cast<uint32_t>(end - str), &stop);
-      result+= sign*static_cast<long double>(fractional / std::pow(10.0, stop - str));
+      long double digit;
+      long double den= 1e-1 * sign;
+      bool breakLoop= false;
+      while (str < end) {
+        switch (*str) {
+        case '0':
+          digit= 0.;
+          break;
+        case '1':
+          digit= 1.;
+          break;
+        case '2':
+          digit= 2.;
+          break;
+        case '3':
+          digit= 3.;
+          break;
+        case '4':
+          digit= 4.;
+          break;
+        case '5':
+          digit= 5.;
+          break;
+        case '6':
+          digit= 6.;
+          break;
+        case '7':
+          digit= 7.;
+          break;
+        case '8':
+          digit= 8.;
+          break;
+        case '9':
+          digit= 9.;
+          break;
+        default:
+          stop= str;
+          breakLoop= true;
+        }
+        if (breakLoop) {
+          break;
+        }
+        result+= den * digit;
+        den/= 10.;
+        ++str;
+      }
     }
     if (stop < end && (*stop == 'e' || *stop == 'E')) {
       str= stop + 1;
