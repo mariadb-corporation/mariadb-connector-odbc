@@ -1414,7 +1414,7 @@ ODBC_TEST(t_odbc_double)
 }
 
 
-/* Error while fetching as decimal as NUMERIC */
+/* Error while fetching too big decimal as NUMERIC */
 ODBC_TEST(t_odbc322)
 {
   SQLHANDLE ard;

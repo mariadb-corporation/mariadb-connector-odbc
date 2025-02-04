@@ -1,6 +1,6 @@
   /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1696,6 +1696,46 @@ ODBC_TEST(odbc279)
 }
 
 
+ODBC_TEST(odbc450)
+{
+  char buffer[4002];
+  SQLLEN ind= SQL_DATA_AT_EXEC;
+  SQLPOINTER token= NULL;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc450");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS ps_odbc450");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc450(mt MEDIUMTEXT)");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE ps_odbc450() SELECT 1 FROM DUAL;");
+
+  OK_SIMPLE_STMT(Stmt, "CALL ps_odbc450()");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR,
+    SQL_LONGVARCHAR, 2147483647, 255, buffer, sizeof(buffer), &ind));
+
+  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc450 VALUES(?)", SQL_NTS),
+    SQL_NEED_DATA);
+  EXPECT_STMT(Stmt, SQLParamData(Stmt, &token), SQL_NEED_DATA);
+  CHECK_STMT_RC(Stmt, SQLPutData(Stmt, buffer, sizeof(buffer)));
+  CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &token));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  /* The crash occured here */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+
+  CHECK_DBC_RC(Connection, SQLAllocStmt(Connection, &Stmt));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc450");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE ps_odbc450");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_init_table, "my_init_table"},
@@ -1726,6 +1766,7 @@ MA_ODBC_TESTS my_tests[]=
   {timestruct_param, "timestruct_param-seconds"},
   {consequent_direxec, "consequent_direxec"},
   {odbc279, "odbc-279-timestruct"},
+  {odbc450, "ODBC-450-putdata_after_ps"},
   {NULL, NULL}
 };
 
