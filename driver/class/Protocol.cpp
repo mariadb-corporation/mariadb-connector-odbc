@@ -1074,7 +1074,8 @@ namespace mariadb
       needLock && (lock.unlock(), true);
       return true;
 
-    } else {
+    }
+    else {
       statementIdToRelease= statementId;
     }
 

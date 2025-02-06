@@ -1,5 +1,5 @@
 # ************************************************************************************
-#   Copyright (C) 2013,2023 MariaDB Corporation AB
+#   Copyright (C) 2013,2025 MariaDB Corporation plc
 #
 #   This library is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU Library General Public
@@ -306,11 +306,6 @@ IF(BUILD_TESTS_ONLY)
   RETURN()
 ENDIF()
 
-SET(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
-
-SET(CPACK_COMPONENTS_ALL ClientPlugins ODBCLibs Documentation Development)
-SET(CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE 1)
-
 # We need to determine the last parameter for SQLColAttribute:
 # Older UnixODBC version expect SQLPOINTER while Windows expects SQLLEN *
 # Windows DM uses SQLPOINTER form 32b, but SQLLEN* for 64b, which is... nice :-\
@@ -346,8 +341,6 @@ ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(dsn)
 
 ADD_SUBDIRECTORY("dsn_test")
-
-SET(CPACK_PACKAGE_NAME "mariadb-connector-odbc")
 
 # "set/append array" - append a set of strings, separated by a space
 MACRO(SETA var)
@@ -387,54 +380,6 @@ ELSE()
     IF(RPM OR DEB)
       CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/packaging/linux/postinstall.in
                      ${CMAKE_BINARY_DIR}/packaging/linux/postinstall @ONLY)
-
-      IF(RPM)
-        SET(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_BINARY_DIR}/packaging/linux/postinstall)
-        SET(CPACK_RPM_SPEC_MORE_DEFINE "
-%define __requires_exclude .*pkg-config
-")
-        SET(CPACK_RPM_Development_USER_FILELIST "%ignore ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR}")
-        # I guess this line works, and the previous does not. Keeping both as I am not sure
-        SET(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR})
-
-        IF(CMAKE_VERSION VERSION_GREATER "3.21.99")
-          MESSAGE(STATUS "Excluding ${CMAKE_INSTALL_PREFIX}/${INSTALL_PCDIR} from RPM filelist")
-          SET(CPACK_RPM_REQUIRES_EXCLUDE_FROM ".*pkg-config")
-          
-          MESSAGE(STATUS "Excluding pkg-config from RPM dependencies")
-        ENDIF()
-
-        IF(CMAKE_VERSION VERSION_GREATER "3.9.99")
-
-          SET(CPACK_SOURCE_GENERATOR "RPM")
-          #SET(CPACK_RPM_BUILDREQUIRES "cmake;unixODBC-devel;mariadb-connector-c")
-          SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-DRPM=${RPM}")
-
-          MACRO(ADDIF var)
-            IF(DEFINED ${var})
-              SETA(CPACK_RPM_SOURCE_PKG_BUILD_PARAMS "-D${var}=${${var}}")
-            ENDIF()
-          ENDMACRO()
-
-          ADDIF(CMAKE_BUILD_TYPE)
-          ADDIF(BUILD_CONFIG)
-          ADDIF(MARIADB_LINK_DYNAMIC)
-          #ADDIF(CMAKE_C_FLAGS_RELWITHDEBINFO)
-          #ADDIF(DCMAKE_CXX_FLAGS_RELWITHDEBINFO)
-          #ADDIF(WITH_SSL)
-
-          INCLUDE(build_depends)
-          MESSAGE(STATUS "Build dependencies of the source RPM are: ${CPACK_RPM_BUILDREQUIRES}")
-          MESSAGE(STATUS "Cmake params for build from source RPM: ${CPACK_RPM_SOURCE_PKG_BUILD_PARAMS}")
-
-        ENDIF()
-      ELSE()
-        #SET(CPACK_DEBIAN_ODBCLibs_PACKAGE_SHLIBDEPS ON)
-        #SET(CPACK_DEBIAN_PACKAGE_DEPENDS "unixodbc-dev")
-        SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-        SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_BINARY_DIR}/packaging/linux/postinstall")
-      ENDIF()
-
     ENDIF()
   ENDIF()
 
@@ -460,87 +405,9 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
 ENDIF()
 
 # Packaging
-SET(CPACK_PACKAGE_VENDOR "MariaDB Corporation Ab")
-SET(CPACK_PACKAGE_DESCRIPTION "MariaDB Connector/ODBC. ODBC driver library for connecting to MariaDB and MySQL servers")
-IF(NOT SYSTEM_NAME)
-  STRING(TOLOWER ${CMAKE_SYSTEM_NAME} system_name)
-ENDIF()
-SET(QUALITY_SUFFIX "")
-IF (MARIADB_ODBC_VERSION_QUALITY AND NOT "${MARIADB_ODBC_VERSION_QUALITY}" STREQUAL "ga" AND NOT "${MARIADB_ODBC_VERSION_QUALITY}" STREQUAL "GA")
-  SET(QUALITY_SUFFIX "-${MARIADB_ODBC_VERSION_QUALITY}")
-ENDIF()
-IF(PACKAGE_PLATFORM_SUFFIX)
-  SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}-${PACKAGE_PLATFORM_SUFFIX}")
-ELSE()
- SET(CPACK_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-${system_name}-${CMAKE_SYSTEM_PROCESSOR}")
-ENDIF()
-MESSAGE(STATUS "Package Name: ${CPACK_PACKAGE_FILE_NAME}")
-SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
-SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-connector-odbc-${CPACK_PACKAGE_VERSION}${QUALITY_SUFFIX}-src")
-SET(CPACK_PACKAGE_CONTACT "info@mariadb.com")
-SET(CPACK_PACKAGE_VENDOR "MariaDB plc")
-SET(CPACK_SOURCE_IGNORE_FILES
-/test/
-/.git/
-.gitignore
-.gitmodules
-.gitattributes
-CMakeCache.txt
-cmake_dist.cmake
-CPackSourceConfig.cmake
-CPackConfig.cmake
-/.build/
-cmake_install.cmake
-CTestTestfile.cmake
-/CMakeFiles/
-/version_resources/
-.*vcxproj
-.*gz$
-.*zip$
-.*so$
-.*so.2
-.*so.3
-.*dll$
-.*a$
-.*pdb$
-.*sln$
-.*sdf$
-Makefile$
-/autom4te.cache/
-/.travis/
-.travis.yml
-/libmariadb/
-/_CPack_Packages/
-)
-
-# Build source packages
-IF(GIT_BUILD_SRCPKG OR ODBC_GIT_BUILD_SRCPKG)
-  IF(WIN32)
-    EXECUTE_PROCESS(COMMAND git archive --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip --worktree-attributes -v HEAD)
-  ELSE()
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip -v HEAD)
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar -v HEAD)
-    EXECUTE_PROCESS(COMMAND gzip -9 -f ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
-  ENDIF()
-ENDIF()
-
-IF(WIN32)
-  SET(DEFAULT_GENERATOR "ZIP")
-ELSE()
-  SET(DEFAULT_GENERATOR "TGZ")
-ENDIF()
-
-IF(NOT CPACK_GENERATOR)
-  SET(CPACK_GENERATOR "${DEFAULT_GENERATOR}")
-ENDIF()
-IF(NOT CPACK_SOURCE_GENERATOR)
-  SET(CPACK_SOURCE_GENERATOR "${DEFAULT_GENERATOR}")
-ENDIF()
-
+INCLUDE(packaging)
 MESSAGE(STATUS "License File: ${CPACK_RESOURCE_FILE_LICENSE}")
 MESSAGE(STATUS "ReadMe File: ${CPACK_PACKAGE_DESCRIPTION_FILE}")
 MESSAGE(STATUS "Source Package Filename: ${CPACK_SOURCE_PACKAGE_FILE_NAME}.${CPACK_SOURCE_GENERATOR}")
 
-INCLUDE(CPack)
 
