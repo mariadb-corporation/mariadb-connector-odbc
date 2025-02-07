@@ -815,7 +815,6 @@ ODBC_TEST(setnames_conn)
   return OK;
 }
 
-
 /**
  Bug #15601: SQLCancel does not work to stop a query on the database server
 */
