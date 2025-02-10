@@ -1108,8 +1108,9 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
       Stmt->Connection->guard->safeRealQuery(aux.str());
       auto result= mysql_store_result(Stmt->Connection->mariadb);
 
-      if (result == nullptr)
+      if (result == nullptr || mysql_num_rows(result) == 0)
       {
+        mysql_free_result(result);
         //Does not matter what are they, but we need to put there something
         if (refSchemaCond)
           schemaCond= refSchemaCond;

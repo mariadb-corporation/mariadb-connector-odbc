@@ -246,7 +246,7 @@ const char *MADB_GetTypeName(const MYSQL_FIELD *Field)
 }
 /* }}} */
 
-
+/* {{{ MADB_GetDefaultColumnValues */
 MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *fields)
 {
   SQLString DynStr("SELECT COLUMN_NAME, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='");
@@ -271,7 +271,7 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, const MYSQL_FIELD *field
   Stmt->Connection->guard->safeRealQuery(DynStr);
   return mysql_store_result(Stmt->Connection->mariadb);
 }
-
+/* }}} */
 
 char *MADB_GetDefaultColumnValue(MYSQL_RES *res, const char *Column)
 {

@@ -17,7 +17,7 @@
 #   51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 # *************************************************************************************/
 
-cmake_minimum_required(VERSION 2.8.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.12.0)
 
 IF(NOT ${CMAKE_VERSION} VERSION_LESS "3.20.0")
   CMAKE_POLICY(SET CMP0115 NEW)
@@ -26,9 +26,6 @@ CMAKE_POLICY(SET CMP0048 NEW)
 CMAKE_POLICY(SET CMP0040 NEW)
 CMAKE_POLICY(SET CMP0057 NEW)
 CMAKE_POLICY(SET CMP0054 NEW)
-IF(NOT ${CMAKE_VERSION} VERSION_LESS "3.20.0")
-  CMAKE_POLICY(SET CMP0115 NEW)
-ENDIF()
 
 PROJECT(mariadb_connector_odbc 
         VERSION 3.2.5

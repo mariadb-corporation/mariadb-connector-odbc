@@ -264,7 +264,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
   }
 
 
-  if (0)//Stmt->Connection->IsAnsi == '\0')
+  if (false)/*!Stmt->Connection->IsAnsi)*/
   {
     switch (Record->ConciseType) {
     case SQL_CHAR:        Record->ConciseType= SQL_WCHAR; break;

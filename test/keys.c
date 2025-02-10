@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -117,7 +117,7 @@ ODBC_TEST(my_foreign_keys)
 
     OK_SIMPLE_STMT(Stmt,"DROP DATABASE IF EXISTS test_odbc_fk");
     OK_SIMPLE_STMT(Stmt,"CREATE DATABASE test_odbc_fk");
-    OK_SIMPLE_STMT(Stmt,"use test_odbc_fk");
+    OK_SIMPLE_STMT(Stmt,"USE test_odbc_fk");
 
     OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS test_fkey_c1");
     OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS test_fkey_3");
@@ -127,10 +127,9 @@ ODBC_TEST(my_foreign_keys)
     OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS test_fkey_comment_f");
     OK_SIMPLE_STMT(Stmt,"DROP TABLE IF EXISTS test_fkey_comment_p");
 
-    OK_SIMPLE_STMT(Stmt,
-                       "CREATE TABLE test_fkey1(\
-                 A INTEGER NOT NULL,B INTEGER NOT NULL,C INTEGER NOT NULL,\
-                 D INTEGER,PRIMARY KEY (C,B,A)) ENGINE=InnoDB;");
+    OK_SIMPLE_STMT(Stmt, "CREATE TABLE test_fkey1("
+                         "A INTEGER NOT NULL,B INTEGER NOT NULL,C INTEGER NOT NULL,"
+                         "D INTEGER,PRIMARY KEY (C,B,A)) ENGINE=InnoDB;");
 
     OK_SIMPLE_STMT(Stmt,
                        "CREATE TABLE test_fkey_p1(\
@@ -468,12 +467,45 @@ void t_strstr()
     }
 }
 
+/* ODBC-454 */
+ODBC_TEST(odbc454)
+{
+    /* First running the way it should be */
+    CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt,
+                        NULL, SQL_NTS,
+                        NULL, SQL_NTS,
+                        NULL, SQL_NTS,
+                        (SQLCHAR *)"test_odbc_fk", SQL_NTS, /* possibly non-existent catalog aka schema suffices to repeat the issue */
+                        NULL, SQL_NTS,
+                        (SQLCHAR *)"odbc454", SQL_NTS)); /* We need here non-existent or table w/out FK's*/
+    is_num(0, myrowcount(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+    /* This should normally cause error. But if the error suppressed using connstring option - everything should be fine */
+    if (SQL_SUCCEEDED(SQLForeignKeys(Stmt,
+                        NULL, SQL_NTS,
+                        NULL, SQL_NTS,
+                        NULL, SQL_NTS,
+                        NULL, SQL_NTS,
+                        (SQLCHAR *)"test_odbc_fk", SQL_NTS,
+                        (SQLCHAR *)"", SQL_NTS)))
+    {
+      is_num(0, myrowcount(Stmt));
+    }
+    else
+    {
+      odbc_print_error(SQL_HANDLE_STMT, Stmt);
+    }
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  return OK;
+}
 
 
 MA_ODBC_TESTS my_tests[]=
 {
   {my_no_keys, "my_no_keys"},
   {my_foreign_keys, "my_foreign_keys"},
+  {odbc454, "ODBC-454-nofks"},
   {NULL, NULL}
 };
 

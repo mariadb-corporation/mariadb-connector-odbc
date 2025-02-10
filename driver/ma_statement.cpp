@@ -2628,14 +2628,14 @@ SQLRETURN MADB_GetBookmark(MADB_Stmt  *Stmt,
 }
 
 /* {{{ MADB_StmtGetData */
-SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
+SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
                            SQLUSMALLINT Col_or_Param_Num,
-                           SQLSMALLINT TargetType,
-                           SQLPOINTER TargetValuePtr,
-                           SQLLEN BufferLength,
-                           SQLLEN * StrLen_or_IndPtr,
-                           bool   InternalUse /* Currently this is respected for SQL_CHAR type only,
-                                                 since all "internal" calls of the function need string representation of data */)
+                           SQLSMALLINT  TargetType,
+                           SQLPOINTER   TargetValuePtr,
+                           SQLLEN       BufferLength,
+                           SQLLEN*      StrLen_or_IndPtr,
+                           bool         InternalUse /* Currently this is respected for SQL_CHAR type only,
+                                                       since all "internal" calls of the function need string representation of data */)
 {
   MADB_Stmt       *Stmt= (MADB_Stmt *)StatementHandle;
   SQLUSMALLINT    Offset= Col_or_Param_Num - 1;
