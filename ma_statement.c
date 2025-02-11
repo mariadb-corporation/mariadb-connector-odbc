@@ -1732,10 +1732,18 @@ SQLRETURN MADB_PrepareBind(MADB_Stmt *Stmt, int RowNumber)
   int             i;
   void            *DataPtr= NULL;
 
+  /* Assuming there is nothing valueble already put in here */
+  memset(Stmt->result, 0, sizeof(MYSQL_BIND)*MADB_STMT_COLUMN_COUNT(Stmt));
+
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); ++i)
   {
     SQLSMALLINT ConciseType;
     ArdRec= MADB_DescGetInternalRecord(Stmt->Ard, i, MADB_DESC_READ);
+
+    /* We can't use application's buffer directly, as it has/can have different size, than C/C needs */
+    Stmt->result[i].length= &Stmt->result[i].length_value;
+    Stmt->result[i].is_null= &Stmt->result[i].is_null_value;
+
     if (ArdRec == NULL || !ArdRec->inUse)
     {      
       Stmt->result[i].flags|= MADB_BIND_DUMMY;
@@ -2084,20 +2092,27 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         break;
         case SQL_C_WCHAR:
         {
-          SQLLEN CharLen= MADB_SetString(&Stmt->Connection->Charset, DataPtr, ArdRec->OctetLength/sizeof(SQLWCHAR), (char *)Stmt->result[i].buffer,
-            *Stmt->stmt->bind[i].length, &Stmt->Error);
-
+          SQLLEN CharLen= *Stmt->result[i].length;
+          /* If app buffer len(ArdRec->OctetLength) == 0, we don't have to write there anything.
+           * Besides we had allocated buffer of 1. And if we try to calculate chars number based on the result string
+           * full length from *result[i].length, it can get reading past the end of allocated buffer.
+           */
+          if (ArdRec->OctetLength)
+          {
+            CharLen= MADB_SetString(&Stmt->Connection->Charset, DataPtr, ArdRec->OctetLength/sizeof(SQLWCHAR), (char *)Stmt->result[i].buffer,
+              *Stmt->result[i].length, &Stmt->Error);
+          }
           /* If returned len is 0 while source len is not - taking it as error occurred */
           if ((CharLen == 0 ||
-            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer != NULL &&
+            (SQLULEN)CharLen > (ArdRec->OctetLength / sizeof(SQLWCHAR))) && *Stmt->result[i].length != 0 && Stmt->result[i].buffer != NULL &&
             *(char*)Stmt->result[i].buffer != '\0' && Stmt->Error.ReturnValue != SQL_SUCCESS)
           {
             CALC_ALL_FLDS_RC(rc, Stmt->Error.ReturnValue);
           }
           /* If application didn't give data buffer and only want to know the length of data to fetch */
-          if (CharLen == 0 && *Stmt->stmt->bind[i].length != 0 && Stmt->result[i].buffer == NULL)
+          if (CharLen == 0 && *Stmt->result[i].length != 0 && Stmt->result[i].buffer == NULL)
           {
-            CharLen= *Stmt->stmt->bind[i].length;
+            CharLen= *Stmt->result[i].length;
           }
           /* Not quite right */
           *LengthPtr = CharLen * sizeof(SQLWCHAR);
