@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation plc
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1507,14 +1507,14 @@ ODBC_TEST(t_odbc91)
   IS_STR(buffer, "t_odbc91", sizeof("t_odbc91"));
   /* Checking if selescting schema with USE is reflected by SQLGetConnectAttr.
      Re-using conn_out buffer here, as it is > NAME_LEN + "USE " and harmless to reuse */
-  sprintf(conn_out, "USE %s", my_schema);
+  sprintf(conn_out, "USE `%s`", my_schema);
   CHECK_DBC_RC(hdbc, SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt));
   OK_SIMPLE_STMT(hstmt, conn_out);
   CHECK_DBC_RC(hdbc, SQLGetConnectAttr(hdbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), NULL));
   IS_STR(buffer, my_schema, strlen(my_schema));
 
   /* No checking the same if changing schema is part ot a batch */
-  sprintf(conn_out, "USE t_odbc91;USE %s", my_schema);
+  sprintf(conn_out, "USE t_odbc91;USE `%s`", my_schema);
   OK_SIMPLE_STMT(hstmt, conn_out);
   /* Session tracked after result is read */
   CHECK_STMT_RC(hstmt, SQLMoreResults(hstmt));
