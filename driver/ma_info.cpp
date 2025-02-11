@@ -33,7 +33,7 @@ static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), Null, ten("
 
 std::vector <std::vector<mariadb::bytes_view>> TypeInfoV3=
 {
-  {bytes_view(XBV(BIT), 4), sqlbit, one, empty, empty, Null, one, one, three, zero, zero, zero, zero, zero, zero, zero, zero,
+  {XBV(BIT), sqlbit, one, empty, empty, Null, one, one, three, zero, zero, zero, zero, zero, zero, zero, zero,
     ten, sqlbit},
   {XBV(BOOL), sqlbit,one,empty,empty,Null,one,one,three,zero,zero,zero,XBV(BOOL),zero,zero,zero,zero,ten, sqlbit},
   {XBV(TINYINT),sqltinyint,three,empty,empty,Null,one,zero,three,BV(XSTR(SQL_FALSE)),zero,one,XBV(TINYINT),zero,zero,zero,zero,
