@@ -355,11 +355,13 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     PrepareOnClient= ((SQLULEN)ValuePtr != SQL_FALSE);
     break;
   default:
+#ifdef SQL_DRIVER_CONN_ATTR_BASE
     if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE)
     {
       // The error is for unknown by us attributes from driver specific attributes range
       return MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
     }
+#endif
     break;
   }
   return Error.ReturnValue;
@@ -486,11 +488,14 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     *(SQLULEN*)ValuePtr= PrepareOnClient ? SQL_TRUE : SQL_FALSE;
     break;
   default:
+// Basically - is DM is not ODBC 3.8
+#ifdef SQL_DRIVER_CONN_ATTR_BASE
     if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE && Attribute < 0x00008000)
     {
       // The error is for unknown by us attributes from driver specific attributes range
       return MADB_SetError(&Error, MADB_ERR_HYC00, nullptr, 0);
     }
+#endif
     return MADB_SetError(&Error, MADB_ERR_HY024, nullptr, 0);
   }
   return Error.ReturnValue;

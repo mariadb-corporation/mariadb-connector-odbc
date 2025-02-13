@@ -19,7 +19,7 @@
 # *************************************************************************************/
 
 LibPath="Library/MariaDB/MariaDB-Connector-ODBC"
-
+SourceRootDir=@CMAKE_SOURCE_DIR@
 set -e
 rm -rf ./ROOT
 
@@ -30,7 +30,8 @@ cp $2//install_driver ./ROOT/${LibPath}/bin
 CURRENTDIR=$(dirname "$0")
 
 mkdir -p ./ROOT/${LibPath}/include/mariadb
-cp $SRCROOTDIR/../../include/mariadb/sqlmariadb.h ./ROOT/${LibPath}/include/mariadb/
+cp $SourceRootDir/include/mariadb/sqlmariadb.h ./ROOT/${LibPath}/include/mariadb/
+
 if [ $3 ]; then
   mkdir ./ROOT/${LibPath}/plugin
   cp $3/dialog.so ./ROOT/${LibPath}/plugin/

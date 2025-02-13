@@ -66,6 +66,8 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/distribution.plist.in
                ${CMAKE_CURRENT_BINARY_DIR}/distribution.plist @ONLY)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build_package.sh.in
                ${CMAKE_CURRENT_BINARY_DIR}/build_package.sh @ONLY)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh.in
+               ${CMAKE_CURRENT_BINARY_DIR}/copy_package_files.sh @ONLY)
 
 ADD_EXECUTABLE(install_driver install_driver.c)
 TARGET_LINK_LIBRARIES(install_driver ${ODBC_INSTLIBS})
@@ -88,7 +90,7 @@ ENDIF()
 
 IF(USE_SYSTEM_INSTALLED_LIB)
   ADD_CUSTOM_TARGET(copypkgfiles
-                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:install_driver>
+                  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:install_driver>
                   DEPENDS maodbc install_driver
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ELSE()
@@ -98,7 +100,7 @@ ELSE()
     MESSAGE(STATUS "Configuring to include gnutls library(${GNUTLS_LIB}) into the package")
   ENDIF()
   ADD_CUSTOM_TARGET(copypkgfiles
-                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:install_driver> $<TARGET_FILE_DIR:dialog> ${GNUTLS_LIB}
+                  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/copy_package_files.sh $<TARGET_FILE_DIR:maodbc> $<TARGET_FILE_DIR:install_driver> $<TARGET_FILE_DIR:dialog> ${GNUTLS_LIB}
                   DEPENDS maodbc install_driver
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF()

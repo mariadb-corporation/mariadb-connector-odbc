@@ -2348,11 +2348,13 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLULEN*)ValuePtr= Stmt->Options.PrepareOnClient ? SQL_TRUE : SQL_FALSE;
     break;
   default:
+#ifdef SQL_DRIVER_CONN_ATTR_BASE
     if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE && Attribute < 0x00008000)
     {
       // The error is for unknown by us attributes from driver specific attributes range
       return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
     }
+#endif
     // Should probably return error here as in other Attr functions, but not gonna change that
     // in GA. TODO: for 3.3 of will it be 4.0
 
@@ -2582,11 +2584,13 @@ SQLRETURN MADB_StmtSetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     Stmt->Options.PrepareOnClient= ((SQLULEN)ValuePtr != SQL_FALSE);
     break;
   default:
+#ifdef SQL_DRIVER_CONN_ATTR_BASE
     if (Attribute >= SQL_DRIVER_CONN_ATTR_BASE && Attribute < 0x00008000)
     {
       // The error is for unknown by us attributes from driver specific attributes range
       return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
     }
+#endif
     // HY024(that was here before) does not look correct - it's about wrong value, and not attribute. HY092 is also for DM
     // But for the case of direct linking it looks legit.
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY024, nullptr, 0);
