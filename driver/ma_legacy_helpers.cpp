@@ -229,7 +229,7 @@ void MADB_DynstrFree(MADB_DynString *str)
   }
 }
 
-char *MADB_DynstrMake(register char *dst, register const char *src, size_t length)
+char *MADB_DynstrMake(char *dst, const char *src, size_t length)
 {
   while (length--)
     if (! (*dst++= *src++))

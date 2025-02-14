@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2020 MariaDB Corporation AB
+   Copyright (C) 2020, 2025 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -171,7 +171,7 @@ namespace mariadb
       }
     }
     if (findColumnReturnsOne) {
-      return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, rows, nullptr, TYPE_SCROLL_SENSITIVE);
+      return create(INSERT_ID_COLUMNS[0].getColumnRawData(), rows, nullptr, TYPE_SCROLL_SENSITIVE);
       /*int32_t ResultSet::findColumn(const SQLString& name) {
         return 1;
       }*/
@@ -184,7 +184,7 @@ namespace mariadb
   ResultSet* ResultSet::createEmptyResultSet() {
     static std::vector<std::vector<mariadb::bytes_view>> emptyRs;
 
-    return create({INSERT_ID_COLUMNS[0].getColumnRawData()}, emptyRs, nullptr, TYPE_SCROLL_SENSITIVE);
+    return create(INSERT_ID_COLUMNS[0].getColumnRawData(), emptyRs, nullptr, TYPE_SCROLL_SENSITIVE);
   }
 
 

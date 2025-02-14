@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2020 MariaDB Corporation AB
+   Copyright (C) 2020, 2025 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -69,8 +69,8 @@ public:
 
   ~ResultSetBin();
 
-  bool isFullyLoaded() const;
-  void fetchRemaining();
+  bool isFullyLoaded() const override;
+  void fetchRemaining() override;
 
 private:
   void flushPendingServerResults();
@@ -82,37 +82,38 @@ private:
   uint32_t warningCount();
 
 private:
-  bool readNextValue(bool cacheLocally= false);
+  bool readNextValue(bool cacheLocally= false) override;
 
 protected:
-  std::vector<mariadb::bytes_view>& getCurrentRowData();
-  void updateRowData(std::vector<mariadb::bytes_view>& rawData);
-  void deleteCurrentRowData();
-  void addRowData(std::vector<mariadb::bytes_view>& rawData);
+  std::vector<mariadb::bytes_view>& getCurrentRowData() override;
+
+  void updateRowData(std::vector<mariadb::bytes_view>& rawData) override;
+  void deleteCurrentRowData() override;
+  void addRowData(std::vector<mariadb::bytes_view>& rawData) override;
 
 private:
   void growDataArray(bool complete= false);
 
 public:
-  void abort();
-  void close();
+  void abort() override;
+  //void close();
   //bool fetchNext();
   //SQLWarning* getWarnings();
   //void clearWarnings();
   bool isBeforeFirst() const;
-  bool isAfterLast();
+  bool isAfterLast() override;
   bool isFirst() const;
-  bool isLast();
-  void beforeFirst();
-  void afterLast();
-  bool first();
-  bool last();
-  int64_t getRow();
-  bool absolute(int64_t row);
-  bool relative(int64_t rows);
-  bool previous();
+  bool isLast() override;
+  void beforeFirst() override;
+  void afterLast() override;
+  bool first() override;
+  bool last() override;
+  int64_t getRow() override;
+  bool absolute(int64_t row) override;
+  bool relative(int64_t rows) override;
+  bool previous() override;
   int32_t getFetchSize() const;
-  void setFetchSize(int32_t fetchSize);
+  void    setFetchSize(int32_t fetchSize);
   int32_t getType() const;
 //  int32_t getConcurrency() const;
 
@@ -120,7 +121,7 @@ private:
   void checkClose() const;
 
 public:
-  bool isCallableResult() const;
+  bool isCallableResult() const override;
   bool isClosed() const;
   bool wasNull() const;
 
@@ -130,40 +131,41 @@ private:
   SQLString zeroFillingIfNeeded(const SQLString& value, ColumnDefinition* columnInformation);
 
 public:
-  std::istream* getBinaryStream(int32_t columnIndex) const;
-  int32_t getInt(int32_t columnIndex) const;
-  int64_t getLong(int32_t columnIndex) const;
-  uint64_t getUInt64(int32_t columnIndex) const;
-  uint32_t getUInt(int32_t columnIndex) const;
-  float getFloat(int32_t columnIndex) const;
-  long double getDouble(int32_t columnIndex) const;
-  bool getBoolean(int32_t index) const;
-  int8_t getByte(int32_t index) const;
-  int16_t getShort(int32_t index) const;
+  std::istream* getBinaryStream(int32_t columnIndex) const override;
+  int32_t       getInt(int32_t columnIndex) const override;
+  int64_t       getLong(int32_t columnIndex) const override;
+  uint64_t      getUInt64(int32_t columnIndex) const override;
+  uint32_t      getUInt(int32_t columnIndex) const override;
+  float         getFloat(int32_t columnIndex) const override;
+  long double   getDouble(int32_t columnIndex) const override;
+  bool          getBoolean(int32_t index) const override;
+  int8_t        getByte(int32_t index) const override;
+  int16_t       getShort(int32_t index) const override;
 
-  ResultSetMetaData* getMetaData() const;
+  ResultSetMetaData* getMetaData() const override;
   /*Blob* getBlob(int32_t columnIndex) const;*/
 
-  std::size_t rowsCount() const;
+  std::size_t rowsCount() const override;
 
-  void setForceTableAlias();
+  void setForceTableAlias() override;
 
 private:
-  void rangeCheck(const SQLString& className,int64_t minValue,int64_t maxValue,int64_t value, ColumnDefinition* columnInfo);
+  void rangeCheck(const SQLString& className,int64_t minValue,int64_t maxValue,int64_t value,
+    ColumnDefinition* columnInfo);
 
 protected:
-  void setRowPointer(int32_t pointer);
+  void setRowPointer(int32_t pointer) override;
 
 public:
-  int32_t getRowPointer();
-  std::size_t getDataSize();
-  bool isBinaryEncoded();
+  int32_t     getRowPointer() override;
+  std::size_t getDataSize() override;
+  bool isBinaryEncoded() override;
   void realClose(bool noLock= true);
-  void bind(MYSQL_BIND* bind);
-  bool get(MYSQL_BIND* bind, uint32_t colIdx0based, uint64_t offset);
-  bool get();
-  bool setResultCallback(ResultCodec* callback, uint32_t column);
-  bool setCallbackData(void* data);
+  void bind(MYSQL_BIND* bind) override;
+  bool get(MYSQL_BIND* bind, uint32_t colIdx0based, uint64_t offset) override;
+  bool get() override;
+  bool setResultCallback(ResultCodec* callback, uint32_t column) override;
+  bool setCallbackData(void* data) override;
 };
 
 }

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2025 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -40,18 +40,18 @@ public:
   CmdInformationBatch(std::size_t expectedSize);
   ~CmdInformationBatch();
 
-  void addErrorStat();
-  void reset();
-  void addResultSetStat();
-  void addSuccessStat(int64_t updateCount);
-  std::vector<int64_t>& getUpdateCounts();
-  std::vector<int64_t>& getServerUpdateCounts();
-  int64_t getUpdateCount();
-  int32_t getCurrentStatNumber();
-  bool moreResults();
+  void addErrorStat() override;
+  void reset() override;
+  void addResultSetStat() override;
+  void addSuccessStat(int64_t updateCount) override;
+  std::vector<int64_t>& getUpdateCounts() override;
+  std::vector<int64_t>& getServerUpdateCounts() override;
+  int64_t getUpdateCount() override;
+  int32_t getCurrentStatNumber() override;
+  bool moreResults() override;
   inline uint32_t hasMoreResults() override { return 0U; }
-  bool isCurrentUpdateCount();
-  void setRewrite(bool rewritten);
+  bool isCurrentUpdateCount() override;
+  void setRewrite(bool rewritten) override;
 };
 
 }

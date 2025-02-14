@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2025 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -53,9 +53,9 @@ public:
   ClientSidePreparedStatement* clone(Protocol* connection);
 
 protected:
-  bool executeInternal(int32_t fetchSize);
-  void executeBatchInternal(uint32_t queryParameterSize);
-  PrepareResult* getPrepareResult();
+  bool           executeInternal(int32_t fetchSize) override;
+  void           executeBatchInternal(uint32_t queryParameterSize) override;
+  PrepareResult* getPrepareResult() override;
 
 public:
   Longs& executeBatch();
@@ -75,15 +75,15 @@ public:
   uint32_t    getErrno();
   const char* getSqlState();
 
-  bool bind(MYSQL_BIND* param);
-  bool sendLongData(uint32_t paramNum, const char* data, std::size_t length);
-  inline bool isServerSide() const { return false; }
-  inline enum enum_field_types getPreferredParamType(enum enum_field_types appType) const
+  bool bind(MYSQL_BIND* param) override;
+  bool sendLongData(uint32_t paramNum, const char* data, std::size_t length) override;
+  inline bool isServerSide() const override { return false; }
+  inline enum enum_field_types getPreferredParamType(enum enum_field_types appType) const override
   { 
     return MYSQL_TYPE_STRING;
   }
-  bool setParamCallback(ParamCodec* callback, uint32_t param) { return true; }
-  bool setCallbackData(void* data) { return true;  }
+  bool setParamCallback(ParamCodec* callback, uint32_t param) override { return true; }
+  bool setCallbackData(void* data) override { return true;  }
   bool isOutParams() { return false; }
   //SQLString toString();
 };

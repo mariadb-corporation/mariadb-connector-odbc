@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2023 MariaDB Corporation AB
+   Copyright (C) 2023, 2025 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1066,12 +1066,15 @@ namespace mariadb
     if (!needLock || lock.try_lock()) {
       //cmdPrologue();
       // If connection is closed - we still need to call mysql_stmt_close to deallocate C/C stmt handle
-      if (mysql_stmt_close(statementId))
-      {
-        needLock && (lock.unlock(), true);
+      if (mysql_stmt_close(statementId)) {
+        if (needLock) {
+          lock.unlock();
+        }
         throw SQLException("Could not deallocate query");
       }
-      needLock && (lock.unlock(), true);
+      if (needLock) {
+        lock.unlock();
+      }
       return true;
 
     }

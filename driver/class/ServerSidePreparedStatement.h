@@ -72,8 +72,8 @@ protected:
   void getResult();
 
 public:
-  PrepareResult* getPrepareResult() { return dynamic_cast<PrepareResult*>(serverPrepareResult); }
-  bool executeInternal(int32_t fetchSize);
+  PrepareResult* getPrepareResult() override { return dynamic_cast<PrepareResult*>(serverPrepareResult); }
+  bool executeInternal(int32_t fetchSize) override;
 
   void close();
 
@@ -81,16 +81,16 @@ public:
   uint32_t    getErrno() override;
   const char* getSqlState() override;
 
-  bool bind(MYSQL_BIND* param);
-  bool sendLongData(uint32_t paramNum, const char* data, std::size_t length);
-  inline bool isServerSide() const { return true; }
-  enum enum_field_types getPreferredParamType(enum enum_field_types appType) const
+  bool        bind(MYSQL_BIND* param) override;
+  bool        sendLongData(uint32_t paramNum, const char* data, std::size_t length) override;
+  inline bool isServerSide() const override { return true; }
+  enum enum_field_types getPreferredParamType(enum enum_field_types appType) const override
   {
     return appType;
   }
 
-  bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1));
-  bool setCallbackData(void* data);
+  bool setParamCallback(ParamCodec* callback, uint32_t param= uint32_t(-1)) override;
+  bool setCallbackData(void* data) override;
   bool isOutParams() override;
   };
 }

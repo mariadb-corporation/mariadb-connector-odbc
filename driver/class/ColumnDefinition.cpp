@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022 MariaDB Corporation AB
+   Copyright (C) 2022, 2025 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -37,6 +37,9 @@ namespace mariadb
     switch (type) {
     case MARIADB_INTEGER_TYPES:
       return true;
+    // to avoid warnings
+    default:
+      return false;
     }
     return false;
   }
