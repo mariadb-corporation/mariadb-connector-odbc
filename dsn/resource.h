@@ -109,6 +109,7 @@
 #define pbCrlBrowse                     1214
 #define cbInteractive                   1220
 #define ckNoBigint                      1221
+#define ckTruncDT                       1223
 
 // Next default values for new objects
 // 

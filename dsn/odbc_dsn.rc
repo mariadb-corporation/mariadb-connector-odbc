@@ -237,24 +237,27 @@ Page_5 DIALOGEX 0, 0, 299, 182
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    PUSHBUTTON      "Cancel",IDCANCEL,178,149,50,14
-    PUSHBUTTON      "Next >",PB_NEXT,104,149,50,14
-    PUSHBUTTON      "< Previous",PB_PREV,50,149,50,14,WS_DISABLED
-    PUSHBUTTON      "Help",IDCANCEL4,236,149,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,178,155,50,14
+    PUSHBUTTON      "Next >",PB_NEXT,104,155,50,14
+    PUSHBUTTON      "< Previous",PB_PREV,50,155,50,14,WS_DISABLED
+    PUSHBUTTON      "Help",IDCANCEL4,236,155,50,14
     GROUPBOX        "Cursor/Results",IDC_STATIC,7,7,277,132,0,WS_EX_TRANSPARENT
     CONTROL         "Enable dynamic cursors",ckEnableDynamicCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,19,91,10,WS_EX_TRANSPARENT
     CONTROL         "Disable driver provided cursor support",ckDisableDriverCursor,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,33,138,10,WS_EX_TRANSPARENT
-    CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,19,37,10,WS_EX_TRANSPARENT
-    CONTROL         "Return matched rows instead of affected rows",ckReturnMatchedRows,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,48,165,10,WS_EX_TRANSPARENT
-    CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,63,105,10,WS_EX_TRANSPARENT
+    CONTROL         "Return matched instead of affected rows",ckReturnMatchedRows,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,47,146,10,WS_EX_TRANSPARENT
+    CONTROL         "Enable SQL_AUTO_IS_NULL",ckEnableSQLAutoIsNull,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,61,105,10,WS_EX_TRANSPARENT
     CONTROL         "Allow spaces after function names",ckIgnoreSpace,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,78,124,10,WS_EX_TRANSPARENT
-    CONTROL         "Return SQL_NULL_DATA for zero date",ckNullDate,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,93,139,10,WS_EX_TRANSPARENT
-    CONTROL         "Force use of forward only cursors",ckForwardCursorOnly,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,108,124,10,WS_EX_TRANSPARENT
-    CONTROL         "Don't cache results of forward only cursors",ckDontCacheForwardCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,123,153,10,WS_EX_TRANSPARENT
-    CONTROL         "No BIGINT in results",ckNoBigint,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,33,90,10,WS_EX_TRANSPARENT
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,75,124,10,WS_EX_TRANSPARENT
+    CONTROL         "Return SQL_NULL_DATA for zero date",ckNullDate,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,89,139,10,WS_EX_TRANSPARENT
+    CONTROL         "Force use of forward only cursors",ckForwardCursorOnly,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,103,124,10,WS_EX_TRANSPARENT
+    CONTROL         "Don't cache results of forward only cursors",ckDontCacheForwardCursor,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,117,153,10,WS_EX_TRANSPARENT
+    //////////////// 2nd column
+    CONTROL         "Debug",ckDebug,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,162,19,37,10,WS_EX_TRANSPARENT
+    CONTROL         "No BIGINT in results",ckNoBigint,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,162,33,90,10,WS_EX_TRANSPARENT
+    CONTROL         "No error on date/time param overflow",ckTruncDT,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,61,131,10,WS_EX_TRANSPARENT
 //    CONTROL         "Prefetch rows",ckPrefetchRows,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,197,33,61,10,WS_EX_TRANSPARENT
 END
 

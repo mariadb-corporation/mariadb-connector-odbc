@@ -838,6 +838,11 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER Dat
           ts->month= cur_tm->tm_mon + 1;
           ts->day= cur_tm->tm_mday;
           ts->fraction= 0;
+          /* If we allowing fraction in time on the way to the server, we should allow it on the way back
+           */
+          if (Stmt->Connection->Dsn->AllowDtTruncation) {
+            ts->fraction= tm->second_part * 1000;
+          }
         }
         else
         {

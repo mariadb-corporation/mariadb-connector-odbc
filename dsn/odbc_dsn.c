@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -104,6 +104,7 @@ MADB_DsnMap DsnMap[] = {
   {&DsnKeys[27], 4, txtCrl,               0, 0},
   {&DsnKeys[25], 4, txtTlsPeerFp,        41, 0},
   {&DsnKeys[26], 4, txtTlsPeerFpList,   260, 0},
+  {&DsnKeys[45], LASTPAGE, ckTruncDT,     0, 0},
   {NULL, 0, 0, 0, 0}
 };
 
@@ -133,7 +134,7 @@ MADB_OptionsMap OptionsMap[]= {
   {LASTPAGE, ckDebug,                  MADB_OPT_FLAG_DEBUG},
   {LASTPAGE, ckReturnMatchedRows,      MADB_OPT_FLAG_FOUND_ROWS},
   {LASTPAGE, ckIgnoreSpace,            MADB_OPT_FLAG_IGNORE_SPACE},
-  {LASTPAGE, ckNoBigint,                MADB_OPT_FLAG_NO_BIGINT},
+  {LASTPAGE, ckNoBigint,               MADB_OPT_FLAG_NO_BIGINT},
   /* last element */
   {0, 0, 0}
 };

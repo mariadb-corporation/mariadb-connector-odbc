@@ -1982,33 +1982,33 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
         case SQL_C_TIMESTAMP:
         case SQL_C_TIME:
         case SQL_C_DATE:
+        {
+          MYSQL_TIME tm, *Intermidiate;
+
+          if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
           {
-            MYSQL_TIME tm, *Intermidiate;
+            BOOL isTime;
 
-            if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+            FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->stmt->bind[i].length, &tm, FALSE, &Stmt->Error, &isTime);
+            if (SQL_SUCCEEDED(FieldRc))
             {
-              BOOL isTime;
-
-              FieldRc= MADB_Str2Ts(ArdRec->InternalBuffer, *Stmt->stmt->bind[i].length, &tm, FALSE, &Stmt->Error, &isTime);
-              if (SQL_SUCCEEDED(FieldRc))
-              {
-                Intermidiate= &tm;
-              }
-              else
-              {
-                CALC_ALL_FLDS_RC(rc, FieldRc);
-                break;
-              }
+              Intermidiate= &tm;
             }
             else
             {
-              Intermidiate= (MYSQL_TIME *)ArdRec->InternalBuffer;
+              CALC_ALL_FLDS_RC(rc, FieldRc);
+              break;
             }
-
-            FieldRc= MADB_CopyMadbTimestamp(Stmt, Intermidiate, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
-            CALC_ALL_FLDS_RC(rc, FieldRc);
           }
-          break;
+          else
+          {
+            Intermidiate= (MYSQL_TIME *)ArdRec->InternalBuffer;
+          }
+
+          FieldRc= MADB_CopyMadbTimestamp(Stmt, Intermidiate, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
+          CALC_ALL_FLDS_RC(rc, FieldRc);
+        }
+        break;
         case SQL_C_INTERVAL_HOUR_TO_MINUTE:
         case SQL_C_INTERVAL_HOUR_TO_SECOND:
         {

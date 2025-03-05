@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2019 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -155,6 +155,8 @@ typedef struct st_madb_dsn
   my_bool DisableLocalInfile;
   my_bool NullSchemaMeansCurrent;
   my_bool NoBigint;
+  /* Don't error SQL_TIME parameter error has fractional or SQL_DATE has time part */
+  my_bool AllowDtTruncation;
 } MADB_Dsn;
 
 /* this structure is used to store and retrieve DSN Information */
