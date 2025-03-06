@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2017 MariaDB Corporation AB
+   Copyright (C) 2017, 2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -347,7 +347,6 @@ void* MADB_GetBufferForSqlValue(MADB_Stmt *Stmt, MADB_DescRecord *CRec, size_t S
       return nullptr;
     }
   }
-
   return (void *)CRec->InternalBuffer;
 }
 /* }}} */
@@ -395,7 +394,6 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
         }
         *Buffer= CRec->InternalBuffer;
       }
-
       *LengthPtr= 1;
       **(char**)Buffer= MADB_ConvertCharToBit(Stmt, static_cast<char*>(DataPtr));
       MaBind->buffer_type= MYSQL_TYPE_TINY;
@@ -404,13 +402,16 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
   {
     MYSQL_TIME Tm;
     SQL_TIMESTAMP_STRUCT Ts;
-    bool isTime;
+    bool isTime= false;
 
     /* Enforcing constraints on date/time values */
-    MADB_Str2Ts(static_cast<char*>(DataPtr), Length, &Tm, FALSE, &Stmt->Error, &isTime);
+    MADB_Str2Ts(static_cast<char*>(DataPtr), Length, &Tm, false, &Stmt->Error, &isTime);
     MADB_CopyMadbTimeToOdbcTs(&Tm, &Ts);
-    MADB_TsConversionIsPossible(&Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime);
-    /* To stay on the safe side - still sending as string in the default branch */
+    /* MADB_Timestamp2Sql calls MADB_TsConversionIsPossible too, but it returns different error/state.
+     * Anyway it's cheap. 
+     */
+    MADB_TsConversionIsPossible(Stmt, &Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime);
+    return MADB_Timestamp2Sql(Stmt, CRec, (void*)&Ts, Length, SqlRec, MaBind, Buffer, LengthPtr);
   }
   default:
     /* Bulk shouldn't get here, thus logic for single paramset execution */
@@ -457,15 +458,17 @@ SQLRETURN MADB_Numeric2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr
 }
 /* }}} */
 
-/* {{{ MADB_TsConversionIsPossible */
-void MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, bool isTime)
+/* {{{ MADB_TsConversionIsPossible
+ * Stmt is needed to know if we need to enforce some exeptions that could be set for the statement 
+ */
+void MADB_TsConversionIsPossible(MADB_Stmt *Stmt, SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, bool isTime)
 {
   /* I think instead of MADB_ERR_22008 there should be also SqlState */
   switch (SqlType)
   {
   case SQL_TIME:
   case SQL_TYPE_TIME:
-    if (ts->fraction)
+    if (ts->fraction && !Stmt->Connection->Dsn->AllowDtTruncation)
     {
       MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
       throw *Error;
@@ -473,13 +476,15 @@ void MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, 
     break;
   case SQL_DATE:
   case SQL_TYPE_DATE:
-    if (ts->hour + ts->minute + ts->second + ts->fraction)
+    if ((ts->hour != 0 || ts->minute != 0 || ts->second != 0 || ts->fraction != 0) &&
+      !Stmt->Connection->Dsn->AllowDtTruncation)
     {
       MADB_SetError(Error, MADB_ERR_22008, nullptr, 0);
       throw *Error;
     }
   default:
-    /* This only would be good for SQL_TYPE_TIME. If C type is time(isTime!=0), and SQL type is timestamp, date fields may be nullptr - driver should set them to current date */
+    /* This only would be good for SQL_TYPE_TIME. If C type is time(isTime is true), and SQL type is timestamp,
+     * date fields may be 0 - driver should set them to current date */
     if ((!isTime && ts->year == 0) || ts->month == 0 || ts->day == 0)
     {
       MADB_SetError(Error, SqlState, nullptr, 0);
@@ -496,7 +501,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
   MYSQL_TIME           *tm= nullptr;
   SQL_TIMESTAMP_STRUCT *ts= (SQL_TIMESTAMP_STRUCT *)DataPtr;
 
-  MADB_TsConversionIsPossible(ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22007, false);
+  MADB_TsConversionIsPossible(Stmt, ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22007, false);
 
   if (*Buffer == nullptr)
   {
@@ -519,11 +524,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
 
   switch (SqlRec->ConciseType) {
   case SQL_TYPE_DATE:
-    if (ts->hour || ts->minute || ts->second || ts->fraction)
-    {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_22008, "Time fields are nonzero", 0);
-    }
-
+    /* the input data has been already validated above(MADB_TsConversionIsPossible) */
     MaBind->buffer_type= MYSQL_TYPE_DATE;
     tm->time_type=       MYSQL_TIMESTAMP_DATE;
     tm->year=  ts->year;
@@ -531,11 +532,7 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
     tm->day=   ts->day;
     break;
   case SQL_TYPE_TIME:
-    if (ts->fraction != 0)
-    {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_22008, "Fractional seconds fields are nonzero", 0);
-    }
-    
+    /* the input data has been already validated above(MADB_TsConversionIsPossible) */ 
     if (!VALID_TIME(ts))
     {
       return MADB_SetError(&Stmt->Error, MADB_ERR_22007, "Invalid time", 0);
@@ -545,6 +542,9 @@ SQLRETURN MADB_Timestamp2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataP
     tm->hour=   ts->hour;
     tm->minute= ts->minute;
     tm->second= ts->second;
+    if (Stmt->Connection->Dsn->AllowDtTruncation) {
+      tm->second_part= ts->fraction / 1000;
+    }
     break;
   default:
     MADB_CopyOdbcTsToMadbTime(ts, tm);

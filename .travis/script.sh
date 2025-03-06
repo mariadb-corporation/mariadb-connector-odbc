@@ -128,6 +128,10 @@ echo "run connector test suite"
 
 cd ./test
 
+if [ "$srv" = "mysql" ] ; then
+  cp ../libmariadb/caching_sha2_password.* ../
+fi
+
 if ! [ "$TRAVIS_OS_NAME" = "windows" ] ; then
   export ODBCINI="$PWD/odbc.ini"
   export ODBCSYSINI=$PWD

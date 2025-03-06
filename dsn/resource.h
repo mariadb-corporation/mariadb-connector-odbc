@@ -113,6 +113,7 @@
 #define pbCrlBrowse                     1214
 #define cbInteractive                   1220
 #define ckNoBigint                      1221
+#define ckTruncDT                       1223
 
 /* 1317(lblMaxKeyLengthTooltip) + 2000(TOOLTIP_TEXT_OFFSET) */
 #define IDS_TOOLTIP_MAXKEYLEN           3317

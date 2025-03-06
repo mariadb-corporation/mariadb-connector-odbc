@@ -1,6 +1,6 @@
 ﻿/*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1259,7 +1259,7 @@ ODBC_TEST(t_odbc70)
     0, 0, ZeroDate, 0, NULL));
 
   EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
-    CHECK_SQLSTATE(Stmt, "22018");
+  CHECK_SQLSTATE(Stmt, "22018");
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc70");
 
@@ -1691,6 +1691,54 @@ ODBC_TEST(t_odbc449)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc457)
+{
+  char *time= "01:02:03.456", *date= "2025-03-03 12:05:06", timeBuffer[32];
+  SQLHANDLE dbc, stmt;
+  SQL_TIMESTAMP_STRUCT ts1, ts2;
+
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &dbc));
+  stmt= DoConnect(dbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "TRUNCDT=1");
+
+  CHECK_STMT_RC(stmt, SQLBindParameter(stmt, 1, SQL_PARAM_INPUT,
+    SQL_C_CHAR, SQL_TIME, 0, 0, time, strlen(time), NULL));
+  CHECK_STMT_RC(stmt, SQLBindParameter(stmt, 2, SQL_PARAM_INPUT,
+    SQL_C_CHAR, SQL_DATE, 0, 0, date, strlen(date), NULL));
+  OK_SIMPLE_STMT(stmt, "SELECT ?, ?");
+
+  CHECK_STMT_RC(stmt, SQLBindCol(stmt, 1, SQL_C_TYPE_TIMESTAMP, &ts1,
+    sizeof(ts1), NULL));
+  CHECK_STMT_RC(stmt, SQLBindCol(stmt, 2, SQL_C_TYPE_TIMESTAMP, &ts2,
+    sizeof(ts2), NULL));
+
+  memset(&ts1, 0, sizeof(SQL_TIMESTAMP_STRUCT));
+  CHECK_STMT_RC(stmt, SQLFetch(stmt));
+  /* Here we are supposed to have original time with fractional seconds */
+  is_num(ts1.hour, 1);
+  is_num(ts1.minute, 2);
+  is_num(ts1.second, 3);
+  is_num(ts1.fraction, 456000000);
+  /* If time is fethced as Timestamp - the driver must put current date into it, so we don't check it
+  is_num(ts1.year, 0);
+  is_num(ts1.month, 0);
+  is_num(ts1.day, 0);*/
+  CHECK_STMT_RC(stmt, SQLGetData(stmt, 1, SQL_C_CHAR, timeBuffer, sizeof(timeBuffer), NULL));
+  IS_STR(time, timeBuffer, strlen(time));
+  /* Here we are supposed to get just original date */
+  is_num(ts2.year, 2025);
+  is_num(ts2.month, 3);
+  is_num(ts2.day, 3);
+  is_num(ts2.hour, 0);
+  is_num(ts2.minute, 0);
+  is_num(ts2.second, 0);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_ts,         "my_ts",       NORMAL},
@@ -1720,6 +1768,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc199_time2timestamp, "t_odbc199_time2timestamp", NORMAL},
   {t_odbc345,     "t_odbc345", NORMAL},
   {t_odbc449,     "t_odbc449", NORMAL},
+  {t_odbc457,     "t_odbc457", NORMAL},
   {NULL, NULL}
 };
 

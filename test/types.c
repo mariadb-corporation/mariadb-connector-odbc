@@ -1312,7 +1312,7 @@ ODBC_TEST(t_odbc158)
   SQLLEN     Len;
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc158");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc158(bi bigint not null, si smallint not null)");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc158(bi BIGINT NOT NULL, si SMALLINT NOT NULL)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc158(bi, si) VALUES(1, 2)");
 
   OK_SIMPLE_STMT(Stmt, "SELECT bi, si FROM t_odbc158");
@@ -1443,6 +1443,30 @@ ODBC_TEST(t_odbc322)
   return OK;
 }
 
+/* ODBC-448 big bigint values gets truncated if read as double. We used to return error in this case.
+ * Specs appear to say that it is ok, if the converted value is withing the range for double(or float in case of float)
+ */
+ODBC_TEST(t_bigint_as_double)
+{
+  SQLDOUBLE val= 0.;
+  SQLFLOAT floatVal= 0.;
+  SQLLEN   len= 8, asLong= 0;
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 36028797018963970");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_DOUBLE, &val, 8, &len));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  //CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DOUBLE, &Val, 8, &Len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT 36028797018963970");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_FLOAT, &floatVal, 4, &len));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  //CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_DOUBLE, &Val, 8, &Len));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -1474,6 +1498,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc405,          "odbc405_dec_precision",          NORMAL},
   {t_odbc_double,      "t_fetch_double",    NORMAL},
   {t_odbc322,          "odbc322_decimal_as_numeric",     NORMAL},
+  {t_bigint_as_double, "odbc448_bigint_as_double", NORMAL},
   {NULL, NULL, NORMAL}
 };
 

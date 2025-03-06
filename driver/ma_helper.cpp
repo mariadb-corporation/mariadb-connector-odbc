@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2023 MariaDB Corporation AB
+   Copyright (C) 2013, 2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -736,6 +736,11 @@ SQLRETURN MADB_CopyMadbTimestamp(MADB_Stmt *Stmt, MYSQL_TIME *tm, SQLPOINTER Dat
           ts->month= cur_tm->tm_mon + 1;
           ts->day= cur_tm->tm_mday;
           ts->fraction= 0;
+          /* If we allowing fraction in time on the way to the server, we should allow it on the way back
+           */
+          if (Stmt->Connection->Dsn->AllowDtTruncation) {
+            ts->fraction= tm->second_part * 1000;
+          }
         }
         else
         {
@@ -1198,22 +1203,27 @@ int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumb
   return MADB_NOPARAM;
 }
 
-
-BOOL MADB_IsNumericType(SQLSMALLINT ConciseType)
+/* Returns true if the type is */
+bool MADB_IsDecimalType(SQLSMALLINT ConciseType)
 {
   switch (ConciseType)
   {
     case SQL_C_DOUBLE:
     case SQL_C_FLOAT:
     case SQL_DECIMAL:
+    case SQL_C_NUMERIC:
       return TRUE;
   }
+  return FALSE;
+}
 
-  return MADB_IsIntType(ConciseType);
+bool MADB_IsNumericType(SQLSMALLINT ConciseType)
+{
+  return MADB_IsDecimalType(ConciseType) || MADB_IsIntType(ConciseType);
 }
 
 
-BOOL MADB_IsIntType(SQLSMALLINT ConciseType)
+bool MADB_IsIntType(SQLSMALLINT ConciseType)
 {
   switch (ConciseType)
   {

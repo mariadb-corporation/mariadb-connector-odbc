@@ -1746,33 +1746,32 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
         case SQL_C_TIMESTAMP:
         case SQL_C_TIME:
         case SQL_C_DATE:
+        {
+          MYSQL_TIME tm, *Intermidiate;
+
+          if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
           {
-            MYSQL_TIME tm, *Intermidiate;
+            bool isTime;
 
-            if (IrdRec->ConciseType == SQL_CHAR || IrdRec->ConciseType == SQL_VARCHAR)
+            try
             {
-              bool isTime;
-
-              try
-              {
-                MADB_Str2Ts(ArdRec->InternalBuffer, *result[i].length, &tm, FALSE, &Error, &isTime);
-                Intermidiate= &tm;
-              }
-              catch (MADB_Error& /*Err*/)
-              {
-                CALC_ALL_FLDS_RC(aggRc, SQL_ERROR);
-                break;
-              }
+              MADB_Str2Ts(ArdRec->InternalBuffer, *result[i].length, &tm, FALSE, &Error, &isTime);
+              Intermidiate= &tm;
             }
-            else
+            catch (MADB_Error& /*Err*/)
             {
-              Intermidiate= (MYSQL_TIME *)ArdRec->InternalBuffer;
+              CALC_ALL_FLDS_RC(aggRc, SQL_ERROR);
+              break;
             }
-
-            FieldRc= MADB_CopyMadbTimestamp(this, Intermidiate, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
-            CALC_ALL_FLDS_RC(aggRc, FieldRc);
           }
-          break;
+          else
+          {
+            Intermidiate= (MYSQL_TIME *)ArdRec->InternalBuffer;
+          }
+          FieldRc= MADB_CopyMadbTimestamp(this, Intermidiate, DataPtr, LengthPtr, IndicatorPtr, ArdRec->Type, IrdRec->ConciseType);
+          CALC_ALL_FLDS_RC(aggRc, FieldRc);
+        }
+        break;
         case SQL_C_INTERVAL_HOUR_TO_MINUTE:
         case SQL_C_INTERVAL_HOUR_TO_SECOND:
         {
@@ -2004,9 +2003,12 @@ SQLRETURN MADB_ProcessTruncation(MADB_Stmt *Stmt)
       /* If (numeric) field value and buffer are of the same size - ignoring truncation.
       In some cases specs are not clear enough if certain column signed or not(think of catalog functions for example), and
       some apps bind signed buffer where we return unsigdned value. And in general - if application want to fetch unsigned as
-      signed, or vice versa, why we should prevent that. */
-      if (ArdRec->OctetLength == IrdRec->OctetLength
-        && MADB_IsIntType(IrdRec->ConciseType) && (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType)))
+      signed, or vice versa, why we should prevent that.
+      All int values are within range for decimal types - float, double, numeric. Thus exluding them as well */
+      if (MADB_IsIntType(IrdRec->ConciseType) &&
+        ((ArdRec->OctetLength == IrdRec->OctetLength &&
+          (ArdRec->ConciseType == SQL_C_DEFAULT || MADB_IsIntType(ArdRec->ConciseType))) ||
+        MADB_IsDecimalType(ArdRec->ConciseType)))
       {
         continue;
       }

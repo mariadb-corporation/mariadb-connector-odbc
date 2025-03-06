@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2017,2024 MariaDB Corporation plc
+   Copyright (C) 2017,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -17,7 +17,6 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 
-#pragma once
 #ifndef _ma_typeconv_h
 #define _ma_typeconv_h
 
@@ -49,7 +48,7 @@ SQLRETURN MADB_Date2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
 SQLRETURN MADB_ConvertC2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, SQLLEN Length,
                             MADB_DescRecord *SqlRec, MYSQL_BIND *MaBind, void **Buffer, unsigned long *LengthPtr);
 
-void      MADB_TsConversionIsPossible(SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, bool isTime);
+void      MADB_TsConversionIsPossible(MADB_Stmt *Stmt, SQL_TIMESTAMP_STRUCT *ts, SQLSMALLINT SqlType, MADB_Error *Error, enum enum_madb_error SqlState, bool isTime);
 void      MADB_Str2Ts(const char *Str, size_t Length, MYSQL_TIME *Tm, bool Interval, MADB_Error *Error, bool *isTime);
 
 #endif

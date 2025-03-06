@@ -89,7 +89,7 @@ MADB_DsnKey DsnKeys[]=
   {"READ_TIMEOUT",   offsetof(MADB_Dsn, ReadTimeout),       DSN_TYPE_INT,    0, 0},
   {"WRITE_TIMEOUT",  offsetof(MADB_Dsn, WriteTimeout),      DSN_TYPE_INT,    0, 0}, /* 40 */
   {"NOLOCALINFILE",  offsetof(MADB_Dsn, DisableLocalInfile),DSN_TYPE_BOOL,   0, 0},
-  {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent),DSN_TYPE_BOOL, 0, 0},
+  {"NULLISCURRENT",  offsetof(MADB_Dsn, NullSchemaMeansCurrent), DSN_TYPE_BOOL, 0, 0},
   {"STREAMRS",       offsetof(MADB_Dsn, StreamResult),      DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_CACHE, 0},
   {"ATTR",           offsetof(MADB_Dsn, Attributes),        DSN_TYPE_STRING, 0, 0},
   {"EDSERVER",       offsetof(MADB_Dsn, EdPrepareOnServer), DSN_TYPE_BOOL,   0, 0},
@@ -99,6 +99,7 @@ MADB_DsnKey DsnKeys[]=
   {"PCALLBACK",      offsetof(MADB_Dsn, ParamCallbacks),    DSN_TYPE_BOOL,   0, 0},
   {"RCALLBACK",      offsetof(MADB_Dsn, ResultCallbacks),   DSN_TYPE_BOOL,   0, 0}, /* 50 */
   {"NOBIGINT",       offsetof(MADB_Dsn, NoBigint),          DSN_TYPE_OPTION, MADB_OPT_FLAG_NO_BIGINT, 0},
+  {"TRUNCDT",        offsetof(MADB_Dsn, AllowDtTruncation), DSN_TYPE_BOOL, 0, 0},
 
   /* Aliases. Here offset is index of aliased key */
   {"SERVERNAME",     DSNKEY_SERVER_INDEX,                   DSN_TYPE_STRING, 0, 1},
