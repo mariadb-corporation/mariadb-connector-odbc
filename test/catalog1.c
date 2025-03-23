@@ -1428,15 +1428,9 @@ ODBC_TEST(t_bug32989)
 */
 ODBC_TEST(t_bug33298)
 {
-  SQLRETURN rc= 0;
-  FAIL_IF(SQLProcedureColumns(Stmt, NULL, 0, NULL, 0,
-                                         NULL, 0, NULL, 0)
-                                         != SQL_SUCCESS, "Error");
-  rc= SQLFetch(Stmt);
+  CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0));
+  FAIL_IF(SQLFetch(Stmt) ==  SQL_ERROR, "SQLFetch errored after SQLProcedureColumns");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
-  if (rc == SQL_ERROR)
-    return FAIL;
 
   return OK;
 }

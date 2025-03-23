@@ -335,9 +335,19 @@ ODBC_TEST(t_nobigint)
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
 
   CHECK_STMT_RC(hstmt, SQLColumns(hstmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_nobigint", SQL_NTS, NULL, SQL_NTS));
-
+  /* After ODBC-458 SQLColumns also fakes column't type with the option */
+  CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  is_num(SQL_INTEGER, my_fetch_int(hstmt, 5));
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
-
+  
+  /* Verifying that w/out the option the type is correct, too */
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_nobigint", SQL_NTS, NULL, SQL_NTS));
+  /* After ODBC-458 SQLColumns also fakes column't type with the option */
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(SQL_BIGINT, my_fetch_int(Stmt, 5));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  /* Cleaning up after work */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_nobigint");
   return OK;
 }
 

@@ -97,7 +97,6 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   "  WHEN 'year' THEN @dt:= " XSTR(SQL_SMALLINT)\
   "  WHEN 'mediumint' THEN @dt:=" XSTR(SQL_INTEGER)\
   "  WHEN 'int' THEN @dt:=" XSTR(SQL_INTEGER)\
-  "  WHEN 'bigint' THEN @dt:=" XSTR(SQL_BIGINT)\
   "  WHEN 'blob' THEN @dt:=" XSTR(SQL_LONGVARBINARY)\
   "  WHEN 'tinyblob' THEN @dt:=" XSTR(SQL_LONGVARBINARY)\
   "  WHEN 'mediumblob' THEN @dt:=" XSTR(SQL_LONGVARBINARY)\
@@ -135,17 +134,13 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   "  WHEN 'date' THEN @dt:=" XSTR(SQL_TYPE_DATE)\
   "  WHEN 'time' THEN @dt:=" XSTR(SQL_TYPE_TIME)\
   "  WHEN 'datetime' THEN @dt:=" XSTR(SQL_TYPE_TIMESTAMP)\
-  "  WHEN 'timestamp' THEN @dt:=" XSTR(SQL_TYPE_TIMESTAMP)\
-  "  ELSE @dt:=" XSTR(SQL_LONGVARBINARY)\
-  "END AS DATA_TYPE"
+  "  WHEN 'timestamp' THEN @dt:=" XSTR(SQL_TYPE_TIMESTAMP)
 
 #define MADB_SQL_DATATYPEp2_ODBC2\
   "  WHEN 'date' THEN @dt:=" XSTR(SQL_DATE)\
   "  WHEN 'time' THEN @dt:=" XSTR(SQL_TIME)\
   "  WHEN 'datetime' THEN @dt:=" XSTR(SQL_TIMESTAMP)\
-  "  WHEN 'timestamp' THEN @dt:=" XSTR(SQL_TIMESTAMP)\
-  "  ELSE @dt:=" XSTR(SQL_LONGVARBINARY)\
-  "END AS DATA_TYPE"
+  "  WHEN 'timestamp' THEN @dt:=" XSTR(SQL_TIMESTAMP)
 
 #define MADB_SQL_DATATYPE_ODBC3U MADB_SQL_DATATYPEp1 MADB_SQL_DATATYPEp1OUR MADB_SQL_DATATYPEp1U MADB_SQL_DATATYPEp2_ODBC3
 #define MADB_SQL_DATATYPE_ODBC3A MADB_SQL_DATATYPEp1 MADB_SQL_DATATYPEp1OUR MADB_SQL_DATATYPEp1A MADB_SQL_DATATYPEp2_ODBC3
@@ -157,11 +152,19 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 #define MADB_SQL_DATATYPE_ODBC2UMYSQL MADB_SQL_DATATYPEp1 MADB_SQL_DATATYPEp1MYSQL MADB_SQL_DATATYPEp1U MADB_SQL_DATATYPEp2_ODBC2
 #define MADB_SQL_DATATYPE_ODBC2AMYSQL MADB_SQL_DATATYPEp1 MADB_SQL_DATATYPEp1MYSQL MADB_SQL_DATATYPEp1A MADB_SQL_DATATYPEp2_ODBC2
 
-
-#define MADB_SQL_DATATYPE(StmtHndl) (StmtHndl->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ?\
- (StmtHndl->Connection->IsAnsi ? MADB_SQL_DATATYPE_ODBC3A : MADB_SQL_DATATYPE_ODBC3U) :\
- (StmtHndl->Connection->IsAnsi ? MADB_SQL_DATATYPE_ODBC2A : MADB_SQL_DATATYPE_ODBC2U))
-
+/* Maybe it's better to do for msaccess only */
+#define MADB_SQLBIGINTDATATYPE(StmtHndl) (StmtHndl->Connection->Dsn->NoBigint ?\
+" WHEN 'bigint' THEN @dt:=" XSTR(SQL_INTEGER) : "  WHEN 'bigint' THEN @dt:=" XSTR(SQL_BIGINT))
+/* It does not include END AS DATA_TYPE part to make possible adding at the end variable parts depending on
+   some condition. We can't continue to double number of macros each time. So, user of the macro has to add
+   MADB_SQLDATATYPE_END after assembling of all parts of the column definition */
+#define MADB_SQL_DATATYPE(StmtHndl) (StmtHndl->Connection->IsMySQL ? (StmtHndl->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ?\
+                            /*MySQL*/   (StmtHndl->Connection->IsAnsi ? MADB_SQL_DATATYPE_ODBC3AMYSQL : MADB_SQL_DATATYPE_ODBC3UMYSQL) :\
+                                        (StmtHndl->Connection->IsAnsi ? MADB_SQL_DATATYPE_ODBC2AMYSQL : MADB_SQL_DATATYPE_ODBC2UMYSQL)) :\
+                                        (StmtHndl->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ?\
+                            /*MariaDB*/ (StmtHndl->Connection->IsAnsi ? MADB_SQL_DATATYPE_ODBC3A : MADB_SQL_DATATYPE_ODBC3U) :\
+                                        (StmtHndl->Connection->IsAnsi ? MADB_SQL_DATATYPE_ODBC2A : MADB_SQL_DATATYPE_ODBC2U)))
+#define MADB_SQLDATATYPE_END " ELSE @dt:=" XSTR(SQL_LONGVARBINARY) " END AS DATA_TYPE"
 /************** End of DATA_TYPE *************/
 
 /************** SQLColumns       *************/
@@ -252,22 +255,7 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   "IF(CHARACTER_MAXIMUM_LENGTH IS NULL, NULL, @tol) CHAR_OCTET_LENGTH, "\
   "ORDINAL_POSITION, 'YES' IS_NULLABLE FROM INFORMATION_SCHEMA.PARAMETERS "
 
-#define MADB_PROCEDURE_COLUMNS_ODBC3U MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC3U MADB_PROCEDURE_COLUMNSp3
-#define MADB_PROCEDURE_COLUMNS_ODBC2U MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC2U MADB_PROCEDURE_COLUMNSp3
-#define MADB_PROCEDURE_COLUMNS_ODBC3A MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC3A MADB_PROCEDURE_COLUMNSp3
-#define MADB_PROCEDURE_COLUMNS_ODBC2A MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC2A MADB_PROCEDURE_COLUMNSp3
-
-#define MADB_PROCEDURE_COLUMNS_ODBC3UMYSQL MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC3UMYSQL MADB_PROCEDURE_COLUMNSp3MYSQL
-#define MADB_PROCEDURE_COLUMNS_ODBC2UMYSQL MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC2UMYSQL MADB_PROCEDURE_COLUMNSp3MYSQL
-#define MADB_PROCEDURE_COLUMNS_ODBC3AMYSQL MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC3AMYSQL MADB_PROCEDURE_COLUMNSp3MYSQL
-#define MADB_PROCEDURE_COLUMNS_ODBC2AMYSQL MADB_PROCEDURE_COLUMNSp1 MADB_SQL_DATATYPE_ODBC2AMYSQL MADB_PROCEDURE_COLUMNSp3MYSQL
-
-#define MADB_PROCEDURE_COLUMNS(StmtHndl) (StmtHndl->Connection->IsMySQL ? (StmtHndl->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ?\
-                            /*MySQL*/   (StmtHndl->Connection->IsAnsi ? MADB_PROCEDURE_COLUMNS_ODBC3AMYSQL : MADB_PROCEDURE_COLUMNS_ODBC3UMYSQL) :\
-                                        (StmtHndl->Connection->IsAnsi ? MADB_PROCEDURE_COLUMNS_ODBC2AMYSQL : MADB_PROCEDURE_COLUMNS_ODBC2UMYSQL)) :\
-                                        (StmtHndl->Connection->Environment->OdbcVersion >= SQL_OV_ODBC3 ?\
-                            /*MariaDB*/ (StmtHndl->Connection->IsAnsi ? MADB_PROCEDURE_COLUMNS_ODBC3A : MADB_PROCEDURE_COLUMNS_ODBC3U) :\
-                                        (StmtHndl->Connection->IsAnsi ? MADB_PROCEDURE_COLUMNS_ODBC2A : MADB_PROCEDURE_COLUMNS_ODBC2U)))
+char* MADB_ProcedureColumns(MADB_Stmt* Stmt, char** Query, size_t* Length);
 /************** SQLProcedureColumns **********/
 
 #endif
