@@ -86,7 +86,8 @@ int  MADB_ParseQuery(MADB_QUERY *Query);
 
 char *       MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset);
 unsigned int MADB_FindToken(MADB_QUERY *Query, char *Compare);
-
+my_bool      MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, char *Compare, size_t Length,
+                               unsigned int *Offset);
 enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Token2);
 
 const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt);

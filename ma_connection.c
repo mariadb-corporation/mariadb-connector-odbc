@@ -1009,9 +1009,18 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   {
     MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), Dsn->InitCommand);
   }
-  /* Turn sql_auto_is_null behavior off.
-    For more details see: http://bugs.mysql.com/bug.php?id=47005 */
-  MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION SQL_AUTO_IS_NULL=0");
+  /* Since sql_auto_is_null is not enough any more for the Access, there is no need to enforce it implicitly */
+  if (DSN_OPTION(Connection, MADB_OPT_FLAG_AUTO_IS_NULL)) /* || Connection->Environment->AppType == ATypeMSAccess) */
+  {
+    MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION sql_auto_is_null=1");
+  }
+  else
+  {
+    /* Not sure if we should do it, but nobody complained */
+    /* Turn sql_auto_is_null behavior off.
+      For more details see: http://bugs.mysql.com/bug.php?id=47005 */
+    MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION sql_auto_is_null=0");
+  }
 
   /* set autocommit behavior */
   if (Connection->AutoCommit != 0)

@@ -681,6 +681,45 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
   MADB_ResetParser(Stmt, StatementText, TextLength);
   MADB_ParseQuery(&Stmt->Query);
 
+  /* MS Access special magic */
+  /* It can be set only if application is MS Access, thus we don't check applicatin type here */
+  if (Stmt->Connection->LastInsertId)
+  {
+    unsigned int offset= 0;
+    /* The query we expecting from MS Access is min 8 tikens and only condition on auto_increment field */
+    if (Stmt->Query.QueryType == MADB_QUERY_SELECT && Stmt->Query.Tokens.elements > 7 &&
+      MADB_CompareToken(&Stmt->Query, Stmt->Query.Tokens.elements - 1, "NULL", 4, NULL) &&
+      MADB_CompareToken(&Stmt->Query, Stmt->Query.Tokens.elements - 2, "IS", 2, &offset) &&
+      MADB_CompareToken(&Stmt->Query, Stmt->Query.Tokens.elements - 4, "WHERE", 5, NULL))
+    {
+      char *tmp= MADB_ALLOC(offset + 20/*bigint*/ + 1/*terminating null*/);
+      if (tmp == NULL)
+      {
+        MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Out of memory", 0);
+        goto cleanandexit;
+      }
+      else
+      {
+        SQLINTEGER newTextLength= _snprintf(tmp, offset + 21, "%.*s=%llu",
+          offset, Stmt->Query.RefinedText, Stmt->Connection->LastInsertId);
+        SQLRETURN rc;
+        unsigned long long preserve= Stmt->Connection->LastInsertId;
+        UNLOCK_MARIADB(Stmt->Connection);
+        rc= MADB_StmtPrepare(Stmt, tmp, newTextLength, ExecDirect);
+        /* MSAccess calls this query more than once. We need to preserve the value as it gets reset by
+           the recursive call. And we need to really reset it as soon as other query is received, and that
+           is why it gets reset below in 'else' branch, and recursive call here also did it */
+        Stmt->Connection->LastInsertId= preserve;
+        free(tmp);
+        return rc;
+      }
+    }
+    else
+    {
+      Stmt->Connection->LastInsertId= 0;
+    }
+  }
+
   if ((Stmt->Query.QueryType == MADB_QUERY_INSERT || Stmt->Query.QueryType == MADB_QUERY_UPDATE || Stmt->Query.QueryType == MADB_QUERY_DELETE)
     && MADB_FindToken(&Stmt->Query, "RETURNING"))
   {
@@ -1449,6 +1488,21 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
           if (!mysql_stmt_field_count(Stmt->stmt) && !Stmt->MultiStmts)
           {
             Stmt->AffectedRows += mysql_stmt_affected_rows(Stmt->stmt);
+            if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
+            {
+              unsigned long long insertId= mysql_insert_id(Stmt->Connection->mariadb);
+              if (insertId != 0 && insertId != Stmt->Connection->LastInsertId)
+              {
+                Stmt->Connection->LastInsertId= insertId;
+              }
+              else
+              {
+                /* We store it for very special case - MS Access inserted it and then requests it using
+                 * IS NULL *right* after that
+                 */
+                Stmt->Connection->LastInsertId= 0;
+              }
+            }
           }
           if (Stmt->Ipd->Header.ArrayStatusPtr)
           {

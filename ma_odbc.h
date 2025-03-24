@@ -351,6 +351,7 @@ struct st_ma_odbc_connection
   CRITICAL_SECTION ListsCs;      /*       for operations with lists */
   MADB_List ListItem;
   Client_Charset Charset;
+  unsigned long long LastInsertId;
   MYSQL *mariadb;                /* handle to a mariadb connection */
   MADB_Env *Environment;         /* global environment */
   MADB_Dsn *Dsn;
