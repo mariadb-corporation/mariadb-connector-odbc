@@ -242,15 +242,7 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, MYSQL_FIELD *Field)
     break;
   }
 
-  if (noBigint)
-  {
-    Record->ConciseType= SQL_INTEGER;
-  }
-  else
-  {
-    Record->ConciseType= MapMariadDbToOdbcType(Field);
-  }
-
+  Record->ConciseType= MapMariadDbToOdbcType(Stmt, Field);
 
   if (0)//Stmt->Connection->IsAnsi == '\0')
   {

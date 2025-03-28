@@ -154,7 +154,9 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
 
 /* Maybe it's better to do for msaccess only */
 #define MADB_SQLBIGINTDATATYPE(StmtHndl) (StmtHndl->Connection->Dsn->NoBigint ?\
-" WHEN 'bigint' THEN @dt:=" XSTR(SQL_INTEGER) : "  WHEN 'bigint' THEN @dt:=" XSTR(SQL_BIGINT))
+" WHEN 'bigint' THEN @dt:=" XSTR(SQL_INTEGER) :" WHEN 'bigint' THEN @dt:=" XSTR(SQL_BIGINT))
+//(StmtHndl->Connection->Environment->AppType == ATypeMSAccess ? " WHEN 'bigint' THEN @dt:=" XSTR(SQL_VARCHAR) :\//)\
+
 /* It does not include END AS DATA_TYPE part to make possible adding at the end variable parts depending on
    some condition. We can't continue to double number of macros each time. So, user of the macro has to add
    MADB_SQLDATATYPE_END after assembling of all parts of the column definition */

@@ -44,7 +44,7 @@ SQLULEN MADB_GetDataSize(SQLSMALLINT SqlType, unsigned long long OctetLength, BO
                         SQLSMALLINT Precision, SQLSMALLINT Scale, unsigned int CharMaxLen);
 int MADB_GetMaDBTypeAndLength(SQLINTEGER SqlDataType, my_bool *Unsigned, unsigned long *Length);
 //char *MADB_GetDefaultColumnValue(MADB_Stmt *Stmt, char *Schema, char *TableName, char *Column);
-SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field);
+SQLSMALLINT MapMariadDbToOdbcType(MADB_Stmt* Stmt, MYSQL_FIELD *field);
 size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
                           char *HexBuffer, size_t HexLength);
 

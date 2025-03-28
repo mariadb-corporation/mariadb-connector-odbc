@@ -565,7 +565,8 @@ size_t MADB_GetOctetLength(MYSQL_FIELD *Field, unsigned short MaxCharLen)
 }
 /* }}} */
 
-/* {{{ MADB_GetDefaultType */
+/* {{{ MADB_GetDefaultType
+ */
 int MADB_GetDefaultType(int SQLDataType)
 {
   switch(SQLDataType)
@@ -621,9 +622,10 @@ int MADB_GetDefaultType(int SQLDataType)
 }
 /* }}} */
 
-/* {{{ MapMariadDbToOdbcType */
-       /* It's not quite right to mix here C and SQL types, even though constants are sort of equal */
-SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field)
+/* {{{ MapMariadDbToOdbcType
+ * @param Stmt - we need it for the information that may need to do some ajustments in the mappings 
+ */
+SQLSMALLINT MapMariadDbToOdbcType(MADB_Stmt* Stmt, MYSQL_FIELD *field)
 {
   switch (field->type) {
     case MYSQL_TYPE_BIT:
@@ -658,7 +660,15 @@ SQLSMALLINT MapMariadDbToOdbcType(MYSQL_FIELD *field)
     case MYSQL_TYPE_LONG_BLOB:
       return MADB_FIELD_IS_BINARY(field) ? SQL_LONGVARBINARY : SQL_LONGVARCHAR;
     case MYSQL_TYPE_LONGLONG:
-      return SQL_BIGINT;
+      /* Treating MSAccess differently */
+      if (Stmt->Connection->Dsn->NoBigint)
+      {
+        return SQL_INTEGER;
+      }
+      else
+      {
+        return Stmt->Connection->Environment->AppType == ATypeMSAccess ? SQL_VARCHAR : SQL_BIGINT;
+      }
     case MYSQL_TYPE_STRING:
       return MADB_FIELD_IS_BINARY(field) ? SQL_BINARY : SQL_CHAR;
     case MYSQL_TYPE_VAR_STRING:

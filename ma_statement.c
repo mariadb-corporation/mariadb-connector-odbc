@@ -1626,7 +1626,8 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    /* Map to the correspoinding type */
    if (ValueType == SQL_C_DEFAULT)
    {
-     ValueType= MADB_GetDefaultType(ParameterType);
+     ValueType= ParameterType == SQL_BIGINT && Stmt->Connection->Environment->AppType == ATypeMSAccess ?
+       SQL_C_CHAR: MADB_GetDefaultType(ParameterType);
    }
    
    if (!(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)(SQLLEN)ValueType, SQL_IS_SMALLINT, 0))) ||
@@ -2115,7 +2116,7 @@ SQLRETURN MADB_FixFetchedValues(MADB_Stmt *Stmt, int RowNumber, MYSQL_ROW_OFFSET
             CharLen= *Stmt->result[i].length;
           }
           /* Not quite right */
-          *LengthPtr = CharLen * sizeof(SQLWCHAR);
+          *LengthPtr= CharLen*sizeof(SQLWCHAR);
         }
         break;
 
@@ -3169,7 +3170,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
 
       if (StrLen_or_IndPtr)
       {
-        *StrLen_or_IndPtr= CharLength * sizeof(SQLWCHAR);
+        *StrLen_or_IndPtr= CharLength*sizeof(SQLWCHAR);
       }
 
       if (!BufferLength)
