@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022, 2023 MariaDB Corporation AB
+   Copyright (C) 2022, 2025 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -206,7 +206,7 @@ namespace mariadb
       // Or should it still go after the query?
       results->setRewritten(prepareResult->isQueryMultiValuesRewritable());
       guard->realQuery(sql);
-      guard->getResult(results.get());
+      guard->getResult(results.get(), nullptr, true);
     }
     return;
   }

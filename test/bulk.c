@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -727,7 +727,49 @@ ODBC_TEST(t_odbc235)
     (SQLPOINTER)1, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc235");
+  return OK;
+}
 
+
+/* Crash on direct execution of UPDATE with paramset */
+ODBC_TEST(t_odbc460)
+{
+  SQLINTEGER   a[MAODBC_ROWS]= {1, 2, 3};
+  unsigned int i;
+  SQLUSMALLINT paramStatusArray[MAODBC_ROWS]= {0xffff, 0xffff, 0xffff};
+  SQLULEN      paramsProcessed;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc460` (`id` int NOT NULL)");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+    (SQLPOINTER)MAODBC_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
+
+  /* For INSERT driver will create INSERT INTO ... VALUES(),()... and that did not crash */
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc460 VALUES(?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_STATUS_PTR, paramStatusArray, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR, &paramsProcessed, 0));
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "UPDATE t_odbc460 SET id=id*? WHERE id=?", SQL_NTS));
+  is_num(paramsProcessed, MAODBC_ROWS);
+  for (i= 0; i < paramsProcessed; ++i)
+  {
+    is_num(paramStatusArray[i], SQL_PARAM_SUCCESS);
+  }
+  OK_SIMPLE_STMT(Stmt, "SELECT id FROM t_odbc460");
+
+  for (i= 0; i < sizeof(a) / sizeof(a[0]); ++i) {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(a[i]*a[i], my_fetch_int(Stmt, 1));
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
+    (SQLPOINTER)1, 0));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
   return OK;
 }
 #undef MAODBC_ROWS
@@ -745,6 +787,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bulk_delete, "t_bulk_delete"},
   {t_odbc149, "odbc149_ts_col_insert" },
   {t_odbc235, "odbc235_bulk_with_longtext"},
+  {t_odbc460, "odbc460"},
   {NULL, NULL}
 };
 

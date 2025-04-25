@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2022,2023 MariaDB Corporation AB
+   Copyright (C) 2022,2025 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -651,6 +651,7 @@ namespace mariadb
     return false;
   }
 
+  /* Constructs using parameter arrays INSERT with multiple VALUES sets(i.e. VALUES(...),(...),...) */
   std::size_t assembleMultiValuesQuery(SQLString& pos, const ClientPrepareResult* clientPrepareResult,
     MYSQL_BIND* parameters, uint32_t arraySize, std::size_t currentIndex, bool noBackslashEscapes)
   {
@@ -727,29 +728,30 @@ namespace mariadb
     return index;
   }
 
-
+  /* Assembles query batch using parameter arrays */
   std::size_t assembleBatchRewriteQuery(SQLString& pos, const ClientPrepareResult* clientPrepareResult,
     MYSQL_BIND* parameters, uint32_t arraySize, std::size_t currentIndex, bool noBackslashEscapes)
   {
     std::size_t index= currentIndex, capacity= pos.capacity(), estimatedLength;
-    const std::vector<SQLString> queryParts;// = clientPrepareResult->getQueryParts();
+    const std::vector<std::pair<size_t, size_t>> queryParts= clientPrepareResult->getQueryParts();
+    const SQLString &query= clientPrepareResult->getSql();
     const std::size_t paramCount= clientPrepareResult->getParamCount();
-    const SQLString& firstPart= queryParts[1];
-    const SQLString& secondPart= queryParts.front();
+    const auto& firstPart= queryParts[1];
+    const auto& secondPart= queryParts.front();
 
-    pos.append(firstPart);
-    pos.append(secondPart);
+    pos.append(query, firstPart.first, firstPart.second);
+    pos.append(query, secondPart.first, secondPart.second);
 
     std::size_t staticLength= 1;
     for (auto& queryPart : queryParts) {
-      staticLength += queryPart.length();
+      staticLength += queryPart.second;
     }
 
     for (size_t i= 0; i < paramCount; ++i) {
       Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
-      pos.append(queryParts[i + 2]);
+      pos.append(query, queryParts[i + 2].first, queryParts[i + 2].second);
     }
-    pos.append(queryParts[paramCount + 2]);
+    pos.append(query, queryParts[paramCount + 2].first, queryParts[paramCount + 2].second);
     ++index;
     estimatedLength= pos.length() * (arraySize - currentIndex);
     if (estimatedLength > capacity) {
@@ -773,13 +775,13 @@ namespace mariadb
 
         if (Protocol::checkRemainingSize(pos.length() + staticLength + parameterLength)) {
           pos.append(1, ';');
-          pos.append(firstPart);
-          pos.append(secondPart);
+          pos.append(query, firstPart.first, firstPart.second);
+          pos.append(query, secondPart.first, secondPart.second);
           for (size_t i= 0; i < paramCount; i++) {
             Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
-            pos.append(queryParts[i + 2]);
+            pos.append(query, queryParts[i + 2].first, queryParts[i + 2].second);
           }
-          pos.append(queryParts[paramCount + 2]);
+          pos.append(query, queryParts[paramCount + 2].first, queryParts[paramCount + 2].second);
           ++index;
         }
         else {
@@ -789,13 +791,13 @@ namespace mariadb
       else {
 
         pos.append(1, ';');
-        pos.append(firstPart);
-        pos.append(secondPart);
+        pos.append(query, firstPart.first, firstPart.second);
+        pos.append(query, secondPart.first, secondPart.second);
         for (size_t i= 0; i < paramCount; i++) {
           Parameter::toString(pos, parameters[i], index, noBackslashEscapes);
-          pos.append(queryParts[i + 2]);
+          pos.append(query, queryParts[i + 2].first, queryParts[i + 2].second);
         }
-        pos.append(queryParts[paramCount + 2]);
+        pos.append(query, queryParts[paramCount + 2].first, queryParts[paramCount + 2].second);
         ++index;
         break;
       }
