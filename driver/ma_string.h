@@ -45,10 +45,16 @@ SQLLEN     SafeStrlen(SQLCHAR *str, SQLLEN buff_length);
 void       StreamWstring (MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec, MYSQL_BIND& Bind,
                           SQLWCHAR* TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr);
 
+/* Reviving the extinct legend :) thus the name does not follows the commom pattern */
+char* ma_strmov(char *dest, const char* src, size_t len);
+/* Small helper to strmov string literals */
+#define CONSTSTRMOV(DEST, SRC) ma_strmov(DEST, SRC, sizeof(SRC) - 1)
+
 #define ADJUST_LENGTH(__ptr, __len)\
   if((__ptr) == NULL || (__len) == SQL_NTS)\
     { (__len)= (SQLSMALLINT)((__ptr) ? strlen((__ptr)) : 0); }
 #define ADJUST_INTLENGTH(__ptr, __len)\
   if((__ptr) == NULL || (__len) == SQL_NTS)\
     { (__len)= (SQLINTEGER)((__ptr) ? strlen((__ptr)) : 0); }
+
 #endif

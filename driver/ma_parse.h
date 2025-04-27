@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -86,7 +86,8 @@ int  MADB_ParseQuery(MADB_QUERY *Query);
 
 const char * MADB_ParseCursorName(MADB_QUERY *Query, unsigned int *Offset);
 unsigned int MADB_FindToken(MADB_QUERY *Query, const char *Compare);
-
+bool         MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, const char *Compare, size_t Length,
+                               unsigned int *Offset);
 enum enum_madb_query_type MADB_GetQueryType(const char *Token1, const char *Token2);
 
 const char * MADB_FindParamPlaceholder(MADB_Stmt *Stmt);

@@ -147,20 +147,20 @@ const char *MADB_Token(MADB_QUERY *Query, std::size_t Idx)
 }
 
 
-my_bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, const char *Compare, size_t Length, unsigned int *Offset)
+bool MADB_CompareToken(MADB_QUERY *Query, unsigned int Idx, const char *Compare, size_t Length, unsigned int *Offset)
 {
   const char *TokenString;
   
   if (!(TokenString= MADB_Token(Query, Idx)))
-    return FALSE;
+    return false;
   if (_strnicmp(TokenString, Compare, Length) == 0)
   {
     if (Offset)
       *Offset= (unsigned int)(TokenString - Query->RefinedText.data());
-    return TRUE;
+    return true;
   }
  
-  return FALSE;
+  return false;
 }
 
 /* Not used atm, but may be useful */

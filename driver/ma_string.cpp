@@ -746,3 +746,9 @@ void StreamWstring(MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec
   }
   MADB_FREE(ClientValue);
 }
+
+
+char * ma_strmov(char * dest, const char * src, size_t len)
+{
+  return strncpy(dest, src, len) + len;
+}

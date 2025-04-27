@@ -272,31 +272,31 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "0");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "TABLE_SCHEMA");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
     if (CatalogName)
     {
-      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "=DATABASE() ");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND TABLE_NAME");
-    p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), TableName, NameLength3);
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+    p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
 
     if (ColumnName)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND COLUMN_NAME");
-      p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), ColumnName, NameLength4);
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND COLUMN_NAME");
+      p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), ColumnName, NameLength4);
     }
 
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
   }
-  return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)(p - StmtStr));
 }
 /* }}} */
 
@@ -316,34 +316,34 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   }
 
   p= StmtStr;
-  p += _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                                   "NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE, IS_GRANTABLE "
                                   "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "0");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
   }
   else
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "TABLE_SCHEMA");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
     if (CatalogName)
     {
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "=DATABASE()");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE()");
     }
     if (TableName)
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), " AND TABLE_NAME");
-      p += AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), TableName, NameLength3);
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), " AND TABLE_NAME");
+      p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
     }
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
   }
-  return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)strlen(StmtStr));
+  return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)(p - StmtStr));
 }
 /* }}} */
 
@@ -529,45 +529,45 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
-  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
-                             "IF(NON_UNIQUE=0 AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s2"
-                             " WHERE s2.INDEX_NAME=s1.INDEX_NAME AND s2.TABLE_SCHEMA=s1.TABLE_SCHEMA AND NULLABLE='YES') > 0,"
-                             "1,NON_UNIQUE) AS NON_UNIQUE,"
-                             "NULL AS INDEX_QUALIFIER,INDEX_NAME,%d AS TYPE,"
-                             "SEQ_IN_INDEX AS ORDINAL_POSITION,COLUMN_NAME,COLLATION AS ASC_OR_DESC, "
-                             "CARDINALITY,NULL AS PAGES,NULL AS FILTER_CONDITION "
-                             "FROM INFORMATION_SCHEMA.STATISTICS s1 ",
-                             SQL_INDEX_OTHER);
+  //if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
+  p= CONSTSTRMOV(StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
+      "IF(NON_UNIQUE=0 AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s2"
+      " WHERE s2.INDEX_NAME=s1.INDEX_NAME AND s2.TABLE_SCHEMA=s1.TABLE_SCHEMA AND NULLABLE='YES') > 0,"
+      "1,NON_UNIQUE) AS NON_UNIQUE,"
+      "NULL AS INDEX_QUALIFIER,INDEX_NAME," XSTR(SQL_INDEX_OTHER) " AS TYPE,"
+      "SEQ_IN_INDEX AS ORDINAL_POSITION,COLUMN_NAME,COLLATION AS ASC_OR_DESC, "
+      "CARDINALITY,NULL AS PAGES,NULL AS FILTER_CONDITION "
+      "FROM INFORMATION_SCHEMA.STATISTICS s1 ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "WHERE 0");
+    strncpy(p, "WHERE 0", sizeof(StmtStr) - (p - StmtStr));
   }
   else
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "WHERE TABLE_SCHEMA");
+    p= CONSTSTRMOV(p, "WHERE TABLE_SCHEMA");
     /* Same comments as for SQLPrimaryKeys including TODOs */
     if (CatalogName)
     {
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "=DATABASE() ");
+      p= CONSTSTRMOV(p, "=DATABASE() ");
     }
 
     if (TableName)
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND TABLE_NAME");
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), TableName, NameLength3);
+      p= CONSTSTRMOV(p, "AND TABLE_NAME");
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
     }
 
     if (Unique == SQL_INDEX_UNIQUE)
-      p += _snprintf(p, 1023 - strlen(StmtStr), "AND NON_UNIQUE=0 ");
+      p= CONSTSTRMOV(p, "AND NON_UNIQUE=0 ");
 
     /* To make PRIMARY to appear before all othe unique indexes we could add , INDEX_NAME!='PRIMARY' after NON_UNIQUE. But
       that would break specs, how the rs should be ordered */
-    _snprintf(p, 1023 - strlen(StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
+    strncpy(p, "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION", sizeof(StmtStr) - (p - StmtStr));
   }
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
@@ -621,6 +621,10 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   if (MADB_DYNAPPENDCONST(&StmtStr, MADB_CATALOG_COLUMNSp1))
     goto dynerror;
   if (MADB_DynstrAppend(&StmtStr, MADB_SQL_DATATYPE(Stmt)))
+    goto dynerror;
+  if (MADB_DynstrAppend(&StmtStr, MADB_SQLBIGINTDATATYPE(Stmt)))
+    goto dynerror;
+  if (MADB_DYNAPPENDCONST(&StmtStr, MADB_SQLDATATYPE_END))
     goto dynerror;
   if (MADB_DynstrAppend(&StmtStr, ColumnsPart))
     goto dynerror;
@@ -699,6 +703,37 @@ dynerror:
 }
 /* }}} */
 
+/* Allocates memory for SQLProcedureColumns query and populates "static" part based on current connection
+ * @param Query [out]    -  where to put allocated area
+ * @param Lentgh[in/out] - should not be NULL and contain the value that should be added to the calculated
+ *                         columns part length.
+ * @returns - pointer to the end of written query there to continue writing
+ */
+char* MADB_ProcedureColumns(MADB_Stmt* Stmt, char** Query, size_t* Length)
+{
+  const char* p2= MADB_SQL_DATATYPE(Stmt), *p3= MADB_SQLBIGINTDATATYPE(Stmt),
+    *p5= (Stmt->Connection->IsMySQL ? MADB_PROCEDURE_COLUMNSp3MYSQL : MADB_PROCEDURE_COLUMNSp3);
+  size_t p2len= strlen(p2), p3len= strlen(p3);
+  char *p= NULL;
+  unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 ? Stmt->Connection->Charset.cs_info->char_maxlen : 1;
+
+  *Length+= sizeof(MADB_PROCEDURE_COLUMNSp1) + p2len + p3len + sizeof(MADB_SQLDATATYPE_END) +
+    strlen(p5) - 1/* 2 sizeofs - terminating null*/;
+
+  *Query= static_cast<char*>(MADB_CALLOC(*Length));
+  if (*Query != NULL)
+  {
+    p= strncpy(*Query, MADB_PROCEDURE_COLUMNSp1, sizeof(MADB_PROCEDURE_COLUMNSp1) - 1) +
+      sizeof(MADB_PROCEDURE_COLUMNSp1) - 1;
+    p= strncpy(p, p2, p2len) + p2len;
+    p= strncpy(p, p3, p3len) + p3len;
+    p= strncpy(p, MADB_SQLDATATYPE_END, sizeof(MADB_SQLDATATYPE_END) - 1) +
+      sizeof(MADB_SQLDATATYPE_END) - 1;
+    p+= _snprintf(p, *Length - (p - *Query), p5, OctetsPerChar);
+  }
+  return p;
+}
+
 /* {{{ MADB_StmtProcedureColumns */
 SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
                                 char *SchemaName, SQLSMALLINT NameLength2, char *ProcName,
@@ -706,56 +741,52 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
 {
   char *StmtStr,
        *p;
-  size_t Length= strlen(MADB_PROCEDURE_COLUMNS(Stmt)) + 2048;
+  size_t Length= 2048; /* This value will be added to calculated length of the "static" part of the query */
   SQLRETURN ret;
-  unsigned int OctetsPerChar= Stmt->Connection->Charset.cs_info->char_maxlen > 0 ? Stmt->Connection->Charset.cs_info->char_maxlen: 1;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-
   ADJUST_LENGTH(SchemaName, NameLength2);
   if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && NameLength2 > 1 && SCHEMA_PARAMETER_ERRORS_ALLOWED(Stmt))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
-  if (!(StmtStr= static_cast<char*>(MADB_CALLOC(Length))))
+
+  if (!(p= MADB_ProcedureColumns(Stmt, &StmtStr, &Length)))
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
 
-  p= StmtStr;
-
-  p+= _snprintf(p, Length, MADB_PROCEDURE_COLUMNS(Stmt), OctetsPerChar);
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p += _snprintf(p, Length - strlen(StmtStr), "WHERE 0");
+    p+= _snprintf(p, Length - (p - StmtStr), "WHERE 0");
   }
   else
   {
-    p += _snprintf(p, Length - strlen(StmtStr), "WHERE SPECIFIC_SCHEMA");
+    p+= _snprintf(p, Length - (p - StmtStr), "WHERE SPECIFIC_SCHEMA");
     if (CatalogName)
-      p += AddOaOrIdCondition(Stmt, p, Length - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, Length - (p - StmtStr), CatalogName, NameLength1);
     else
-      p += _snprintf(p, Length - strlen(StmtStr), "=DATABASE() ");
+      p+= _snprintf(p, Length - (p - StmtStr), "=DATABASE() ");
     if (ProcName && ProcName[0])
     {
-      p += _snprintf(p, Length - strlen(StmtStr), "AND SPECIFIC_NAME");
-      p += AddPvOrIdCondition(Stmt, p, Length - strlen(StmtStr), ProcName, NameLength3);
+      p+= _snprintf(p, Length - (p - StmtStr), "AND SPECIFIC_NAME");
+      p+= AddPvOrIdCondition(Stmt, p, Length - (p - StmtStr), ProcName, NameLength3);
     }
     if (ColumnName)
     {
       if (ColumnName[0])
       {
-        p += _snprintf(p, Length - strlen(StmtStr), "AND PARAMETER_NAME");
-        p += AddPvOrIdCondition(Stmt, p, Length - strlen(StmtStr), ColumnName, NameLength4);
+        p+= _snprintf(p, Length - (p - StmtStr), "AND PARAMETER_NAME");
+        p+= AddPvOrIdCondition(Stmt, p, Length - (p - StmtStr), ColumnName, NameLength4);
       }
       else
       {
-        p += _snprintf(p, Length - strlen(StmtStr), "AND PARAMETER_NAME IS NULL ");
+        p+= _snprintf(p, Length - (p - StmtStr), "AND PARAMETER_NAME IS NULL ");
       }
     }
 
-    p += _snprintf(p, Length - strlen(StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
+    p+= _snprintf(p, Length - (p - StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
   }
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 
@@ -795,28 +826,28 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
-    _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "0");
+    _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "TABLE_SCHEMA");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
     /* Empty catalog name means table without catalog(schema). MariaDB/MySQL do not have such. Thus should be empty resultset.
        TABLE_SCHEMA='' will do the job. TODO: that can be done without sending query to the server.
        Catalog(schema) cannot be a search pattern. Thus= and not LIKE here */
     if (CatalogName != NULL)
     {
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
       /* If Catalog is NULL we return for current DB. If no schema(aka catalog here) is selected, then that means
          table without schema. Since we don't have such tables, that means empty resultset.
          TODO: We should be aboe to construct resultset - empty in this case, avoiding sending query to the server */
-      p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "=DATABASE() ");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND TABLE_NAME");
-    p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), TableName, NameLength3);
-    p+= _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+    p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -846,7 +877,7 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT NULL AS SCOPE, COLUMN_NAME, %s,"
+  p+= _snprintf(p, sizeof(StmtStr), "SELECT NULL AS SCOPE, COLUMN_NAME, %s %s" MADB_SQLDATATYPE_END ","
                            "DATA_TYPE TYPE_NAME,"
                            "CASE" 
                            "  WHEN DATA_TYPE in ('bit', 'tinyint', 'smallint', 'year', 'mediumint', 'int',"
@@ -858,40 +889,41 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
                            "CHARACTER_OCTET_LENGTH AS BUFFER_LENGTH,"
                            "NUMERIC_SCALE DECIMAL_DIGITS, " 
                            XSTR(SQL_PC_UNKNOWN) " PSEUDO_COLUMN "
-                           "FROM INFORMATION_SCHEMA.COLUMNS c WHERE 1 ", MADB_SQL_DATATYPE(Stmt));
+                           "FROM INFORMATION_SCHEMA.COLUMNS c WHERE 1 ", MADB_SQL_DATATYPE(Stmt),
+                 MADB_SQLBIGINTDATATYPE(Stmt));
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND 0");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND 0");
   }
   else
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND TABLE_SCHEMA");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_SCHEMA");
     if (CatalogName)
     {
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "=DATABASE() ");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
     if (TableName && TableName[0])
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND TABLE_NAME");
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), TableName, NameLength3);
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
     }
 
     if (Nullable == SQL_NO_NULLS)
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND IS_NULLABLE <> 'YES' ");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND IS_NULLABLE <> 'YES' ");
     }
 
     if (IdentifierType == SQL_BEST_ROWID)
     {
       /* If some of columns of a unique index can be NULL, this unique key cannot be SQL_BEST_ROWID since it can't
        "allows any row in the specified table to be uniquely identified" */
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr),
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr),
         "AND (COLUMN_KEY='PRI' OR COLUMN_KEY= 'UNI' AND IS_NULLABLE<>'YES' AND "
            "(SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s1 LEFT JOIN INFORMATION_SCHEMA.STATISTICS s2 USING(INDEX_NAME)"
            " WHERE s1.TABLE_SCHEMA=c.TABLE_SCHEMA AND s1.TABLE_NAME=c.TABLE_NAME AND s1.COLUMN_NAME=c.COLUMN_NAME "
@@ -899,9 +931,9 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     }
     else if (IdentifierType == SQL_ROWVER)
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
     }
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -936,28 +968,28 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p += _snprintf(p, sizeof(StmtStr)- strlen(StmtStr), "WHERE 0");
+    p+= _snprintf(p, sizeof(StmtStr)- (p - StmtStr), "WHERE 0");
   }
   else
   {
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "WHERE ROUTINE_SCHEMA");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "WHERE ROUTINE_SCHEMA");
     /* Catalog is ordinary argument, but schema is pattern value. Since we treat is catalog as a schema, using more permissive PV here
        On other hand we do not do this everywhere. Need to be consistent */
     if (CatalogName != NULL)
     {
-      p += AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), CatalogName, NameLength1);
+      p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "=DATABASE() ");
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
     if (ProcName != NULL)
     {
-      p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), "AND SPECIFIC_NAME");
-      p += AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - strlen(StmtStr), ProcName, NameLength3);
+      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND SPECIFIC_NAME");
+      p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), ProcName, NameLength3);
     }
 
-    p += _snprintf(p, sizeof(StmtStr) - strlen(StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
+    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }

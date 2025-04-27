@@ -254,23 +254,11 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
     break;
   }
 
-  if (noBigint)
-  {
-    Record->ConciseType= SQL_INTEGER;
-  }
-  else
-  {
-    Record->ConciseType= MapMariadDbToOdbcType(Field);
-  }
-
+  Record->ConciseType= MapMariadDbToOdbcType(Stmt, Field);
 
   if (false)/*!Stmt->Connection->IsAnsi)*/
   {
-    switch (Record->ConciseType) {
-    case SQL_CHAR:        Record->ConciseType= SQL_WCHAR; break;
-    case SQL_VARCHAR:     Record->ConciseType= SQL_WVARCHAR; break;
-    case SQL_LONGVARCHAR: Record->ConciseType= SQL_WLONGVARCHAR; break;
-    }
+    Record->ConciseType= MADB_GetWCharType(Record->ConciseType);
   }
   /* 
       TYPE:
@@ -529,8 +517,8 @@ MADB_FixIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record)
       Columns of type SQL_LONGVARCHAR and SQL_LONGVARBINARY usually return SQL_PRED_CHAR.
   */
   Record->Searchable= (Record->ConciseType == SQL_LONGVARCHAR ||
-                        Record->ConciseType == SQL_WLONGVARCHAR ||
-                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
+                       Record->ConciseType == SQL_WLONGVARCHAR ||
+                       Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
   mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
 
@@ -597,7 +585,6 @@ MADB_FixColumnDataTypes(MADB_Stmt *Stmt, MADB_ShortTypeInfo *ColTypesArr)
       }
     }
   }
-
   /* If the stmt is re-executed, we should be able to fix columns again */
   Stmt->ColsTypeFixArr= ColTypesArr;
   return false;

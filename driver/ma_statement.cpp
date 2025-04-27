@@ -457,6 +457,44 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
   MADB_ResetParser(this, StatementText, TextLength);
   MADB_ParseQuery(&Query);
 
+  /* MS Access special magic */
+  /* It can be set only if application is MS Access, thus we don't check applicatin type here */
+  if (Connection->LastInsertId)
+  {
+    unsigned int offset= 0;
+    /* The query we expecting from MS Access is min 8 tikens and only condition on auto_increment field */
+    if (Query.QueryType == MADB_QUERY_SELECT && Query.Tokens.size() > 7 &&
+      MADB_CompareToken(&Query, static_cast<unsigned int>(Query.Tokens.size() - 1), "NULL",  4, NULL)    &&
+      MADB_CompareToken(&Query, static_cast<unsigned int>(Query.Tokens.size() - 2), "IS",    2, &offset) &&
+      MADB_CompareToken(&Query, static_cast<unsigned int>(Query.Tokens.size() - 4), "WHERE", 5, NULL))
+    {
+      char *tmp= static_cast<char*>(MADB_ALLOC(offset + 20/*bigint*/ + 1/*terminating null*/));
+      if (tmp == NULL)
+      {
+        MADB_SetError(&Error, MADB_ERR_HY000, "Out of memory", 0);
+        goto cleanandexit;
+      }
+      else
+      {
+        SQLINTEGER newTextLength= _snprintf(tmp, offset + 21, "%.*s=%llu",
+          offset, Query.RefinedText.c_str(), Connection->LastInsertId);
+        SQLRETURN rc;
+        unsigned long long preserve= Connection->LastInsertId;
+        rc= Prepare(tmp, newTextLength, DirectExecution);
+        /* MSAccess calls this query more than once. We need to preserve the value as it gets reset by
+           the recursive call. And we need to really reset it as soon as other query is received, and that
+           is why it gets reset below in 'else' branch, and recursive call here also did it */
+        Connection->LastInsertId= preserve;
+        free(tmp);
+        return rc;
+      }
+    }
+    else
+    {
+      Connection->LastInsertId= 0;
+    }
+  }
+
   if ((Query.QueryType == MADB_QUERY_INSERT || Query.QueryType == MADB_QUERY_UPDATE || Query.QueryType == MADB_QUERY_DELETE)
     && MADB_FindToken(&Query, "RETURNING"))
   {
@@ -1036,7 +1074,21 @@ void MADB_Stmt::AfterExecute()
   {
     ProcessRsMetadata();
   }
-
+  else if (Connection->Environment->AppType == ATypeMSAccess)
+    {
+      unsigned long long insertId= mysql_insert_id(Connection->mariadb);
+      if (insertId != 0 && insertId != Connection->LastInsertId)
+      {
+        Connection->LastInsertId= insertId;
+      }
+      else
+      {
+        /* We store it for very special case - MS Access inserted it and then requests it using
+         * IS NULL *right* after that
+         */
+        Connection->LastInsertId= 0;
+      }
+    }
   LastRowFetched= 0;
 }
 
@@ -1351,7 +1403,8 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    /* Map to the correspoinding type */
    if (ValueType == SQL_C_DEFAULT)
    {
-     ValueType= MADB_GetDefaultType(ParameterType);
+     ValueType= ParameterType == SQL_BIGINT && Stmt->Connection->Environment->AppType == ATypeMSAccess ?
+       SQL_C_CHAR: MADB_GetDefaultType(ParameterType);
    }
    
    if (!(SQL_SUCCEEDED(MADB_DescSetField(Apd, ParameterNumber, SQL_DESC_CONCISE_TYPE, (SQLPOINTER)(SQLLEN)ValueType, SQL_IS_SMALLINT, 0))) ||
@@ -1878,7 +1931,7 @@ SQLRETURN MADB_Stmt::FixFetchedValues(int RowNumber, int64_t SaveCursor)
             CharLen= *result[i].length;
           }
           /* Not quite right */
-          *LengthPtr= CharLen * sizeof(SQLWCHAR);
+          *LengthPtr= CharLen*sizeof(SQLWCHAR);
         }
         break;
 
@@ -2864,7 +2917,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
           *StrLen_or_IndPtr= Bind.length_value * 2;
           return SQL_SUCCESS_WITH_INFO;
         }
-
 #ifdef CONVERSION_TO_HEX_IMPLEMENTED
         {
           /*TODO: */
