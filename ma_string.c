@@ -604,3 +604,8 @@ SQLLEN SafeStrlen(SQLCHAR *str, SQLLEN buff_length)
   }
   return result;
 }
+
+char * ma_strmov(char * dest, const char * src, size_t len)
+{
+  return strncpy(dest, src, len) + len;
+}

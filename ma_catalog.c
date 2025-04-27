@@ -17,6 +17,7 @@
    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
 *************************************************************************************/
 #include "ma_odbc.h"
+#include <string.h>
 
 /*
  * Group of helper functions to add condition to the query based on SQL_ATTR_METADATA_ID attribute value
@@ -452,23 +453,23 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
 
-  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
-                             "IF(NON_UNIQUE=0 AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s2"
-                             " WHERE s2.INDEX_NAME=s1.INDEX_NAME AND s2.TABLE_SCHEMA=s1.TABLE_SCHEMA AND NULLABLE='YES') > 0,"
-                             "1,NON_UNIQUE) AS NON_UNIQUE,"
-                             "NULL AS INDEX_QUALIFIER,INDEX_NAME,%d AS TYPE,"
-                             "SEQ_IN_INDEX AS ORDINAL_POSITION,COLUMN_NAME,COLLATION AS ASC_OR_DESC, "
-                             "CARDINALITY,NULL AS PAGES,NULL AS FILTER_CONDITION "
-                             "FROM INFORMATION_SCHEMA.STATISTICS s1 ",
-                             SQL_INDEX_OTHER);
+  //if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
+  p= CONSTSTRMOV(StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
+      "IF(NON_UNIQUE=0 AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s2"
+      " WHERE s2.INDEX_NAME=s1.INDEX_NAME AND s2.TABLE_SCHEMA=s1.TABLE_SCHEMA AND NULLABLE='YES') > 0,"
+      "1,NON_UNIQUE) AS NON_UNIQUE,"
+      "NULL AS INDEX_QUALIFIER,INDEX_NAME," XSTR(SQL_INDEX_OTHER) " AS TYPE,"
+      "SEQ_IN_INDEX AS ORDINAL_POSITION,COLUMN_NAME,COLLATION AS ASC_OR_DESC, "
+      "CARDINALITY,NULL AS PAGES,NULL AS FILTER_CONDITION "
+      "FROM INFORMATION_SCHEMA.STATISTICS s1 ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "WHERE 0");
+    strncpy(p, "WHERE 0", sizeof(StmtStr) - (p - StmtStr));
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "WHERE TABLE_SCHEMA");
+    p= CONSTSTRMOV(p, "WHERE TABLE_SCHEMA");
     /* Same comments as for SQLPrimaryKeys including TODOs */
     if (CatalogName)
     {
@@ -476,21 +477,21 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     }
     else
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
+      p= CONSTSTRMOV(p, "=DATABASE() ");
     }
 
     if (TableName)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+      p= CONSTSTRMOV(p, "AND TABLE_NAME");
       p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
     }
 
     if (Unique == SQL_INDEX_UNIQUE)
-      p+= _snprintf(p, 1023 - (p - StmtStr), "AND NON_UNIQUE=0 ");
+      p= CONSTSTRMOV(p, "AND NON_UNIQUE=0 ");
 
     /* To make PRIMARY to appear before all othe unique indexes we could add , INDEX_NAME!='PRIMARY' after NON_UNIQUE. But
       that would break specs, how the rs should be ordered */
-    _snprintf(p, 1023 - (p - StmtStr), "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION");
+    strncpy(p, "ORDER BY NON_UNIQUE, INDEX_NAME, ORDINAL_POSITION", sizeof(StmtStr) - (p - StmtStr));
   }
 
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);

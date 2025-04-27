@@ -44,6 +44,11 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
 SQLLEN     SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length);
 SQLLEN     SafeStrlen(SQLCHAR *str, SQLLEN buff_length);
 
+/* Reviving the extinct legend :) thus the name does not follows the commom pattern */
+char* ma_strmov(char *dest, const char* src, size_t len);
+/* Small helper to strmov string literals */
+#define CONSTSTRMOV(DEST, SRC) ma_strmov(DEST, SRC, sizeof(SRC) - 1)
+
 #define ADJUST_LENGTH(ptr, len)\
   if((ptr) && ((len) == SQL_NTS))\
     len= sizeof(len) == 2 ? (SQLSMALLINT)strlen((ptr)) : (SQLINTEGER)strlen((ptr));\
