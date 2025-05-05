@@ -87,7 +87,6 @@ namespace mariadb
     */
   bool ClientPrepareResult::canAggregateSemiColon(const SQLString& queryString, bool noBackslashEscapes)
   {
-
     LexState state= LexState::Normal;
     char lastChar= '\0';
 
@@ -181,7 +180,7 @@ namespace mariadb
         break;
       default:
 
-        if (state == LexState::Normal &&endingSemicolon &&((int8_t)car >=40)) {
+        if (state == LexState::Normal && endingSemicolon && ((int8_t)car >=40)) {
           endingSemicolon= false;
         }
         break;

@@ -34,6 +34,8 @@
 #include "Results.h"
 
 #define DEFAULT_TRX_ISOL_VARNAME "tx_isolation"
+#define CONST_QUERY(QUERY_STRING_LITERAL) realQuery(QUERY_STRING_LITERAL,sizeof(QUERY_STRING_LITERAL))
+#define SEND_CONST_QUERY(QUERY_STRING_LITERAL) sendQuery(QUERY_STRING_LITERAL,sizeof(QUERY_STRING_LITERAL))
 
 namespace mariadb
 {
@@ -255,40 +257,6 @@ namespace mariadb
     }
     estimate= ((estimate + 7) / 8) * 8;
     return estimate;
-  }
-
-  void assemblePreparedQueryForExec(
-    SQLString& out,
-    ClientPrepareResult* clientPrepareResult,
-    std::vector<Unique::ParameterHolder>& parameters,
-    int32_t queryTimeout)
-  {
-    addQueryTimeout(out, queryTimeout);
-
-    const std::vector<SQLString> &queryPart= clientPrepareResult->getQueryParts();
-    std::size_t estimate= estimatePreparedQuerySize(clientPrepareResult, queryPart, parameters);
-
-    if (estimate > StringImp::get(out).capacity() - out.length()) {
-      out.reserve(out.length() + estimate);
-    }
-    if (clientPrepareResult->isRewriteType()) {
-
-      out.append(queryPart[0]);
-      out.append(queryPart[1]);
-
-      for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
-        parameters[i]->writeTo(out);
-        out.append(queryPart[i + 2]);
-      }
-      out.append(queryPart[clientPrepareResult->getParamCount() + 2]);
-    }
-    else {
-      out.append(queryPart.front());
-      for (uint32_t i= 0; i < clientPrepareResult->getParamCount(); i++) {
-        parameters[i]->writeTo(out);
-        out.append(queryPart[i + 1]);
-      }
-    }
   }
 
   /**
@@ -546,33 +514,39 @@ namespace mariadb
   }
 
   /**
-   * Execute clientPrepareQuery batch.
+   * Execute list of queries. This method is used when using text batch statement and using
+   * rewriting (allowMultiQueries || rewriteBatchedStatements). queries will be send to server
+   * according to max_allowed_packet size.
    *
-   * @param results results
-   * @param clientPrepareResult ClientPrepareResult
-   * @param parametersList List of parameters
+   * @param results result object
+   * @param queries list of queries
    * @throws SQLException exception
    */
-  void Protocol::executeBatchMulti(
-      Results* results,
-      ClientPrepareResult* clientPrepareResult,
-      std::vector<std::vector<Unique::ParameterHolder>>& parametersList)
+  void Protocol::executeBatchAggregateSemiColon(Results* results, const std::vector<SQLString>& queries, std::size_t totalLenEstimation)
   {
-    cmdPrologue();
-    initializeBatchReader();
-
+    SQLString firstSql;
+    size_t currentIndex= 0;
+    size_t totalQueries= queries.size();
     SQLString sql;
 
-    for (auto& parameters : parametersList)
-    {
-      sql.clear();
+    do {
 
-      assemblePreparedQueryForExec(sql, clientPrepareResult, parameters, -1);
+      firstSql= queries[currentIndex++];
+      if (totalLenEstimation == 0) {
+        totalLenEstimation= firstSql.length() * queries.size() + queries.size() - 1;
+      }
+      sql.reserve(static_cast<std::size_t>(((std::min(MAX_PACKET_LENGTH, static_cast<int64_t>(totalLenEstimation)) + 7) / 8) * 8));
+      currentIndex= assembleBatchAggregateSemiColonQuery(sql, firstSql, queries, currentIndex);
       realQuery(sql);
-      getResult(results);
-    }
+      sql.clear(); // clear is not supposed to release memory
+
+      getResult(results, nullptr, true);
+
+      stopIfInterrupted();
+
+    } while (currentIndex < totalQueries);
+
   }
-#endif
 
   /**
    * Execute batch from Statement.executeBatch().
@@ -582,7 +556,8 @@ namespace mariadb
    * @param queries queries
    * @throws SQLException if any exception occur
    */
-  void Protocol::executeBatchStmt(bool mustExecuteOnMaster, Results* results, const std::vector<SQLString>& queries)
+  void Protocol::executeBatchStmt(bool mustExecuteOnMaster, Results* results,
+    const std::vector<SQLString>& queries)
   {
     std::lock_guard<std::mutex> localScopeLock(lock);
     cmdPrologue();
@@ -628,7 +603,7 @@ namespace mariadb
 
     return;
   }
-
+#endif
 
   ServerPrepareResult* Protocol::prepareInternal(const SQLString& sql)
   {
@@ -705,41 +680,6 @@ namespace mariadb
       ++currentIndex;
     }
     return currentIndex;
-  }
-
-  /**
-   * Execute list of queries. This method is used when using text batch statement and using
-   * rewriting (allowMultiQueries || rewriteBatchedStatements). queries will be send to server
-   * according to max_allowed_packet size.
-   *
-   * @param results result object
-   * @param queries list of queries
-   * @throws SQLException exception
-   */
-  void Protocol::executeBatchAggregateSemiColon(Results* results, const std::vector<SQLString>& queries, std::size_t totalLenEstimation)
-  {
-    SQLString firstSql;
-    size_t currentIndex= 0;
-    size_t totalQueries= queries.size();
-    SQLString sql;
-
-    do {
-
-      firstSql= queries[currentIndex++];
-      if (totalLenEstimation == 0) {
-        totalLenEstimation= firstSql.length()*queries.size() + queries.size() - 1;
-      }
-      sql.reserve(static_cast<std::size_t>(((std::min(MAX_PACKET_LENGTH, static_cast<int64_t>(totalLenEstimation)) + 7) / 8) * 8));
-      currentIndex= assembleBatchAggregateSemiColonQuery(sql, firstSql, queries, currentIndex);
-      realQuery(sql);
-      sql.clear(); // clear is not supposed to release memory
-
-      getResult(results, nullptr, true);
- 
-      stopIfInterrupted();
-
-    } while (currentIndex < totalQueries);
-
   }
 
 #ifdef WE_USE_PARAMETERHOLDER_CLASS
@@ -1028,6 +968,248 @@ namespace mariadb
     }
     /*CURSOR_TYPE_NO_CURSOR);*/
     getResult(results, serverPrepareResult);
+  }
+
+/******************** Different batch execution methods **********************/
+
+  /**
+   * Execute clientPrepareQuery batch.
+   *
+   * @param results results
+   * @param sql sql command
+   * @param serverPrepareResult prepare result if exist
+   * @param parametersList List of parameters
+   * @return if executed
+   * @throws SQLException exception
+   */
+  bool Protocol::executeBulkBatch(
+    Results* results, const SQLString& origSql,
+    ServerPrepareResult* serverPrepareResult,
+    MYSQL_BIND* parametersList,
+    uint32_t paramsetsCount)
+  {
+    // We are not using this function so far for real, but it's referred in function that is used. false will
+    // make it function as expected
+    return false;
+    // **************************************************************************************
+    // Ensure BULK can be use :
+    // - server version >= 10.2.7
+    // - no stream
+    // - parameter type doesn't change
+    // - avoid INSERT FROM SELECT
+    // **************************************************************************************
+
+    if ((serverCapabilities & MARIADB_CLIENT_STMT_BULK_OPERATIONS) == 0)
+      return false;
+
+    cmdPrologue();
+
+    ServerPrepareResult* tmpServerPrepareResult= serverPrepareResult;
+
+    try {
+      SQLException exception;
+
+      // **************************************************************************************
+      // send PREPARE if needed
+      // **************************************************************************************
+      if (!tmpServerPrepareResult) {
+        tmpServerPrepareResult= prepareInternal(origSql);
+      }
+
+      MYSQL_STMT* statementId= tmpServerPrepareResult ? tmpServerPrepareResult->getStatementId() : nullptr;
+
+      //TODO: shouldn't throw if stmt is NULL? Returning false so far.
+      if (statementId == nullptr)
+      {
+        return false;
+      }
+
+      mysql_stmt_attr_set(statementId, STMT_ATTR_ARRAY_SIZE, (const void*)&paramsetsCount);
+      // it was dealing with tmpServerPrepareResult and maybe should
+      mysql_stmt_bind_param(statementId, parametersList);
+      // **************************************************************************************
+      // send BULK
+      // **************************************************************************************
+      mysql_stmt_execute(statementId);
+
+      try {
+        getResult(results, tmpServerPrepareResult);
+      }
+      catch (SQLException& sqle) {
+        if (!serverPrepareResult && tmpServerPrepareResult) {
+          releasePrepareStatement(tmpServerPrepareResult);
+          // releasePrepareStatement basically cares only about releasing stmt on server(and C API handle)
+          delete tmpServerPrepareResult;
+          tmpServerPrepareResult= nullptr;
+        }
+        if (sqle.getSQLState().compare("HY000") == 0 && sqle.getErrorCode() == 1295) {
+          // query contain commands that cannot be handled by BULK protocol
+          // clear error and special error code, so it won't leak anywhere
+          // and wouldn't be misinterpreted as an additional update count
+          results->getCmdInformation()->reset();
+          return false;
+        }
+        if (exception.getMessage().empty()) {
+          //throw logQuery->exceptionWithQuery(origSql, sqle, explicitClosed);
+        }
+      }
+
+      results->setRewritten(true);
+
+      if (!serverPrepareResult && tmpServerPrepareResult) {
+        releasePrepareStatement(tmpServerPrepareResult);
+        // releasePrepareStatement basically cares only about releasing stmt on server(and C API handle)
+        delete tmpServerPrepareResult;
+      }
+
+      if (!exception.getMessage().empty()) {
+        throw exception;
+      }
+      return true;
+    }
+    catch (SQLException &/*e*/)
+    {
+      //TODO see what to do here in real implementation
+      return false;
+    }
+    //To please compilers etc
+    return false;
+  }
+
+  /**
+   * Specific execution for batch rewrite that has specific query for memory.
+   *
+   * @param results result
+   * @param prepareResult prepareResult
+   * @param parameterList parameters
+   * @param rewriteValues is rewritable flag
+   * @throws SQLException exception
+   */
+  void Protocol::executeBatchRewrite(
+    Results* results,
+    ClientPrepareResult* prepareResult,
+    MYSQL_BIND* parameterList,
+    uint32_t paramsetsCount,
+    bool rewriteValues)
+  {
+    cmdPrologue();
+    std::size_t nextIndex= 0;
+
+    while (nextIndex < paramsetsCount) {
+      SQLString sql("");
+      nextIndex= prepareResult->assembleBatchQuery(sql, parameterList, paramsetsCount, nextIndex);
+      // Or should it still go after the query?
+      results->setRewritten(prepareResult->isQueryMultiValuesRewritable());
+      realQuery(sql);
+      getResult(results, nullptr, true);
+    }
+    // Feels like it's redundnt
+    results->setRewritten(rewriteValues);
+  }
+
+/**
+  * Execute client prepared batch as multi-send. sort of.
+  *
+  * @param results results
+  * @param clientPrepareResult ClientPrepareResult
+  * @param parametersList List of parameters
+  * @param paramsetsCount size of parameters array
+  * @throws SQLException exception
+  */
+  void Protocol::executeBatchMulti(Results* results, ClientPrepareResult* clientPrepareResult,
+    MYSQL_BIND* parametersList, uint32_t paramsetsCount)
+  {
+    cmdPrologue();
+
+    SQLString sql;
+    bool autoCommit= getAutocommit();
+
+    if (autoCommit) {
+      SEND_CONST_QUERY("SET AUTOCOMMIT=0");
+    }
+
+    for (uint32_t i= 0; i < paramsetsCount; ++i)
+    {
+      sql.clear();
+      // Making it to create only from 1 paramset
+      clientPrepareResult->assembleBatchQuery(sql, parametersList, i+1, i);
+      sendQuery(sql);
+    }
+    if (autoCommit) {
+
+      // Sending commit, restoring autocommit
+      SEND_CONST_QUERY("COMMIT");
+      SEND_CONST_QUERY("SET AUTOCOMMIT=1");
+      // Getting result for setting autocommit off - we don't need it
+      readQueryResult();
+    }
+    for (uint32_t i= 0; i < paramsetsCount; ++i) {
+      // We don't need exception on error here
+      mysql_read_query_result(connection.get());
+      getResult(results);
+    }
+    if (autoCommit) {
+      // Getting result for commit and setting autocommit back on to clear the connection,
+      // reading new server status(with auto-commit)
+      commitReturnAutocommit(true);
+    }
+  }
+
+  /**
+    * Execute clientPrepareQuery batch.
+    *
+    * @param mustExecuteOnMaster was intended to be launched on master connection
+    * @param results results
+    * @param prepareResult ClientPrepareResult
+    * @param parametersList List of parameters
+    * @param hasLongData has parameter with long data (stream)
+    * @throws SQLException exception
+    */
+  bool Protocol::executeBatchClient(
+    Results* results,
+    ClientPrepareResult* prepareResult,
+    MYSQL_BIND* parametersList,
+    uint32_t paramsetsCount,
+    bool hasLongData)
+  {
+    // ***********************************************************************************************************
+    // Multiple solution for batching :
+    // - rewrite as multi-values (only if generated keys are not needed and query can be rewritten)
+    // - multiple INSERT separate by semi-columns
+    // - use pipeline
+    // - use bulk
+    // - one after the other
+    // ***********************************************************************************************************
+
+    /* Multi values is single statement otherwise we need multistatements allowed otherwise.
+     * Probably it's better not to read client_flag, but get along other stuff we might need from outside in
+     * some stuct in Protocol constructor
+     */
+    if (prepareResult->isQueryMultiValuesRewritable() || 
+      (prepareResult->isQueryMultipleRewritable() && connection->client_flag & CLIENT_MULTI_STATEMENTS)) {
+      // values rewritten in one query :
+      // INSERT INTO X(a,b) VALUES (1,2), (3,4), ...
+      executeBatchRewrite(results, prepareResult, parametersList, paramsetsCount, true);
+      return true;
+
+    }
+    else if (prepareResult->isQueryMultipleRewritable()) {
+
+      if (!hasLongData
+        && executeBulkBatch(results, prepareResult->getSql(), nullptr, parametersList, paramsetsCount)) {
+        return true;
+      }
+      // executeBatchRewrite does the choice on its own
+      // multi rewritten in one query :
+      // INSERT INTO X(a,b) VALUES (1,2);INSERT INTO X(a,b) VALUES (3,4); ...
+      /*executeBatchRewrite(results, prepareResult, parametersList, paramsetsCount, false);
+      return true;*/
+    }
+    // It used to be optional, thus could be also slow after it
+    executeBatchMulti(results, prepareResult, parametersList, paramsetsCount);
+    return true;
+    /*executeBatchSlow(results, prepareResult, parametersList);
+    return true;*/
   }
 
   /** Rollback transaction. */
@@ -2047,6 +2229,54 @@ namespace mariadb
       static_cast<unsigned long>(sql.length())))) {
       throwConnError(getCHandle());
     }
+  }
+
+  void Protocol::realQuery(const char * query, std::size_t len)
+  {
+    auto con= connection.get();
+    if (mysql_real_query(con, query, static_cast<unsigned long>(len))) {
+      throw SQLException(mysql_error(con), mysql_sqlstate(con),
+        mysql_errno(con));
+    }
+  }
+
+  void Protocol::sendQuery(const SQLString & sql)
+  {
+    if (mysql_send_query(connection.get(), sql.c_str(), static_cast<unsigned long>(sql.length()))) {
+      throw SQLException(mysql_error(connection.get()), mysql_sqlstate(connection.get()),
+        mysql_errno(connection.get()));
+    }
+  }
+
+  void Protocol::sendQuery(const char * query, std::size_t len)
+  {
+    if (mysql_send_query(connection.get(), query, static_cast<unsigned long>(len))) {
+      throw SQLException(mysql_error(connection.get()), mysql_sqlstate(connection.get()),
+        mysql_errno(connection.get()));
+    }
+  }
+
+  void Protocol::readQueryResult()
+  {
+    auto con= connection.get();
+    if (mysql_read_query_result(con)) {
+      throw SQLException(mysql_error(con), mysql_sqlstate(con), mysql_errno(con));
+    }
+  }
+
+
+  void Protocol::commitReturnAutocommit(bool justReadMultiSendResults)
+  {
+    if (justReadMultiSendResults) {
+      readQueryResult();//COMMIT
+      readQueryResult();//SET AUTOCOMMIT=1
+    }
+    else {
+      CONST_QUERY("COMMIT");
+      CONST_QUERY("SET AUTOCOMMIT=1");
+    }
+    // Need to get autocommit returned to the stored serverstatus
+    mariadb_get_infov(connection.get(), MARIADB_CONNECTION_SERVER_STATUS, (void*)&this->serverStatus);
   }
 
   /* Same as realQuery, but loads pending results, and tracks session, if needed. i.e. with standard

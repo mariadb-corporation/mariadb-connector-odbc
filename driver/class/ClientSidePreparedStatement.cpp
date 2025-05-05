@@ -186,7 +186,6 @@ namespace mariadb
     */
   void ClientSidePreparedStatement::executeBatchInternal(uint32_t size)
   {
-    executeQueryPrologue(true);
     results.reset(
       new Results(
         this,
@@ -197,17 +196,7 @@ namespace mariadb
         resultSetScrollType,
         emptyStr,
         nullptr));
-
-    std::size_t nextIndex= 0;
-
-    while (nextIndex < size) {
-      SQLString sql("");
-      nextIndex= prepareResult->assembleBatchQuery(sql, param, size, nextIndex);
-      // Or should it still go after the query?
-      results->setRewritten(prepareResult->isQueryMultiValuesRewritable());
-      guard->realQuery(sql);
-      guard->getResult(results.get(), nullptr, true);
-    }
+    guard->executeBatchClient(results.get(), prepareResult.get(), param, size, false);
     return;
   }
 

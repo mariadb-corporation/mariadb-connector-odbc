@@ -71,10 +71,10 @@ class Protocol
 
   int32_t autoIncrementIncrement= 1;
 
-  bool readOnly= false;
+  bool          readOnly= false;
   volatile bool connected= false;
-  bool explicitClosed= false;
-  SQLString database;
+  bool          explicitClosed= false;
+  SQLString     database;
  
   std::unique_ptr<Cache<std::string, ServerPrepareResult>> serverPrepareStatementCache;
 
@@ -93,8 +93,6 @@ class Protocol
   // ----- private methods -----
   void cmdPrologue();
   void cmdEpilog();
-  void executeBatch(Results*, const std::vector<SQLString>& queries);
-  void executeBatchAggregateSemiColon(Results*, const std::vector<SQLString>& queries, std::size_t totalLenEstimation);
   void changeReadTimeout(int32_t millis);
   void checkClose();
   void processResult(Results*, ServerPrepareResult *pr);
@@ -152,9 +150,38 @@ public:
   bool isValid(int32_t timeout);
   void executeQuery(const SQLString& sql);
   void executeQuery(Results*, const SQLString& sql);
-  void executeBatchStmt(bool mustExecuteOnMaster, Results*, const std::vector<SQLString>& queries);
   void executePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
   void directExecutePreparedQuery(ServerPrepareResult* serverPrepareResult, Results*);
+
+  // Technically, they(particular batch methods) probably should be private,
+  // but leaving so far the opportunity to call them from outside
+  bool executeBulkBatch(
+    Results* results, const SQLString& sql,
+    ServerPrepareResult* serverPrepareResult,
+    MYSQL_BIND* parametersList,
+    uint32_t paramsetsCount);
+  // Executes batch by creating singe ;-separated multistatement query or for INSERT can assemble single
+  // statement with multiple values sets.
+  void executeBatchRewrite(
+    Results* results,
+    ClientPrepareResult* prepareResult,
+    MYSQL_BIND* parametersList,
+    uint32_t paramsetsCount,
+    bool rewriteValues);
+  void executeBatchMulti(
+    Results* results,
+    ClientPrepareResult* clientPrepareResult,
+    MYSQL_BIND* parametersList,
+    uint32_t paramsetsCount);
+
+  // Method to execute batch prepated on the client. Chooses what method to use and calls it
+  bool executeBatchClient(
+    Results* results,
+    ClientPrepareResult* prepareResult,
+    MYSQL_BIND* parametersList,
+    uint32_t paramsetsCount,
+    bool hasLongData= false);
+
   void moveToNextSpsResult(Results*, ServerPrepareResult* spr);
   //void skipNextResult(ServerPrepareResult* spr= nullptr);
   void skipAllResults(ServerPrepareResult* spr);
@@ -194,6 +221,16 @@ public:
   void setHasWarnings(bool hasWarnings);
   ServerPrepareResult* addPrepareInCache(const SQLString& key, ServerPrepareResult* serverPrepareResult);
   void realQuery(const SQLString& sql);
+  void realQuery(const char* query, std::size_t length);
+  void sendQuery(const SQLString& sql);
+  void sendQuery(const char* query, std::size_t length);
+  //mysql_read_result
+  void readQueryResult();
+
+private:
+  void commitReturnAutocommit(bool justReadMultiSendResults=false);
+
+public:
   void safeRealQuery(const SQLString& sql);
   void removeActiveStreamingResult();
   void resetStateAfterFailover( int64_t maxRows, enum IsolationLevel transactionIsolationLevel, const SQLString& database,bool autocommit);

@@ -45,6 +45,13 @@ namespace mariadb
   SQLException::SQLException(const SQLString& msg): SQLException(msg.c_str(), "", 0)
   {}
 
+
+  SQLString SQLException::getMessage()
+  {
+    return what();
+  }
+
+
   char const* SQLException::what() const noexcept
   {
     return std::runtime_error::what();

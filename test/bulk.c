@@ -730,46 +730,59 @@ ODBC_TEST(t_odbc235)
   return OK;
 }
 
-
-/* Crash on direct execution of UPDATE with paramset */
+/* Crash on direct execution of UPDATE with paramset. Extended to cover ODBC-462 - 
+   testing w/ both multistatement option on and off
+ */
 ODBC_TEST(t_odbc460)
 {
-  SQLINTEGER   a[MAODBC_ROWS]= {1, 2, 3};
-  unsigned int i;
-  SQLUSMALLINT paramStatusArray[MAODBC_ROWS]= {0xffff, 0xffff, 0xffff};
-  SQLULEN      paramsProcessed;
-
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc460` (`id` int NOT NULL)");
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
-    (SQLPOINTER)MAODBC_ROWS, 0));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
-
-  /* For INSERT driver will create INSERT INTO ... VALUES(),()... and that did not crash */
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc460 VALUES(?)", SQL_NTS));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_STATUS_PTR, paramStatusArray, 0));
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR, &paramsProcessed, 0));
-  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "UPDATE t_odbc460 SET id=id*? WHERE id=?", SQL_NTS));
-  is_num(paramsProcessed, MAODBC_ROWS);
-  for (i= 0; i < paramsProcessed; ++i)
+  int runs= 0;
+  do
   {
-    is_num(paramStatusArray[i], SQL_PARAM_SUCCESS);
-  }
-  OK_SIMPLE_STMT(Stmt, "SELECT id FROM t_odbc460");
+    SQLINTEGER   a[MAODBC_ROWS]={1, 2, 3};
+    unsigned int i;
+    SQLUSMALLINT paramStatusArray[MAODBC_ROWS]={0xffff, 0xffff, 0xffff};
+    SQLULEN      paramsProcessed;
+    SQLHANDLE    conNoMultist= NULL;
+    unsigned long options= my_options & (~ 67108864UL);
 
-  for (i= 0; i < sizeof(a) / sizeof(a[0]); ++i) {
-    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-    is_num(a[i]*a[i], my_fetch_int(Stmt, 1));
-  }
-  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+    OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
+    OK_SIMPLE_STMT(Stmt, "CREATE TABLE `t_odbc460` (`id` int NOT NULL)");
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE,
-    (SQLPOINTER)1, 0));
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE,
+      (SQLPOINTER)MAODBC_ROWS, 0));
+    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
+
+    /* For INSERT driver will create INSERT INTO ... VALUES(),()... and that did not crash */
+    CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "INSERT INTO t_odbc460 VALUES(?)", SQL_NTS));
+    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_STATUS_PTR, paramStatusArray, 0));
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR, &paramsProcessed, 0));
+    CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, "UPDATE t_odbc460 SET id=id*? WHERE id=?", SQL_NTS));
+    is_num(paramsProcessed, MAODBC_ROWS);
+    for (i= 0; i < paramsProcessed; ++i)
+    {
+      is_num(paramStatusArray[i], SQL_PARAM_SUCCESS);
+    }
+    OK_SIMPLE_STMT(Stmt, "SELECT id FROM t_odbc460");
+
+    for (i= 0; i < sizeof(a) / sizeof(a[0]); ++i) {
+      CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+      is_num(a[i] * a[i], my_fetch_int(Stmt, 1));
+    }
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+    if (!runs) {
+      // We don't want to connect 2nd time
+      diag("Connecting and testing if multistatemnt is not allowed");
+      CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+      AllocEnvConn(&Env, &conNoMultist);
+      Stmt= DoConnect(conNoMultist, FALSE, NULL, NULL, NULL, 0, NULL, &options, NULL, NULL);
+      FAIL_IF(Stmt == NULL, "Connection without multistatements failed");
+    }
+  } while (++runs < 2);
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   return OK;
 }
 #undef MAODBC_ROWS
@@ -787,7 +800,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bulk_delete, "t_bulk_delete"},
   {t_odbc149, "odbc149_ts_col_insert" },
   {t_odbc235, "odbc235_bulk_with_longtext"},
-  {t_odbc460, "odbc460"},
+  {t_odbc460, "odbc460plusOdbc462"},
   {NULL, NULL}
 };
 

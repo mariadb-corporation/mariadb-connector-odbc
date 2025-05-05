@@ -856,8 +856,8 @@ SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_IN
 
 /* Returns STMT handle for newly created connection, or NULL if connection is unsuccessful */
 SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
-                    const char *dsn, const char *uid, const char *pwd, unsigned int port, const char *schema, unsigned long *options, const char *server,
-                    const char *add_parameters)
+                    const char *dsn, const char *uid, const char *pwd, unsigned int port, const char *schema,
+                    unsigned long *options, const char *server, const char *add_parameters)
 {
   SQLHANDLE   stmt= NULL;
   char        DSNString[1024];
