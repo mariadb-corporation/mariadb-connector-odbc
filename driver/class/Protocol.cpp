@@ -1252,7 +1252,12 @@ namespace mariadb
         if (needLock) {
           lock.unlock();
         }
-        throw SQLException("Could not deallocate query");
+        if (mysql_stmt_errno(statementId) == 2014/*CR_COMMANDS_OUT_OF_SYNC*/) {
+          statementIdToRelease= statementId;
+        }
+        else if (mysql_stmt_errno(statementId) == 2013/*CR_SERVER_LOST*/) {
+          mysql_stmt_close(statementId);
+        }
       }
       if (needLock) {
         lock.unlock();

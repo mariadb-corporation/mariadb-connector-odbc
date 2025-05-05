@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2020,2022 MariaDB Corporation AB
+   Copyright (C) 2020,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -131,6 +131,10 @@ SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
     }
     return SQL_ERROR;
   }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(*Error, e);
+  }
   return ret;
 }
 /* }}} */
@@ -161,7 +165,10 @@ SQLRETURN MA_SQLBindCol(SQLHSTMT StatementHandle,
   {
     ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
-
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Stmt->Error, e);
+  }
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
@@ -207,7 +214,10 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
   {
     ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
-
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Stmt->Error, e);
+  }
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
@@ -1483,6 +1493,10 @@ SQLRETURN MA_SQLGetCursorName(
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
+  catch (SQLException &e)
+  {
+    return MADB_FromException(Stmt->Error, e);
+  }
   return SQL_SUCCESS;
 }
 /* }}} */
@@ -1800,6 +1814,10 @@ SQLRETURN MA_SQLGetFunctions(SQLHDBC ConnectionHandle,
   catch (std::bad_alloc &/*e*/)
   {
     ret= MADB_SetError(&Dbc->Error, MADB_ERR_HY001, NULL, 0);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Dbc->Error, e);
   }
   MDBUG_C_RETURN(Dbc, ret, &Dbc->Error);
 }
@@ -2363,6 +2381,10 @@ SQLRETURN MA_SQLSetCursorNameW(SQLHSTMT StatementHandle,
   catch (std::bad_alloc &/*e*/)
   {
     ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+  catch (SQLException &e)
+  {
+    ret= MADB_FromException(Stmt->Error, e);
   }
 
   MADB_FREE(CpName);

@@ -780,9 +780,12 @@ ODBC_TEST(t_odbc460)
       Stmt= DoConnect(conNoMultist, FALSE, NULL, NULL, NULL, 0, NULL, &options, NULL, NULL);
       FAIL_IF(Stmt == NULL, "Connection without multistatements failed");
     }
+    else {
+      // It was last run - cleaning after onceself
+      OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
+      CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+    }
   } while (++runs < 2);
-  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
   return OK;
 }
 #undef MAODBC_ROWS
