@@ -30,7 +30,6 @@
 */
 ODBC_TEST(my_transaction)
 {
-
   /* set AUTOCOMMIT to OFF */
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection,SQL_ATTR_AUTOCOMMIT,
                                  (SQLPOINTER)SQL_AUTOCOMMIT_OFF,0));
@@ -40,8 +39,7 @@ ODBC_TEST(my_transaction)
   CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
 
   /* create the table 't1' using InnoDB */
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (col1 INT, col2 VARCHAR(30))"
-                " ENGINE = InnoDB");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t1 (col1 INT, col2 VARCHAR(30)) ENGINE = InnoDB");
 
   /* insert a row and commit the transaction */
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t1 VALUES(10,'venu')");
@@ -249,6 +247,7 @@ ODBC_TEST(t_isolation3)
 
   return OK;
 }
+
 
 MA_ODBC_TESTS my_tests[]=
 {

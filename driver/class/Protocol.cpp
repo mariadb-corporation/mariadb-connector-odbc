@@ -34,8 +34,8 @@
 #include "Results.h"
 
 #define DEFAULT_TRX_ISOL_VARNAME "tx_isolation"
-#define CONST_QUERY(QUERY_STRING_LITERAL) realQuery(QUERY_STRING_LITERAL,sizeof(QUERY_STRING_LITERAL))
-#define SEND_CONST_QUERY(QUERY_STRING_LITERAL) sendQuery(QUERY_STRING_LITERAL,sizeof(QUERY_STRING_LITERAL))
+#define CONST_QUERY(QUERY_STRING_LITERAL) realQuery(QUERY_STRING_LITERAL,sizeof(QUERY_STRING_LITERAL)-1)
+#define SEND_CONST_QUERY(QUERY_STRING_LITERAL) sendQuery(QUERY_STRING_LITERAL,sizeof(QUERY_STRING_LITERAL)-1)
 
 namespace mariadb
 {
@@ -1892,7 +1892,7 @@ namespace mariadb
   {
     this->explicitClosed= true;
     bool lockStatus= false;
-
+    // This isn't used anywhere, so leaving it for now
     lockStatus= lock.try_lock();
     this->connected= false;
 

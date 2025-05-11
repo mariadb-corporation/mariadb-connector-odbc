@@ -284,8 +284,14 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
 
   auto& lock= Stmt->Connection->guard->getLock();
   
+  // We can't get here undefined behaviour with try_lock(): it's (almost very top of) API function call -
+  // this thread just cannot have the lock
   if (lock.try_lock())
   {
+    // No other thread has the lock - thus all our Stmt can do is waiting for results. Calling SQL_CLOSE - it
+    // will close the cursor and skip pending results.
+    // We can't unlock here and use regular method since a) it locks b) before it locks Stmt can get lock in
+    // Hmm... we can get the case when Stmt is shared between threads
     lock.unlock();
     try
     {

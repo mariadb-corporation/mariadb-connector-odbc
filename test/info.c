@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -887,6 +887,29 @@ ODBC_TEST(odbc430)
   return OK;
 }
 
+
+ODBC_TEST(driver_ver)
+{
+  SQLCHAR buffer[32]= {0};
+  SQLWCHAR wBuffer[32]= {0};
+  SQLSMALLINT len= 0;
+
+  CHECK_DBC_RC(wConnection, SQLGetInfoW(wConnection, SQL_DRIVER_VER, wBuffer, sizeof(wBuffer), &len));
+  is_num(len, 20);
+  wBuffer[0]= 0;
+  CHECK_DBC_RC(wConnection, SQLGetInfo(wConnection, SQL_DRIVER_VER, buffer, sizeof(buffer), &len));
+  is_num(len, 10);
+
+  CHECK_DBC_RC(Connection, SQLGetInfoW(Connection, SQL_DRIVER_VER, wBuffer, sizeof(wBuffer), &len));
+  is_num(len, 20);
+  buffer[0]= 0;
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_VER, buffer, sizeof(buffer), &len));
+  is_num(len, 10);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -913,6 +936,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc326, "odbc326", NORMAL },
   { odbc313, "odbc313", NORMAL },
   { odbc430, "odbc430", NORMAL },
+  { driver_ver, "driver_ver_untrimmed", NORMAL },
   { NULL, NULL }
 };
 
@@ -921,5 +945,5 @@ int main(int argc, char **argv)
   int tests= sizeof(my_tests)/sizeof(MA_ODBC_TESTS) - 1;
   get_options(argc, argv);
   plan(tests);
-  return run_tests(my_tests);
+  return run_tests_ex(my_tests, TRUE);
 }
