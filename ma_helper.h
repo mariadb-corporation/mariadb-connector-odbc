@@ -79,8 +79,7 @@ void          MADB_InstallStmt  (MADB_Stmt *Stmt, MYSQL_STMT *stmt);
 
 enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, int i);
 
-/* for dummy binding */
-extern my_bool DummyError;
+SQLRETURN     MADB_KillAtServer(MADB_Stmt *Stmt);
 
 /* Stringify macros */
 #define XSTR(s) STR(s)

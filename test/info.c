@@ -874,6 +874,18 @@ ODBC_TEST(odbc430)
   return OK;
 }
 
+
+ODBC_TEST(driver_ver)
+{
+  char buffer[16];
+  SQLSMALLINT len= 0;
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_VER, buffer, sizeof(buffer), &len));
+  is_num(len, 10);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -900,6 +912,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc326, "odbc326", NORMAL },
   { odbc313, "odbc313", NORMAL },
   { odbc430, "odbc430", NORMAL },
+  { driver_ver, "driver_ver_not_trimmed", NORMAL },
   { NULL, NULL }
 };
 

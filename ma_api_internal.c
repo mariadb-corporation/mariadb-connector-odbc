@@ -126,12 +126,11 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
-
 /* {{{ MA_SQLCancel */
 SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLRETURN ret= SQL_ERROR;
+  SQLRETURN ret= SQL_SUCCESS;
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
@@ -141,41 +140,46 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
   MDBUG_C_ENTER(Stmt->Connection, "SQLCancel");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
 
-  if (TryEnterCriticalSection(&Stmt->Connection->cs))
+  /* In ODBC 2.x, if an application calls SQLCancel when no processing is being done on the statement,
+     SQLCancel has the same effect as SQLFreeStmt with the SQL_CLOSE option */
+  if (Stmt->Connection->Environment->OdbcVersion == SQL_OV_ODBC2)
   {
-    LeaveCriticalSection(&Stmt->Connection->cs);
-    ret= Stmt->Methods->StmtFree(Stmt, SQL_CLOSE);
-
-    MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
-  } else
-  {
-    MYSQL *MariaDb, *Kill=Stmt->Connection->mariadb;
-    
-    char StmtStr[30];
-
-    if (!(MariaDb= mysql_init(NULL)))
+    // Leaving locking and killing part here for compatibility. cuz we had it. TODO: but something to be removed in next version
+    if (TryEnterCriticalSection(&Stmt->Connection->cs))
     {
-      ret= SQL_ERROR;
-      goto end;
+      MADB_CloseCursor(Stmt);
+      UNLOCK_MARIADB(Stmt->Connection);
     }
-    if (!SQL_SUCCEEDED(MADB_DbcCoreConnect(Stmt->Connection, MariaDb, Stmt->Connection->Dsn, &Stmt->Error, 0)))
+    else
     {
-      mysql_close(MariaDb);
-      goto end;
+      ret= MADB_KillAtServer(Stmt);
     }
-    
-    _snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Kill));
-    if (mysql_query(MariaDb, StmtStr))
-    {
-      mysql_close(MariaDb);
-      goto end;
-    }
-    mysql_close(MariaDb);
-    ret= SQL_SUCCESS;
   }
-end:
-  LeaveCriticalSection(&Stmt->Connection->cs);
-
+  else /* if application is ODBC3 */
+  {
+    /* SQLCancel can cancel the following types of processing on a statement:
+       - A function running asynchronously on the statement -- those we do not have
+       - A function on a statement that needs data -- so first check this and reset it if needed
+       - A function running on the statement on another thread -- or killing process on server otherwise */
+    if (Stmt->PutParam > MADB_NO_DATA_NEEDED && !DAE_DONE(Stmt))
+    {
+      RESET_DAE_STATUS(Stmt);
+    } // Else we are canceling function running in other thread.
+    else if (TryEnterCriticalSection(&Stmt->Connection->cs))
+    {
+      Stmt->canceled= '\1';
+      /* "If a SQL statement is being executed when SQLCancel is called on another thread to cancel the
+          statement execution, it is possible for the execution to succeed and return SQL_SUCCESS while the
+          cancel is also successful. In this case, the Driver Manager assumes that the cursor opened by the
+          statement execution is closed by the cancel, so the application will not be able to use the cursor."
+       */
+      MADB_CloseCursor(Stmt);
+      UNLOCK_MARIADB(Stmt->Connection);
+    }
+    else {
+      ret= MADB_KillAtServer(Stmt);
+    }
+  }
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 

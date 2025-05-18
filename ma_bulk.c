@@ -367,7 +367,6 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
             BufferPtr= &Buffer;
           }
         }
-
         /* Need &Dummy here as a length ptr, since NULL is not good here.
            It would make MADB_ConvertC2Sql to use MaBind->buffer_length by default */
         if (!SQL_SUCCEEDED(MADB_ConvertC2Sql(Stmt, CRec, DataPtr, MaBind->length != NULL ? MaBind->length[row] : 0,
@@ -381,7 +380,6 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       }
     }
   }
-
   return MADB_DoExecute(Stmt, FALSE);
 }
 /* }}} */

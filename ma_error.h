@@ -144,6 +144,7 @@ enum enum_madb_error {
   MADB_ERR_S1107,
   MADB_ERR_S1C00,
 };
+/* Copies prefix and sets its length. Also sets terminating NULL in SqlState */
 char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error);
 
 SQLRETURN MADB_SetError(MADB_Error *Error, unsigned int SqlErrorCode, const char *SqlErrorMsg, unsigned int NativeError);
@@ -160,7 +161,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
                             SQLSMALLINT *StringLengthPtr, my_bool isWChar);
 
 #define MADB_CLEAR_ERROR(a) do { \
-  strcpy_s((a)->SqlState, SQL_SQLSTATE_SIZE+1, MADB_ErrorList[MADB_ERR_00000].SqlState); \
+  (a)->SqlState[0]= (a)->SqlState[1]= (a)->SqlState[2]= (a)->SqlState[3]= (a)->SqlState[4]= '0'; \
   (a)->SqlErrorMsg[(a)->PrefixLen]= 0; \
   (a)->NativeError= 0;\
   (a)->ReturnValue= SQL_SUCCESS;\

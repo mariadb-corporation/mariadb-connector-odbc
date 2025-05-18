@@ -77,8 +77,11 @@ SQLRETURN SQL_API SQLBindCol(SQLHSTMT StatementHandle,
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   SQLRETURN ret;
+  
+  MADB_CHECK_STMT_HANDLE(Stmt,stmt);
+  
   MADB_CLEAR_ERROR(&Stmt->Error);
-  MADB_CHECK_STMT_HANDLE(Stmt,stmt);  
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLBindCol");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -209,7 +212,7 @@ SQLRETURN SQL_API SQLCloseCursor(SQLHSTMT StatementHandle)
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
-
+  RESET_CANCELED(Stmt);
   MDBUG_C_ENTER(Stmt->Connection, "SQLCloseCursor");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
 
@@ -249,6 +252,7 @@ SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLColAttribute");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
@@ -286,6 +290,7 @@ SQLRETURN SQL_API SQLColAttributeW (SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLColAttributeW");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
@@ -317,6 +322,7 @@ SQLRETURN SQL_API SQLColAttributes(SQLHSTMT hstmt,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->ColAttribute(Stmt, icol, MapColAttributeDescType(fDescType), rgbDesc,
                                      cbDescMax, pcbDesc, pfDesc, FALSE);
@@ -338,6 +344,7 @@ SQLRETURN SQL_API SQLColAttributesW(SQLHSTMT hstmt,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLColAttributeW");
   MDBUG_C_DUMP(Stmt->Connection, hstmt, 0x);
@@ -707,6 +714,7 @@ SQLRETURN SQL_API SQLDescribeCol(SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLDescribeCol");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -738,6 +746,7 @@ SQLRETURN SQL_API SQLDescribeColW(SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLDescribeColW");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -765,6 +774,7 @@ SQLRETURN SQL_API SQLDescribeParam(SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   /* MariaDB doesn't support metadata for parameters,
      so we return default values */
@@ -1158,6 +1168,7 @@ SQLRETURN SQL_API SQLExtendedFetch(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLExtendedFetch");
   MDBUG_C_DUMP(Stmt->Connection, FetchOrientation, u);
@@ -1204,6 +1215,7 @@ SQLRETURN SQL_API SQLFetch(SQLHSTMT StatementHandle)
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLFetch");
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   /* SQLFetch is equivalent of SQLFetchScroll(SQL_FETCH_NEXT), 3rd parameter is ignored for SQL_FETCH_NEXT */
   MDBUG_C_RETURN(Stmt->Connection, Stmt->Methods->FetchScroll(Stmt, SQL_FETCH_NEXT, 1), &Stmt->Error);
@@ -1226,6 +1238,7 @@ SQLRETURN SQL_API SQLFetchScroll(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, FetchOrientation, d);
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_RETURN(Stmt->Connection, Stmt->Methods->FetchScroll(Stmt, FetchOrientation, FetchOffset), &Stmt->Error);
 }
@@ -1330,6 +1343,7 @@ SQLRETURN SQL_API SQLFreeStmt(SQLHSTMT StatementHandle,
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
   MDBUG_C_DUMP(Stmt->Connection, Option, d);
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->StmtFree(Stmt, Option);
 }
@@ -1515,6 +1529,7 @@ SQLRETURN SQL_API SQLGetCursorName(
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->GetCursorName(Stmt, CursorName, BufferLength, NameLengthPtr, FALSE);
 }
@@ -1531,6 +1546,7 @@ SQLRETURN SQL_API SQLGetCursorNameW(
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->GetCursorName(Stmt, CursorName, BufferLength, NameLengthPtr, TRUE);
 }
@@ -1551,6 +1567,7 @@ SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
   if (StatementHandle== SQL_NULL_HSTMT)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   /* In case we don't have DM(it check for that) */
   if (TargetValuePtr == NULL)
@@ -1852,6 +1869,7 @@ SQLRETURN SQL_API SQLGetStmtAttrW(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
  
   return Stmt->Methods->GetAttr(Stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr);
 }
@@ -1880,6 +1898,7 @@ SQLRETURN SQL_API SQLGetTypeInfo(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return MADB_GetTypeInfo(Stmt, DataType);
 }
@@ -1893,6 +1912,7 @@ SQLRETURN SQL_API SQLGetTypeInfoW(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return MADB_GetTypeInfo(Stmt, DataType);}
 /* }}} */
@@ -1904,6 +1924,7 @@ SQLRETURN SQL_API SQLMoreResults(SQLHSTMT StatementHandle)
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return MADB_StmtMoreResults(Stmt);
 }
@@ -1977,6 +1998,7 @@ SQLRETURN SQL_API SQLNumParams(SQLHSTMT StatementHandle,
 
   MADB_CHECK_STMT_HANDLE(Stmt, stmt);
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->ParamCount(Stmt, ParameterCountPtr);
 }
@@ -1989,6 +2011,7 @@ SQLRETURN SQL_API SQLNumResultCols(SQLHSTMT StatementHandle,
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   MADB_CHECK_STMT_HANDLE(Stmt, stmt);
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->ColumnCount(Stmt, ColumnCountPtr);
 }
@@ -2002,6 +2025,7 @@ SQLRETURN SQL_API SQLParamData(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->ParamData(Stmt, ValuePtrPtr);
 }
@@ -2018,7 +2042,7 @@ SQLRETURN SQL_API SQLPrepare(SQLHSTMT StatementHandle,
   {
     return SQL_INVALID_HANDLE;
   }
-
+  RESET_CANCELED(Stmt);
   MDBUG_C_ENTER(Stmt->Connection, "SQLPrepare");
 
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -2045,6 +2069,7 @@ SQLRETURN SQL_API SQLPrepareW(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLPrepareW");
 
@@ -2299,7 +2324,9 @@ SQLRETURN SQL_API SQLPutData(SQLHSTMT StatementHandle,
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
+
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLPutData");
   MDBUG_C_DUMP(Stmt->Connection, DataPtr, 0x);
@@ -2319,6 +2346,7 @@ SQLRETURN SQL_API SQLRowCount(SQLHSTMT StatementHandle,
 
   MADB_CHECK_STMT_HANDLE(Stmt, stmt);
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->RowCount(Stmt, RowCountPtr);
 }
@@ -2411,6 +2439,7 @@ SQLRETURN SQL_API SQLSetCursorName(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return Stmt->Methods->SetCursorName(Stmt, (char *)CursorName, NameLength);
 }
@@ -2431,6 +2460,7 @@ SQLRETURN SQL_API SQLSetCursorNameW(SQLHSTMT StatementHandle,
     return SQL_INVALID_HANDLE;
   }
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   CpName= MADB_ConvertFromWChar(CursorName, NameLength, &Length, Stmt->Connection->ConnOrSrcCharset, NULL);
   rc= Stmt->Methods->SetCursorName(Stmt, (char *)CpName, (SQLINTEGER)Length);
@@ -2582,6 +2612,7 @@ SQLRETURN  SQL_API SQLBindParam(SQLHSTMT StatementHandle,
   if (!StatementHandle)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
+  RESET_CANCELED((MADB_Stmt*)StatementHandle);
 
   return MA_SQLBindParameter(StatementHandle, ParameterNumber, SQL_PARAM_INPUT, ValueType, ParameterType, LengthPrecision, ParameterScale,
                       ParameterValue, SQL_SETPARAM_VALUE_MAX, StrLen_or_Ind);
@@ -2911,6 +2942,7 @@ SQLRETURN SQL_API SQLSetScrollOptions(SQLHSTMT     hstmt,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   return MADB_DescSetField(Stmt->Ard, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)(SQLULEN)crowKeySet, SQL_IS_USMALLINT, 0);
 }
@@ -2927,6 +2959,7 @@ SQLRETURN SQL_API SQLParamOptions(
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   result= MADB_DescSetField(Stmt->Apd, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)crow, SQL_IS_UINTEGER, 0);
 

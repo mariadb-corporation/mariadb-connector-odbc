@@ -131,7 +131,7 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 
   MDBUG_C_PRINT(Stmt->Connection, "-->inited %0x", Stmt->stmt);
   UNLOCK_MARIADB(Connection);
-  Stmt->PutParam= -1;
+  RESET_DAE_STATUS(Stmt);
   Stmt->Methods= &MADB_StmtMethods;
   MakeStmtCacher(Stmt);
   /* default behaviour is SQL_CURSOR_STATIC. But should be SQL_CURSOR_FORWARD_ONLY according to specs(see bug ODBC-290) */
@@ -180,9 +180,9 @@ error:
 
 /* {{{ MADB_RealQuery - the caller is responsible for locking, as the caller may need to do some operations
        before it's ok to unlock. e.g. read results */
-SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error *Error)
+SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, size_t TextLength, MADB_Error *Error)
 {
-  SQLRETURN ret = SQL_ERROR;
+  SQLRETURN ret= SQL_ERROR;
 
   if (StatementText)
   {
@@ -190,8 +190,8 @@ SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLeng
     {
       return Error->ReturnValue;
     }
-    MDBUG_C_PRINT(Dbc, "mysql_real_query(%0x,%s,%lu)", Dbc->mariadb, StatementText, TextLength);
-    if (!mysql_real_query(Dbc->mariadb, StatementText, TextLength))
+    MDBUG_C_PRINT(Dbc, "mysql_real_query(%0x,%s,%llu)", Dbc->mariadb, StatementText, TextLength);
+    if (!mysql_real_query(Dbc->mariadb, StatementText, (unsigned long)TextLength))
     {
       ret = SQL_SUCCESS;
       MADB_CLEAR_ERROR(Error);
@@ -212,14 +212,17 @@ SQLRETURN MADB_RealQuery(MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLeng
 /* }}} */
 
 /* {{{ MADB_ExecuteQuery */
-SQLRETURN MADB_ExecuteQuery(MADB_Stmt * Stmt, char *StatementText, SQLINTEGER TextLength)
+SQLRETURN MADB_ExecuteQuery(MADB_Stmt* Stmt, char* StatementText, size_t TextLength)
 {
   LOCK_MARIADB(Stmt->Connection);
+  CANCEL_EXECUTION_IF_NEEDED(Stmt);
+
   if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, StatementText, TextLength, &Stmt->Error)))
   {
     Stmt->AffectedRows= mysql_affected_rows(Stmt->Connection->mariadb);
   }
   UNLOCK_MARIADB(Stmt->Connection);
+  Stmt->canceled= FALSE;
   return Stmt->Error.ReturnValue;
 }
 /* }}} */
@@ -275,6 +278,57 @@ void ResetMetadata(MYSQL_RES** metadata, MYSQL_RES* new_metadata)
 }
 /* }}} */
 
+/* {{{ MADB_CloseCursor
+ * Not locking function that does everything needed to close cursoe aka SQLFreeStmt(SQL_CLOSE)
+ * Main reason is SQLCancel that acquires the lock and should not release it close cursor
+ */
+void MADB_CloseCursor(MADB_Stmt *Stmt)
+{
+  if (Stmt->stmt)
+  {
+    if (Stmt->Ird)
+      MADB_DescFree(Stmt->Ird, TRUE);
+    if (Stmt->State > MADB_SS_PREPARED && !QUERY_IS_MULTISTMT(Stmt->Query))
+    {
+      MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt);
+      Stmt->RsOps->FreeRs(Stmt);
+      MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
+      if (mysql_stmt_more_results(Stmt->stmt))
+      {
+        while (mysql_stmt_next_result(Stmt->stmt) == 0);
+      }
+    }
+    if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
+    {
+      unsigned int i;
+      for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
+      {
+        if (Stmt->MultiStmts[i] != NULL)
+        {
+          MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i], i);
+          if (mysql_stmt_more_results(Stmt->MultiStmts[i]))
+          {
+            while (mysql_stmt_next_result(Stmt->MultiStmts[i]) == 0);
+          }
+        }
+      }
+    }
+    ResetMetadata(&Stmt->metadata, NULL);
+
+    MADB_FREE(Stmt->result);
+    MADB_FREE(Stmt->CharOffset);
+    MADB_FREE(Stmt->Lengths);
+
+    RESET_STMT_STATE(Stmt);
+    RESET_DAE_STATUS(Stmt);
+    if (MADB_STMT_SHOULD_STREAM(Stmt))
+    {
+      MakeStmtStreamer(Stmt);
+    }
+  }
+}
+/* }}} */
+
 /* {{{ MADB_StmtFree */
 SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 {
@@ -283,53 +337,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 
   switch (Option) {
   case SQL_CLOSE:
-    if (Stmt->stmt)
-    {
-      if (Stmt->Ird)
-        MADB_DescFree(Stmt->Ird, TRUE);
-      if (Stmt->State > MADB_SS_PREPARED && !QUERY_IS_MULTISTMT(Stmt->Query))
-      {
-        MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->stmt);
-        LOCK_MARIADB(Stmt->Connection);
-        Stmt->RsOps->FreeRs(Stmt);
-        MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x", Stmt->stmt);
-        if (mysql_stmt_more_results(Stmt->stmt))
-        {
-          while (mysql_stmt_next_result(Stmt->stmt) == 0);
-        }
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-      if (QUERY_IS_MULTISTMT(Stmt->Query) && Stmt->MultiStmts)
-      {
-        unsigned int i;
-        LOCK_MARIADB(Stmt->Connection);
-        for (i=0; i < STMT_COUNT(Stmt->Query); ++i)
-        {
-          if (Stmt->MultiStmts[i] != NULL)
-          {
-            MDBUG_C_PRINT(Stmt->Connection, "-->resetting %0x(%u)", Stmt->MultiStmts[i], i);
-            if (mysql_stmt_more_results(Stmt->MultiStmts[i]))
-            {
-              while (mysql_stmt_next_result(Stmt->MultiStmts[i]) == 0);
-            }
-          }
-        }
-        UNLOCK_MARIADB(Stmt->Connection);
-      }
-
-      ResetMetadata(&Stmt->metadata, NULL);
-     
-      MADB_FREE(Stmt->result);
-      MADB_FREE(Stmt->CharOffset);
-      MADB_FREE(Stmt->Lengths);
-
-      RESET_STMT_STATE(Stmt);
-      RESET_DAE_STATUS(Stmt);
-      if (MADB_STMT_SHOULD_STREAM(Stmt))
-      {
-        MakeStmtStreamer(Stmt);
-      }
-    }
+    LOCK_MARIADB(Stmt->Connection);
+    MADB_CloseCursor(Stmt);
+    UNLOCK_MARIADB(Stmt->Connection);
     break;
   case SQL_UNBIND:
     MADB_FREE(Stmt->result);
@@ -872,7 +882,7 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
   }
 
   /* If we have last DAE param(Stmt->PutParam), we are starting from the next one. Otherwise from first */
-  for (i= Stmt->PutParam > -1 ? Stmt->PutParam + 1 : 0; i < ParamCount; i++)
+  for (i= Stmt->PutParam > MADB_NEED_DATA ? Stmt->PutParam + 1 : 0; i < ParamCount; i++)
   {
     if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
     {
@@ -885,7 +895,6 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
           Stmt->PutDataRec= Record;
           *ValuePtrPtr = GetBindOffset(Desc, Record, Record->DataPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, Record->OctetLength);
           Stmt->PutParam= i;
-          Stmt->Status= SQL_NEED_DATA;
 
           return SQL_NEED_DATA;
         }
@@ -930,8 +939,6 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   MADB_Stmt       *MyStmt= Stmt;
   SQLPOINTER      ConvertedDataPtr= NULL;
   SQLULEN         Length= 0;
-
-  MADB_CLEAR_ERROR(&Stmt->Error);
 
   if (DataPtr != NULL && StrLen_or_Ind < 0 && StrLen_or_Ind != SQL_NTS && StrLen_or_Ind != SQL_NULL_DATA)
   {
@@ -1020,8 +1027,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
   SQLRETURN     ret;
   MADB_DynArray DynData;
   MADB_Stmt     *SaveCursor;
-
-  char *p;
+  char          *p;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
   if (!Stmt->PositionedCursor->result)
@@ -1069,7 +1075,6 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       }
     }
   }
-
   SaveCursor= Stmt->PositionedCursor;
   Stmt->PositionedCursor= NULL;
 
@@ -1271,7 +1276,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   if (Stmt->State == MADB_SS_EMULATED)
   {
-    return MADB_ExecuteQuery(Stmt, STMT_STRING(Stmt), (SQLINTEGER)STMT_LENGTH(Stmt));
+    return MADB_ExecuteQuery(Stmt, STMT_STRING(Stmt), STMT_LENGTH(Stmt));
   }
 
   if (MADB_POSITIONED_COMMAND(Stmt))
@@ -1289,7 +1294,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   /* Normally this check is done by a DM. We are doing that too, keeping in mind direct linking.
      If exectution routine called from the SQLParamData, DataExecutionType has been reset */
-  if (Stmt->Status == SQL_NEED_DATA && !DAE_DONE(Stmt))
+  if (Stmt->PutParam > MADB_NO_DATA_NEEDED && !DAE_DONE(Stmt))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY010, NULL, 0);
   }
@@ -1298,8 +1303,11 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   /* Prepare routine has the same check, thus I am not sure if we actually able to hit this case here */
   if (MADB_GOT_STREAMER(Stmt->Connection) && Stmt->Connection->Methods->CacheRestOfCurrentRsStream(Stmt->Connection, &Stmt->Error))
   {
+    UNLOCK_MARIADB(Stmt->Connection);
     return Stmt->Error.ReturnValue;
   }
+  /* Interrupting execution if the flag has been set */
+  CANCEL_EXECUTION_IF_NEEDED(Stmt);
 
   Stmt->AffectedRows= 0;
 
@@ -1349,6 +1357,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
         if (mysql_stmt_prepare(Stmt->stmt, CurQuery, (unsigned long)strlen(CurQuery)))
         {
+          UNLOCK_MARIADB(Stmt->Connection);
           return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
         }
         CurQuery+= strlen(CurQuery) + 1;
@@ -1361,7 +1370,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         Stmt->ParamCount= (SQLSMALLINT)mysql_stmt_param_count(Stmt->stmt);
         Stmt->params= (MYSQL_BIND*)MADB_REALLOC(Stmt->params, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
       }
-
       memset(Stmt->params, 0, sizeof(MYSQL_BIND) * MADB_STMT_PARAM_COUNT(Stmt));
     }
 
@@ -1439,6 +1447,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
               {
                 IntegralRc= ret;
                 ErrorCount= 0;
+                Stmt->PutParam= MADB_NEED_DATA;
               }
               else
               {
@@ -1553,7 +1562,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         {
           mysql_free_result(DefaultResult);
         }
-
         return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
       }
     }
@@ -1579,7 +1587,13 @@ end:
     else
       IntegralRc= SQL_ERROR;
   }
-
+  /* The flag is set under the lock. We checked it after acquired the lock here. If it's set now after we released the lock -
+   * means that SQLCancel got lock after we actulally finished execution here, and there is nothing to cancel already.
+   * Important to note, that we don't support sharing of statement between threads(SQLCances is the only case). Thus it can't
+   * be cancelation or execution in the yet another thread. If it is - it's not our problem.
+   * But it's important to reset the flag so we don't cancel something in the future it was not intended for.
+   */
+  Stmt->canceled= FALSE;
   return IntegralRc;
 }
 /* }}} */
@@ -1666,6 +1680,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    SQLRETURN ret= SQL_SUCCESS;
 
    MADB_CLEAR_ERROR(&Stmt->Error);
+
    if (!(ApdRecord= MADB_DescGetInternalRecord(Apd, ParameterNumber - 1, MADB_DESC_WRITE)))
    {
      MADB_CopyError(&Stmt->Error, &Apd->Error);
@@ -3836,7 +3851,6 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
                              SQLSMALLINT *NameLengthPtr, my_bool isWChar)
 {
   SQLSMALLINT Length;
-  MADB_CLEAR_ERROR(&Stmt->Error);
 
   if (BufferLength < 0)
   {
@@ -4152,14 +4166,14 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             }
             if (PARAM_IS_DAE(LengthPtr) && !DAE_DONE(Stmt->DaeStmt))
             {
-              Stmt->Status= SQL_NEED_DATA;
+              Stmt->PutParam= MADB_NEED_DATA;
               ++param;
               continue;
             }
 
             ++param;
           }                             /* End of for(column=0;...) */
-          if (Stmt->Status == SQL_NEED_DATA)
+          if (Stmt->PutParam == MADB_NEED_DATA)
             return SQL_NEED_DATA;
         }                               /* End of if (!ArrayOffset) */ 
         
@@ -4192,6 +4206,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       my_ulonglong   Start=         0,
                      End=           mysql_stmt_num_rows(Stmt->stmt);
       char           *TableName=    MADB_GetTableName(Stmt);
+      long long      totalAffected= 0;
 
       if (!TableName)
       {
@@ -4229,23 +4244,19 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           return Stmt->Error.ReturnValue;
         }
 
-        LOCK_MARIADB(Stmt->Connection);
-        if (mysql_real_query(Stmt->Connection->mariadb, DynamicStmt.str, (unsigned long)DynamicStmt.length))
+        if (!SQL_SUCCEEDED(MADB_ExecuteQuery(Stmt, DynamicStmt.str, (SQLINTEGER)DynamicStmt.length)))
         {
           MADB_DynstrFree(&DynamicStmt);
-          MADB_SetError(&Stmt->Error, MADB_ERR_HY001, mysql_error(Stmt->Connection->mariadb), 
-                            mysql_errno(Stmt->Connection->mariadb));
-
-          UNLOCK_MARIADB(Stmt->Connection);
-
+          // Not sure if it's needed, but we can record the number we've deleted till this time
+          Stmt->AffectedRows= totalAffected;
           return Stmt->Error.ReturnValue;
         }
-        UNLOCK_MARIADB(Stmt->Connection);
         MADB_DynstrFree(&DynamicStmt);
-        Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
-        Start++;
+        // MADB_ExecuteQuery sets Stmt->AffectedRows, we need to sum it
+        totalAffected+= Stmt->AffectedRows;
+        ++Start;
       }
-
+      Stmt->AffectedRows= totalAffected;
       Stmt->Ard->Header.ArraySize= SaveArraySize;
       /* if we have a dynamic cursor we need to adjust the rowset size */
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)

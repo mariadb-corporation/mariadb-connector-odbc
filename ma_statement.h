@@ -115,7 +115,8 @@ SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier);
 MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
 SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect);
 void         MakeStmtCacher         (MADB_Stmt* Stmt);
-SQLRETURN    MADB_RealQuery         (MADB_Dbc* Dbc, char* StatementText, SQLINTEGER TextLength, MADB_Error* Error);
+SQLRETURN    MADB_RealQuery         (MADB_Dbc* Dbc, char* StatementText, size_t TextLength, MADB_Error* Error);
+void         MADB_CloseCursor       (MADB_Stmt *Stmt);
 
 #define MADB_MAX_CURSOR_NAME 64 * 4 + 1
 #define MADB_CHECK_STMT_HANDLE(a,b)\
@@ -137,5 +138,10 @@ SQLRETURN    MADB_RealQuery         (MADB_Dbc* Dbc, char* StatementText, SQLINTE
 #define MADB_STMT_IS_STREAMING(_a) ((_a)->Connection->Streamer == _a)
 /* Set given Stmt handle as s current RS streamer on the connection */
 #define MADB_STMT_SET_CURRENT_STREAMER(_a) (_a)->Connection->Streamer= (_a)
-
+#define CANCEL_EXECUTION_IF_NEEDED(aStmt) do { if ((aStmt)->canceled) {\
+  (aStmt)->canceled= FALSE;\
+  UNLOCK_MARIADB(aStmt->Connection);\
+  return MADB_SetError(&aStmt->Error, MADB_ERR_HY008, "Execution canceled by command from other thread", 0);\
+}} while(0)
+#define RESET_CANCELED(aStmt) (aStmt)->canceled= FALSE
 #endif

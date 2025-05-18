@@ -178,7 +178,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
   }
   p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
   LOCK_MARIADB(Connection);
-  if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (unsigned long)(p - StmtStr), &Connection->Error)) &&
+  if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (p - StmtStr), &Connection->Error)) &&
      (Res= mysql_store_result(Connection->mariadb)) != NULL)
   {
     Count= mysql_field_count(Connection->mariadb);
@@ -364,7 +364,7 @@ MYSQL_RES *MADB_GetDefaultColumnValues(MADB_Stmt *Stmt, MYSQL_FIELD *fields)
     goto error;
 
   LOCK_MARIADB(Stmt->Connection);
-  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, DynStr.str, (SQLINTEGER)DynStr.length, &Stmt->Error)))
+  if (SQL_SUCCEEDED(MADB_RealQuery(Stmt->Connection, DynStr.str, DynStr.length, &Stmt->Error)))
   {
     result= mysql_store_result(Stmt->Connection->mariadb);
   }
@@ -1383,4 +1383,28 @@ enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, int i)
 {
   /* Assuming the caller knows what is it calling for - i.e. i is valid, and stmt->metadata is set. Should be */
   return mysql_fetch_fields(Stmt->metadata)[i].type;
+}
+
+
+SQLRETURN MADB_KillAtServer(MADB_Stmt *Stmt)
+{
+  MYSQL *MariaDb, *Kill=Stmt->Connection->mariadb;
+
+  if (!(MariaDb= mysql_init(NULL)))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+  if (SQL_SUCCEEDED(MADB_DbcCoreConnect(Stmt->Connection, MariaDb, Stmt->Connection->Dsn, &Stmt->Error, 0)))
+  {
+    char StmtStr[32];
+    // 32 is enough to fit the query with longest 8byte unsigned  thread id, thus sprintf is fine here
+    int len= sprintf(StmtStr, "KILL QUERY %lu", mysql_thread_id(Kill));
+    if (mysql_real_query(MariaDb, StmtStr, len))
+    {
+      mysql_close(MariaDb);
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Error while terminating the process on the server", 0);
+    }
+  }
+  mysql_close(MariaDb);
+  return SQL_SUCCESS;
 }

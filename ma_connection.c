@@ -368,7 +368,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
 }
 /* }}} */
 
-/* {{{ MADB_DbcHetAttr */
+/* {{{ MADB_DbcGetAttr */
 SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength, SQLINTEGER *StringLengthPtr, my_bool isWChar)
 {
   MADB_CLEAR_ERROR(&Dbc->Error);
@@ -484,7 +484,6 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
   return Dbc->Error.ReturnValue;
 }
 /* }}} */
-
 
 /* {{{ MADB_DbcInit() */
 MADB_Dbc *MADB_DbcInit(MADB_Env *Env)
