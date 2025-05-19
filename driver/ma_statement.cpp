@@ -69,6 +69,43 @@ void RemoveStmtRefFromDesc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
 }
 /* }}} */
 
+/* {{{ MADB_CloseCursor
+ * Not locking function that does everything needed to close cursoe aka SQLFreeStmt(SQL_CLOSE)
+ * Main reason is SQLCancel that acquires the lock and should not release it close cursor
+ */
+void MADB_CloseCursor(MADB_Stmt *Stmt)
+{
+  if (Stmt->stmt)
+  {
+    if (Stmt->Ird)
+      MADB_DescFree(Stmt->Ird, TRUE);
+    if (Stmt->State > MADB_SS_PREPARED)
+    {
+      MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
+      try
+      {
+        // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
+        Stmt->rs.reset();
+        if (Stmt->stmt->hasMoreResults()) {
+          Stmt->Connection->guard->skipAllResults();
+        }
+      }
+      catch (...)
+      {
+        // eating errors
+      }
+    }
+    MADB_DELETE(Stmt->metadata);
+    MADB_FREE(Stmt->result);
+    MADB_FREE(Stmt->CharOffset);
+    MADB_FREE(Stmt->Lengths);
+
+    RESET_STMT_STATE(Stmt);
+    RESET_DAE_STATUS(Stmt);
+  }
+}
+/* }}} */
+
 /* {{{ MADB_StmtFree */
 SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 {
@@ -77,34 +114,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 
   switch (Option) {
   case SQL_CLOSE:
-    if (Stmt->stmt)
     {
-      if (Stmt->Ird)
-        MADB_DescFree(Stmt->Ird, TRUE);
-      if (Stmt->State > MADB_SS_PREPARED)
-      {
-        MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
-        try
-        {
-          // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
-          std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
-          Stmt->rs.reset();
-          if (Stmt->stmt->hasMoreResults()) {
-            Stmt->Connection->guard->skipAllResults();
-          }
-        }
-        catch (...)
-        {
-          // eating errors
-        }
-      }
-      MADB_DELETE(Stmt->metadata);
-      MADB_FREE(Stmt->result);
-      MADB_FREE(Stmt->CharOffset);
-      MADB_FREE(Stmt->Lengths);
-
-      RESET_STMT_STATE(Stmt);
-      RESET_DAE_STATUS(Stmt);
+      std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
+      MADB_CloseCursor(Stmt);
     }
     break;
 
@@ -635,7 +647,7 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
   }
 
   /* If we have last DAE param(Stmt->PutParam), we are starting from the next one. Otherwise from first */
-  for (i= Stmt->PutParam > -1 ? Stmt->PutParam + 1 : 0; i < ParamCount; i++)
+  for (i= Stmt->PutParam > MADB_NEED_DATA ? Stmt->PutParam + 1 : 0; i < ParamCount; i++)
   {
     if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
     {
@@ -648,7 +660,6 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
           Stmt->PutDataRec= Record;
           *ValuePtrPtr= GetBindOffset(Desc->Header, Record->DataPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, Record->OctetLength);
           Stmt->PutParam= i;
-          Stmt->Status= SQL_NEED_DATA;
 
           return SQL_NEED_DATA;
         }
@@ -694,6 +705,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   SQLPOINTER      ConvertedDataPtr= nullptr;
   SQLULEN         Length= 0;
 
+  // Probably can be removed
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   if (DataPtr != nullptr && StrLen_or_Ind < 0 && StrLen_or_Ind != SQL_NTS && StrLen_or_Ind != SQL_NULL_DATA)
@@ -783,8 +795,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
   SQLRETURN     ret;
   MADB_DynArray DynData;
   MADB_Stmt     *SaveCursor;
-
-  char *p;
+  char          *p;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
   if (!Stmt->PositionedCursor->result)
@@ -834,7 +845,6 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
       }
     }
   }
-
   SaveCursor= Stmt->PositionedCursor;
   Stmt->PositionedCursor= nullptr;
 
@@ -1123,10 +1133,12 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, bool ExecDirect)
 
   /* Normally this check is done by a DM. We are doing that too, keeping in mind direct linking.
      If exectution routine called from the SQLParamData, DataExecutionType has been reset */
-  if (Stmt->Status == SQL_NEED_DATA && !DAE_DONE(Stmt))
+  if (Stmt->PutParam > MADB_NO_DATA_NEEDED && !DAE_DONE(Stmt))
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY010, nullptr, 0);
   }
+  /* Interrupting execution if the flag has been set */
+  CANCEL_EXECUTION_IF_NEEDED(Stmt);
 
   Stmt->AffectedRows= 0;
 
@@ -1227,6 +1239,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, bool ExecDirect)
             {
               IntegralRc= ret;
               ErrorCount= 0;
+              Stmt->PutParam= MADB_NEED_DATA;
             }
             else
             {
@@ -1305,6 +1318,13 @@ end:
     }
   }
 
+  /* The flag is set under the lock. We checked it after acquired the lock here. If it's set now after we released the lock -
+   * means that SQLCancel got lock after we actulally finished execution here, and there is nothing to cancel already.
+   * Important to note, that we don't support sharing of statement between threads(SQLCances is the only case). Thus it can't
+   * be cancelation or execution in the yet another thread. If it is - it's not our problem.
+   * But it's important to reset the flag so we don't cancel something in the future it was not intended for.
+   */
+  Stmt->canceled= false;
   return IntegralRc;
 }
 /* }}} */
@@ -1389,6 +1409,7 @@ SQLRETURN MADB_StmtBindParam(MADB_Stmt *Stmt,  SQLUSMALLINT ParameterNumber,
    SQLRETURN ret= SQL_SUCCESS;
 
    MADB_CLEAR_ERROR(&Stmt->Error);
+
    if (!(ApdRecord= MADB_DescGetInternalRecord(Apd, ParameterNumber - 1, MADB_DESC_WRITE)))
    {
      MADB_CopyError(&Stmt->Error, &Apd->Error);
@@ -3483,7 +3504,6 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
                              SQLSMALLINT *NameLengthPtr, bool isWChar)
 {
   SQLSMALLINT Length;
-  MADB_CLEAR_ERROR(&Stmt->Error);
 
   if (BufferLength < 0)
   {
@@ -3783,14 +3803,14 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             }
             if (PARAM_IS_DAE(LengthPtr) && !DAE_DONE(Stmt->DaeStmt))
             {
-              Stmt->Status= SQL_NEED_DATA;
+              Stmt->PutParam= MADB_NEED_DATA;
               ++param;
               continue;
             }
 
             ++param;
           }                             /* End of for(column=0;...) */
-          if (Stmt->Status == SQL_NEED_DATA)
+          if (Stmt->PutParam == MADB_NEED_DATA)
             return SQL_NEED_DATA;
         }                               /* End of if (!ArrayOffset) */ 
         
@@ -3823,7 +3843,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       SQLULEN       SaveArraySize= Stmt->Ard->Header.ArraySize;
       my_ulonglong  Start=         0,
                     End=           Stmt->rs->rowsCount();
-      char          *TableName=    MADB_GetTableName(Stmt);
+      char         *TableName=    MADB_GetTableName(Stmt);
 
       if (!TableName)
       {
@@ -3870,7 +3890,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         ++Start;
         DynamicStmt.erase(baseStmtLen);
       }
-
       Stmt->Ard->Header.ArraySize= SaveArraySize;
       /* if we have a dynamic cursor we need to adjust the rowset size */
       if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
@@ -4073,7 +4092,8 @@ struct st_ma_stmt_methods MADB_StmtMethods=
 
 MADB_Stmt::MADB_Stmt(MADB_Dbc* Dbc)
   : Connection(Dbc),
-  DefaultsResult(nullptr, &mysql_free_result)
+    DefaultsResult(nullptr, &mysql_free_result),
+    canceled(false)
 {
   std::memset(&Error,    0, sizeof(MADB_Error));
   std::memset(&Bulk,     0, sizeof(MADB_BulkOperationInfo));

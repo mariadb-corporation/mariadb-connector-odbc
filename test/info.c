@@ -936,7 +936,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc326, "odbc326", NORMAL },
   { odbc313, "odbc313", NORMAL },
   { odbc430, "odbc430", NORMAL },
-  { driver_ver, "driver_ver_untrimmed", NORMAL },
+  { driver_ver, "driver_ver_not_trimmed", NORMAL },
   { NULL, NULL }
 };
 

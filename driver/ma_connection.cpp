@@ -368,7 +368,7 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
 }
 /* }}} */
 
-/* {{{ MADB_DbcHetAttr */
+/* {{{ MADB_DbcGetAttr */
 SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength, SQLINTEGER *StringLengthPtr, bool isWChar)
 {
   MADB_CLEAR_ERROR(&Error);

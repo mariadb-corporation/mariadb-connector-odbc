@@ -150,6 +150,8 @@ SQLRETURN MA_SQLBindCol(SQLHSTMT StatementHandle,
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
   SQLRETURN ret;
 
+  RESET_CANCELED(Stmt);
+
   MDBUG_C_ENTER(Stmt->Connection, "SQLBindCol");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
   MDBUG_C_DUMP(Stmt->Connection, ColumnNumber, u);
@@ -189,9 +191,7 @@ SQLRETURN MA_SQLBindParameter(SQLHSTMT StatementHandle,
   SQLRETURN ret;
 
   MADB_CLEAR_ERROR(&((MADB_Stmt*)StatementHandle)->Error);
-
-  if (!Stmt)
-    return SQL_INVALID_HANDLE;
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLBindParameter");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -272,7 +272,7 @@ SQLRETURN MA_SQLBulkOperations(SQLHSTMT StatementHandle,
 SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
-  SQLRETURN ret= SQL_ERROR;
+  SQLRETURN ret= SQL_SUCCESS;
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
@@ -283,57 +283,70 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
 
   auto& lock= Stmt->Connection->guard->getLock();
-  
-  // We can't get here undefined behaviour with try_lock(): it's (almost very top of) API function call -
-  // this thread just cannot have the lock
-  if (lock.try_lock())
-  {
-    // No other thread has the lock - thus all our Stmt can do is waiting for results. Calling SQL_CLOSE - it
-    // will close the cursor and skip pending results.
-    // We can't unlock here and use regular method since a) it locks b) before it locks Stmt can get lock in
-    // Hmm... we can get the case when Stmt is shared between threads
-    lock.unlock();
-    try
-    {
-      ret= Stmt->Methods->StmtFree(Stmt, SQL_CLOSE);
-    }
-    catch (std::bad_alloc &/*e*/)
-    {
-      ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
-    }
-    catch (SQLException &e)
-    {
-      ret= MADB_FromException(Stmt->Error, e);
-    }
 
-    MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
+  /* In ODBC 2.x, if an application calls SQLCancel when no processing is being done on the statement,
+     SQLCancel has the same effect as SQLFreeStmt with the SQL_CLOSE option */
+  if (Stmt->Connection->Environment->OdbcVersion == SQL_OV_ODBC2)
+  {
+    if (lock.try_lock())
+    {
+      try
+      {
+        MADB_CloseCursor(Stmt);
+      }
+      catch (std::bad_alloc &/*e*/)
+      {
+        ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      }
+      catch (SQLException &e)
+      {
+        ret= MADB_FromException(Stmt->Error, e);
+      }
+    }
+    else
+    {
+      ret= MADB_KillAtServer(Stmt);
+    }
   }
   else
   {
-    // There is nothing, that can throw here
-    MYSQL *MariaDb;
-    
-    char StmtStr[30];
+    /* SQLCancel can cancel the following types of processing on a statement:
+       - A function running asynchronously on the statement -- those we do not have
+       - A function on a statement that needs data -- so first check this and reset it if needed
+       - A function running on the statement on another thread -- or killing process on server otherwise */
+    if (Stmt->PutParam > MADB_NO_DATA_NEEDED && !DAE_DONE(Stmt))
+    {
+      RESET_DAE_STATUS(Stmt);
+    } // Else we are canceling function running in other thread.
+    else if (lock.try_lock())
+    {
+      Stmt->canceled= '\1';
+      try
+      {
+        /* "If a SQL statement is being executed when SQLCancel is called on another thread to cancel the
+          statement execution, it is possible for the execution to succeed and return SQL_SUCCESS while the
+          cancel is also successful. In this case, the Driver Manager assumes that the cursor opened by the
+          statement execution is closed by the cancel, so the application will not be able to use the cursor."
+       */
+        // It's not clear whether we should really close it here, though
+        MADB_CloseCursor(Stmt);
+      }
+      catch (std::bad_alloc &/*e*/)
+      {
+        ret= MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+      }
+      catch (SQLException &e)
+      {
+        ret= MADB_FromException(Stmt->Error, e);
+      }
 
-    if (!(MariaDb= mysql_init(NULL)))
-    {
-      ret= SQL_ERROR;
-      goto end;
+      MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
     }
-    if (!SQL_SUCCEEDED(Stmt->Connection->CoreConnect(MariaDb, Stmt->Connection->Dsn, &Stmt->Error)))
+    else
     {
-      mysql_close(MariaDb);
-      goto end;
+      ret= MADB_KillAtServer(Stmt);
     }
-    
-    unsigned long len= static_cast<unsigned long>(_snprintf(StmtStr, 30, "KILL QUERY %ld", mysql_thread_id(Stmt->Connection->mariadb)));
-    if (!mysql_real_query(MariaDb, StmtStr, len))
-    {
-      ret= SQL_SUCCESS;
-    }
-    mysql_close(MariaDb);
   }
-end:
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */
@@ -353,6 +366,7 @@ SQLRETURN MA_SQLCloseCursor(SQLHSTMT StatementHandle)
   SQLRETURN ret;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLCloseCursor");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
@@ -400,6 +414,7 @@ SQLRETURN MA_SQLColAttribute(SQLHSTMT StatementHandle,
   SQLRETURN ret;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLColAttribute");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
@@ -753,6 +768,7 @@ SQLRETURN MA_SQLDescribeCol(SQLHSTMT StatementHandle,
   SQLRETURN ret;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLDescribeCol");
   MDBUG_C_DUMP(Stmt->Connection, Stmt, 0x);
@@ -1182,6 +1198,7 @@ SQLRETURN MA_SQLFetch(SQLHSTMT StatementHandle)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
 
+  RESET_CANCELED(Stmt);
   MDBUG_C_ENTER(Stmt->Connection, "SQLFetch");
 
   /* SQLFetch is equivalent of SQLFetchScroll(SQL_FETCH_NEXT), 3rd parameter is ignored for SQL_FETCH_NEXT */
@@ -1213,6 +1230,7 @@ SQLRETURN MA_SQLFetchScroll(SQLHSTMT StatementHandle,
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
 
+  RESET_CANCELED(Stmt);
   MDBUG_C_ENTER(Stmt->Connection, "SQLFetchScroll");
   MDBUG_C_DUMP(Stmt->Connection, FetchOrientation, d);
 
@@ -1315,6 +1333,7 @@ SQLRETURN MA_SQLFreeStmt(SQLHSTMT StatementHandle,
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
 
+  RESET_CANCELED(Stmt);
   MDBUG_C_ENTER(((MADB_Stmt*)StatementHandle)->Connection, "SQLFreeStmt");
   MDBUG_C_DUMP(Stmt->Connection, StatementHandle, 0x);
   MDBUG_C_DUMP(Stmt->Connection, Option, d);
@@ -1491,6 +1510,8 @@ SQLRETURN MA_SQLGetCursorName(
   int isWstr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+
+  RESET_CANCELED(Stmt);
   try
   {
     return Stmt->Methods->GetCursorName(Stmt, CursorName, BufferLength, NameLengthPtr, isWstr);
@@ -1519,6 +1540,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   unsigned int i;
   MADB_DescRecord* IrdRec;
 
+  RESET_CANCELED(Stmt);
   /* In case we don't have DM(it check for that) */
   if (TargetValuePtr == NULL)
   {
@@ -1763,6 +1785,8 @@ SQLRETURN MA_SQLGetStmtAttr(SQLHSTMT StatementHandle,
     SQLINTEGER *StringLengthPtr)
 {
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
+
+  RESET_CANCELED(Stmt);
   // GetAttr method will figure out if this is wide or ansi string
   try
   {
@@ -1920,6 +1944,7 @@ SQLRETURN MA_SQLNumParams(SQLHSTMT StatementHandle,
   SQLSMALLINT* ParameterCountPtr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  RESET_CANCELED(Stmt);
   return Stmt->Methods->ParamCount(Stmt, ParameterCountPtr);
 }
 /* }}} */
@@ -1929,6 +1954,7 @@ SQLRETURN MA_SQLNumResultCols(SQLHSTMT StatementHandle,
   SQLSMALLINT* ColumnCountPtr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  RESET_CANCELED(Stmt);
   return Stmt->Methods->ColumnCount(Stmt, ColumnCountPtr);
 }
 /* }}} */
@@ -1938,6 +1964,7 @@ SQLRETURN MA_SQLParamData(SQLHSTMT StatementHandle,
   SQLPOINTER* ValuePtrPtr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  RESET_CANCELED(Stmt);
   try
   {
     return Stmt->Methods->ParamData(Stmt, ValuePtrPtr);
@@ -1960,6 +1987,7 @@ SQLRETURN MA_SQLPrepare(SQLHSTMT StatementHandle,
   SQLINTEGER TextLength)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLPrepare");
 
@@ -1993,6 +2021,7 @@ SQLRETURN MA_SQLPrepareW(SQLHSTMT StatementHandle,
   SQLRETURN ret;
   BOOL ConversionError;
 
+  RESET_CANCELED(Stmt);
   MDBUG_C_ENTER(Stmt->Connection, "SQLPrepareW");
 
   try // Currently string transcoding cannot throw, but in future it most cetainly will
@@ -2324,6 +2353,7 @@ SQLRETURN MA_SQLRowCount(SQLHSTMT StatementHandle,
   SQLLEN* RowCountPtr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  RESET_CANCELED(Stmt);
   return Stmt->Methods->RowCount(Stmt, RowCountPtr);
 }
 /* }}} */
@@ -2365,6 +2395,7 @@ SQLRETURN MA_SQLSetCursorName(SQLHSTMT StatementHandle,
   SQLSMALLINT NameLength)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  RESET_CANCELED(Stmt);
   return Stmt->Methods->SetCursorName(Stmt, (char*)CursorName, NameLength);
 }
 /* }}} */
@@ -2379,6 +2410,7 @@ SQLRETURN MA_SQLSetCursorNameW(SQLHSTMT StatementHandle,
   SQLULEN Length;
   SQLRETURN ret;
 
+  RESET_CANCELED(Stmt);
   try
   {
     CpName= MADB_ConvertFromWChar(CursorName, NameLength, &Length, Stmt->Connection->ConnOrSrcCharset, NULL);
@@ -2459,6 +2491,8 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
 
   if (!Stmt)
     return SQL_INVALID_HANDLE;
+
+  RESET_CANCELED(Stmt);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLSetStmtAttr");
   MDBUG_C_DUMP(Stmt->Connection, Attribute, d);
@@ -2813,6 +2847,7 @@ SQLRETURN MA_SQLSetScrollOptions(SQLHSTMT hstmt,
   SQLUSMALLINT crowRowSet)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)hstmt;
+  RESET_CANCELED(Stmt);
   return MADB_DescSetField(Stmt->Ard, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)(SQLULEN)crowKeySet, SQL_IS_USMALLINT, 0);
 }
 /* }}} */
@@ -2826,6 +2861,7 @@ SQLRETURN MA_SQLParamOptions(
   MADB_Stmt* Stmt= (MADB_Stmt*)hstmt;
   SQLRETURN result;
 
+  RESET_CANCELED(Stmt);
   result= MADB_DescSetField(Stmt->Apd, 0, SQL_DESC_ARRAY_SIZE, (SQLPOINTER)crow, SQL_IS_UINTEGER, 0);
 
   if (SQL_SUCCEEDED(result))

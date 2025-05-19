@@ -151,9 +151,10 @@ MADB_ERROR MADB_ErrorList[] =
 };
 /* }}} */
 
-
+/* Copies prefix and sets its length. Also sets terminating NULL in SqlState */
 char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
 {
+  error->SqlState[SQLSTATE_LENGTH]= 0;
   /* If prefix is already there - we do not write again. One shoud reset error->PrefixLen in order to force */
   if (error->PrefixLen == 0)
   {
@@ -223,7 +224,6 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
     ErrorCode= MADB_ERR_08S01;
 
   Error->ErrRecord= &MADB_ErrorList[ErrorCode];
-
   Error->ReturnValue= MADB_ErrorList[ErrorCode].ReturnValue;
 
   if (NativeErrorMsg)
@@ -235,7 +235,8 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
     strcpy_s(Error->SqlErrorMsg + Error->PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Error->PrefixLen,
              MADB_ErrorList[ErrorCode].SqlErrorMsg);
   }
-  strcpy_s(Error->SqlState, SQLSTATE_LENGTH + 1, MADB_ErrorList[ErrorCode].SqlState);
+  // It's safe to use memcy for sqlstate
+  memcpy(Error->SqlState, MADB_ErrorList[ErrorCode].SqlState, SQLSTATE_LENGTH + 1);
   Error->NativeError= NativeError;
 
   return Error->ReturnValue;
@@ -265,18 +266,19 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
   char *SqlStateVersion= Err->SqlState;
   SQLSMALLINT Length= 0;
 
-  InternalError.PrefixLen= 0;
-  MADB_CLEAR_ERROR(&InternalError);
   if (RecNumber > 1)
     return SQL_NO_DATA;
-  
+ 
+  InternalError.PrefixLen= 0;
+  MADB_CLEAR_ERROR(&InternalError);
+
   /* check if we have to map the SQLState to ODBC version 2 state */
   if (OdbcVersion == SQL_OV_ODBC2)
   {
     int i= 0;
     while (MADB_ErrorList[i].SqlState[0])
     {
-      if (strcmp(Err->SqlState, MADB_ErrorList[i].SqlState) == 0)
+      if (strncmp(Err->SqlState, MADB_ErrorList[i].SqlState, SQLSTATE_LENGTH) == 0)
       {
         if (MADB_ErrorList[i].SqlStateV2[0])
           SqlStateVersion= MADB_ErrorList[i].SqlStateV2;
@@ -317,14 +319,14 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
   MADB_Error  Error;
   SQLLEN      Length;
 
+  if (RecNumber > 1)
+    return SQL_NO_DATA;
+
   if (StringLengthPtr)
     *StringLengthPtr= 0;
 
   Error.PrefixLen= 0;
   MADB_CLEAR_ERROR(&Error);
-
-  if (RecNumber > 1)
-    return SQL_NO_DATA;
 
   switch(HandleType) {
   case SQL_HANDLE_DBC:

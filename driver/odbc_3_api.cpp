@@ -1398,6 +1398,7 @@ SQLRETURN SQL_API SQLSetParam(SQLHSTMT stmt,
 	                            SQLLEN *nval)
 {
   CHECK_STMT_CLEAR_ERROR(stmt);
+
   return MA_SQLBindParameter(stmt, par, SQL_PARAM_INPUT_OUTPUT, type, sqltype, coldef,
                              scale, val, SQL_SETPARAM_VALUE_MAX, nval);
 }

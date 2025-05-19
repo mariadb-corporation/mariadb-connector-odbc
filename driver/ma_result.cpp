@@ -145,6 +145,7 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   MADB_Stmt *Stmt= (MADB_Stmt*)StatementHandle;
   SQLRETURN ret= SQL_SUCCESS;
 
+  RESET_CANCELED(Stmt);
   if (!Stmt->stmt)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_08S01, NULL, 0);

@@ -102,6 +102,7 @@ SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt);
 ResultSetMetaData* FetchMetadata    (MADB_Stmt *Stmt, bool early= false);
 SQLRETURN    MADB_DoExecuteBatch();
 SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt);
+void         MADB_CloseCursor       (MADB_Stmt *Stmt);
 
 #define MADB_MAX_CURSOR_NAME 64 * 4 + 1
 #define MADB_CHECK_STMT_HANDLE(a,b)\
@@ -124,5 +125,9 @@ SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt);
 /* Set given Stmt handle as s current RS streamer on the connection */
 #define MADB_STMT_SET_CURRENT_STREAMER(_a) (_a)->Connection->Streamer= (_a)
 #define CALC_ALL_FLDS_RC(_agg_rc, _field_rc) if (_field_rc != SQL_SUCCESS && _agg_rc != SQL_ERROR) _agg_rc= _field_rc
-
+#define CANCEL_EXECUTION_IF_NEEDED(aStmt) do { if ((aStmt)->canceled) {\
+  (aStmt)->canceled= false;\
+  return MADB_SetError(&aStmt->Error, MADB_ERR_HY008, "Execution canceled by command from other thread", 0);\
+}} while(0)
+#define RESET_CANCELED(aStmt) (aStmt)->canceled= FALSE
 #endif

@@ -94,7 +94,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
   p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
   std::lock_guard<std::mutex> localScopeLock(Connection->guard->getLock());
   Connection->guard->safeRealQuery({StmtStr, (std::size_t)(p - StmtStr)});
-  if ((Res= mysql_store_result(Connection->mariadb)) != NULL)
+  if ((Res= mysql_store_result(Connection->mariadb)) != nullptr)
   {
     Count= mysql_field_count(Connection->mariadb);
     for (i= 0; i < Count; ++i)
@@ -1261,3 +1261,27 @@ enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, uint32_t i)
   return static_cast<enum enum_field_types>(Stmt->metadata->getColumnType(i));
 }
 
+
+
+SQLRETURN MADB_KillAtServer(MADB_Stmt *Stmt)
+{
+  MYSQL *MariaDb, *Kill=Stmt->Connection->mariadb;
+
+  if (!(MariaDb= mysql_init(NULL)))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
+  if (SQL_SUCCEEDED(Stmt->Connection->CoreConnect(MariaDb, Stmt->Connection->Dsn, &Stmt->Error, 0)))
+  {
+    char StmtStr[32];
+    // 32 is enough to fit the query with longest 8byte unsigned  thread id, thus sprintf is fine here
+    int len= sprintf(StmtStr, "KILL QUERY %lu", mysql_thread_id(Kill));
+    if (mysql_real_query(MariaDb, StmtStr, len))
+    {
+      mysql_close(MariaDb);
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Error while terminating the process on the server", 0);
+    }
+  }
+  mysql_close(MariaDb);
+  return SQL_SUCCESS;
+}

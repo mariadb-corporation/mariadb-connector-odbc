@@ -226,6 +226,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
   MADB_Stmt *Stmt= (MADB_Stmt *)StatementHandle;
   std::vector<std::vector<bytes_view>> *TypeInfo= &TypeInfoV3;
 
+  RESET_CANCELED(Stmt);
   if (Stmt->Connection->Environment->OdbcVersion == SQL_OV_ODBC2)
   {
     TypeInfo= &TypeInfoV2;

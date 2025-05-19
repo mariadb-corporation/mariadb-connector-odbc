@@ -23,6 +23,7 @@
 #include <memory>
 #include <list>
 #include <map>
+#include <atomic>
 #include "ma_c_stuff.h"
 #include "ma_legacy_helpers.h"
 #include "lru/pscache.h"
@@ -225,8 +226,11 @@ typedef struct
 
 enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DAE_DELETE=3};
 
-#define RESET_DAE_STATUS(Stmt_Hndl) (Stmt_Hndl)->Status=0; (Stmt_Hndl)->PutParam= -1
-#define MARK_DAE_DONE(Stmt_Hndl)    (Stmt_Hndl)->Status=0; (Stmt_Hndl)->PutParam= (Stmt_Hndl)->ParamCount
+#define MADB_NO_DATA_NEEDED -2
+#define MADB_NEED_DATA -1
+
+#define RESET_DAE_STATUS(Stmt_Hndl) (Stmt_Hndl)->PutParam= MADB_NO_DATA_NEEDED
+#define MARK_DAE_DONE(Stmt_Hndl)    (Stmt_Hndl)->PutParam= (Stmt_Hndl)->ParamCount
 
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
@@ -319,20 +323,22 @@ struct MADB_Stmt
   MADB_Desc *IArd;
   MADB_Desc *IIrd;
   MADB_Desc *IIpd;
+
   unsigned short            *UniqueIndex= nullptr; /* Insdexes of columns that make best available unique identifier */
   SQLSETPOSIROW             DaeRowNumber= 0;
   int32_t                   ArrayOffset= 0;
-  int32_t                   Status= 0;
   uint32_t                  MultiStmtNr= 0;
   uint32_t                  MultiStmtMaxParam= 0;
-  int32_t                   PutParam= -1;
+  int32_t                   PutParam= -2;
   enum MADB_StmtState       State= MADB_SS_INITED;
   enum MADB_DaeType         DataExecutionType= MADB_DAE_NORMAL;
   SQLSMALLINT               ParamCount= 0;
+
   MADB_BulkOperationInfo    Bulk;
   bool                      PositionedCommand= false;
   bool                      RebindParams= false;
   bool                      bind_done= false;
+  std::atomic_bool          canceled;
 
   MADB_Stmt(MADB_Dbc *Connection);
   SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true, bool DirectExecution= false);
