@@ -1141,10 +1141,11 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   if (Stmt->DaeStmt)
-    Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-  Stmt->DaeStmt= nullptr;
+  {
+    MADB_DeleteDaeStmt(Stmt);
+  }
 
-  if (!SQL_SUCCEEDED(MA_SQLAllocHandle(SQL_HANDLE_STMT, (SQLHANDLE)Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt)))
+  if (!SQL_SUCCEEDED(MADB_StmtInit(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt, false)))
   {
     return MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
   }
@@ -1183,7 +1184,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   if (!SQL_SUCCEEDED(Stmt->DaeStmt->Prepare(Query.c_str(), (SQLINTEGER)Query.length(), true)))
   {
     MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
-    Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
+    MADB_DeleteDaeStmt(Stmt);
   }
   return Stmt->Error.ReturnValue;
 }

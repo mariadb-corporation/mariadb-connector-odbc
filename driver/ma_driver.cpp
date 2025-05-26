@@ -24,9 +24,10 @@
  */
 /************************************* Driver wide stuff ************************************************/
 
-CRITICAL_SECTION globalLock;
+std::mutex globalLock;
 static MADB_List *deletedStmt= NULL;
-static unsigned int envCount= 0;
+//sles12 does not have atomic_uint32 defined
+static std::atomic<uint32_t> envCount(0U);
 
 #ifndef _WIN32
 __attribute__((constructor))
@@ -43,20 +44,18 @@ extern "C" {
   /* {{{ DriverGlobalInit */
   void DriverGlobalInit()
   {
-    InitializeCriticalSection(&globalLock);
   }
   /* }}} */
 
   /* {{{  DriverGlobalClean()*/
   void DriverGlobalClean(void)
   {
-    EnterCriticalSection(&globalLock);
+    // There is no need to lock here at least the while it used the way it used now -
+    // only called when library is unloaded
     if (deletedStmt)
     {
       MADB_ListFree(deletedStmt, FALSE);
     }
-    LeaveCriticalSection(&globalLock);
-    DeleteCriticalSection(&globalLock);
   }
   /* }}} */
 }
@@ -64,9 +63,7 @@ extern "C" {
 // Normally there should be 1 Env, but nothing forbids app have more than 1. 
 void IncrementEnvCount()
 {
-  EnterCriticalSection(&globalLock);
   ++envCount;
-  LeaveCriticalSection(&globalLock);
 }
 /*}}}*/
 
@@ -74,14 +71,13 @@ void IncrementEnvCount()
 // If the last Env has been freed - we should probably clean the list 
 void DecrementEnvCount()
 {
-  EnterCriticalSection(&globalLock);
   --envCount;
   if (!envCount)
   {
+    std::lock_guard<std::mutex> localScopeLock(globalLock);
     MADB_ListFree(deletedStmt, FALSE);
     deletedStmt= NULL;
   }
-  LeaveCriticalSection(&globalLock);
 }
 /*}}}*/
 
@@ -89,7 +85,7 @@ void DecrementEnvCount()
 // If the last Env has been freed - we should probably clean the list 
 MADB_List* CheckDeletedStmt(void* stmtObjAddr)
 {
-  MADB_List* item= deletedStmt;
+  MADB_List *item= deletedStmt;
   while (item != NULL)
   {
     if (item->data == stmtObjAddr)
@@ -104,18 +100,17 @@ MADB_List* CheckDeletedStmt(void* stmtObjAddr)
 
 /* {{{ RemoveStmtFromDeleted */
 // If the last Env has been freed - we should probably clean the list 
-BOOL RemoveStmtFromDeleted(void* stmtObjAddr)
+bool RemoveStmtFromDeleted(void* stmtObjAddr)
 {
-  BOOL result= FALSE;
-  EnterCriticalSection(&globalLock);
+  bool result= false;
+  std::lock_guard<std::mutex> localScopeLock(globalLock);
   MADB_List* found= CheckDeletedStmt(stmtObjAddr);
   if (found)
   {
     deletedStmt= MADB_ListDelete(deletedStmt, found);
     free(found);
-    result= TRUE;
+    result= true;
   }
-  LeaveCriticalSection(&globalLock);
   return result;
 }
 /*}}}*/

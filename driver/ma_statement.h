@@ -98,7 +98,8 @@ struct st_ma_stmt_methods
   SQLRETURN(*RefreshRowPtrs)(MADB_Stmt* Stmt);
 };
 
-SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt);
+SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt, bool external= true);
+void         MADB_DeleteDaeStmt     (MADB_Stmt *Stmt);
 ResultSetMetaData* FetchMetadata    (MADB_Stmt *Stmt, bool early= false);
 SQLRETURN    MADB_DoExecuteBatch();
 SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt);
@@ -129,6 +130,5 @@ void         MADB_CloseCursor       (MADB_Stmt *Stmt);
   (aStmt)->canceled= false;\
   return MADB_SetError(&aStmt->Error, MADB_ERR_HY008, "Execution canceled by command from other thread", 0);\
 }} while(0)
-#define RESET_CANCELED(aStmt) EnterCriticalSection(&(aStmt)->CancelDropSwitch);\
-(aStmt)->canceled= FALSE;LeaveCriticalSection(&(aStmt)->CancelDropSwitch)
+#define RESET_CANCELED(aStmt) (aStmt)->canceled= false
 #endif

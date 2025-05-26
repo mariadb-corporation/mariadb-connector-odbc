@@ -287,13 +287,14 @@ private:
 // Stmt has to know few things about connection and descriptor
 #include "ma_connection.h"
 #include "ma_desc.h"
-
+#define xxx sizeof(std::mutex)
 struct MADB_Stmt
 {
   MADB_QUERY                Query;
   MADB_StmtOptions          Options;
   MADB_Error                Error;
-  CRITICAL_SECTION          CancelDropSwitch; /* mutex for SQLCancel/SQLFreeStmt(SQL_DROP) */
+  std::mutex                CancelDropSwitch; /* mutex for SQLCancel/SQLFreeStmt(SQL_DROP) */
+  std::atomic_bool          canceled;
   MADB_Cursor               Cursor;
   MADB_List                 ListItem;
   long long                 AffectedRows= 0;
@@ -339,7 +340,6 @@ struct MADB_Stmt
   bool                      PositionedCommand= false;
   bool                      RebindParams= false;
   bool                      bind_done= false;
-  std::atomic_bool          canceled;
 
   MADB_Stmt(MADB_Dbc *Connection);
   SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true, bool DirectExecution= false);

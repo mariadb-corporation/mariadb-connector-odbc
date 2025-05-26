@@ -279,21 +279,19 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
 
   // Technically, if the application does not do good syncronization of stmt use here, we can have
   // Stmt already freed at this point, and crash right away on reading the mutex in Stmt
-  EnterCriticalSection(&globalLock);
+  std::unique_lock<std::mutex> localScopeLock(globalLock);
   if (CheckDeletedStmt(Stmt) != NULL)
   {
-    LeaveCriticalSection(&globalLock);
     return ret;// i.e. SQL_SUCCESS. Stmt has been deleted, nothing to cancel already
   }
-  if (!TryEnterCriticalSection(&Stmt->CancelDropSwitch))
+  if (!Stmt->CancelDropSwitch.try_lock())
   {
-    LeaveCriticalSection(&globalLock);
     // This is not clear what is right here - success or error
     return SQL_SUCCESS;
   }
   // We can release the lock. SQL_DROP will get it, but stop at the Stmt->CancelDropSwitch
   // that we already own
-  LeaveCriticalSection(&globalLock);
+  localScopeLock.unlock();
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLCancel");
@@ -337,7 +335,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
     } // Else we are canceling function running in other thread.
     else if (lock.try_lock())
     {
-      Stmt->canceled= '\1';
+      Stmt->canceled= true;
       try
       {
         /* "If a SQL statement is being executed when SQLCancel is called on another thread to cancel the
@@ -362,7 +360,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       ret= MADB_KillAtServer(Stmt->Connection, &Stmt->Error);
     }
   }
-  LeaveCriticalSection(&Stmt->CancelDropSwitch);
+  Stmt->CancelDropSwitch.unlock();
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 /* }}} */

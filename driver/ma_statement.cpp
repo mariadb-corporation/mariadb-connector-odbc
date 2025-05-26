@@ -105,6 +105,73 @@ void MADB_CloseCursor(MADB_Stmt *Stmt)
 }
 /* }}} */
 
+/* {{{ MADB_DropStmt - cleans Stmt object and its reference before deleting it */
+void MADB_DropStmt(MADB_Stmt *Stmt, bool external= true)
+{
+  MADB_FREE(Stmt->params);
+  MADB_FREE(Stmt->result);
+  MADB_FREE(Stmt->Cursor.Name);
+  MADB_FREE(Stmt->CatalogName);
+  MADB_FREE(Stmt->TableName);
+  MADB_FREE(Stmt->UniqueIndex);
+  /* For explicit descriptors we only remove reference to the stmt*/
+  if (Stmt->Apd->AppType)
+  {
+    RemoveStmtRefFromDesc(Stmt->Apd, Stmt, TRUE);
+    MADB_DescFree(Stmt->IApd, FALSE);
+  }
+  else
+  {
+    MADB_DescFree(Stmt->Apd, FALSE);
+  }
+  if (Stmt->Ard->AppType)
+  {
+    RemoveStmtRefFromDesc(Stmt->Ard, Stmt, TRUE);
+    MADB_DescFree(Stmt->IArd, FALSE);
+  }
+  else
+  {
+    MADB_DescFree(Stmt->Ard, FALSE);
+  }
+  MADB_DescFree(Stmt->Ipd, FALSE);
+  MADB_DescFree(Stmt->Ird, FALSE);
+
+  MADB_FREE(Stmt->CharOffset);
+  MADB_FREE(Stmt->Lengths);
+
+  MADB_DELETE(Stmt->metadata);
+
+  if (Stmt->DaeStmt != nullptr)
+  {
+    MADB_DeleteDaeStmt(Stmt);
+  }
+
+  if (Stmt->stmt != nullptr)
+  {
+    MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt.get());
+    MADB_STMT_CLOSE_STMT(Stmt);
+  }
+  // "Internal" stmts are not on those lists
+  if (external)
+  {
+    Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
+    // We need to remember only Stmt's allocated by application as only they can be SQLCancel'ed
+    RememberDeletedStmt(Stmt);
+  }
+}
+/* }}} */
+
+/* {{{ MADB_DeleteDaeStmt - deletes internally allocated DaeStmt("Dae" is used wrongly it's name
+ * but at least consistently wrong)
+ */
+void MADB_DeleteDaeStmt(MADB_Stmt *Stmt)
+{
+  MADB_DropStmt(Stmt->DaeStmt, false);
+  delete Stmt->DaeStmt;
+  Stmt->DaeStmt= nullptr;
+}
+/* }}} */
+
 /* {{{ MADB_StmtFree */
 SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
 {
@@ -131,66 +198,16 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     break;
 
   case SQL_DROP:
+  {
     // First we have to take globalLock, than Stmt's lock
-    EnterCriticalSection(&globalLock);
-    EnterCriticalSection(&Stmt->CancelDropSwitch);
-    MADB_FREE(Stmt->params);
-    MADB_FREE(Stmt->result);
-    MADB_FREE(Stmt->Cursor.Name);
-    MADB_FREE(Stmt->CatalogName);
-    MADB_FREE(Stmt->TableName);
-    MADB_FREE(Stmt->UniqueIndex);
-    //Stmt->metadata.reset();
-
-    /* For explicit descriptors we only remove reference to the stmt*/
-    if (Stmt->Apd->AppType)
-    {
-      std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
-      RemoveStmtRefFromDesc(Stmt->Apd, Stmt, TRUE);
-      MADB_DescFree(Stmt->IApd, FALSE);
-    }
-    else
-    {
-      MADB_DescFree( Stmt->Apd, FALSE);
-    }
-    if (Stmt->Ard->AppType)
-    {
-      std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
-      RemoveStmtRefFromDesc(Stmt->Ard, Stmt, TRUE);
-      MADB_DescFree(Stmt->IArd, FALSE);
-    }
-    else
-    {
-      MADB_DescFree(Stmt->Ard, FALSE);
-    }
-    MADB_DescFree(Stmt->Ipd, FALSE);
-    MADB_DescFree(Stmt->Ird, FALSE);
-
-    MADB_FREE(Stmt->CharOffset);
-    MADB_FREE(Stmt->Lengths);
-    
-    MADB_DELETE(Stmt->metadata);
-
-    if (Stmt->DaeStmt != nullptr)
-    {
-      Stmt->DaeStmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-      Stmt->DaeStmt= nullptr;
-    }
-
-    if (Stmt->stmt != nullptr)
-    {
-      MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt.get());
-      MADB_STMT_CLOSE_STMT(Stmt);
-    }
-    /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
-    std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
-    Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
-
-    RememberDeletedStmt(Stmt);
-    LeaveCriticalSection(&Stmt->CancelDropSwitch);
-    LeaveCriticalSection(&globalLock);
-    
+    std::lock_guard<std::mutex> localGlobal(globalLock);
+    std::unique_lock<std::mutex> localCancelDropSwitch(Stmt->CancelDropSwitch);
+    std::lock_guard<std::mutex> localListCs(Stmt->Connection->ListsCs);
+    MADB_DropStmt(Stmt);
+    // Must unlock before delete
+    localCancelDropSwitch.unlock();
     delete Stmt;
+  }
   } /* End of switch (Option) */
   return SQL_SUCCESS;
 }
@@ -3624,8 +3641,11 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
 
       if (Stmt->DataExecutionType != MADB_DAE_ADD)
       {
-        Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-        MA_SQLAllocHandle(SQL_HANDLE_STMT, Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt);
+        if (Stmt->DaeStmt)
+        {
+          MADB_DeleteDaeStmt(Stmt);
+        }
+        MADB_StmtInit(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt, false);
 
         if (MADB_InitDynamicString(&DynStmt, "INSERT INTO ", 8192, 1024) ||
             MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
@@ -3647,11 +3667,10 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         if (!SQL_SUCCEEDED(ret))
         {
           MADB_CopyError(&Stmt->Error, &Stmt->DaeStmt->Error);
-          Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
+          MADB_DeleteDaeStmt(Stmt);
           return Stmt->Error.ReturnValue;
         }
       }
-      
       /* Bind parameters - DaeStmt will process whole array of values, thus we don't need to iterate through the array*/
       for (column= 0; column < MADB_STMT_COLUMN_COUNT(Stmt); ++column)
       {
@@ -3693,8 +3712,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       Stmt->AffectedRows+= Stmt->DaeStmt->AffectedRows;
 
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
-      Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-      Stmt->DaeStmt= nullptr;
+      MADB_DeleteDaeStmt(Stmt);
     }
     break;
   case SQL_UPDATE:
@@ -3835,8 +3853,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         Start++;
       }                                 /* End of while (Start <= End) */
 
-      Stmt->Methods->StmtFree(Stmt->DaeStmt, SQL_DROP);
-      Stmt->DaeStmt= nullptr;
+      MADB_DeleteDaeStmt(Stmt);
       Stmt->DataExecutionType= MADB_DAE_NORMAL;
 
       /* Making sure we do not return initial value */
@@ -4109,13 +4126,9 @@ MADB_Stmt::MADB_Stmt(MADB_Dbc* Dbc)
 }
 
 /* {{{ MADB_StmtInit */
-SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
+SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt, bool external)
 {
   MADB_Stmt *Stmt= new MADB_Stmt(Connection);
- 
-  InitializeCriticalSection(&Stmt->CancelDropSwitch);
-  // Should lock globalLock here and not in this function
-  RemoveStmtFromDeleted(Stmt);
 
   MADB_PutErrorPrefix(Connection, &Stmt->Error);
   *pHStmt= Stmt;
@@ -4147,14 +4160,18 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
   Stmt->Ard= Stmt->IArd;
   Stmt->Ipd= Stmt->IIpd;
   Stmt->Ird= Stmt->IIrd;
-  
-  Stmt->ListItem.data= (void *)Stmt;
-  {
-    std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
-    Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
-  }
-
   Stmt->Ard->Header.ArraySize= 1;
+  
+  if (external)
+  {
+    // Connection keeps the list to drop them on Disconnect. Since !external means Stmt->DaeStmt, and that unlikely changes,
+    // we don't need to register it by conneciton. When Stmt is dropped its DaeStmt dropped too.
+    std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
+    Stmt->ListItem.data= static_cast<void*>(Stmt);
+    Stmt->Connection->Stmts= MADB_ListAdd(Stmt->Connection->Stmts, &Stmt->ListItem);
+    // If DaeStmt has the same address as deleted "external" Stmt - there is no need to remove it
+    RemoveStmtFromDeleted(Stmt);
+  }
 
   return SQL_SUCCESS;
 

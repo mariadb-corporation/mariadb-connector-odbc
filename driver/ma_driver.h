@@ -30,7 +30,7 @@
 #ifndef _ma_driver_h_
 #define _ma_driver_h_
 
-extern CRITICAL_SECTION globalLock;
+extern std::mutex globalLock;
 extern "C" {
   void DriverGlobalInit();
   void DriverGlobalClean(void);
@@ -38,7 +38,7 @@ extern "C" {
 void IncrementEnvCount();
 void DecrementEnvCount();
 MADB_List* CheckDeletedStmt(void* stmtObjAddr);
-BOOL RemoveStmtFromDeleted(void* stmtObjAddr);
+bool RemoveStmtFromDeleted(void* stmtObjAddr);
 void RememberDeletedStmt(void* stmtObjAddr);
 
 typedef struct {
