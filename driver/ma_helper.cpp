@@ -1263,15 +1263,15 @@ enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, uint32_t i)
 
 
 
-SQLRETURN MADB_KillAtServer(MADB_Stmt *Stmt)
+SQLRETURN MADB_KillAtServer(MADB_Dbc *Connection, MADB_Error* Error)
 {
-  MYSQL *MariaDb, *Kill=Stmt->Connection->mariadb;
+  MYSQL *MariaDb, *Kill=Connection->mariadb;
 
   if (!(MariaDb= mysql_init(NULL)))
   {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+    return MADB_SetError(Error, MADB_ERR_HY001, NULL, 0);
   }
-  if (SQL_SUCCEEDED(Stmt->Connection->CoreConnect(MariaDb, Stmt->Connection->Dsn, &Stmt->Error, 0)))
+  if (SQL_SUCCEEDED(Connection->CoreConnect(MariaDb, Connection->Dsn, Error, 0)))
   {
     char StmtStr[32];
     // 32 is enough to fit the query with longest 8byte unsigned  thread id, thus sprintf is fine here
@@ -1279,7 +1279,7 @@ SQLRETURN MADB_KillAtServer(MADB_Stmt *Stmt)
     if (mysql_real_query(MariaDb, StmtStr, len))
     {
       mysql_close(MariaDb);
-      return MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Error while terminating the process on the server", 0);
+      return MADB_SetError(Error, MADB_ERR_HY000, "Error while terminating the process on the server", 0);
     }
   }
   mysql_close(MariaDb);

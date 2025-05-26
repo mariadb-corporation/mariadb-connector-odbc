@@ -322,7 +322,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
     }
     else
     {
-      ret= MADB_KillAtServer(Stmt);
+      ret= MADB_KillAtServer(Stmt->Connection, &Stmt->Error);
     }
   }
   else
@@ -359,7 +359,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
     }
     else
     {
-      ret= MADB_KillAtServer(Stmt);
+      ret= MADB_KillAtServer(Stmt->Connection, &Stmt->Error);
     }
   }
   LeaveCriticalSection(&Stmt->CancelDropSwitch);
@@ -370,8 +370,14 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
 /* {{{ MA_SQLCancelDbc */
 SQLRETURN MA_SQLCancelDbc(SQLHANDLE Handle)
 {
-  MADB_Stmt Stmt(static_cast<MADB_Dbc*>(Handle));
-  return MA_SQLCancel((SQLHSTMT)&Stmt);
+  MADB_Dbc* Dbc(static_cast<MADB_Dbc*>(Handle));
+  auto& lock= Dbc->guard->getLock();
+
+  if (!lock.try_lock())
+  {
+    return MADB_KillAtServer(Dbc, &Dbc->Error);
+  }
+  return SQL_SUCCESS;
 }
 /* }}} */
 

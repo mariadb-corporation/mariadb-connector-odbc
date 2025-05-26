@@ -72,7 +72,7 @@ bool          MADB_IsIntType    (SQLSMALLINT ConciseType);
 
 enum enum_field_types MADB_GetNativeFieldType(MADB_Stmt *Stmt, uint32_t i);
 
-SQLRETURN     MADB_KillAtServer(MADB_Stmt *Stmt);
+SQLRETURN     MADB_KillAtServer(MADB_Dbc *Dbc, MADB_Error* Error);
 
 /* Stringify macros */
 #define XSTR(s) STR(s)
