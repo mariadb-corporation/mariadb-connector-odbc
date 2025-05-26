@@ -30,14 +30,25 @@
 #ifndef _ma_driver_h_
 #define _ma_driver_h_
 
+extern CRITICAL_SECTION globalLock;
+extern "C" {
+  void DriverGlobalInit();
+  void DriverGlobalClean(void);
+}
+void IncrementEnvCount();
+void DecrementEnvCount();
+MADB_List* CheckDeletedStmt(void* stmtObjAddr);
+BOOL RemoveStmtFromDeleted(void* stmtObjAddr);
+void RememberDeletedStmt(void* stmtObjAddr);
+
 typedef struct {
   char *DriverName;
   char *OdbcLibrary;
   char *SetupLibrary;
 } MADB_Drv;
 
-MADB_Drv * MADB_DriverGet(char *DriverName);
-void MADB_DriverFree(MADB_Drv *Drv);
-MADB_Drv *MADB_DriverInit(void);
+MADB_Drv* MADB_DriverGet(char *DriverName);
+void      MADB_DriverFree(MADB_Drv *Drv);
+MADB_Drv* MADB_DriverInit(void);
 
 #endif /* _ma_driver_h_ */

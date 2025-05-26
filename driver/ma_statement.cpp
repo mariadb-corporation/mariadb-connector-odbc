@@ -29,7 +29,6 @@
 
 #define MADB_MIN_QUERY_LEN 5
 
-
 /* {{{ MADB_StmtBulkOperations */
 SQLRETURN MADB_StmtBulkOperations(MADB_Stmt *Stmt, SQLSMALLINT Operation)
 {
@@ -132,6 +131,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     break;
 
   case SQL_DROP:
+    // First we have to take globalLock, than Stmt's lock
+    EnterCriticalSection(&globalLock);
+    EnterCriticalSection(&Stmt->CancelDropSwitch);
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
@@ -183,6 +185,10 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     /* Query has to be deleted after multistmt handles are closed, since the depends on info in the Query */
     std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->ListsCs);
     Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
+
+    RememberDeletedStmt(Stmt);
+    LeaveCriticalSection(&Stmt->CancelDropSwitch);
+    LeaveCriticalSection(&globalLock);
     
     delete Stmt;
   } /* End of switch (Option) */
@@ -4107,6 +4113,10 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 {
   MADB_Stmt *Stmt= new MADB_Stmt(Connection);
  
+  InitializeCriticalSection(&Stmt->CancelDropSwitch);
+  // Should lock globalLock here and not in this function
+  RemoveStmtFromDeleted(Stmt);
+
   MADB_PutErrorPrefix(Connection, &Stmt->Error);
   *pHStmt= Stmt;
   Stmt->Connection= Connection;

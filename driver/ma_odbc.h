@@ -290,10 +290,11 @@ private:
 
 struct MADB_Stmt
 {
+  MADB_QUERY                Query;
   MADB_StmtOptions          Options;
   MADB_Error                Error;
+  CRITICAL_SECTION          CancelDropSwitch; /* mutex for SQLCancel/SQLFreeStmt(SQL_DROP) */
   MADB_Cursor               Cursor;
-  MADB_QUERY                Query;
   MADB_List                 ListItem;
   long long                 AffectedRows= 0;
   MADB_Dbc                  *Connection;
