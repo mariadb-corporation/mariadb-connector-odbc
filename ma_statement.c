@@ -112,7 +112,9 @@ SQLRETURN MADB_StmtInit(MADB_Dbc *Connection, SQLHANDLE *pHStmt)
 
   if (!(Stmt = (MADB_Stmt *)MADB_CALLOC(sizeof(MADB_Stmt))))
     goto error;
- 
+  InitializeCriticalSection(&Stmt->CancelDropSwitch);
+  // Should lock globalLock here and not in this function
+  RemoveStmtFromDeleted(Stmt);
   MADB_PutErrorPrefix(Connection, &Stmt->Error);
   *pHStmt= Stmt;
   Stmt->Connection= Connection;
@@ -351,6 +353,9 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     RESET_DAE_STATUS(Stmt);
     break;
   case SQL_DROP:
+    // First we have to take globalLock, than Stmt's lock
+    EnterCriticalSection(&globalLock);
+    EnterCriticalSection(&Stmt->CancelDropSwitch);
     MADB_FREE(Stmt->params);
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->Cursor.Name);
@@ -429,8 +434,12 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     EnterCriticalSection(&Stmt->Connection->ListsCs);
     Stmt->Connection->Stmts= MADB_ListDelete(Stmt->Connection->Stmts, &Stmt->ListItem);
     LeaveCriticalSection(&Stmt->Connection->ListsCs);
-    
+
+    RememberDeletedStmt(Stmt);
+    LeaveCriticalSection(&Stmt->CancelDropSwitch);
+    LeaveCriticalSection(&globalLock);
     MADB_FREE(Stmt);
+
   } /* End of switch (Option) */
   return SQL_SUCCESS;
 }

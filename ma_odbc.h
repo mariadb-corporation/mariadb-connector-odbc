@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -269,10 +269,11 @@ typedef struct
 
 struct st_ma_odbc_stmt
 {
+  MADB_QUERY                Query;
   MADB_StmtOptions          Options;
   MADB_Error                Error;
+  CRITICAL_SECTION          CancelDropSwitch; /* mutex for SQLCancel/SQLFreeStmt(SQL_DROP) */
   MADB_Cursor               Cursor;
-  MADB_QUERY                Query;
   MADB_List                 ListItem;
   long long                 AffectedRows;
   MADB_Dbc                  *Connection;

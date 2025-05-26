@@ -81,11 +81,11 @@ void MADB_ListFree(MADB_List *root, unsigned int free_data)
 
 MADB_List *MADB_ListCons(void *data, MADB_List *list)
 {
-  MADB_List *new_charset=(MADB_List*) malloc(sizeof(MADB_List));
-  if (!new_charset)
+  MADB_List *newItem=(MADB_List*) malloc(sizeof(MADB_List));
+  if (!newItem)
     return 0;
-  new_charset->data=data;
-  return MADB_ListAdd(list,new_charset);
+  newItem->data=data;
+  return MADB_ListAdd(list, newItem);
 }
 
 
@@ -107,7 +107,7 @@ MADB_List *MADB_ListReverse(MADB_List *root)
 unsigned int MADB_ListLength(MADB_List *list)
 {
   unsigned int count;
-  for (count=0 ; list ; list=list->next, count++) ;
+  for (count=0 ; list ; list=list->next, ++count) ;
   return count;
 }
 

@@ -135,6 +135,23 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
   if (!Stmt)
     return SQL_INVALID_HANDLE;
 
+  // Technically, if the application does not do good syncronization of stmt use here, we can have
+  // Stmt already freed at this point, and crash right away on reading the mutex in Stmt
+  EnterCriticalSection(&globalLock);
+  if (CheckDeletedStmt(Stmt) != NULL)
+  {
+    LeaveCriticalSection(&globalLock);
+    return ret;// i.e. SQL_SUCCESS. Stmt has been deleted, nothing to cancel already
+  }
+  if (!TryEnterCriticalSection(&Stmt->CancelDropSwitch))
+  {
+    LeaveCriticalSection(&globalLock);
+    // This is not clear what is right here - success or error
+    return SQL_SUCCESS;
+  }
+  // We can release the lock. SQL_DROP will get it, but stop at the Stmt->CancelDropSwitch
+  // that we already own
+  LeaveCriticalSection(&globalLock);
   MADB_CLEAR_ERROR(&Stmt->Error);
 
   MDBUG_C_ENTER(Stmt->Connection, "SQLCancel");
@@ -180,6 +197,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       ret= MADB_KillAtServer(Stmt);
     }
   }
+  LeaveCriticalSection(&Stmt->CancelDropSwitch);
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
 }
 

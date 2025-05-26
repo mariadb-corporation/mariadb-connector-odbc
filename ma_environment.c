@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation plc
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -51,6 +51,7 @@ SQLRETURN MADB_EnvFree(MADB_Env *Env)
     return SQL_ERROR;
   DeleteCriticalSection(&Env->cs);
   free(Env);
+  DecrementEnvCount();
 
 #ifdef _WIN32
   WSACleanup();
@@ -139,6 +140,8 @@ MADB_Env *MADB_EnvInit()
   }
 
   DetectAppType(Env);
+  IncrementEnvCount();
+
 cleanup:
 #ifdef _WIN32  
   if (!Env)
