@@ -143,6 +143,6 @@ void         MADB_CloseCursor       (MADB_Stmt *Stmt);
   UNLOCK_MARIADB(aStmt->Connection);\
   return MADB_SetError(&aStmt->Error, MADB_ERR_HY008, "Execution canceled by command from other thread", 0);\
 }} while(0)
-#define RESET_CANCELED(aStmt) EnterCriticalSection(&(aStmt)->canceled);\
+#define RESET_CANCELED(aStmt) EnterCriticalSection(&(aStmt)->CancelDropSwitch);\
 (aStmt)->canceled= FALSE;LeaveCriticalSection(&(aStmt)->CancelDropSwitch)
 #endif

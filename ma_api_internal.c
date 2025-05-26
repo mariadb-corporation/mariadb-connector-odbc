@@ -27,7 +27,6 @@
 
 #include <ma_odbc.h>
 
-
 /* {{{ MA_SQLAllocHandle */
 SQLRETURN MA_SQLAllocHandle(SQLSMALLINT HandleType,
     SQLHANDLE InputHandle,
