@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2020,2024 MariaDB Corporation plc
+   Copyright (C) 2020,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
