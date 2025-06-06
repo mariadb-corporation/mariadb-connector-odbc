@@ -20,5 +20,5 @@
 
 INSTALL(FILES
    mariadb/sqlmariadb.h
-   DESTINATION ${INSTALL_INCLUDEDIR}/mariadb
+   DESTINATION ${INSTALL_INCLUDEDIR}
    COMPONENT Development)
