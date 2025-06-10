@@ -24,6 +24,7 @@
 #include <sstream>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
 #include "mysql.h"
 
