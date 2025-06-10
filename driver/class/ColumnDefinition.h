@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <map>
+#include <cstdint>
 
 #include "mysql.h"
 
