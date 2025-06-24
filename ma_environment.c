@@ -160,7 +160,7 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
    case SQL_ATTR_ODBC_VERSION:
     if (Env->Dbcs)
     {
-      MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
+      MADB_SetError(&Env->Error, MADB_ERR_HY010, NULL, 0);
       return Env->Error.ReturnValue;
     }
     Env->OdbcVersion= (SQLINTEGER)(SQLLEN)ValuePtr;

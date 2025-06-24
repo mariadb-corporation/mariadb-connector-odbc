@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2023 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -498,6 +498,7 @@ ODBC_TEST(t_bug14285620)
   SQLULEN col_size; 
   SQLINTEGER timeout= 20, cbilen;
   SQLCHAR szData[255]={0};
+  size_t wCallLenMultiplier= (using_dm() ? sizeof(SQLWCHAR) : (size_t)1);
 
   /* Numeric attribute */
   FAIL_IF(SQLGetConnectAttr(Connection, SQL_ATTR_LOGIN_TIMEOUT, NULL, 0, NULL) != SQL_SUCCESS, "success expected");
@@ -545,13 +546,14 @@ ODBC_TEST(t_bug14285620)
 
 #ifdef _WIN32  
   /* Windows uses unicode driver by default */
-  is_num(cblen, strlen(szData)*sizeof(SQLWCHAR));
+  is_num(cblen, strlen(szData)* wCallLenMultiplier);
 #else
   if (iOdbc())
   {
-    is_num(cblen, strlen((const char*)szData)*sizeof(SQLWCHAR));
+    //iOdbc() does not check if DM is really used
+    is_num(cblen, strlen((const char*)szData)*wCallLenMultiplier);
     is_num(SQLGetInfoW(Connection, SQL_DATABASE_NAME, NULL, 0, &cblen), SQL_SUCCESS);
-    is_num(cblen, strlen((const char*)szData)*sizeof(SQLWCHAR));
+    is_num(cblen, strlen((const char*)szData)*wCallLenMultiplier);
   }
   else
   {

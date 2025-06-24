@@ -535,6 +535,11 @@ ENDIF()
 # Tests. Should be verified by now, if we have them.
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(test)
+
+  IF(DIRECT_LINK_TESTS)
+    ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+	    COMMAND ${CMAKE_COMMAND} ARGS -E copy $<TARGET_FILE:${LIBRARY_NAME}> test)
+  ENDIF()
   IF(NOT WIN32)
     # Configuring ini files for testing with UnixODBC
     MESSAGE(STATUS "Configurig Test Driver: ${TEST_DRIVER}, Test DSN: ${TEST_DSN}, tcp://${TEST_UID}@${TEST_SERVER}:${TEST_PORT}/${TEST_SCHEMA} socket: ${TEST_SOCKET}")

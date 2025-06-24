@@ -2603,7 +2603,7 @@ SQLRETURN SQL_API SQLSetParam(SQLHSTMT stmt,
 /* }}} */
 
 /* {{{ SQLBindParam - we need it for direct linking mainly */
-SQLRETURN  SQL_API SQLBindParam(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API SQLBindParam(SQLHSTMT StatementHandle,
                                 SQLUSMALLINT ParameterNumber, SQLSMALLINT ValueType,
                                 SQLSMALLINT ParameterType, SQLULEN LengthPrecision,
                                 SQLSMALLINT ParameterScale, SQLPOINTER ParameterValue,
@@ -2681,7 +2681,14 @@ SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
   if (!Stmt)
     return SQL_INVALID_HANDLE;
   MADB_CLEAR_ERROR(&Stmt->Error);
-
+#ifdef _ACTIONS_TRACE_
+#ifdef __APPLE__
+  if (getenv("GITHUB_ACTIONS") != NULL && strncmp(getenv("GITHUB_ACTIONS"), "true", 4) == 0 && IdentifierType == SQL_ROWVER)
+  {
+    printf("# -- Nullable: %hu)\n", Nullable);
+  }
+#endif // __APPLE__
+#endif
   return Stmt->Methods->SpecialColumns(Stmt,IdentifierType, (char *)CatalogName, NameLength1, 
                                        (char *)SchemaName, NameLength2,
                                        (char *)TableName, NameLength3, Scope, Nullable);
@@ -2723,7 +2730,14 @@ SQLRETURN SQL_API SQLSpecialColumnsW(SQLHSTMT StatementHandle,
   {
     CpTable = MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
   }
-
+#ifdef _ACTIONS_TRACE_
+#ifdef __APPLE__
+  if (getenv("GITHUB_ACTIONS") != NULL && strncmp(getenv("GITHUB_ACTIONS"), "true", 4) == 0 && IdentifierType == SQL_ROWVER)
+  {
+    printf("# -- Nullable: %hu)\n", Nullable);
+  }
+#endif // __APPLE__
+#endif
   ret= Stmt->Methods->SpecialColumns(Stmt,IdentifierType, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema, 
                                      (SQLSMALLINT)CpLength2, CpTable, (SQLSMALLINT)CpLength3, Scope, Nullable);
   MADB_FREE(CpCatalog);

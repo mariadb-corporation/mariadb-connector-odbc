@@ -200,14 +200,14 @@ ODBC_TEST(t_bug31055)
      can satisfy in place of the driver. This test will only work
      when linked directly to the driver.
   */
-  if (using_dm(Connection))
+  if (using_dm())
     return OK;
 
   memset(funcs, 0xff, sizeof(SQLUSMALLINT) * SQL_API_ODBC3_ALL_FUNCTIONS_SIZE);
 
   CHECK_DBC_RC(Connection, SQLGetFunctions(Connection, SQL_API_ODBC3_ALL_FUNCTIONS, funcs));
 
-  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), using_dm(Connection) && !iOdbc() ? SQL_TRUE : SQL_FALSE);
+  is_num(SQL_FUNC_EXISTS(funcs, SQL_API_SQLALLOCHANDLESTD), using_dm() && !iOdbc() ? SQL_TRUE : SQL_FALSE);
 
 
   return OK;
@@ -273,7 +273,7 @@ ODBC_TEST(t_bug16653)
     Driver managers handle SQLGetConnectAttr before connection in
     inconsistent ways.
   */
-  if (using_dm(Connection))
+  if (using_dm())
     return OK;
 
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &Connection1));
@@ -782,7 +782,8 @@ ODBC_TEST(odbc317)
   {
 #pragma warning(disable:4995)
 #pragma warning(push)
-    is_num(lenAttr, SQL_CUR_USE_ODBC);
+    // I am not really sure what can we expect form iODBC
+    is_num(lenAttr, SQL_CUR_USE_DRIVER);
 #pragma warning(pop)
   }
   else

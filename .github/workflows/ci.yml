@@ -20,6 +20,15 @@ env:
   MYSQL_TEST_USER: root
   MYSQL_TEST_PASSWD: "heyPassw+-_20oRd"
   MYSQL_TEST_DB: testo
+  TEST_DSN: maodbc_test
+  TEST_UID: root
+  TEST_SERVER: mariadb.example.com
+  TEST_PASSWORD: "heyPassw+-_20oRd"
+  TEST_PORT: 3306
+  TEST_SCHEMA: testo
+  ODBCINI: "${{ github.workspace }}/test/odbc.ini"
+  ODBCSYSINI: ${{ github.workspace }}/test
+  ODBCINTSTINI: ${{ github.workspace }}/test/odbcinst.ini
 
 jobs:
   setup:
@@ -69,13 +78,6 @@ jobs:
           sudo apt install unixodbc-dev
           cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL .
           cmake --build . --config RelWithDebInfo 
-        env:
-          TEST_DSN: maodbc_test
-          TEST_UID: ${{ env.MYSQL_TEST_USER }}
-          TEST_SERVER: ${{ env.MYSQL_TEST_HOST }}
-          TEST_PASSWORD: ${{ env.MYSQL_TEST_PASSWD }}
-          TEST_PORT: ${{ env.MYSQL_TEST_PORT }}
-          TEST_SCHEMA: ${{ env.MYSQL_TEST_DB }}
 
       - name: make macos
         if: ${{ startsWith(matrix.os, 'mac') }}
@@ -87,38 +89,46 @@ jobs:
           echo "TEST_DRIVER=${{ github.workspace }}/RelWithDebInfo/libmaodbc.dylib" >> $GITHUB_ENV
           cmake -G Xcode -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=NO -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO -DWITH_SIGNCODE=OFF -DODBC_LIB_DIR=/opt/homebrew/opt/libiodbc/lib -DODBC_INCLUDE_DIR=/opt/homebrew/opt/libiodbc/include -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DOPENSSL_LIBRARIES=/usr/local/opt/openssl/lib -DWITH_EXTERNAL_ZLIB=On .
           cmake --build . --config RelWithDebInfo
-        env:
-          TEST_DSN: maodbc_test
-          TEST_UID: ${{ env.MYSQL_TEST_USER }}
-          TEST_SERVER: ${{ env.MYSQL_TEST_HOST }}
-          TEST_PASSWORD: ${{ env.MYSQL_TEST_PASSWD }}
-          TEST_PORT: ${{ env.MYSQL_TEST_PORT }}
-          TEST_SCHEMA: ${{ env.MYSQL_TEST_DB }}
+
+      - name: Install WiX
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        shell: powershell
+        run: |
+          choco install wixtoolset -y
 
       - name: make windows
         if: ${{ startsWith(matrix.os, 'windows') }}
         shell: powershell
         run: |
-          cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL .
+          cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL . #-DDIRECT_LINK_TESTS=1 .
           cmake --build . --config RelWithDebInfo 
-        env:
-          TEST_DSN: maodbc_test
-          TEST_UID: ${{ env.MYSQL_TEST_USER }}
-          TEST_SERVER: ${{ env.MYSQL_TEST_HOST }}
-          TEST_PASSWORD: ${{ env.MYSQL_TEST_PASSWD }}
-          TEST_PORT: ${{ env.MYSQL_TEST_PORT }}
-          TEST_SCHEMA: ${{ env.MYSQL_TEST_DB }}
+
+      - name: Install generated MSI (Windows only)
+        if: startsWith(matrix.os, 'windows')
+        shell: powershell
+        run: |
+          pwd
+          ls ${{ github.workspace }}\packaging\windows
+          Get-ChildItem -Path ${{ github.workspace }}\packaging\windows\mariadb-connector-odbc-*.msi
+          $log = "install.log"
+          foreach ($msi in Get-ChildItem -Path ${{ github.workspace }}\packaging\windows\mariadb-connector-odbc-*.msi) {
+            $procInstall= Start-Process msiexec.exe -ArgumentList "/i $($msi.FullName) /qn /norestart" -NoNewWindow -PassThru
+            #$procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru 
+            #$procMain.WaitForExit() 
+            #$procLog.Kill()
+          }
+          Get-OdbcDriver -Platform "64-bit"
+          Add-OdbcDsn -Name $env:TEST_DSN -DriverName "MariaDB ODBC 3.1 Driver" -DsnType "User" -SetPropertyValue @( "SERVER=$env:TEST_SERVER", "DATABASE=$env:TEST_SCHEMA", "USER=$env:TEST_UID", "PASSWORD=$env:TEST_PASSWORD", "PORT=$env:TEST_PORT" )
 
       - name: Run test suite
         shell: bash
         run: |
           echo "$PWD"
           
-
-          ls -lrt
+          chmod 777 test
+          ls -lrta
           cd ./test
           echo "$PWD"
-          ls -lrt
           if [ "$DB_TYPE" = "mysql" ] ; then
             cp ../libmariadb/caching_sha2_password.* ../
           fi
@@ -127,16 +137,16 @@ jobs:
             TEST_DRIVER="MariaDB ODBC 3.1 Driver"
             # INSTALLFOLDER=''
             ls ./RelWithDebInfo
-            cd ../wininstall && for msi in mariadb-connector-odbc-*.msi ; do msiexec /i $msi  /qn /norestart; done
             set +x
-            odbcconf CONFIGDSN "$TEST_DRIVER" "DSN=$TEST_DSN;SERVER=$TEST_SERVER;DATABASE=$TEST_SCHEMA;USER=$TEST_UID;PASSWORD=$TEST_PASSWORD;PORT=$TEST_PORT;$TEST_ADD_PARAM"
+            #odbcconf CONFIGDSN "$TEST_DRIVER" "DSN=$TEST_DSN;SERVER=$TEST_SERVER;DATABASE=$TEST_SCHEMA;USER=$TEST_UID;PASSWORD=$TEST_PASSWORD;PORT=$TEST_PORT;$TEST_ADD_PARAM"
             set -ex
           else
-            export ODBCINI="${{ github.workspace }}/test/odbc.ini"
-            export ODBCSYSINI=${{ github.workspace }}/test
 
-            cat $ODBCSYSINI/odbcinst.ini
-            cat $ODBCSYSINI/odbc.ini | grep -v PASSWORD
+            cat $ODBCINSTINI
+            cat $ODBCINI | grep -v PASSWORD
+
+            chmod 666 $ODBCINI $ODBCSYSINI/odbcinst.ini
+            ls -lrt
           fi
           ctest --verbose
 
@@ -147,13 +157,7 @@ jobs:
           DB_TYPE: ${{ matrix.db-type }}
           LOCAL_DB: ${{ steps.setup-env.outputs.database-type }}
           os: ${{ matrix.os }}
-          TEST_DSN: maodbc_test
           TEST_DRIVER: ${{ env.TEST_DRIVER || 'maodbc_test' }}
-          TEST_UID: ${{ env.MYSQL_TEST_USER }}
-          TEST_SERVER: ${{ env.MYSQL_TEST_HOST }}
-          TEST_PASSWORD: ${{ env.MYSQL_TEST_PASSWD }}
-          TEST_PORT: ${{ env.MYSQL_TEST_PORT }}
-          TEST_SCHEMA: ${{ env.MYSQL_TEST_DB }}
           TEST_SOCKET:
           SSLCERT: ${{ matrix.db-type == 'container' && format('{0}/.github/workflows/certs/server.crt', github.workspace) || '' }}
           MARIADB_PLUGIN_DIR: ${{ github.workspace }}

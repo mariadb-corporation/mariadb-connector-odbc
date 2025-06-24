@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2023 MariaDB Corporation AB
+   Copyright (C) 2013,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -252,6 +252,11 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
       MADB_FREE(Dbc->CatalogName);
       if (isWChar)
       {
+        /* This can happen with direct linking only */
+        if (StringLength == SQL_NTS)
+        {
+          StringLength= (SQLINTEGER)(SqlwcsLen((SQLWCHAR*)ValuePtr, -1) * sizeof(SQLWCHAR));
+        }
         /* IsAnsi will be set before this, even if it is set before connection
            StringLength from DM here is octets length */
         Dbc->CatalogName= MADB_ConvertFromWCharEx((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), NULL, Dbc->ConnOrSrcCharset, NULL, TRUE);
@@ -411,6 +416,12 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     SQLSMALLINT StrLen;
     SQLRETURN   ret;
 
+    /* This is normally cared by DM and this is only for direct linking case - if connection has not been established yet,
+       returnring error */
+    if (Dbc->mariadb == NULL && Dbc->CatalogName == NULL)
+    {
+      return MADB_SetError(&Dbc->Error, MADB_ERR_08003, NULL, 0);
+    }
     ret= Dbc->Methods->GetCurrentDB(Dbc, ValuePtr, BufferLength, &StrLen, isWChar);
     /* if we weren't able to determine the current db, we will return the cached catalog name */
     if (!SQL_SUCCEEDED(ret) && Dbc->CatalogName)
@@ -436,7 +447,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
     /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
-    *(SQLULEN*)ValuePtr= SQL_CUR_USE_ODBC;
+    *(SQLULEN*)ValuePtr= SQL_CUR_USE_DRIVER;
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */
