@@ -6,6 +6,7 @@ SQLAllocEnv
 SQLAllocHandle
 SQLAllocStmt
 SQLBindCol
+SQLBindParam
 SQLBindParameter
 SQLBrowseConnect
 SQLBrowseConnect@UNICODE@

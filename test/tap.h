@@ -60,7 +60,7 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
     /* _snprintf returns negative number if buffer is not big enough */
     if (result > count)
     {
-      return count - result - 1;
+      return (int)(count - result - 1);
     }
     return result;
 }
@@ -143,14 +143,14 @@ static unsigned long my_options= 67108866;
 #define CHANGE_DEFAULT_OPTIONS(_NEW_OPTIONS) my_options=defaultOptions=_NEW_OPTIONS
 
 static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
-static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
+static SQLINTEGER    OdbcVer= SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
-static unsigned int  my_port=        3306;
+static unsigned int  my_port= 3306;
 char                 ma_strport[12]= "PORT=3306";
 char                 my_host[256], DriverVersion[12], sql_mode[512];
-static int           Travis= 0, TravisOnOsx= 0;
+BOOL                 Travis= 0, TravisOnMacos= 0, GithubActions= 0, GithubActionsOnMacos= 0;
 BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE,
-        IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
+                      IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -1006,13 +1006,40 @@ int reset_changed_server_variables(void)
   return error;
 }
 
-/* Things to read once and not each time the connection is made*/
+/* Looks like same version of iOdbc behaves differently on os x and linux, thus for some tests we need to be able to tell there is iOdbc run */
+BOOL iOdbcOnOsX()
+{
+#ifdef __APPLE__
+  return iOdbc();
+#endif
+  return FALSE;
+}
+
+/* Things to read once and not each time the connection is made */
 int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
 {
   SQLRETURN rc;
   SQLCHAR val[20], DbmsName[16];
   SQLSMALLINT len;
   SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
+
+  if (getenv("TRAVIS") != NULL)
+  {
+    Travis= 1;
+    if (_stricmp(getenv("TRAVIS_OS_NAME"), "osx") == 0)
+    {
+      TravisOnMacos= 1;
+    }
+  }
+
+  if (getenv("GITHUB_ACTIONS") != NULL)
+  {
+    GithubActions= 1;
+    if (iOdbcOnOsX())
+    {
+      GithubActionsOnMacos= 1;
+    }
+  }
 
   if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
   {
@@ -1108,15 +1135,7 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
   wdrivername= str2sqlwchar_on_gbuff((const char*)my_drivername, strlen((const char*)my_drivername) + 1, utf8, DmUnicode);
   wstrport=    str2sqlwchar_on_gbuff((const char*)ma_strport,    strlen((const char*)ma_strport) + 1,    utf8, DmUnicode);
   wadd_connstr=str2sqlwchar_on_gbuff((const char*)add_connstr,   strlen((const char*)add_connstr) + 1,   utf8, DmUnicode);
-  if (getenv("TRAVIS") != NULL)
-  {
-    Travis= 1;
-    if (_stricmp(getenv("TRAVIS_OS_NAME"), "osx") == 0)
-    {
-      TravisOnOsx= 1;
-    }
-  }
-  
+
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
     odbc_print_error(SQL_HANDLE_DBC, Connection); 
@@ -1399,12 +1418,20 @@ int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
 }
 
 
+const char* PrintServerVersion(SQLHDBC Conn, BOOL onlyReturn)
+{
+  static char ServerVersion[32];
+  SQLGetInfo(Conn, SQL_DBMS_VER, (SQLPOINTER)ServerVersion, sizeof(ServerVersion), NULL);
+  if (!onlyReturn)
+  {
+    diag(ServerVersion);
+  }
+  return ServerVersion;
+}
 BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
 {
   unsigned int ServerMajor= 0, ServerMinor= 0, ServerPatch= 0;
-  SQLCHAR ServerVersion[32];
-
-  SQLGetInfo(Conn, SQL_DBMS_VER, ServerVersion, sizeof(ServerVersion), NULL);
+  const char *ServerVersion= PrintServerVersion(Conn, TRUE);
 
   sscanf((const char*)ServerVersion, "%u.%u.%u", &ServerMajor, &ServerMinor, &ServerPatch);
 
@@ -1449,7 +1476,7 @@ BOOL UnixOdbc()
 int GetDefaultCharType(int WType, BOOL isAnsiConnection)
 {
 #ifdef _WIN32
-  if (isAnsiConnection != FALSE)
+  if (using_dm(Connection) && isAnsiConnection != FALSE)
   {
     switch (WType) {
     case SQL_WCHAR:
@@ -1463,15 +1490,6 @@ int GetDefaultCharType(int WType, BOOL isAnsiConnection)
 #endif
 
   return WType;
-}
-
-/* Looks like same version of iOdbc behaves differently on os x and linux, thus for some tests we need to be able to tell there is iOdbc run */
-BOOL iOdbcOnOsX()
-{
-#ifdef __APPLE__
-  return iOdbc();
-#endif
-  return FALSE;
 }
 
 

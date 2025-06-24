@@ -2603,7 +2603,7 @@ SQLRETURN SQL_API SQLSetParam(SQLHSTMT stmt,
 /* }}} */
 
 /* {{{ SQLBindParam - we need it for direct linking mainly */
-SQLRETURN  SQL_API SQLBindParam(SQLHSTMT StatementHandle,
+SQLRETURN SQL_API SQLBindParam(SQLHSTMT StatementHandle,
                                 SQLUSMALLINT ParameterNumber, SQLSMALLINT ValueType,
                                 SQLSMALLINT ParameterType, SQLULEN LengthPrecision,
                                 SQLSMALLINT ParameterScale, SQLPOINTER ParameterValue,

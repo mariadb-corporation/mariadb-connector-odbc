@@ -6,6 +6,7 @@ SQLAllocHandle;
 SQLAllocStmt;
 SQLBindCol;
 SQLBindParameter;
+SQLBindParam;
 SQLBrowseConnect;
 SQLBrowseConnectW;
 SQLBulkOperations;
