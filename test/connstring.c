@@ -92,7 +92,7 @@ int CreateTestDsn(MADB_Dsn *dsn)
     ++CreatedDsnCount;
     return OK;
   }
-  diag("An error occured while saving DSN %s", dsn->DSNName);
+  diag("An error occured while saving DSN %s: %s", dsn->DSNName, dsn->ErrorMsg);
   return FAIL;
 }
 
