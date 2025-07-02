@@ -252,10 +252,10 @@ ODBC_TEST(t_isolation3)
 MA_ODBC_TESTS my_tests[]=
 {
   {my_transaction,"my_transaction"},
-  {t_tran, "t_tran"},
-  {t_isolation, "t_isolation"},
-  {t_isolation2, "t_isolation2_value_change_tracking"},
-  {t_isolation3, "t_isolation3_set_before_connect"},
+  {t_tran,        "t_tran"},
+  {t_isolation,   "t_isolation"},
+  {t_isolation2,  "t_isolation2_value_change_tracking"},
+  {t_isolation3,  "t_isolation3_set_before_connect"},
   {NULL, NULL}
 };
 

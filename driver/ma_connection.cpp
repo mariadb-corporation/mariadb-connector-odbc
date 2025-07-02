@@ -828,7 +828,7 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
             NeedComma= 1;
           }
           strcpy(Ptr, TlsVersionName[i]);
-          Ptr += strlen(TlsVersionName[i]);
+          Ptr+= strlen(TlsVersionName[i]);
         }
       }
       mysql_optionsv(_mariadb, MARIADB_OPT_TLS_VERSION, (void *)TlsVersion);

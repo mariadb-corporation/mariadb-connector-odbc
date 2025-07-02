@@ -1643,6 +1643,29 @@ ODBC_TEST(t_odbc429)
 }
 
 
+ODBC_TEST(t_largerpacket)
+{
+  SQLLEN len= 0;
+  SQLCHAR buf[256];
+
+  OK_SIMPLE_STMT(Stmt, "SELECT REPEAT('A', 20000000)");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, buf, sizeof(buf), &len));
+  if (len != SQL_NULL_DATA && len != 20000000)
+  {
+    diag("Depending on max_allowed_packet size the length of fetched value should be either SQL_NULL_DATA(-1) or 20000000,"
+      " but it is %lld", (long long)len);
+    return FAIL;
+  }
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  /* Just to verify that we haven't lost the connection */
+  OK_SIMPLE_STMT(Stmt, "SELECT 1");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug32420, "t_bug32420"},
@@ -1677,6 +1700,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc214, "t_odbc214_medium"},
   {t_odbc350, "t_odbc350_bit_in_subquery"},
   {t_odbc429, "t_odbc429odbc425_moreresults_after_error"},
+  {t_largerpacket,"larger_max_packet"},
   {NULL, NULL}
 };
 
