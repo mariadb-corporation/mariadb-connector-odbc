@@ -246,6 +246,11 @@ SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
       MADB_FREE(CatalogName);
       if (isWChar)
       {
+        /* This can happen with direct linking only */
+        if (StringLength == SQL_NTS)
+        {
+          StringLength= (SQLINTEGER)(SqlwcsLen((SQLWCHAR*)ValuePtr, -1) * sizeof(SQLWCHAR));
+        }
         /* IsAnsi will be set before this, even if it is set before connection
            StringLength from DM here is octets length */
         CatalogName= MADB_ConvertFromWChar((SQLWCHAR *)ValuePtr, StringLength/ sizeof(SQLWCHAR), nullptr, ConnOrSrcCharset, nullptr, true);
@@ -407,6 +412,12 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   case SQL_ATTR_CURRENT_CATALOG:
   {
     SQLSMALLINT StrLen;
+    /* This is normally cared by DM and this is only for direct linking case - if connection has not been established yet,
+       returnring error */
+    if (mariadb == nullptr && CatalogName == nullptr)
+    {
+      return MADB_SetError(&Error, MADB_ERR_08003, nullptr, 0);
+    }
 
     auto ret= GetCurrentDB(ValuePtr, BufferLength, &StrLen, isWChar);
 
@@ -434,10 +445,7 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
     /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= MetadataId;
   case SQL_ATTR_ODBC_CURSORS:
-#pragma warning(disable: 4995)
-#pragma warning(push)
-    *(SQLULEN*)ValuePtr= SQL_CUR_USE_ODBC;
-#pragma warning(pop)
+    *(SQLULEN*)ValuePtr= SQL_CUR_USE_DRIVER;
     break;
   case SQL_ATTR_ENLIST_IN_DTC:
     /* MS Distributed Transaction Coordinator not supported */

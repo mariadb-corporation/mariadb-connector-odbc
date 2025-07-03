@@ -660,7 +660,7 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
       if (MADB_DYNAPPENDCONST(&StmtStr, "=DATABASE()"))
         goto dynerror;
 
-    if (TableName && NameLength3)
+    if (TableName/* && NameLength3*/)
     {
       if (MADB_DynstrAppend(&StmtStr, "AND TABLE_NAME") ||
         AddPvOrIdCondition(Stmt, (void*)&StmtStr, (size_t)-1, TableName, NameLength3))
@@ -935,6 +935,14 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     }
     p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
   }
+#ifdef _ACTIONS_TRACE_
+#ifdef __APPLE__
+  if (getenv("GITHUB_ACTIONS") != NULL && strncmp(getenv("GITHUB_ACTIONS"), "true", 4) == 0 && IdentifierType == SQL_ROWVER)
+  {
+    printf("# \"%s\"(%hu)\n", StmtStr, Nullable);
+  }
+#endif // __APPLE__
+#endif
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
 /* }}} */

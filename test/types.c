@@ -1173,7 +1173,7 @@ ODBC_TEST(t_bug31220)
   SQLWCHAR outbuf[5];
 
   /* the call sequence of this test is not allowed under a driver manager */
-  if (using_dm(Connection))
+  if (using_dm())
     return OK;
 
   OK_SIMPLE_STMT(Stmt, "select 1");

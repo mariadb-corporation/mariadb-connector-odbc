@@ -131,4 +131,5 @@ void         MADB_CloseCursor       (MADB_Stmt *Stmt);
   return MADB_SetError(&aStmt->Error, MADB_ERR_HY008, "Execution canceled by command from other thread", 0);\
 }} while(0)
 #define RESET_CANCELED(aStmt) (aStmt)->canceled= false
-#endif
+
+#endif /* _ma_statement_h_ */

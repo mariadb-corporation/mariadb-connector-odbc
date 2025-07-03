@@ -643,30 +643,32 @@ ODBC_TEST(t_current_catalog_unicode)
   SQLWCHAR    cur_db[255];
   SQLRETURN   rc;
   SQLINTEGER  len;
+  SQLINTEGER  schemaWlen= (SQLINTEGER)(sizeof("test_odbc_current")*sizeof(SQLWCHAR));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
-  CHECK_STMT_RC(Stmt,rc);
+  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  CHECK_STMT_RC(Stmt, rc);
 
   rc = SQLGetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, sizeof(db), &len);
-  CHECK_DBC_RC(Connection,rc);
+  CHECK_DBC_RC(Connection, rc);
 
   is_num(len, strlen(my_schema) * sizeof(SQLWCHAR));
-  IS_WSTR(db, wschema, 5);
+  IS_WSTR(db, wschema, strlen(my_schema));
 
-  rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, SQL_NTS);
-  CHECK_DBC_RC(Connection,rc);
+  /* W/out DM driver does not deal well with SQL_NTS here */
+  rc= SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, len);
+  CHECK_DBC_RC(Connection, rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE IF EXISTS test_odbc_current");
 
   latin_as_sqlwchar((char*)"test_odbc_current", cur_db);
-  rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, SQL_NTS);
+  rc= SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, schemaWlen);
   FAIL_IF(rc == SQL_SUCCESS, "Error expected");
 
   OK_SIMPLE_STMT(Stmt, "CREATE DATABASE test_odbc_current");
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
 
   latin_as_sqlwchar((char*)"test_odbc_current", cur_db);
-  rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, SQL_NTS);
+  rc = SQLSetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, cur_db, schemaWlen);
   CHECK_DBC_RC(Connection,rc);
 
   rc = SQLGetConnectAttrW(Connection, SQL_ATTR_CURRENT_CATALOG, db, 255, &len);
@@ -676,8 +678,7 @@ ODBC_TEST(t_current_catalog_unicode)
   IS_WSTR(db, cur_db, 18);
 
   /* reset for further tests */
-  rc = SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, SQL_NTS);
-  CHECK_DBC_RC(Connection,rc);
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_CURRENT_CATALOG, my_schema, (SQLINTEGER)strlen(my_schema)));
 
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE test_odbc_current");
 
@@ -1182,7 +1183,7 @@ OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug8860, `t_bug8860_a'b`");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (!using_dm(Connection))
+  if (!using_dm())
   {
     /* Specifying "" as the table name gets us nothing. */
     /* But iODBC, for one, will convert our "" into a NULL. */

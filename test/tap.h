@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -61,7 +61,7 @@ int _snprintf(char *buffer, size_t count, const char *format, ...)
     /* _snprintf returns negative number if buffer is not big enough */
     if (result > count)
     {
-      return count - result - 1;
+      return (int)(count - result - 1);
     }
     return result;
 }
@@ -144,14 +144,14 @@ static unsigned long my_options= 67108866;
 #define CHANGE_DEFAULT_OPTIONS(_NEW_OPTIONS) my_options=defaultOptions=_NEW_OPTIONS
 
 static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
-static SQLINTEGER    OdbcVer=        SQL_OV_ODBC3;
+static SQLINTEGER    OdbcVer= SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
-static unsigned int  my_port=        3306;
+static unsigned int  my_port= 3306;
 char                 ma_strport[12]= "PORT=3306";
 char                 my_host[256], DriverVersion[12], sql_mode[512];
-static int           Travis= 0, TravisOnOsx= 0;
-BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE
-, IsMaxScale= FALSE, IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
+BOOL                 Travis= FALSE, TravisOnMacos= FALSE, GithubActions= FALSE, GithubActionsOnMacos= FALSE;
+BOOL                 ForwardOnly= FALSE, NoCache= FALSE, DynamicAllowed= FALSE, PerfSchema= FALSE, IsMaxScale= FALSE,
+                     IsSkySql= FALSE, IsSkySqlHa= FALSE, IsXpand= FALSE, IsMysql= FALSE;
 
 /* To use in tests for conversion of strings to (sql)wchar strings */
 SQLWCHAR  sqlwchar_buff[8192], sqlwchar_empty[]= {0};
@@ -186,7 +186,7 @@ char *test_status[]= {"not ok", "ok", "skip"};
 /* Tests is known to sometimes fail in some environments */
 #define UNSTABLE      4
 
-const char comments[][2][64]= { {"\t#TODO: not ok - test is known to fail, unknown reason",
+const char comments[][2][64]= { {"\t#TODO: - test is known to fail, unknown reason",
                                  "\t#Yay, seems like this problem has been magically fixed"},
                                 {"",""},
                                 {"\t#TODO: Test is marked as requiring fix",
@@ -807,7 +807,7 @@ return FAIL;\
 } } while (0)
 
 
-int using_dm(HDBC hdbc)
+int using_dm()
 {
   return (DmMajor != 0 || DmMinor !=  0 || DmPatch != 0);
 }
@@ -853,6 +853,34 @@ int AllocEnvConn(SQLHANDLE *Env, SQLHANDLE *Connection)
 
 SQLWCHAR * str2sqlwchar_on_gbuff(const char *str, size_t len, MARIADB_CHARSET_INFO *from_cs, MARIADB_CHARSET_INFO *to_cs);
 
+SQLCHAR* ConnectionString(char* buffer, BOOL printIt, const char *dsn, const char *uid, const char *pwd, unsigned int port,
+  const char *schema, unsigned long *options, const char *server, const char *add_parameters)
+{
+  /* my_options |= 4; */ /* To enable debug */
+  if (UseDsnOnly != FALSE)
+  {
+    _snprintf(buffer, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
+    if (printIt)
+    {
+      diag(buffer);
+    }
+  }
+  else
+  {
+    _snprintf(buffer, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+      uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
+      schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
+      add_parameters ? add_parameters : (const char*)add_connstr);
+    if (printIt)
+    {
+      diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+        uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
+        schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
+        add_parameters ? add_parameters : (const char*)add_connstr);
+    }
+  }
+  return buffer;
+}
 
 /* Returns STMT handle for newly created connection, or NULL if connection is unsuccessful */
 SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
@@ -864,27 +892,11 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
   char        DSNOut[1024];
   SQLSMALLINT Length;
 
-  /* my_options |= 4; */ /* To enable debug */
-  if (UseDsnOnly != FALSE)
-  {
-    _snprintf(DSNString, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
-    diag(DSNString);
-  }
-  else
-  {
-    _snprintf(DSNString, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
-      uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
-      schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-      add_parameters ? add_parameters : (const char*)add_connstr);
-    diag("DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
-           uid ? uid : (const char*)my_uid, "********", port ? port : my_port,
-           schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
-           add_parameters ? add_parameters : (const char*)add_connstr);
-  }
-
+  ConnectionString(DSNString, TRUE, dsn, uid, pwd, port, schema, options, server, add_parameters);
   if (DoWConnect == FALSE)
   {
-    if (!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString, SQL_NTS, (SQLCHAR *)DSNOut, sizeof(DSNOut), &Length, SQL_DRIVER_NOPROMPT)))
+    if (!SQL_SUCCEEDED(SQLDriverConnect(Connection, NULL, (SQLCHAR *)DSNString,
+      SQL_NTS, (SQLCHAR *)DSNOut, sizeof(DSNOut), &Length, SQL_DRIVER_NOPROMPT)))
     {
       odbc_print_error(SQL_HANDLE_DBC, Connection);
       return NULL;
@@ -899,7 +911,6 @@ SQLHANDLE DoConnect(SQLHANDLE Connection, BOOL DoWConnect,
       return NULL;
     }
   }
-
   if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Connection, &stmt)))
   {
     diag("Could not create Stmt handle. Connection: %x", Connection);
@@ -1011,13 +1022,40 @@ int reset_changed_server_variables(void)
   return error;
 }
 
-/* Things to read once and not each time the connection is made*/
+/* Looks like same version of iOdbc behaves differently on os x and linux, thus for some tests we need to be able to tell there is iOdbc run */
+BOOL iOdbcOnOsX()
+{
+#ifdef __APPLE__
+  return iOdbc();
+#endif
+  return FALSE;
+}
+
+/* Things to read once and not each time the connection is made */
 int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
 {
   SQLRETURN rc;
   SQLCHAR val[20], DbmsName[16];
   SQLSMALLINT len;
   SQLULEN CurCursorType= SQL_CURSOR_STATIC, SetCursorType= SQL_CURSOR_KEYSET_DRIVEN;
+
+  if (getenv("TRAVIS") != NULL)
+  {
+    Travis= 1;
+    if (_stricmp(getenv("TRAVIS_OS_NAME"), "osx") == 0)
+    {
+      TravisOnMacos= 1;
+    }
+  }
+
+  if (getenv("GITHUB_ACTIONS") != NULL)
+  {
+    GithubActions= 1;
+    if (iOdbcOnOsX())
+    {
+      GithubActionsOnMacos= 1;
+    }
+  }
 
   if (SQLGetInfo(Connection, SQL_DM_VER, val, sizeof(val), &len) != SQL_ERROR)
   {
@@ -1113,15 +1151,7 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
   wdrivername= str2sqlwchar_on_gbuff((const char*)my_drivername, strlen((const char*)my_drivername) + 1, utf8, DmUnicode);
   wstrport=    str2sqlwchar_on_gbuff((const char*)ma_strport,    strlen((const char*)ma_strport) + 1,    utf8, DmUnicode);
   wadd_connstr=str2sqlwchar_on_gbuff((const char*)add_connstr,   strlen((const char*)add_connstr) + 1,   utf8, DmUnicode);
-  if (getenv("TRAVIS") != NULL)
-  {
-    Travis= 1;
-    if (_stricmp(getenv("TRAVIS_OS_NAME"), "osx") == 0)
-    {
-      TravisOnOsx= 1;
-    }
-  }
-  
+
   if (ODBC_Connect(&Env,&Connection,&Stmt) == FAIL)
   {
     odbc_print_error(SQL_HANDLE_DBC, Connection); 
@@ -1335,7 +1365,6 @@ SQLWCHAR* latin_as_sqlwchar(char *str, SQLWCHAR *buffer)
   {
     *buffer++= *str++;
   }
-
   *buffer= 0;
 
   return res;
@@ -1404,12 +1433,20 @@ int sqlwcharcmp(SQLWCHAR *s1, SQLWCHAR *s2, int n)
 }
 
 
+const char* PrintServerVersion(SQLHDBC Conn, BOOL onlyReturn)
+{
+  static char ServerVersion[32];
+  SQLGetInfo(Conn, SQL_DBMS_VER, (SQLPOINTER)ServerVersion, sizeof(ServerVersion), NULL);
+  if (!onlyReturn)
+  {
+    diag(ServerVersion);
+  }
+  return ServerVersion;
+}
 BOOL ServerNotOlderThan(SQLHDBC Conn, unsigned int major, unsigned int minor, unsigned int patch)
 {
   unsigned int ServerMajor= 0, ServerMinor= 0, ServerPatch= 0;
-  SQLCHAR ServerVersion[32];
-
-  SQLGetInfo(Conn, SQL_DBMS_VER, ServerVersion, sizeof(ServerVersion), NULL);
+  const char *ServerVersion= PrintServerVersion(Conn, TRUE);
 
   sscanf((const char*)ServerVersion, "%u.%u.%u", &ServerMajor, &ServerMinor, &ServerPatch);
 
@@ -1454,7 +1491,7 @@ BOOL UnixOdbc()
 int GetDefaultCharType(int WType, BOOL isAnsiConnection)
 {
 #ifdef _WIN32
-  if (isAnsiConnection != FALSE)
+  if (using_dm() && isAnsiConnection != FALSE)
   {
     switch (WType) {
     case SQL_WCHAR:
@@ -1468,15 +1505,6 @@ int GetDefaultCharType(int WType, BOOL isAnsiConnection)
 #endif
 
   return WType;
-}
-
-/* Looks like same version of iOdbc behaves differently on os x and linux, thus for some tests we need to be able to tell there is iOdbc run */
-BOOL iOdbcOnOsX()
-{
-#ifdef __APPLE__
-  return iOdbc();
-#endif
-  return FALSE;
 }
 
 

@@ -638,7 +638,7 @@ ODBC_TEST(t_bug30840)
   SQLCHAR   conn[512], conn_out[1024];
   SQLSMALLINT conn_out_len;
 
-  if (using_dm(Connection))
+  if (using_dm())
   {
     diag("test doesn't work with (all) driver manager(s)");
     return SKIP;
@@ -1469,15 +1469,14 @@ ODBC_TEST(t_mysqld_stmt_reset)
 ODBC_TEST(t_odbc32)
 {
   HDBC        hdbc1;
-  SQLCHAR     conn[512];
+  SQLCHAR     conn[1024];
   SQLUINTEGER packet_size= 0;
 
-  sprintf((char *)conn, "DSN=%s;PORT=%u", my_dsn, my_port);
-  
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLSetConnectAttr(hdbc1, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)(4096*1024), 0));
 
-  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, conn, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT));
+  CHECK_DBC_RC(hdbc1, SQLDriverConnect(hdbc1, NULL, ConnectionString(conn, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL),
+    SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT));
 
   CHECK_DBC_RC(hdbc1, SQLGetConnectAttr(hdbc1, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)&packet_size, 0, NULL));
 
@@ -1797,8 +1796,8 @@ ODBC_TEST(t_odbc139)
     skip("Waiting for the fix in Connector/C for servers > 10.2.0");
   }
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
-
-  CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)"test", 4));
+  // Is it really needed for this test?
+  CHECK_DBC_RC(Hdbc, SQLSetConnectAttr(Hdbc, SQL_ATTR_CURRENT_CATALOG, (SQLPOINTER)my_schema, SQL_NTS));
   Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, &Compression, NULL, NULL);
 
   FAIL_IF(Hstmt == NULL, "Connection with compression failed");

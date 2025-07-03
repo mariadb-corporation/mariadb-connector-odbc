@@ -456,7 +456,7 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
   }
   if (!SQLWriteDSNToIni(Dsn->DSNName, Dsn->Driver))
   {
-    SQLInstallerError(1,&ErrNum, Dsn->ErrorMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
+    SQLInstallerError((WORD)1,&ErrNum, Dsn->ErrorMsg, (WORD)SQL_MAX_MESSAGE_LENGTH, NULL);
     return FALSE;
   }
 

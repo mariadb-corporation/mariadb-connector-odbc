@@ -18,10 +18,10 @@
 *************************************************************************************/
 #include "ma_odbc.h"
 
-Client_Charset utf8= { CP_UTF8, NULL };
-MARIADB_CHARSET_INFO* DmUnicodeCs= NULL;;
+Client_Charset utf8= { CP_UTF8, nullptr };
+MARIADB_CHARSET_INFO* DmUnicodeCs= nullptr;;
 Client_Charset SourceAnsiCs= {0, 0}; /* Basically it should be initialized with 0 anyway */
-const char* DefaultPluginLocation= NULL;
+const char* DefaultPluginLocation= nullptr;
 #ifndef _MAX_PATH
 # define _MAX_PATH 260
 #endif
@@ -84,7 +84,7 @@ static void DetectAppType(MADB_Env* Env)
 {
   Env->AppType= ATypeGeneral;
 #ifdef _WIN32
-  if (GetModuleHandle("msaccess.exe") != NULL)
+  if (GetModuleHandle("msaccess.exe") != nullptr)
   {
     Env->AppType= ATypeMSAccess;
   }
@@ -121,19 +121,19 @@ MADB_Env *MADB_EnvInit()
     goto cleanup;
   }
 #endif
-  mysql_library_init(0, NULL, NULL);
+  mysql_library_init(0, nullptr, nullptr);
   if (!(Env= new MADB_Env()))
   {
     /* todo: optional debug output */
     goto cleanup;
   }
 
-  MADB_PutErrorPrefix(NULL, &Env->Error);
+  MADB_PutErrorPrefix(nullptr, &Env->Error);
 
   Env->OdbcVersion= MADB_SUPPORTED_OV;
 
   /* This is probably is better todo with thread_once */
-  if (DmUnicodeCs == NULL)
+  if (DmUnicodeCs == nullptr)
   {
     if (sizeof(SQLWCHAR) == 2)
     {
@@ -148,7 +148,7 @@ MADB_Env *MADB_EnvInit()
   GetDefaultLogDir();
   GetSourceAnsiCs(&SourceAnsiCs);
   /* If we have something in the buffer - then we've already tried to get default location w/out much success */
-  if (DefaultPluginLocation == NULL && strlen(PluginLocationBuf) == 0)
+  if (DefaultPluginLocation == nullptr && strlen(PluginLocationBuf) == 0)
   {
     DefaultPluginLocation= MADB_GetDefaultPluginsDir(PluginLocationBuf, sizeof(PluginLocationBuf));
   }
@@ -175,21 +175,20 @@ SQLRETURN MADB_EnvSetAttr(MADB_Env* Env, SQLINTEGER Attribute, SQLPOINTER ValueP
    case SQL_ATTR_ODBC_VERSION:
     if (!Env->Dbcs.empty())
     {
-      return MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
+      return MADB_SetError(&Env->Error, MADB_ERR_HY010, nullptr, 0);
     }
-    
     if (valueAsInt != SQL_OV_ODBC2 && valueAsInt != SQL_OV_ODBC3 && valueAsInt != MADB_SUPPORTED_OV)
     {
-      return MADB_SetError(&Env->Error, MADB_ERR_HY024, NULL, 0);
+      return MADB_SetError(&Env->Error, MADB_ERR_HY024, nullptr, 0);
     }
     Env->OdbcVersion= valueAsInt;
     break;
   case SQL_ATTR_OUTPUT_NTS:
     if (valueAsInt != SQL_TRUE)
-      MADB_SetError(&Env->Error, MADB_ERR_S1C00, NULL, 0);
+      MADB_SetError(&Env->Error, MADB_ERR_S1C00, nullptr, 0);
     break;
   default:
-    MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Env->Error, MADB_ERR_HYC00, nullptr, 0);
     break;
   }
   return Env->Error.ReturnValue;
@@ -212,7 +211,7 @@ SQLRETURN MADB_EnvGetAttr(MADB_Env *Env, SQLINTEGER Attribute, SQLPOINTER ValueP
     *(SQLINTEGER *)ValuePtr= SQL_TRUE;
     break;
   default:
-    MADB_SetError(&Env->Error, MADB_ERR_HYC00, NULL, 0);
+    MADB_SetError(&Env->Error, MADB_ERR_HYC00, nullptr, 0);
     break;
   }
   return Env->Error.ReturnValue;

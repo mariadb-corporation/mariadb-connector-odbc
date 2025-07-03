@@ -142,7 +142,7 @@ ODBC_TEST(sqlprepare)
     Some driver managers (like iODBC) will always do the character conversion
     themselves.
   */
-  if (!using_dm(Connection))
+  if (!using_dm())
   {
     CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -185,7 +185,7 @@ ODBC_TEST(sqlprepare_ansi)
   SQLINTEGER data;
   SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
 
- if (using_dm(Connection))
+ if (using_dm())
   skip("not relevant when using driver manager");
 
   /* Now try SQLPrepareW with an ANSI connection. */
@@ -225,27 +225,27 @@ ODBC_TEST(sqlchar)
   HDBC hdbc1;
   HSTMT hstmt1;
   SQLCHAR data[]= "S\xc3\xA3o Paolo", buff[30];
-  SQLWCHAR wbuff[MAX_ROW_DATA_LEN+1];
-  SQLWCHAR wcdata[]= {'S', 0x00e3, 'o', ' ', 'P', 'a', 'o', 'l', 'o'};
+  SQLWCHAR wbuff[MAX_ROW_DATA_LEN + 1];
+  SQLWCHAR wcdata[]={'S', 0x00e3, 'o', ' ', 'P', 'a', 'o', 'l', 'o'};
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
   CHECK_DBC_RC(hdbc1, SQLConnectW(hdbc1,
-                            wdsn, SQL_NTS,
-                            wuid, SQL_NTS,
-                            wpwd, SQL_NTS));
+    wdsn, SQL_NTS,
+    wuid, SQL_NTS,
+    wpwd, SQL_NTS));
   CHECK_DBC_RC(Connection, SQLAllocStmt(hdbc1, &hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLPrepareW(hstmt1, W(L"SELECT ? FROM DUAL"), SQL_NTS));
 
   CHECK_STMT_RC(hstmt1, SQLBindParameter(hstmt1, 1, SQL_PARAM_INPUT, SQL_C_CHAR,
-                                   SQL_WVARCHAR, 0, 0, data, sizeof(data),
-                                   NULL));
+    SQL_WVARCHAR, 0, 0, data, sizeof(data),
+    NULL));
   CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
   IS_STR(my_fetch_str(hstmt1, buff, 1), data, sizeof(data));
 
-  FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
+  FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_CLOSE));
 
@@ -254,13 +254,16 @@ ODBC_TEST(sqlchar)
 
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
-  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN+1), wcdata, 9);
+  IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN + 1), wcdata, 9);
 
-  FAIL_IF(SQLFetch(hstmt1)!= SQL_NO_DATA_FOUND, "eof expected");
+  FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
-  is_num(SQLFreeHandle(SQL_HANDLE_STMT, hstmt1), SQL_INVALID_HANDLE);
-
+  // We probably could do that in driver as well, TODO: but do we really need
+  if (using_dm())
+  {
+    is_num(SQLFreeHandle(SQL_HANDLE_STMT, hstmt1), SQL_INVALID_HANDLE);
+  }
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 

@@ -256,6 +256,10 @@ ENDIF()
 IF(EXISTS "${CMAKE_SOURCE_DIR}/test/CMakeLists.txt")
   IF(WITH_UNIT_TESTS)
     IF(NOT WIN32)
+      IF(DIRECT_LINK_TESTS)
+        ADD_CUSTOM_COMMAND(TARGET ${LIBRARY_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} ARGS -E copy $<TARGET_FILE:${LIBRARY_NAME}> test)
+      ENDIF()
       # Configuring ini files for testing with UnixODBC
       SET_VALUE(TEST_DRIVER "maodbc_test")
       SET_VALUE(TEST_DSN "maodbc_test")

@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2016, 2019 MariaDB Corporation AB
+                2016, 2025 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -93,7 +93,7 @@ int CreateTestDsn(MADB_Dsn *dsn)
     ++CreatedDsnCount;
     return OK;
   }
-  diag("An error '%s' occured while saving DSN %s", dsn->ErrorMsg, dsn->DSNName);
+  diag("The error '%s' occured while saving DSN %s", dsn->ErrorMsg, dsn->DSNName);
   return FAIL;
 }
 
@@ -142,7 +142,14 @@ ODBC_TEST(connstring_test)
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
   IS_STR(Dsn->Description, Description, strlen(Description) + 1);
 
-  FAIL_IF(CreateTestDsn(Dsn) == FAIL, "Failed to create test DSN");
+  if (CreateTestDsn(Dsn) == FAIL)
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Failed to create test DSN");
+  }
   IS(MADB_DSN_Exists(DsnName));
 
   RESET_DSN(Dsn);
@@ -210,7 +217,14 @@ ODBC_TEST(options_test)
 
     VERIFY_OPTIONS(Dsn, bit);
 
-    IS(CreateTestDsn(Dsn));
+    if (CreateTestDsn(Dsn) == FAIL)
+    {
+      if (GithubActionsOnMacos)
+      {
+        skip("Skipping - could not add the DSN");
+      }
+      FAIL_IF(TRUE, "Failed to create test DSN");
+    }
 
     RESET_DSN(Dsn);
 
@@ -251,7 +265,14 @@ ODBC_TEST(all_other_fields_test)
        the (new) DSN only once, or by creating new DSN for each keyword. */
     skip("Skipping with test in Travis");
   }
-  FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
+  if (!MADB_DSN_Exists(DsnName))
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Something went wrong - DSN does not exsist");
+  }
 
   while(DsnKeys[i].DsnKey != NULL)
   {
@@ -333,7 +354,14 @@ ODBC_TEST(aliases_tests)
   unsigned int options= 0xf0f0f0f0;
   unsigned int option= ~options;
 
-  FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
+  if (!MADB_DSN_Exists(DsnName))
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Something went wrong - DSN does not exsist");
+  }
 
   RESET_DSN(Dsn);
 
@@ -384,7 +412,14 @@ ODBC_TEST(dependent_fields)
   const char *LocalConnStr= "DSN=madb_connstr_dependent_fields";
   char connstr4dsn[512];
 
-  FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
+  if (!MADB_DSN_Exists(DsnName))
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Something went wrong - DSN does not exsist");
+  }
 
   RESET_DSN(Dsn);
 
@@ -429,7 +464,14 @@ ODBC_TEST(driver_vs_dsn)
 {
   char connstr4dsn[512];
 
-  FAIL_IF(!MADB_DSN_Exists(DsnName), "Something went wrong - DSN does not exsist");
+  if (!MADB_DSN_Exists(DsnName))
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Something went wrong - DSN does not exsist");
+  }
 
   RESET_DSN(Dsn);
 
@@ -474,7 +516,15 @@ ODBC_TEST(odbc_188)
   VERIFY_OPTIONS(Dsn, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT|MADB_OPT_FLAG_NO_PROMPT);
   IS_STR(Dsn->Description, Description, strlen(Description) + 1);
 
-  FAIL_IF(CreateTestDsn(Dsn) == FAIL, "Failed to create test DSN");
+  if (CreateTestDsn(Dsn) == FAIL)
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Failed to create test DSN");
+  }
+
   IS(MADB_DSN_Exists(DsnName));
 
   RESET_DSN(Dsn);
@@ -538,7 +588,14 @@ ODBC_TEST(odbc_229)
 
   IS(Dsn->Options & MADB_OPT_FLAG_USE_CNF);
 
-  IS(CreateTestDsn(Dsn));
+  if (CreateTestDsn(Dsn) == FAIL)
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Failed to create test DSN");
+  }
 
   RESET_DSN(Dsn);
 
@@ -570,7 +627,14 @@ ODBC_TEST(odbc_228)
   is_num(Dsn->TlsVersion, MADB_TLSV11|MADB_TLSV13);
   is_num(Dsn->Port, 3307);
 
-  IS(CreateTestDsn(Dsn));
+  if (CreateTestDsn(Dsn) == FAIL)
+  {
+    if (GithubActionsOnMacos)
+    {
+      skip("Skipping - could not add the DSN");
+    }
+    FAIL_IF(TRUE, "Failed to create test DSN");
+  }
 
   RESET_DSN(Dsn);
 
