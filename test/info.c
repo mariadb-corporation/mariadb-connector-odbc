@@ -896,13 +896,13 @@ ODBC_TEST(driver_ver)
   SQLSMALLINT len= 0;
 
   CHECK_DBC_RC(wConnection, SQLGetInfoW(wConnection, SQL_DRIVER_VER, wBuffer, sizeof(wBuffer), &len));
-  is_num(len, 20);
+  is_num(len, 10*sizeof(SQLWCHAR));
   wBuffer[0]= 0;
   CHECK_DBC_RC(wConnection, SQLGetInfo(wConnection, SQL_DRIVER_VER, buffer, sizeof(buffer), &len));
   is_num(len, 10);
 
   CHECK_DBC_RC(Connection, SQLGetInfoW(Connection, SQL_DRIVER_VER, wBuffer, sizeof(wBuffer), &len));
-  is_num(len, 20);
+  is_num(len, 10 * sizeof(SQLWCHAR));
   buffer[0]= 0;
   CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_DRIVER_VER, buffer, sizeof(buffer), &len));
   is_num(len, 10);
