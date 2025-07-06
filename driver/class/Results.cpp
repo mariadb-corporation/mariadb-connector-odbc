@@ -129,7 +129,15 @@ namespace mariadb
 
   Results::~Results() {
     if (resultSet != nullptr) {
-      resultSet->close();
+      try
+      {
+        // It can throw
+        resultSet->close();
+      }
+      catch (...)
+      {
+        // eating
+      }
       // Mutually forgetting each other. While we should probably just close the RS
       //resultSet->setStatement(nullptr);
     }

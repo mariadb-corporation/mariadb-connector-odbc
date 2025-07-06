@@ -113,7 +113,15 @@ namespace mariadb
   {
     if (!isFullyLoaded()) {
       //close();
-      flushPendingServerResults();
+      try
+      {
+        // It can throw
+        flushPendingServerResults();
+      }
+      catch (...)//(SQLException&)
+      {
+        // eating excetption
+      }
     }
     checkOut();
   }

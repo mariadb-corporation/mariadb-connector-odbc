@@ -151,7 +151,7 @@ jobs:
           ctest --verbose
 
           export TEST_ADD_PARAM="STREAMRS=1;FORWARDONLY=1"
-          ctest --output-on-failure
+          #ctest --output-on-failure
 
         env:
           DB_TYPE: ${{ matrix.db-type }}

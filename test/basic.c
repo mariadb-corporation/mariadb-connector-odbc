@@ -88,16 +88,16 @@ ODBC_TEST(simple_test)
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
   
   SQLFetch(Stmt);
-  SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
-  SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, sizeof(Buffer), 0);
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer, sizeof(Buffer), 0));
   is_num(value, 1);
 
   IS_WSTR(Buffer, CW("Row no 1"), 9);
 
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-  SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0);
-  SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer,  sizeof(Buffer), 0);
-  FAIL_IF(value != 2, "Expected value=2");
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_USHORT, &value, sizeof(value), 0));
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_WCHAR, Buffer,  sizeof(Buffer), 0));
+  is_num(value, 2);
   IS_WSTR(Buffer, CW("Row no 2"), 9);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -918,7 +918,16 @@ ODBC_TEST(sqlcancelhandle)
   }
   else
   {
-    EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+    if (ForwardOnly == TRUE && NoCache == TRUE)
+    {
+      /* With RS streaming we read the error only when we read the reasult */
+      OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+      EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+    }
+    else
+    {
+      EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+    }
   }
 
   waitrc= WaitForSingleObject(thread, 10000);

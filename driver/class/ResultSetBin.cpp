@@ -836,7 +836,7 @@ namespace mariadb
     if (resultBind) {
       // Ugly - we don't want resetRow to call mysql_stmt_fetch. Maybe it just never should,
       // but it is like it is, and now is not the right time to change that.
-      if (lastRowPointer != rowPointer || reBound/* && (rowPointer != lastRowPointer + 1 || streaming)*/) {
+      if (lastRowPointer != rowPointer || (reBound && !streaming)) {
         resetRow();
         reBound= false;
       }

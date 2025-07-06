@@ -145,9 +145,11 @@ void MADB_DropStmt(MADB_Stmt *Stmt, bool external= true)
   {
     MADB_DeleteDaeStmt(Stmt);
   }
-
+  // Need to reset result before stmt.
+  Stmt->rs.reset();
   if (Stmt->stmt != nullptr)
   {
+    // Not sure if this still can be helpful
     MDBUG_C_PRINT(Stmt->Connection, "-->closing %0x", Stmt->stmt.get());
     MADB_STMT_CLOSE_STMT(Stmt);
   }
