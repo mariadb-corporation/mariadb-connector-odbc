@@ -1246,7 +1246,7 @@ namespace mariadb
     // We need lock only if still connected. if we get disconnected after we read "connected" flag - still no big deal
     bool needLock= connected;
     if (!needLock || lock.try_lock()) {
-      //cmdPrologue();
+      unblockConnection();
       // If connection is closed - we still need to call mysql_stmt_close to deallocate C/C stmt handle
       if (mysql_stmt_close(statementId)) {
         if (needLock) {
@@ -1752,7 +1752,7 @@ namespace mariadb
       }
       else {
         pr->reReadColumnInfo();
-        selectResultSet= ResultSet::create(results, this, pr/*, callableResult*/);
+        selectResultSet= ResultSet::create(results, this, pr, callableResult);
 
       }
       results->addResultSet(selectResultSet, hasMoreResults());
@@ -1786,6 +1786,15 @@ namespace mariadb
   }
 
 
+  void Protocol::unblockConnection()
+  {
+    if (auto activeStream= getActiveStreamingResult()) {
+      activeStream->loadFully(false, this);
+      activeStreamingResult= nullptr;
+    }
+  }
+
+
   void Protocol::cmdPrologue()
   {
     rc= 0;
@@ -1794,12 +1803,7 @@ namespace mariadb
       this->unsyncedReset();
       mustReset= false;
     }
-    Results* activeStream= getActiveStreamingResult();
-    if (activeStream) {
-      activeStream->loadFully(false, this);
-      activeStreamingResult= nullptr;
-    }
-
+    unblockConnection();
     forceReleaseWaitingPrepareStatement();
 
     if (!this->connected){

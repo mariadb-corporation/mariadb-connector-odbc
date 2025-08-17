@@ -91,6 +91,7 @@ class Protocol
   bool     ansiQuotes= false;
 
   // ----- private methods -----
+  void unblockConnection();
   void cmdPrologue();
   void cmdEpilog();
   void changeReadTimeout(int32_t millis);

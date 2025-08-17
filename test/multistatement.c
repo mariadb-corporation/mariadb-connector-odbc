@@ -414,7 +414,6 @@ ODBC_TEST(t_odbc159)
     /* INFORMATION_SCHEMA.STATISTICS has 17 columns in 10.6 */
     expCols[2]= 17;
   }
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS _temp_odbc159;\
                         CREATE TEMPORARY TABLE _temp_odbc159 AS(SELECT * FROM INFORMATION_SCHEMA.STATISTICS);\
                         SELECT * FROM _temp_odbc159 LIMIT 5;");
@@ -428,7 +427,7 @@ ODBC_TEST(t_odbc159)
     }
     else
     {
-      is_num(Rows, ExpRowCount[j]);
+      is_num(Rows, RSSTREAMING ? 0 : ExpRowCount[j]);
     }
     
     CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
@@ -570,6 +569,11 @@ ODBC_TEST(t_odbc169)
   SQLSMALLINT Column, Row= 0;
   SQLCHAR     ColumnData[MAX_ROW_DATA_LEN]={ 0 };
 
+  if (RSSTREAMING)
+  {
+    memset(ExpRowCount, 0, sizeof(ExpRowCount));
+    ExpRowCount[4]= 1;
+  }
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc169");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc169(col1 INT, col2 INT, col3 varchar(32) not null)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc169 VALUES(1, 2, 'Row 1'),(3, 4, 'Row 2'), (5, 6, 'Row 3')");
@@ -581,6 +585,7 @@ ODBC_TEST(t_odbc169)
     do {
       CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &Rows));
       is_num(Rows, ExpRowCount[RsIndex]);
+
       CHECK_STMT_RC(Stmt, SQLNumResultCols(Stmt, &ColumnsCount));
       is_num(ColumnsCount, expCols[RsIndex]);
 
@@ -742,16 +747,29 @@ ODBC_TEST(t_odbc375)
 
   /* In 3.2 with client side prepare we don't get error here, but we get error on SQLMoreResults */
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, Query, SQL_NTS));
-  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
+  if (RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+    // With result set streaming we can only detect the error on fetching the row that RS
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+  }
+  else
+  {
+    EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_ERROR);
+  }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  if (SkipIfRsStreaming())
-  {
-    skip("The error is not detectable atm in case of result streaming");
-  }
   /* Still checking if error returnded in case of single statement */
-  EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT(SELECT 1 UNION SELECT 2)", SQL_NTS), SQL_ERROR);
-
+  if (RSSTREAMING)
+  {
+    // Same here - can detect only on fetch
+    OK_SIMPLE_STMT(Stmt, "SELECT(SELECT 1 UNION SELECT 2)");
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+  }
+  else
+  {
+    EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT(SELECT 1 UNION SELECT 2)", SQL_NTS), SQL_ERROR);
+  }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   return OK;
@@ -869,6 +887,7 @@ ODBC_TEST(multirs_caching)
   is_num(0, rowCount);
   EXPECT_STMT(Stmt1, SQLMoreResults(Stmt1), SQL_NO_DATA);
 
+  // Due to ODBC-470 the following would break protocol in case of RS streaming
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
   CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE t_odbc432");
@@ -953,10 +972,14 @@ ODBC_TEST(multirs_skip)
   CHECK_STMT_RC(Stmt2, SQLFetch(Stmt2));
   is_num(100, my_fetch_int(Stmt2, 1));
  
+  // Dropping Stmt1 before Stmt2 is for purpose - tests that closing PS at server does
+  // not break the protocol(in case of resultset streaming)
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_DROP));
+  // Checking, that Stmt2 didn't get any new "records" because of RS caching
+  // (since it was streamed it had to be cached)
+  EXPECT_STMT(Stmt2, SQLFetch(Stmt2), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt2, SQLFreeStmt(Stmt2, SQL_DROP));
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE t_odbc_multirs_skip");
-
   return OK;
 }
 
