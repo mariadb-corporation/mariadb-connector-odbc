@@ -326,6 +326,10 @@ namespace mariadb
 
   my_bool* defaultParamCallback(void* data, MYSQL_BIND* bind, uint32_t row_nr)
   {
+    // Assuming paramset skip is set in the indicator of 1st column
+    if (bind->u.indicator && *bind->u.indicator == STMT_INDICATOR_IGNORE_ROW) {
+      return '\0';
+    }
     // We can't let the callback to throw - we have to intercept, as otherwise we are guaranteed to have
     // the protocol broken
     try
@@ -333,15 +337,20 @@ namespace mariadb
       ServerSidePreparedStatement *stmt= reinterpret_cast<ServerSidePreparedStatement*>(data);
 
       for (uint32_t i= 0; i < stmt->getParamCount(); ++i) {
+        auto current= bind + i;
+        if (current->u.indicator && *current->u.indicator == STMT_INDICATOR_NULL) {
+          continue;
+        }
         const auto& it= stmt->parColCodec.find(i);
-        /* Let's assume for now, that each column has to have a codec. But still we don't use vector and don't throw exception if not all of them have
-       * For such columns we could assume, that we have normal arrays that we need to pass, and this function could do that simple job instead of callback.
-       * But indicator arrow would still be needed. Thus maybe callback is still better. Another option could be - using default value(indicator for that)
-       * But here there is another problem - the common "row" callback could take care of such columns
-       * More likely that app will need to use array
-       */
+        /* Let's assume for now, that each column has to have a codec. But still we don't use vector and don't throw exception
+         * if not all of them have. For such columns we could assume, that we have normal arrays that we need to pass, and this
+         * function could do that simple job instead of callback. But indicator array would still be needed. Thus maybe callback
+         * is still better. Another option could be - using default value(indicator for that)
+         * But here there is another problem - the common "row" callback could take care of such columns
+         * More likely that app will need to use array
+         */
         if (it != stmt->parColCodec.end()) {
-          if ((*it->second)(stmt->callbackData, bind + i, i, row_nr)) {
+          if ((*it->second)(stmt->callbackData, current, i, row_nr)) {
             return (my_bool*)&error;
           }
         }
@@ -351,7 +360,7 @@ namespace mariadb
     {
       return (my_bool*)&error;
     }
-    return NULL;
+    return '\0';
   }
 
 

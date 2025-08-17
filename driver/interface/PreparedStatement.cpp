@@ -26,8 +26,12 @@
 
 namespace mariadb
 {
-  /*const*/ char paramIndicatorNone= '\0', paramIndicatorNull= STMT_INDICATOR_NULL, paramIndicatorNts= STMT_INDICATOR_NTS, paramIndicatorIgnore= STMT_INDICATOR_IGNORE,
-    paramIndicatorIgnoreRow= STMT_INDICATOR_IGNORE_ROW;
+  /*const*/ char paramIndicatorNone=      '\0',
+                 paramIndicatorNull=      STMT_INDICATOR_NULL, 
+                 paramIndicatorDef=       STMT_INDICATOR_DEFAULT,
+                 paramIndicatorNts=       STMT_INDICATOR_NTS,
+                 paramIndicatorIgnore=    STMT_INDICATOR_IGNORE,
+                 paramIndicatorIgnoreRow= STMT_INDICATOR_IGNORE_ROW;
   /**
    * Constructor. Base class that permits setting parameters for client and server PrepareStatement.
    *

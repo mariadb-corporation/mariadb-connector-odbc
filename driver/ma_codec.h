@@ -29,21 +29,14 @@ namespace mariadb
 
 // {'\0', STMT_INDICATOR_NULL, STMT_INDICATOR_NTS, STMT_INDICATOR_IGNORE, STMT_INDICATOR_NULL, STMT_INDICATOR_IGNORE_ROW};
 
-class IgnoreRow : public ParamCodec
+class IndicatorMapper : public ParamCodec
 {
   SQLUSMALLINT *statusArr;
+  std::vector<SQLLEN*> indPtr;
+  std::size_t arrStep;
 public:
-  IgnoreRow(SQLUSMALLINT* ArrStatusPtr, std::size_t initialOffset= 0) : statusArr(ArrStatusPtr + initialOffset) {}
-  bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) override {
-    if (statusArr[row_nr] == SQL_PARAM_IGNORE) {
-      bind->u.indicator= &paramIndicatorIgnoreRow;
-      return false;
-    }
-    else {
-      bind->u.indicator= &paramIndicatorNone;
-    }
-    return true;
-  }
+  IndicatorMapper(MADB_Stmt *Stmt);
+  bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) override;
 };
 
 

@@ -34,6 +34,44 @@ namespace mariadb
     }
   }
 
+  IndicatorMapper::IndicatorMapper(MADB_Stmt *Stmt) :
+    statusArr(Stmt->Apd->Header.ArrayStatusPtr + Stmt->ArrayOffset),
+    indPtr(Stmt->Ipd->Header.Count, nullptr), // For all statement parameters, not only for bound by the application
+                                             // (Ipd vs Apd)
+    arrStep(getArrayStep(Stmt->Apd->Header, sizeof(SQLLEN)))
+  {
+    for (auto i= 0; i < Stmt->Ipd->Header.Count; ++i) {
+      auto CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ);
+      if (CRec->inUse) {
+        indPtr[i]= static_cast<SQLLEN*>(GetBindOffset(Stmt->Ipd->Header, CRec->IndicatorPtr, 0, sizeof(SQLLEN)));
+      }
+    }
+  }
+
+  bool IndicatorMapper::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) {
+    if (statusArr && statusArr[row_nr] == SQL_PARAM_IGNORE) {
+      bind->u.indicator= &paramIndicatorIgnoreRow;
+      return false;
+    }
+    else {
+      bind->u.indicator= &paramIndicatorNone;
+    }
+    MADB_Stmt *stmt= static_cast<MADB_Stmt*>(data);
+    for (auto i= 0; i < MADB_STMT_PARAM_COUNT(stmt); ++i) {
+      auto indicator= indPtr[i];
+      if (indicator == nullptr) {
+        //(bind + i)->u.indicator= &paramIndicatorDef;
+      }
+      else {
+        if (*indicator == SQL_NULL_DATA) {
+          (bind + i)->u.indicator= &paramIndicatorNull;
+        }
+        indPtr[i]= indicator + arrStep;
+      }
+    }
+    return false;
+  }
+
 
   bool FixedSizeCopyCodec::operator()(void * data, MYSQL_BIND * bind, uint32_t col_nr, uint32_t row_nr)
   {
@@ -393,12 +431,7 @@ namespace mariadb
     SQLLEN buffCharLen= it.getDescRec()->OctetLength/sizeof(SQLWCHAR), charLen;
     
     if (length == NULL_LENGTH) {
-      if (it.indicator() != nullptr) {
-        *it.indicator()= SQL_NULL_DATA;
-      }  
-      else {
-        *it.length()= SQL_NULL_DATA;
-      }
+      *it.indicator()= SQL_NULL_DATA;
       return;
     }
     if (MADB_ConvertAnsi2Unicode(&Stmt->Connection->Charset, (char *)row, (SQLLEN)length, (SQLWCHAR *)it.value(),
@@ -438,12 +471,7 @@ namespace mariadb
     MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
 
     if (length == NULL_LENGTH) {
-      if (it.indicator() != nullptr) {
-        *it.indicator()= SQL_NULL_DATA;
-      }
-      else {
-        *it.length()= SQL_NULL_DATA;
-      }
+      *it.indicator()= SQL_NULL_DATA;
       return;
     }
 

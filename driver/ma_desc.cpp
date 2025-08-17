@@ -1085,10 +1085,6 @@ DescArrayIterator::DescArrayIterator(MADB_Header& header, MADB_DescRecord& rec, 
   , indicatorPtr(reinterpret_cast<SQLLEN*>(GetBindOffset(header, rec.IndicatorPtr, 0, sizeof(SQLLEN))))
   , lengthOffset(getArrayStep(header, sizeof(SQLLEN)))
 {
-  // Somewhere code depends on that. Maybe makes sense - less "noise"
-  if (indicatorPtr == octetLengthPtr) {
-    indicatorPtr= nullptr;
-  }
 }
 
 
@@ -1098,7 +1094,7 @@ DescArrayIterator::DescArrayIterator(MADB_DescRecord& rec, void * val, std::size
   , valueOffset(valOffset)
   , endPtr(reinterpret_cast<void*>(reinterpret_cast<char*>(valuePtr) + valueOffset*arrSize))
   , octetLengthPtr(len)
-  , indicatorPtr(ind != len ? ind : nullptr)
+  , indicatorPtr(ind)
   , lengthOffset(lenOffset)
 {
 }

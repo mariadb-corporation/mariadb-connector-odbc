@@ -78,10 +78,11 @@ public:
   DescArrayIterator(MADB_Header& header, MADB_DescRecord& rec, SQLSMALLINT i);
   DescArrayIterator(MADB_DescRecord& rec, void* val, std::size_t valOffset, SQLLEN* len, SQLLEN* ind, std::size_t lenOffset, std::size_t arrSize);
   inline void* next() {
-    octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + lengthOffset);
-    if (indicatorPtr) {
+    // The following condition has to be checked before octetLengthPtr is moved to the next value
+    if (indicatorPtr != octetLengthPtr) {
       indicatorPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(indicatorPtr) + lengthOffset);
     }
+    octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + lengthOffset);
     return (valuePtr= (void*)((char*)valuePtr + valueOffset));
   }
   inline void*   value()    { return valuePtr;       }

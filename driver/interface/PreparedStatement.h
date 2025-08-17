@@ -28,7 +28,7 @@
 #include "class/ResultSetMetaData.h"
 namespace mariadb
 {
-  extern char paramIndicatorNone, paramIndicatorNull, paramIndicatorNts, paramIndicatorIgnore,
+  extern char paramIndicatorNone, paramIndicatorNull, paramIndicatorDef, paramIndicatorNts, paramIndicatorIgnore,
     paramIndicatorNull, paramIndicatorIgnoreRow;
 // The functor returns bool only to fit the need to check if to skip paramset, and I don't really need to introduce 2 diff callbacks for that, so one "universal"
 class ParamCodec
@@ -43,7 +43,10 @@ class PCodecCallable : public ParamCodec
 {
 public:
   virtual ~PCodecCallable() {}
-  virtual bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr) { return T(data, bind, col_nr, row_nr); }
+  virtual bool operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
+  {
+    return T(data, bind, col_nr, row_nr);
+  }
 };
 
 

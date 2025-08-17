@@ -173,13 +173,13 @@ void MADB_SetBulkOperLengthArr(MADB_Stmt *Stmt, MADB_DescRecord *CRec, SQLLEN *O
     }
 
     if ((OctetLengthPtr != nullptr && OctetLengthPtr[row] == SQL_NULL_DATA)
-      || (IndicatorPtr != nullptr && IndicatorPtr[row] != SQL_NULL_DATA))
+      || (IndicatorPtr != nullptr && IndicatorPtr[row] == SQL_NULL_DATA))
     {
       MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_NULL_DATA);
       continue;
     }
     if ((OctetLengthPtr != nullptr && OctetLengthPtr[row] == SQL_COLUMN_IGNORE)
-      || (IndicatorPtr != nullptr && IndicatorPtr[row] != SQL_COLUMN_IGNORE))
+      || (IndicatorPtr != nullptr && IndicatorPtr[row] == SQL_COLUMN_IGNORE))
     {
       MADB_SetIndicatorValue(Stmt, MaBind, row, SQL_COLUMN_IGNORE);
       continue;
@@ -270,9 +270,8 @@ void MADB_SetIndicatorValue(MADB_Stmt *Stmt, MYSQL_BIND *MaBind, unsigned int ro
 /* }}} */
 
 /* {{{  */
-bool MADB_Stmt::setParamRowCallback(ParamCodec * callback)
+bool MADB_Stmt::setParamRowCallback(ParamCodec* callback)
 {
-  //TODO should do all param codecs. and the operation below should be done once when 1st param codec is added, and not "row callback"
   if (paramCodec.capacity() < stmt->getParamCount()) {
     paramCodec.reserve(stmt->getParamCount());
   }
@@ -368,14 +367,7 @@ void MADB_Stmt::setupBulkCallbacks(uint32_t parNr, MADB_DescRecord* CRec, MADB_D
   auto parIt= paramCodec.begin() + parNr;
   paramCodec.insert(parIt, Unique::ParamCodec(nullptr));
   std::size_t dataArrStep= getArrayStep(Apd->Header, CRec->OctetLength);
-  /*if (Apd->Header.ArrayStatusPtr != nullptr && Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
-  {
-    continue;
-  }
-  if (MaBind->u.indicator && MaBind->u.indicator[row] > STMT_INDICATOR_NONE)
-  {
-    continue;
-  }*/
+
   if (MADB_AppBufferCanBeUsed(CRec->ConciseType, SqlRec->ConciseType)) {
     paramCodec[parNr].reset(new FixedSizeCopyCodec(it));
   }
@@ -519,15 +511,14 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       }
     }
   }
-
+  if (useCallbacks)
+  {
+    Stmt->stmt->setParamCallback(new IndicatorMapper(Stmt));
+  }
   /* just to do this once, and to use already allocated indicator array */
   if (Stmt->Bulk.HasRowsToSkip)
   {
-    if (useCallbacks)
-    {
-      Stmt->stmt->setParamCallback(new IgnoreRow(Stmt->Apd->Header.ArrayStatusPtr, Stmt->ArrayOffset));
-    }
-    else
+    if (!useCallbacks)
     {
       SQLULEN row, Start= Stmt->ArrayOffset;
       if (IndIdx == (unsigned int)-1)
