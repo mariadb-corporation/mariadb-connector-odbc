@@ -112,7 +112,6 @@ namespace mariadb
   ResultSetText::~ResultSetText()
   {
     if (!isFullyLoaded()) {
-      //close();
       try
       {
         // It can throw
@@ -120,7 +119,7 @@ namespace mariadb
       }
       catch (...)//(SQLException&)
       {
-        // eating excetption
+        // eating exception
       }
     }
     checkOut();
