@@ -610,7 +610,7 @@ ODBC_TEST(t_odbc149)
   SQLWCHAR w[][8]= {{'x', 'x', 'x', 0}, {'y', 'y', 0}, {'z', 'z', 'z', 'a', 0}}, wBuf[16];
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc149");
-  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc149 (id int not null, ts timestamp, c varchar(16), b tinyblob, w varchar(16))");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc149 (id INT NOT NULL, ts TIMESTAMP, c VARCHAR(16), b TINYBLOB, w VARCHAR(16))");
 
   /* This cursor closing is required, otherwise DM(not on Windows) freaks out */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -619,7 +619,8 @@ ODBC_TEST(t_odbc149)
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
 
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, id, 0, NULL));
-  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TIMESTAMP, 0, 0, Val, tsLen[0]/* Garbage as buffer len */, tsLen));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TIMESTAMP, SQL_TIMESTAMP, 0, 0, Val,
+    tsLen[0]/* Garbage as buffer len */, tsLen));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, c, sizeof(c[0]), cInd));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY, 0, 0, b, sizeof(b[0]), bLen));
   CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 5, SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WCHAR, 0, 0, w, sizeof(w[0]), cInd));

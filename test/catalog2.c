@@ -155,12 +155,13 @@ ODBC_TEST(t_bug49660)
 
   CHECK_STMT_RC(Stmt, SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0,
                                 NULL, 0, (SQLCHAR *)"t_bug49660", SQL_NTS));
-
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowsCount));
-  is_num(rowsCount, 1); 
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowsCount));
+    is_num(rowsCount, 1);
+  }
   /* Going another way around - sort of more reliable */
   FAIL_IF(SQLFetch(Stmt) == SQL_NO_DATA_FOUND, "expected data");
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP DATABASE bug49660");
@@ -223,11 +224,12 @@ OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug36441_0123456789");
 	              "PRIMARY KEY(pk_for_table1, c1_for_table1))");
 
   CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, "t_bug36441_0123456789", SQL_NTS));
-
   /* Test of SQLRowCount with SQLPrimaryKeys */
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-  is_num(rowCount, 2);
-
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+    is_num(rowCount, 2);
+  }
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR , catalog, sizeof(catalog), &catalog_len));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR , schema , sizeof(schema) , &schema_len));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR , table  , sizeof(table)  , &table_len));
@@ -761,9 +763,9 @@ ODBC_TEST(t_bug57182)
   SQLCHAR buff[24];
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS bug57182");
-  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE DEFINER=`adb`@`%` PROCEDURE `bug57182`(in id int, in name varchar(20)) "
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "CREATE DEFINER=`adb`@`%` PROCEDURE `bug57182`(IN id INT, IN name VARCHAR(20)) "
     "BEGIN"
-    "  insert into simp values (id, name);"
+    "  INSERT INTO simp VALUES (id, name);"
     "END", SQL_NTS)))
   {
     odbc_print_error(SQL_HANDLE_STMT, Stmt);
@@ -778,8 +780,11 @@ ODBC_TEST(t_bug57182)
     "bug57182", SQL_NTS, 
     NULL, 0));
 
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  is_num(2, nRowCount);
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
+    is_num(2, nRowCount);
+  }
   
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
   
@@ -802,10 +807,11 @@ ODBC_TEST(t_bug57182)
   CHECK_STMT_RC(Stmt, SQLProcedureColumns(Stmt, my_schema, SQL_NTS, NULL, 0,
     "bug57182", SQL_NTS, 
     "id", SQL_NTS));
-
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
-  is_num(1, nRowCount);
-
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &nRowCount));
+    is_num(1, nRowCount);
+  }
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, buff, 3), "bug57182", 9);
@@ -828,7 +834,7 @@ ODBC_TEST(t_bug57182)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt, "drop procedure if exists bug57182");
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS bug57182");
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   return OK;
 }
@@ -984,25 +990,41 @@ ODBC_TEST(bug12824839)
 
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, my_schema, SQL_NTS, NULL, 0, "b12824839",
                             SQL_NTS, NULL, 0));
-
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
+  if (RSSTREAMING)
+  {
+    row_count= myrowcount(Stmt);
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
+  }
   is_num(3, row_count);
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, NULL, SQL_NTS, NULL, SQL_NTS,
                                 "b12824839a", SQL_NTS));
-
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
+  if (RSSTREAMING)
+  {
+    row_count= myrowcount(Stmt);
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
+  }
   is_num(2, row_count);
-
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   /* SQLColumns was not completely fixed */
   CHECK_STMT_RC(Stmt, SQLColumns(Stmt, my_schema, SQL_NTS, NULL, 0, NULL,
                             SQL_NTS, NULL, 0));
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
-
+  if (RSSTREAMING)
+  {
+    row_count= myrowcount(Stmt);
+  }
+  else
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &row_count));
+  }
   /* There should be records at least for those 2 tables we've created */
   FAIL_IF(row_count < 6, "expected >= 6 rows");
 
@@ -1360,9 +1382,11 @@ ODBC_TEST(odbc119)
 
   /*  Here it probably can fail in case of case-insentive FS on MacOS and lower_case_table_names=1(not sure if it's even possible) */
   CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, NULL, SQL_NTS, NULL, SQL_NTS, tname, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
-  is_num(RowCount, 4);
-
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+    is_num(RowCount, 4);
+  }
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   IS_STR(my_fetch_str(Stmt, StrValue, 6), "PRIMARY", 6);
@@ -1589,10 +1613,12 @@ ODBC_TEST(odbc313)
 
   CHECK_STMT_RC(Stmt, SQLPrimaryKeys(Stmt, AddSchema, SQL_NTS, NULL, SQL_NTS, (SQLCHAR*)"odbc313_1", SQL_NTS));
 
-  /* Test of SQLRowCount with SQLPrimaryKeys */
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
-  is_num(RowCount, 1);
-
+  if (!RSSTREAMING)
+  {
+    /* Test of SQLRowCount with SQLPrimaryKeys */
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+    is_num(RowCount, 1);
+  }
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, Catalog, sizeof(Catalog), &CatalogLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, Table, sizeof(Table), &TableLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 4, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
@@ -1612,9 +1638,11 @@ ODBC_TEST(odbc313)
   CHECK_STMT_RC(Stmt, SQLStatistics(Stmt, AddSchema, SQL_NTS, NULL, SQL_NTS,
     (SQLCHAR*)"odbc313_1", SQL_NTS,
     SQL_INDEX_ALL, SQL_QUICK));
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
-  is_num(RowCount, 1);
-
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+    is_num(RowCount, 1);
+  }
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, Catalog, sizeof(Catalog), &CatalogLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 3, SQL_C_CHAR, Table, sizeof(Table), &TableLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 9, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
@@ -1633,9 +1661,11 @@ ODBC_TEST(odbc313)
 
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_BEST_ROWID, AddSchema, SQL_NTS, NULL, 0,
     (SQLCHAR*)"odbc313_1", SQL_NTS, SQL_SCOPE_SESSION, SQL_NULLABLE));
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
-  is_num(RowCount, 1);
-
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+    is_num(RowCount, 1);
+  }
   Catalog[0]= '\0';
   //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, Column, sizeof(Column), &ColumnLen));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, temp, sizeof(temp), &ColumnLen));

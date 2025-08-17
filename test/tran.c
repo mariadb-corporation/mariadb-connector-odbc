@@ -120,13 +120,18 @@ ODBC_TEST(t_tran)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_tran");
 
-  SQLRowCount(Stmt, (SQLLEN *)&Rows);
-  is_num(Rows, 1);
+  if (RSSTREAMING)
+  {
+    is_num(my_print_non_format_result_ex(Stmt, FALSE), 1);
+  }
+  else
+  {
+    SQLRowCount(Stmt, (SQLLEN *)&Rows);
+    is_num(Rows, 1);
+  }
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-
   CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0));
-
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_tran");
 
   return OK;

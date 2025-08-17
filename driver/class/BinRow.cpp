@@ -1115,8 +1115,8 @@ namespace mariadb
         rowDataCache.emplace_back();
       }
       else {
-        //rowDataCache.emplace_back(bind[i].length_value, static_cast<const char*>(bind[i].buffer));
-        rowDataCache.emplace_back(b.length && *b.length > 0 ? *b.length : b.buffer_length);
+        // If we could guarantee, that "b.length && *b.length > 0 ? *b.length :" is for current row, we could use it
+        rowDataCache.emplace_back(b.buffer_length);
         b.buffer= const_cast<char*>(rowDataCache.back().arr);
         mysql_stmt_fetch_column(stmt, &b, static_cast<unsigned int>(i), 0);
       }

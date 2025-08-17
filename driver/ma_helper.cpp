@@ -869,14 +869,14 @@ void* GetBindOffset(MADB_Header& Header, void* Ptr, SQLULEN RowNumber, std::size
   if (Header.BindType == SQL_BIND_BY_COLUMN ||
     Header.BindType == SQL_PARAM_BIND_BY_COLUMN)
   {
-    BindOffset+= PtrSize * RowNumber;
+    BindOffset+= PtrSize*RowNumber;
   }
   else
   {
-    BindOffset+= Header.BindType * RowNumber;
+    BindOffset+= Header.BindType*RowNumber;
   }
 
-  return (char *)Ptr + BindOffset;
+  return (char*)Ptr + BindOffset;
 }
 
 /* Checking if column ignored in all bound rows. Should hel*/

@@ -39,13 +39,13 @@ ODBC_TEST(my_columns_null)
     (SQLCHAR *)"my_column_null", SQL_NTS,
     NULL, SQL_NTS));
 
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-
-  is_num(rowCount, 2);
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+    is_num(rowCount, 2);
+  }
 
   is_num(2, my_print_non_format_result(Stmt));
-
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_column_null");
 
@@ -107,8 +107,11 @@ ODBC_TEST(my_table_dbs)
   /* Added calls to SQLRowCount just to have tests of it with SQLTables. */
   CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
   nrows = my_print_non_format_result(Stmt);
-
-  is_num(rowCount, nrows);
+  // With RS streaming SQLRowCount can't return number of rows in the RS
+  if (!RSSTREAMING)
+  {
+    is_num(rowCount, nrows);
+  }
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)SQL_ALL_CATALOGS, SQL_NTS, "", 0, "", 0,
@@ -117,12 +120,13 @@ ODBC_TEST(my_table_dbs)
   is_num(nrows, my_print_non_format_result(Stmt));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)my_schema, (SQLSMALLINT)strlen(my_schema), NULL, 0, NULL, 0, NULL, 0));
-
-  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
-  is_num(rowCount, my_print_non_format_result(Stmt));
-
-  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  if (!RSSTREAMING)
+  {
+    CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR *)my_schema, (SQLSMALLINT)strlen(my_schema), NULL, 0, NULL, 0, NULL, 0));
+    CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &rowCount));
+    is_num(rowCount, my_print_non_format_result(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  }
 
   /* test fails on Win2003 x86 w/DM if len=5, SQL_NTS is used instead */
   CHECK_STMT_RC(Stmt, SQLTables(Stmt,(SQLCHAR *)"mysql", SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
@@ -131,7 +135,6 @@ ODBC_TEST(my_table_dbs)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR *)"%", 1, "", 0, "", 0, NULL, 0));
-
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
 
   memset(database,0,sizeof(database));
@@ -421,10 +424,8 @@ ODBC_TEST(tmysql_specialcols)
   OK_SIMPLE_STMT(Stmt,"CREATE TABLE tmysql_specialcols(col1 int primary key, col2 varchar(30), col3 int)");
     
 
-  OK_SIMPLE_STMT(Stmt,"create index tmysql_ind1 on tmysql_specialcols(col1)");
-    
+  OK_SIMPLE_STMT(Stmt,"CREATE INDEX tmysql_ind1 ON tmysql_specialcols(col1)");
   OK_SIMPLE_STMT(Stmt,"INSERT INTO tmysql_specialcols VALUES(100,'venu',1)");
-
   OK_SIMPLE_STMT(Stmt,"INSERT INTO tmysql_specialcols VALUES(200,'MySQL',2)");
     
   CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
@@ -445,7 +446,7 @@ ODBC_TEST(tmysql_specialcols)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt,SQL_CLOSE));
 
-  OK_SIMPLE_STMT(Stmt,"drop table tmysql_specialcols");
+  OK_SIMPLE_STMT(Stmt,"DROP TABLE tmysql_specialcols");
 
   CHECK_DBC_RC(Connection, SQLTransact(NULL,Connection,SQL_COMMIT));
 

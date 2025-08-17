@@ -32,7 +32,7 @@ namespace mariadb
 class Results  {
 
   PreparedStatement* statement= nullptr;
-  ServerPrepareResult* serverPrepResult= nullptr; //?
+  ServerPrepareResult* serverPrepResult= nullptr;
   int32_t fetchSize= 0;
   bool batch= false;
   std::size_t expectedSize= 1;
@@ -40,7 +40,7 @@ class Results  {
   std::deque<Unique::ResultSet> executionResults;
   Unique::ResultSet currentRs;
   ResultSet* resultSet= nullptr;
-  Unique::ResultSet callableResultSet; //?
+  Unique::ResultSet callableResultSet;
   bool binaryFormat= false;
   int32_t resultSetScrollType;
   bool rewritten= false;

@@ -49,31 +49,7 @@ namespace mariadb
   {
   }
 
-  /* For cloning */
-  /*SSPSDirectExec::SSPSDirectExec(
-    Protocol* _connection,
-    int32_t resultSetScrollType)
-    : ServerSidePreparedStatement(_connection, resultSetScrollType)
-  {
-  }*/
-
-  /**
-    * Clone statement.
-    *
-    * @param connection connection
-    * @return Clone statement.
-    * @throws CloneNotSupportedException if any error occur.
-    */
-  /*SSPSDirectExec* SSPSDirectExec::clone(Protocol* connection)
-  {
-    SSPSDirectExec* clone= new SSPSDirectExec(connection, this->resultSetScrollType);
-    clone->metadata.reset(new ResultSetMetaData(*metadata));
-    clone->prepare(*sql);
-
-    return clone;
-  }*/
-
-
+  
   ResultSetMetaData* SSPSDirectExec::getMetaData()
   {
     return metadata.release();
@@ -117,25 +93,6 @@ namespace mariadb
     }
     clearBatch();
   }
-
-
-  /*void SSPSDirectExec::executeQueryPrologue(ServerPrepareResult* serverPrepareResult)
-  {
-    checkClose();
-  }*/
-
-
-  /*void SSPSDirectExec::getResult()
-  {
-    if (mysql_stmt_field_count(serverPrepareResult->getStatementId()) == 0) {
-      results->addStats(mysql_stmt_affected_rows(serverPrepareResult->getStatementId()), hasMoreResults());
-    }
-    else {
-      serverPrepareResult->reReadColumnInfo();
-      ResultSet *rs= ResultSet::create(results.get(), guard, serverPrepareResult);
-      results->addResultSet(rs, hasMoreResults() || results->getFetchSize() > 0);
-    }
-  }*/
 
 
   bool SSPSDirectExec::executeInternal(int32_t fetchSize)
@@ -187,90 +144,4 @@ namespace mariadb
       }
     }
   }
-
-  //const char* SSPSDirectExec::getError()
-  //{
-  //  return mysql_stmt_error(serverPrepareResult->getStatementId());
-  //}
-
-  //uint32_t SSPSDirectExec::getErrno()
-  //{
-  //  return mysql_stmt_errno(serverPrepareResult->getStatementId());
-  //}
-
-  //const char* SSPSDirectExec::getSqlState()
-  //{
-  //  return mysql_stmt_sqlstate(serverPrepareResult->getStatementId());
-  //}
-
-  //bool SSPSDirectExec::bind(MYSQL_BIND* param)
-  //{
-  //  this->param= param;
-  //  return mysql_stmt_bind_param(serverPrepareResult->getStatementId(), param) != '\0';
-  //}
-
-//  bool SSPSDirectExec::sendLongData(uint32_t paramNum, const char* data, std::size_t length)
-//  {
-//    return mysql_stmt_send_long_data(serverPrepareResult->getStatementId(), paramNum, data, static_cast<unsigned long>(length)) != '\0';
-//  }
-//
-//
-//  bool SSPSDirectExec::hasMoreResults()
-//  {
-//    return results && results->hasMoreResults(guard);//It maybe still safer to call this || mysql_stmt_more_results(serverPrepareResult->getStatementId());
-//  }
-//
-//
-//  void SSPSDirectExec::moveToNextResult()
-//  {
-//    guard->moveToNextResult(results.get(), serverPrepareResult);
-//  }
-//
-////----------------------------- For param callbacks ------------------------------
-// 
-//  bool SSPSDirectExec::setParamCallback(ParamCodec* callback, uint32_t param)
-//  {
-//    if (param == uint32_t(-1)) {
-//      parRowCallback= callback;
-//      if (callback != nullptr) {
-//        mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
-//        return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM,
-//          (const void*)withRowCheckCallback);
-//      }
-//      else {
-//        // Let's say - NULL as row callbback resets everything. That seems to be least ambiguous behavior
-//        mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)NULL);
-//        return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM,
-//          (const void*)NULL);
-//      }
-//    }
-//    
-//    if (param >= serverPrepareResult->getParamCount()) {
-//      throw SQLException("Invalid parameter number");
-//    }
-//
-//    parColCodec.insert({param, callback});
-//    if (parRowCallback == nullptr && parColCodec.size() == 1) {
-//      // Needed not to overwrite callback with row check
-//      mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
-//      return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_PARAM, (const void*)defaultParamCallback);
-//    }
-//    return false;
-//  }
-//
-//
-//  bool SSPSDirectExec::setCallbackData(void * data)
-//  {
-//    callbackData= data;
-//    // if C/C does not support callbacks 
-//    return mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
-//  }
-//
-//  /* Checking if next result is the last one. That would mean, that the current is out params.
-//   * Method does not do any other checks and asusmes they are done by caller - i.e. it's callable result
-//   */
-//  bool SSPSDirectExec::isOutParams()
-//  {
-//    return results->nextIsLast(guard);
-//  }
 } // namespace mariadb

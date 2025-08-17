@@ -1510,7 +1510,6 @@ ODBC_TEST(tmysql_pos_update_ex3)
     (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
   OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_pos_updex3");
-
   if (ForwardOnly)
   {
     CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_NEXT, 2, &pcrow,
@@ -3593,7 +3592,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_pos_update,      "t_pos_update",          NORMAL, SkipIfRsStreaming},
   {tmysql_pos_update_ex, "tmysql_pos_update_ex",   NORMAL, SkipIfRsStreaming},
   {tmysql_pos_update_ex1, "tmysql_pos_update_ex1", NORMAL, SkipIfRsStreaming},
-  {tmysql_pos_update_ex3, "tmysql_pos_update_ex3", NORMAL},
+  {tmysql_pos_update_ex3, "tmysql_pos_update_ex3", NORMAL, SkipIfRsStreaming},
   {tmysql_pos_update_ex4, "tmysql_pos_update_ex4", NORMAL, SkipIfRsStreaming},
   {tmysql_pos_dyncursor,  "tmysql_pos_dyncursor",  NORMAL, SkipIfRsStreaming},
   {tmysql_mtab_setpos_del,"tmysql_mtab_setpos_del",NORMAL, SkipIfRsStreaming},
@@ -3607,7 +3606,7 @@ MA_ODBC_TESTS my_tests[]=
   {tmy_cursor1, "tmy_cursor1",     NORMAL},
   {tmy_cursor2, "tmy_cursor2",     NORMAL},
   {tmysql_pcbvalue, "tmysql_pcbvalue", NORMAL, SkipIfRsStreaming},
-  {t_bug28255, "t_bug28255", NORMAL},
+  {t_bug28255, "t_bug28255", NORMAL, SkipIfRsStreaming},
   {bug10563, "bug10563",     NORMAL, SkipIfRsStreaming},
   {bug6741, "bug6741",     NORMAL},
   {t_update_type,    "t_update_type",    NORMAL, SkipIfRsStreaming},

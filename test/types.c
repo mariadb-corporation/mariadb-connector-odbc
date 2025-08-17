@@ -376,9 +376,11 @@ ODBC_TEST(t_bug16917)
 
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLFetch(Stmt));
 
-  /* This SQLSetPos() causes the field lengths to get lost. */
-  CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
-
+  if (!RSSTREAMING)
+  {
+    /* This SQLSetPos() causes the field lengths to get lost. But we can't do it with FORWARD_ONLY */
+    CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLSetPos(Stmt, 1, SQL_POSITION, SQL_LOCK_NO_CHANGE));
+  }
   CHECK_HANDLE_RC(SQL_HANDLE_STMT, Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, buff, 0, &len));
   is_num(len, 3);
 

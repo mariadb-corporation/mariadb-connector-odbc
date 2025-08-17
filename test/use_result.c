@@ -369,7 +369,8 @@ ODBC_TEST(multirs_caching)
 ODBC_TEST(streaming_is_on)
 {
   // Relying on what the framework has detected for us
-  FAIL_IF(NoCache == FALSE, "Tests in this suite are supposed to be run with resultset streaming, but they are cached");
+  FAIL_IF(NoCache == FALSE, "Tests in this suite are supposed to be run with resultset streaming,"
+    "but they are cached");
   return OK;
 }
 

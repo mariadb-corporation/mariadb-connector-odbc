@@ -251,7 +251,6 @@ ODBC_TEST(sqlchar)
 
   /* Do it again so we can try as SQLWCHAR */
   CHECK_STMT_RC(hstmt1, SQLExecute(hstmt1));
-
   CHECK_STMT_RC(hstmt1, SQLFetch(hstmt1));
 
   IS_WSTR(my_fetch_wstr(hstmt1, wbuff, 1, MAX_ROW_DATA_LEN + 1), wcdata, 9);
@@ -1542,8 +1541,11 @@ ODBC_TEST(t_odbc203)
     OK_SIMPLE_STMTW(wStmt, W(Query[i]));
 
     do {
-      CHECK_STMT_RC(wStmt, SQLRowCount(wStmt, &Rows));
-      is_num(Rows, ExpRowCount[RsIndex]);
+      if (!RSSTREAMING)
+      {
+        CHECK_STMT_RC(wStmt, SQLRowCount(wStmt, &Rows));
+        is_num(Rows, ExpRowCount[RsIndex]);
+      }
       CHECK_STMT_RC(wStmt, SQLNumResultCols(wStmt, &ColumnsCount));
       is_num(ColumnsCount, expCols[RsIndex]);
 
@@ -1624,7 +1626,7 @@ ODBC_TEST(t_odbc418)
   /* Somehow iOdbc does its values sanitation that nobody asks it for. In the first run of
    * SQLExecDirectW here after SQLBindParameter the value pointed by SQL_DESC_OCTET_LENGTH_PTR
    * descriptor field(i.e. len), which was 16 after SQLBindParameter, happens to be already 4
-   * If we change param valus so 2nd charector is not null, that value will be 12. i.e. seems
+   * If we change param valus so 2nd character is not null, that value will be 12. i.e. seems
    * like iOdbc does smth like _wcslen on param value, and cnahges the length accordingly.
    */
   if (iOdbc())
@@ -1667,7 +1669,7 @@ ODBC_TEST(t_odbc418)
         break;
       }
       len= 0;
-      if (i == 1)
+      if (i == 1 && !RSSTREAMING)
       {
         CHECK_STMT_RC(wStmt, SQLFetchScroll(wStmt, SQL_FETCH_FIRST, 0));
       }
@@ -1696,6 +1698,12 @@ ODBC_TEST(t_odbc418)
     }
     if (!j)
     {
+      if (RSSTREAMING)
+      {
+        // We can't get back if RS streaming, thus - re-executing
+        CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+        OK_SIMPLE_STMTW(wStmt, WW("SELECT id, value FROM t_odbc418 ORDER BY id"));
+      }
       CHECK_STMT_RC(wStmt, SQLBindCol(wStmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
     }
   }
@@ -1722,7 +1730,7 @@ ODBC_TEST(t_odbc418)
         break;
       }
       len= 0;
-      if (i == 1)
+      if (i == 1 && !RSSTREAMING)
       {
         CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
       }
@@ -1751,6 +1759,11 @@ ODBC_TEST(t_odbc418)
     }
     if (!j)
     {
+      if (RSSTREAMING)
+      {
+        CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+        OK_SIMPLE_STMT(Stmt, "SELECT id, value FROM t_odbc418 ORDER BY id");
+      }
       CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, avalue, sizeof(avalue), &len));
     }
   }

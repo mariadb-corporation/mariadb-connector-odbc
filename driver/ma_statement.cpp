@@ -83,10 +83,9 @@ void MADB_CloseCursor(MADB_Stmt *Stmt)
       MDBUG_C_PRINT(Stmt->Connection, "Closing resultset", Stmt->stmt.get());
       try
       {
-        // TODO: that's not right to mess here with Protocol's lock. Protocol should take care of that
         Stmt->rs.reset();
-        if (Stmt->stmt->hasMoreResults()) {
-          Stmt->Connection->guard->skipAllResults();
+        while (Stmt->stmt->getMoreResults()) {
+          //Stmt->Connection->guard->skipAllResults();
         }
       }
       catch (...)
@@ -1339,7 +1338,6 @@ end:
       Stmt->stmt.reset(ssps);
     }
     catch (int32_t) {
-      // going further with csps
     }
   }
 

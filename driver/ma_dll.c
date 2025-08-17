@@ -19,6 +19,9 @@
 #include "ma_platform_win32.h"
 #include <mysql.h>
 
+void DriverGlobalInit(void);
+void DriverGlobalClean(void);
+
 BOOL __stdcall DllMain ( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved )
 {
   switch (fdwReason) {

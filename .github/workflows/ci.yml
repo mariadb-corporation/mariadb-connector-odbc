@@ -124,6 +124,7 @@ jobs:
             #$procLog.Kill()
           }
           echo "=========="
+          Start-Sleep -Milliseconds 300
           Get-OdbcDriver -Platform "64-bit"
           Add-OdbcDsn -Name $env:TEST_DSN -DriverName "MariaDB ODBC 3.2 Driver" -DsnType "User" -SetPropertyValue @( "SERVER=$env:TEST_SERVER", "DATABASE=$env:TEST_SCHEMA", "USER=$env:TEST_UID", "PASSWORD=$env:TEST_PASSWORD", "PORT=$env:TEST_PORT" )
 
@@ -159,7 +160,7 @@ jobs:
           ctest --verbose
 
           export TEST_ADD_PARAM="STREAMRS=1;FORWARDONLY=1"
-          #ctest --output-on-failure
+          ctest --output-on-failure
 
         env:
           DB_TYPE: ${{ matrix.db-type }}

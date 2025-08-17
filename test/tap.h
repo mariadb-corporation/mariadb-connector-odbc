@@ -555,7 +555,7 @@ int ma_print_result_getdata_exex(SQLHSTMT Stmt, BOOL CloseCursor, BOOL FetchAsWs
   rc = SQLNumResultCols(Stmt, &ncol);
 
   mystmt_rows(Stmt, rc, -1);
-
+  fprintf(stdout, "#");
   for (nIndex = 1; nIndex <= ncol; ++nIndex)
   {
     rc = SQLDescribeCol(Stmt, nIndex, szColName, MAX_NAME_LEN, NULL,
@@ -570,6 +570,7 @@ int ma_print_result_getdata_exex(SQLHSTMT Stmt, BOOL CloseCursor, BOOL FetchAsWs
 
   while (SQL_SUCCEEDED(SQLFetch(Stmt)))
   {
+    fprintf(stdout, "#");
     ++nRowCount;
     for (nIndex=0; nIndex< ncol; ++nIndex)
     {
@@ -1562,10 +1563,11 @@ BOOL WindowsDM(HDBC hdbc)
 }
 
 #define SKIPIF(_COND, _MSG) do {if (_COND) {skip(_MSG);}} while(0)
+#define RSSTREAMING (ForwardOnly == TRUE && NoCache == TRUE)
 
 int SkipIfRsStreaming()
 {
-  if (ForwardOnly == TRUE && NoCache == TRUE)
+  if (RSSTREAMING)
   {
     diag("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
     return 1;
