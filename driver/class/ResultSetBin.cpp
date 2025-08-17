@@ -53,14 +53,16 @@ namespace mariadb
     */
   ResultSetBin::ResultSetBin(Results* results,
                              Protocol* guard,
-                             ServerPrepareResult* spr)
+                             ServerPrepareResult* spr,
+                             bool callable)
     : ResultSet(guard, results, spr->getColumns()),
+      callableResult(callable),
       capiStmtHandle(spr->getStatementId()),
       resultBind(nullptr),
       cache(mysql_stmt_field_count(spr->getStatementId()))
   {
     if (fetchSize == 0 || callableResult) {
-      data.reserve(10);//= new char[10]; // This has to be array of arrays. Need to decide what to use for its representation
+      data.reserve(callable ? 1 : 10);
       if (mysql_stmt_store_result(capiStmtHandle)) {
         throw 1;
       }
@@ -69,13 +71,9 @@ namespace mariadb
       row= new BinRow(columnsInformation, columnInformationLength, capiStmtHandle);
     }
     else {
-
       protocol->setActiveStreamingResult(results);
-      //protocol->removeHasMoreResults();
-
-      data.reserve(std::max(10, fetchSize)); // Same
+      data.reserve(std::max(10, fetchSize));
       row= new BinRow(columnsInformation, columnInformationLength, capiStmtHandle);
-      //nextStreamingValue();
       streaming= true;
     }
   }
@@ -84,8 +82,16 @@ namespace mariadb
   ResultSetBin::~ResultSetBin()
   {
     if (!isFullyLoaded()) {
-      //close();
-      flushPendingServerResults();
+      try
+      {
+        // It can throw
+        flushPendingServerResults();
+      }
+      catch (...)//(SQLException&)
+      {
+        1;
+        // eating exception
+      }
     }
     checkOut();
   }
@@ -466,7 +472,7 @@ namespace mariadb
   void ResultSetBin::beforeFirst() {
     checkClose();
 
-    if (streaming &&resultSetScrollType == TYPE_FORWARD_ONLY) {
+    if (streaming && resultSetScrollType == TYPE_FORWARD_ONLY) {
       throw SQLException("Invalid operation for result set type TYPE_FORWARD_ONLY");
     }
     rowPointer= -1;
@@ -810,7 +816,7 @@ namespace mariadb
         resultBind[it.first].flags|= MADB_BIND_DUMMY;
       }
     }
-    if (dataSize > 0) {
+    if (dataSize > 0 || streaming) {
       mysql_stmt_bind_result(capiStmtHandle, resultBind.get());
       reBound= true; //We need to force fetch. Otherwise fetch_column may fail
     }

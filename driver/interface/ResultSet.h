@@ -94,7 +94,8 @@ public:
   static ResultSet* create(
     Results*,
     Protocol* _protocol,
-    ServerPrepareResult* pr);
+    ServerPrepareResult* pr,
+    bool callableResult= false);
 
   static ResultSet* create(
     Results*,

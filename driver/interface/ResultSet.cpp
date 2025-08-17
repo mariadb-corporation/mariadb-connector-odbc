@@ -95,9 +95,9 @@ namespace mariadb
 
   ResultSet* ResultSet::create(Results* results,
                                Protocol* _protocol,
-                               ServerPrepareResult * spr/*, bool callableResult*/)
+                               ServerPrepareResult * spr, bool callableResult)
   {
-    return new ResultSetBin(results, _protocol, spr/*, callableResult*/);
+    return new ResultSetBin(results, _protocol, spr, callableResult);
   }
 
 

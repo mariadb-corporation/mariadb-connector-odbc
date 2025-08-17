@@ -65,7 +65,8 @@ public:
   ResultSetBin(
     Results* results,
     Protocol* guard,
-    ServerPrepareResult* pr);
+    ServerPrepareResult* pr,
+    bool callable= false);
 
   ~ResultSetBin();
 
