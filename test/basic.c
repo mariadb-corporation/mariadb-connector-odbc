@@ -957,7 +957,7 @@ ODBC_TEST(sqlcancel_threaded)
 
   pthread_create(&thread, NULL, cancel_in_one_second, Stmt);
 
-  if (IsMysql || (ForwardOnly == TRUE && NoCache == TRUE))
+  if (IsMysql || RSSTREAMING)
   {
     /**/
     OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
@@ -1021,16 +1021,24 @@ ODBC_TEST(sqlcancelhandle)
   }
   else
   {
-    EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+    if (RSSTREAMING)
+    {
+      OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+      EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_ERROR);
+    }
+    else
+    {
+      EXPECT_STMT(Stmt, SQLExecDirect(Stmt, "SELECT SLEEP(5)", SQL_NTS), SQL_ERROR);
+    }
   }
-
   pthread_join(thread, NULL);
-
   return OK;
 }
 #endif  // ifndef HAVE_NOT_SQLCANCELHANDLE
 #endif  // ifdef _WIN32
 
+// Not sure what is this test about. Maybe that SQLDescribeCol does not crash/return error
+// with given parameters combination. Otherwise looks useless.
 ODBC_TEST(t_describe_nulti)
 {
   SQLHENV   henv1;

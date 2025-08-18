@@ -328,7 +328,7 @@ namespace mariadb
   {
     // Assuming paramset skip is set in the indicator of 1st column
     if (bind->u.indicator && *bind->u.indicator == STMT_INDICATOR_IGNORE_ROW) {
-      return '\0';
+      return NULL;
     }
     // We can't let the callback to throw - we have to intercept, as otherwise we are guaranteed to have
     // the protocol broken
@@ -360,7 +360,7 @@ namespace mariadb
     {
       return (my_bool*)&error;
     }
-    return '\0';
+    return NULL;
   }
 
 
