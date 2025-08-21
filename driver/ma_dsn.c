@@ -71,7 +71,7 @@ MADB_DsnKey DsnKeys[]=
   {"SSLCA",          offsetof(MADB_Dsn, SslCa),             DSN_TYPE_STRING, 0, 0},
   {"SSLCAPATH",      offsetof(MADB_Dsn, SslCaPath),         DSN_TYPE_STRING, 0, 0},
   {"SSLCIPHER",      offsetof(MADB_Dsn, SslCipher),         DSN_TYPE_STRING, 0, 0},
-  {"SSLVERIFY",      offsetof(MADB_Dsn, SslVerify),         DSN_TYPE_BOOL,   0, 0},
+  {"SSLVERIFY",      offsetof(MADB_Dsn, SslVerify),         DSN_TYPE_BOOLEX, 0, 0},
   {"TLSPEERFP",      offsetof(MADB_Dsn, TlsPeerFp),         DSN_TYPE_STRING, 0, 0},
   {"TLSPEERFPLIST",  offsetof(MADB_Dsn, TlsPeerFpList),     DSN_TYPE_STRING, 0, 0},
   {"SSLCRL",         offsetof(MADB_Dsn, SslCrl),            DSN_TYPE_STRING, 0, 0},
@@ -246,6 +246,7 @@ BOOL MADB_DsnSwitchDependents(MADB_Dsn *Dsn, unsigned int Changed)
       case DSN_TYPE_BOOL:
       case DSN_TYPE_CBOXGROUP:
       case DSN_TYPE_RBGROUP:
+      case DSN_TYPE_BOOLEX:
         {
           KeySet= *GET_FIELD_PTR(Dsn, &DsnKeys[Changed], my_bool);
         }
@@ -301,6 +302,7 @@ my_bool MADB_DsnStoreValue(MADB_Dsn *Dsn, unsigned int DsnKeyIdx, char *Value, m
     }
     break;
   case DSN_TYPE_BOOL:
+  case DSN_TYPE_BOOLEX:
     /* If value is not set or we may overwrite it */
     if (!(*GET_FIELD_PTR(Dsn, DsnKey, my_bool) && OverWrite == FALSE))
     {
@@ -469,6 +471,7 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
       /* We do not save DSN_TYPE_OPTION - they are saved as OPTIONS bits */
       switch (DsnKeys[i].Type) {
       case DSN_TYPE_BOOL:
+      case DSN_TYPE_BOOLEX:
       { 
         my_bool fieldValue= *GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool);
         if (fieldValue != DSN_DEFAULT_TRUE)
@@ -738,7 +741,16 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
         }
         break;
       }
-       case DSN_TYPE_CBOXGROUP:
+      case DSN_TYPE_BOOLEX:
+      {
+        my_bool fieldValue= *GET_FIELD_PTR(Dsn, &DsnKeys[i], my_bool);
+        if (fieldValue != DSN_DEFAULT_TRUE)
+        {
+          Value= fieldValue ? "1" : "0";
+        }
+        break;
+      }
+      case DSN_TYPE_CBOXGROUP:
       case DSN_TYPE_RBGROUP:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
         {

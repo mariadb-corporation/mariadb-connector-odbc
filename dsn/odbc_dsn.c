@@ -121,6 +121,9 @@ MADB_DsnMap DsnMap[] = {
 #define IS_CB_CHECKED(MapIdx)           GetButtonState(DsnMap[MapIdx].Page, DsnMap[MapIdx].Item)
 #define CBGROUP_SETBIT(_Dsn, MapIdx)    *GET_FIELD_PTR(_Dsn, DsnMap[MapIdx].Key, char)|= CBGROUP_BIT(MapIdx)
 #define CBGROUP_RESETBIT(_Dsn, MapIdx)  *GET_FIELD_PTR(_Dsn, DsnMap[MapIdx].Key, char)&= ~CBGROUP_BIT(MapIdx)
+#define COMBO_BOOLEX_VAL(_Dsn,MapIdx)   do {\
+int selIdx= (int)SendMessage(GetDlgItem(hwndTab[DsnMap[MapIdx].Page], DsnMap[MapIdx].Item), CB_GETCURSEL, 0, 0);\
+*GET_FIELD_PTR(_Dsn, DsnMap[MapIdx].Key, my_bool)= (my_bool)(selIdx > CB_ERR ? --selIdx : selIdx);} while(0)
 
 MADB_OptionsMap OptionsMap[]= {
   {1, rbPipe,                          MADB_OPT_FLAG_NAMED_PIPE},
@@ -198,6 +201,12 @@ my_bool SetDialogFields()
         }
       }
       break;
+    case DSN_TYPE_BOOLEX:
+    {
+      my_bool Val= *(my_bool *)((char *)Dsn + DsnMap[i].Key->DsnOffset);
+      SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, CB_SETCURSEL, Val + 1, 0);
+    }
+    break;
     case DSN_TYPE_CBOXGROUP:
       SendDlgItemMessage(hwndTab[DsnMap[i].Page], DsnMap[i].Item, BM_SETCHECK,
         (*GET_FIELD_PTR(Dsn, DsnMap[i].Key, char) & CBGROUP_BIT(i)) != '\0' ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -227,6 +236,7 @@ my_bool SetDialogFields()
 
 }
 
+
 char *GetFieldStrVal(int Dialog, int Field, char* (*allocator)(size_t))
 {
   int rc;
@@ -246,6 +256,7 @@ char *GetFieldStrVal(int Dialog, int Field, char* (*allocator)(size_t))
     rc= Edit_GetText(GetDlgItem(hwndTab[Dialog], Field), p, len + 1);
   return p;      
 }
+
 
 int GetFieldIntVal(int Dialog, int Field)
 {
@@ -401,6 +412,11 @@ void GetDialogFields()
       }
       break;
     }
+    case DSN_TYPE_BOOLEX:
+    {
+      COMBO_BOOLEX_VAL(Dsn, i);
+      break;
+    }
     case DSN_TYPE_CBOXGROUP:
       if (IS_CB_CHECKED(i) != '\0')
       {
@@ -436,7 +452,6 @@ void DSN_SetDatabase(SQLHANDLE Connection)
   MADB_Dsn *Dsn= (MADB_Dsn *)GetWindowLongPtr(GetParent(hwndTab[0]), DWLP_USER);
   HWND DbCombobox= GetDlgItem(hwndTab[1], cbDatabase);
   
-
   if (DBFilled)
     return;
 
@@ -445,7 +460,7 @@ void DSN_SetDatabase(SQLHANDLE Connection)
   if (SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt) != SQL_SUCCESS)
     goto end;
 
-  if (SQLExecDirect(Stmt, (SQLCHAR *)"SHOW DATABASES", SQL_NTS) != SQL_SUCCESS)
+  if (SQLExecDirect(Stmt, (SQLCHAR *)"SHOW SCHEMAS", SQL_NTS) != SQL_SUCCESS)
     goto end;
 
   SQLBindCol(Stmt, 1, SQL_C_CHAR, Database, 65, 0);
@@ -903,12 +918,14 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
       notCanceled= FALSE;
       DestroyWindow(hDlg);
-    } return TRUE;
+    }
+    return TRUE;
 
   case WM_DESTROY:
     DestroyWindow(hDlg);
     PostQuitMessage(0);
     return TRUE;
+
   case WM_INITDIALOG:
   {
 	  static int Dialogs[] = {Page_0, Page_1, Page_2, Page_3, Page_4, Page_5};
@@ -927,25 +944,21 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     while (DsnMap[i].Key)
     {
       if (DsnMap[i].MaxLength)
+      {
         MA_WIN_SET_MAXLEN(DsnMap[i].Page, DsnMap[i].Item, DsnMap[i].MaxLength);
+      }
+      if (DsnMap[i].Key->Type == DSN_TYPE_BOOLEX)
+      {
+        /* Currently we have this for certifiacate verification only, and this options
+           set fits it. If we have another bool option with 3rd/default state requiring
+           other options, then it has to be decided here somehow */
+        HWND cb= GetDlgItem(hwndTab[DsnMap[i].Page], DsnMap[i].Item);
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)"Auto");
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)"Off");
+        SendMessage(cb, CB_ADDSTRING, 0, (LPARAM)"On");
+      }
       ++i;
     }
-    /*HWND hwndTip= CreateWindowEx(0, TOOLTIPS_CLASS, NULL, WS_POPUP | TTS_ALWAYSTIP | TTS_BALLOON, CW_USEDEFAULT, CW_USEDEFAULT,
-      CW_USEDEFAULT, CW_USEDEFAULT, hwndTab[0], NULL, hInstance, NULL);
-    HWND hwnd= GetDlgItem(hwndTab[0], lblDsn);
-    if (!hwndTip) {
-      return TRUE;
-    }
-    TOOLINFO toolInfo={0};
-    toolInfo.cbSize= sizeof(toolInfo);
-    toolInfo.hwnd= hwndTab[0];
-    toolInfo.uFlags= TTF_IDISHWND | TTF_SUBCLASS;
-    toolInfo.uId= (UINT_PTR)hwnd;
-    toolInfo.lpszText= "---- Short tooltip! ----";
-    SendMessage(hwndTip, TTM_ADDTOOL, 0, (LPARAM)&toolInfo);
-    SendMessage(hwndTip, TTM_ACTIVATE, TRUE, 0);
-    SetWindowPos(hwndTip, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);*/
-    
   }
   }
   return FALSE;

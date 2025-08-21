@@ -918,7 +918,7 @@ ODBC_TEST(sqlcancelhandle)
   }
   else
   {
-    if (ForwardOnly == TRUE && NoCache == TRUE)
+    if (RSSTREAMING)
     {
       /* With RS streaming we read the error only when we read the reasult */
       OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");

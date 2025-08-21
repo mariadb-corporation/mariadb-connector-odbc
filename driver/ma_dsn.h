@@ -64,11 +64,13 @@ enum enum_dsn_item_type {
   DSN_TYPE_STRING,
   DSN_TYPE_INT,
   DSN_TYPE_BOOL,
-  DSN_TYPE_COMBO,    /* Mainly the same as string, but the field in the dialog is combobox */
-  DSN_TYPE_OPTION,   /* Connection string option has correspondent OPTIONS bit */
-  DSN_TYPE_CBOXGROUP, /* Group of checkboxes each of them represent a bit in the field's value
-                        Bitmap size is 1 byte */
-  DSN_TYPE_RBGROUP    /* Radio group - one value out of set */
+  DSN_TYPE_COMBO,     /* Mainly the same as string, but the field in the dialog is
+                         a combobox */
+  DSN_TYPE_OPTION,    /* Connection string option has correspondent OPTIONS bit */
+  DSN_TYPE_CBOXGROUP, /* Group of checkboxes each of them represent a bit in the field's
+                         value. Bitmap size is 1 byte */
+  DSN_TYPE_RBGROUP,   /* Radio group - one value out of set */
+  DSN_TYPE_BOOLEX     /* Boolean value with 3rd(default?) state. Combobox*/
 };
 
 typedef struct
