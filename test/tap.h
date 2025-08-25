@@ -1222,7 +1222,7 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
       SQLAllocHandle(SQL_HANDLE_STMT, wConnection, &wStmt);
     }
 
-    /* Relieving tests from resoting my_options and/or add_connstr. Also, a test may fail */
+    /* Relieving tests from restoring my_options and/or add_connstr. Also, a test may fail */
     my_options= defaultOptions;
     add_connstr= storedAddConnstr;
     /* reset Statement */

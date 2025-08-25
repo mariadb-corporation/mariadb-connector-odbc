@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2024 MariaDB Corporation plc
+   Copyright (C) 2024,2025 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -53,20 +53,22 @@ namespace mariadb
       bind->u.indicator= &paramIndicatorIgnoreRow;
       return false;
     }
-    else {
-      bind->u.indicator= &paramIndicatorNone;
-    }
     MADB_Stmt *stmt= static_cast<MADB_Stmt*>(data);
     for (auto i= 0; i < MADB_STMT_PARAM_COUNT(stmt); ++i) {
       auto indicator= indPtr[i];
+      // Resetting to remove that has been left from the previous row
+      (bind + i)->u.indicator= &paramIndicatorNone;
       if (indicator == nullptr) {
+        // Technically, if there is parameter in query, but app hasn't bound it - we probably should use default
+        // But if column does not have default this will yield error. Maybe NULL is safer. Also, need to check
+        //  if it's possible/allowed by specs not to have all parameters bound.
         //(bind + i)->u.indicator= &paramIndicatorDef;
       }
       else {
         if (*indicator == SQL_NULL_DATA) {
           (bind + i)->u.indicator= &paramIndicatorNull;
         }
-        indPtr[i]= indicator + arrStep;
+        indPtr[i]= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(indicator) + arrStep);
       }
     }
     return false;
@@ -75,17 +77,17 @@ namespace mariadb
 
   bool FixedSizeCopyCodec::operator()(void * data, MYSQL_BIND * bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     bind->buffer= it.value();
-    it.next();
     return false;
   }
 
 
   bool CopyCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     bind->buffer= it.value();
     bind->buffer_length= getLength(*it.length(), bind->buffer);
-    it.next();
     return false;
   }
 
@@ -96,6 +98,7 @@ namespace mariadb
     SQLULEN mbLength=0;
     MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
 
+    it.move(row_nr);
     if (!it.length() || *it.length() == SQL_NTS)
     {
       /* CRec->OctetLength eq 0 means not 0-length buffer, but that this value is not specified. Thus -1, for SqlwcsLen
@@ -120,7 +123,6 @@ namespace mariadb
 
     bind->buffer_length= (unsigned long)mbLength;
     bind->buffer= it.getDescRec()->InternalBuffer;
-    it.next();
     return false;
   }
 
@@ -134,9 +136,9 @@ namespace mariadb
 
   bool BitCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     bind->buffer= &buf;
     buf= MADB_ConvertCharToBit(reinterpret_cast<MADB_Stmt*>(data), static_cast<char*>(it.value()));
-    it.next();
     return false;
   }
 
@@ -152,6 +154,8 @@ namespace mariadb
   {
     MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
     bool isTime;
+    
+    it.move(row_nr);
     MADB_Str2Ts(static_cast<char*>(it.value()), it.length() ? static_cast<std::size_t>(*it.length()) : 0, &buf,
       false, &Stmt->Error, &isTime);
     if (buf.second_part != 0)
@@ -159,7 +163,6 @@ namespace mariadb
       MADB_SetError(&Stmt->Error, MADB_ERR_22008, nullptr, 0);
       return true;
     }
-    it.next();
     return false;
   }
 
@@ -175,6 +178,8 @@ namespace mariadb
   {
     MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
     bool isTime;
+    
+    it.move(row_nr);
     MADB_Str2Ts(static_cast<char*>(it.value()), it.length() ? static_cast<std::size_t>(*it.length()) : 0, &buf,
       false, &Stmt->Error, &isTime);
     if (buf.hour || buf.minute || buf.second || buf.second_part)
@@ -182,7 +187,6 @@ namespace mariadb
       MADB_SetError(&Stmt->Error, MADB_ERR_22008, nullptr, 0);
       return true;
     }
-    it.next();
     return false;
   }
 
@@ -198,6 +202,8 @@ namespace mariadb
   {
     MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
     bool isTime= false;
+    
+    it.move(row_nr);
     MADB_Str2Ts(static_cast<char*>(it.value()), it.length() ? static_cast<std::size_t>(*it.length()) : 0, &buf,
       false, &Stmt->Error, &isTime);
     if ((!isTime && buf.year == 0) || buf.month == 0 || buf.day == 0)
@@ -205,7 +211,6 @@ namespace mariadb
       MADB_SetError(&Stmt->Error, MADB_ERR_22018, nullptr, 0);
       return true;
     }
-    it.next();
     return false;
   }
 
@@ -223,6 +228,7 @@ namespace mariadb
     int32_t    errorCode= 0;
     SQL_NUMERIC_STRUCT *p;
 
+    it.move(row_nr);
     p= reinterpret_cast<SQL_NUMERIC_STRUCT*>(it.value());
     p->scale= scale;
     p->precision= precision;
@@ -233,7 +239,6 @@ namespace mariadb
       MADB_SetError(&Stmt->Error, errorCode, nullptr, 0);
       return true;
     }
-    it.next();
     return false;
   }
 
@@ -249,6 +254,7 @@ namespace mariadb
 
   bool Ts2DateCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     SQL_TIMESTAMP_STRUCT *ts= reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(it.value());
     if (ts->hour || ts->minute || ts->second || ts->fraction)
     {
@@ -259,7 +265,7 @@ namespace mariadb
     buf.year=  ts->year;
     buf.month= ts->month;
     buf.day=   ts->day;
-    it.next();
+    it.move(row_nr);
     return false;
   }
 
@@ -275,6 +281,7 @@ namespace mariadb
 
   bool Ts2TimeCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     SQL_TIMESTAMP_STRUCT *ts= reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(it.value());
     MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
 
@@ -291,7 +298,6 @@ namespace mariadb
     buf.hour=   ts->hour;
     buf.minute= ts->minute;
     buf.second= ts->second;
-    it.next();
     return false;
   }
 
@@ -307,10 +313,11 @@ namespace mariadb
 
   bool TsCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     SQL_TIMESTAMP_STRUCT *ts= reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(it.value());
 
     MADB_CopyOdbcTsToMadbTime(ts, &buf);
-    it.next();
+    
     return false;
   }
 
@@ -353,6 +360,7 @@ namespace mariadb
 
   bool Time2TsCodec::operator()(void *data, MYSQL_BIND * bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     SQL_TIME_STRUCT *ts= reinterpret_cast<SQL_TIME_STRUCT*>(it.value());
     if (checkValidTime && !VALID_TIME(ts)) {
       MADB_Stmt *Stmt= reinterpret_cast<MADB_Stmt*>(data);
@@ -362,7 +370,6 @@ namespace mariadb
     buf.hour=   ts->hour;
     buf.minute= ts->minute;
     buf.second= ts->second;
-    it.next();
     return false;
   }
 
@@ -382,6 +389,7 @@ namespace mariadb
 
   bool IntrervalHmsCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     SQL_INTERVAL_STRUCT *is= reinterpret_cast<SQL_INTERVAL_STRUCT*>(it.value());
     buf.hour=   is->intval.day_second.hour;
     buf.minute= is->intval.day_second.minute;
@@ -390,7 +398,7 @@ namespace mariadb
     }
 
     buf.second_part= 0;
-    it.next();
+    
     return false;
   }
 
@@ -407,11 +415,11 @@ namespace mariadb
   /* {{{ DateCodec::operator() */
   bool DateCodec::operator()(void *data, MYSQL_BIND *bind, uint32_t col_nr, uint32_t row_nr)
   {
+    it.move(row_nr);
     SQL_DATE_STRUCT *ts= reinterpret_cast<SQL_DATE_STRUCT*>(it.value());
     buf.year=  ts->year;
     buf.month= ts->month;
     buf.day=   ts->day;
-    it.next();
     return true;
   }
   /* }}} */

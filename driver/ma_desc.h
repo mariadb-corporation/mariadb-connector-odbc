@@ -73,6 +73,7 @@ class DescArrayIterator
   SQLLEN* octetLengthPtr= nullptr;
   SQLLEN* indicatorPtr= nullptr;
   std::size_t lengthOffset= sizeof(SQLLEN);
+  std::size_t position= 0;
 
 public:
   DescArrayIterator(MADB_Header& header, MADB_DescRecord& rec, SQLSMALLINT i);
@@ -83,7 +84,18 @@ public:
       indicatorPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(indicatorPtr) + lengthOffset);
     }
     octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + lengthOffset);
+    ++position;
     return (valuePtr= (void*)((char*)valuePtr + valueOffset));
+  }
+  inline void* move(std::size_t pos) {
+    int64_t offset= (static_cast<int64_t>(pos) - position)*lengthOffset;
+    if (indicatorPtr != octetLengthPtr) {
+      indicatorPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(indicatorPtr) + offset);
+    }
+    octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + offset);
+    offset= (static_cast<int64_t>(pos) - position)*valueOffset;
+    position= pos;
+    return (valuePtr= (void*)((char*)valuePtr + offset));
   }
   inline void*   value()    { return valuePtr;       }
   inline SQLLEN* length()   { return octetLengthPtr; }
