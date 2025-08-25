@@ -30,7 +30,6 @@ BOOL __stdcall DllMain ( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved
       mysql_library_init(0, NULL, NULL);
     break;
     case DLL_PROCESS_DETACH:
-      mysql_library_end();
       DriverGlobalClean();
       break;
     case DLL_THREAD_ATTACH:

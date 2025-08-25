@@ -50,12 +50,13 @@ extern "C" {
   /* {{{  DriverGlobalClean()*/
   void DriverGlobalClean(void)
   {
-    // There is no need to lock here at least the while it used the way it used now -
+    // There is no need to lock here at least while it used the way it used now -
     // only called when library is unloaded
     if (deletedStmt)
     {
       MADB_ListFree(deletedStmt, FALSE);
     }
+    mysql_library_end();
   }
   /* }}} */
 }

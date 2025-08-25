@@ -37,7 +37,7 @@ struct MADB_Dbc
   MADB_Env::ListIterator ListItem;
   Client_Charset Charset= {0,nullptr};
   Unique::Protocol guard;
-  unsigned long long LastInsertId;
+  unsigned long long LastInsertId= 0;
   MYSQL*    mariadb=     nullptr;         /* handle to a mariadb connection */
   MADB_Env* Environment= nullptr;         /* global environment */
   MADB_Dsn* Dsn=         nullptr;

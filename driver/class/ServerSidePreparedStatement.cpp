@@ -33,6 +33,9 @@ namespace mariadb
 {
   ServerSidePreparedStatement::~ServerSidePreparedStatement()
   {
+    if (parRowCallback) {
+      delete parRowCallback;
+    }
     if (serverPrepareResult) {
       if (serverPrepareResult->canBeDeallocate()) {
         delete serverPrepareResult;
@@ -295,6 +298,9 @@ namespace mariadb
   bool ServerSidePreparedStatement::setParamCallback(ParamCodec* callback, uint32_t param)
   {
     if (param == uint32_t(-1)) {
+      if (parRowCallback) {
+        delete parRowCallback;
+      }
       parRowCallback= callback;
       if (callback != nullptr) {
         mysql_stmt_attr_set(serverPrepareResult->getStatementId(), STMT_ATTR_CB_USER_DATA, (void*)this);
