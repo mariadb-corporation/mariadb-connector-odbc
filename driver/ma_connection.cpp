@@ -141,8 +141,8 @@ bool MADB_Dbc::CheckConnection()
 SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
 {
   SQLRETURN ret= SQL_ERROR;
-  MADB_Dbc* Connection= (MADB_Dbc*)ConnectionHandle;
-  MADB_List* Element, * NextElement;
+  MADB_Dbc *Connection= (MADB_Dbc*)ConnectionHandle;
+  MADB_List *Element, *NextElement;
 
   MDBUG_C_ENTER(Connection, "SQLDisconnect");
   MDBUG_C_DUMP(Connection, ConnectionHandle, 0x);
@@ -161,7 +161,9 @@ SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
     NextElement= Element->next;
     MADB_DescFree((MADB_Desc*)Element->data, FALSE);
   }
-
+  // Even if the handle is re-used - we won't need this Dsn
+  MADB_DSN_Free(Connection->Dsn);
+  Connection->Dsn= nullptr;
   Connection->mariadb= nullptr;
   if (Connection->guard && !Connection->guard->isClosed())
   {

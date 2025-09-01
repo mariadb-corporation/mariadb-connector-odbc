@@ -407,7 +407,7 @@ my_bool MADB_ReadDSN(MADB_Dsn *Dsn, const char *KeyValue, my_bool OverWrite)
     {
       unsigned int KeyIdx= DsnKeys[i].IsAlias ? DsnKeys[i].DsnOffset : i;
 
-      if (SQLGetPrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, "", KeyVal, 1024, "ODBC.INI") > 0)
+      if (SQLGetPrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, "", KeyVal, sizeof(KeyVal), "ODBC.INI") > 0)
       {
         if (!MADB_DsnStoreValue(Dsn, KeyIdx, KeyVal, OverWrite))
           return FALSE;

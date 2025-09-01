@@ -1228,7 +1228,11 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     /* reset Statement */
     fflush(stdout);
   }
-
+  if (wConnection)
+  {
+    SQLDisconnect(wConnection);
+    SQLFreeHandle(SQL_HANDLE_DBC, wConnection);
+  }
   ODBC_Disconnect(Env,Connection,Stmt);
 
   if (failed)

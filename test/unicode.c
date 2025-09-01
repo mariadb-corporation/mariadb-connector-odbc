@@ -258,11 +258,14 @@ ODBC_TEST(sqlchar)
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
+// This check creates lots of noise with valgrind from inside unixODBC
+#ifndef MEMCHECK_SKIP_TEST
   // We probably could do that in driver as well, TODO: but do we really need
   if (using_dm())
   {
     is_num(SQLFreeHandle(SQL_HANDLE_STMT, hstmt1), SQL_INVALID_HANDLE);
   }
+#endif
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
