@@ -16,19 +16,11 @@ import: mariadb-corporation/connector-test-machine:common-build.yml@master
 jobs:
   fast_finish: true
   allow_failures:
-    - os: osx
     - os: windows
     - os: linux
       arch: s390x
       dist: focal
   include:
-    - stage: Language
-      os: osx
-      compiler: clang
-      before_script:
-        - brew install openssl
-        - brew install libiodbc
-      name: "OSX"
     - stage: Language
       os: linux
       arch: s390x
