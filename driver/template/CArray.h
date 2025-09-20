@@ -24,6 +24,7 @@
 #include <initializer_list>
 #include <vector>
 #include <stdexcept>
+#include <cstdint>
 #include <cstring>
 #include <string>
 
