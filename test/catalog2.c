@@ -1407,7 +1407,7 @@ ODBC_TEST(odbc185)
 
   OK_SIMPLE_STMT(hstmt1, "DROP TABLE IF EXISTS t_odbc185");
   CHECK_STMT_RC(hstmt1, SQLExecDirectW(hstmt1,
-    W(L"CREATE TABLE t_odbc185 (ccol CHAR(32), vcfield VARCHAR(32) not null, tcol TEXT, ttcol TINYTEXT, mtcol MEDIUMTEXT,\
+    W(L"CREATE TABLE t_odbc185 (ccol CHAR(32), vcfield VARCHAR(32) NOT NULL, tcol TEXT, ttcol TINYTEXT, mtcol MEDIUMTEXT,\
                         ltcol LONGTEXT, ecol ENUM('enum val 1', 'enum val 2'), scol SET('set m1', 'set m3'))"), SQL_NTS));
 
   /* It doesn't matter if we call SQLColumns or SQLColumnsW */

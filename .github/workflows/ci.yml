@@ -41,9 +41,9 @@ jobs:
       - uses: actions/checkout@v4
       - id: set-matrix
         name: build matrix
-        uses: rusher/mariadb-test-build-matrix@main
+        uses: mariadb-corporation/connector-ci-build-matrix@main
         with:
-          additional-matrix: '[]'
+          additional-matrix: '[{"name": "MariaDB 11.4 (local) - windows 2025", "os": "windows-2025", "db-type": "community", "db-tag": "11.4"},{"name": "MariaDB 11.4 32bits (local) - windows 2025", "os": "windows-2025", "db-type": "community", "db-tag": "11.4", "arch": "32"}]'
 
   ci:
     name: ${{ matrix.name }}
@@ -59,7 +59,7 @@ jobs:
 
       - name: Setup Test Environment
         id: setup-env
-        uses: rusher/mariadb-test-setup@master
+        uses: mariadb-corporation/connector-ci-setup@master
         with:
           node-version: ${{ matrix.node }}
           db-type: ${{ matrix.db-type }}
@@ -96,29 +96,63 @@ jobs:
         run: |
           choco install wixtoolset -y
 
-      - name: make windows
-        if: ${{ startsWith(matrix.os, 'windows') }}
+      - name: make windows 64bit
+        if: ${{ startsWith(matrix.os, 'windows') && (matrix.arch != '32' || !matrix.arch) }}
         shell: powershell
         run: |
           cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL . #-DDIRECT_LINK_TESTS=1 .
+          cmake --build . --config RelWithDebInfo 
+
+      - name: make windows 32bit
+        if: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.arch, '32') }}
+        run: |
+          cmake -A Win32 -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DWITH_MSI=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=SCHANNEL . #-DDIRECT_LINK_TESTS=1 .
           cmake --build . --config RelWithDebInfo 
 
       - name: Install generated MSI (Windows only)
         if: startsWith(matrix.os, 'windows')
         shell: powershell
         run: |
-          pwd
+          $pwd= Get-Location
+          $log= Join-Path $pwd "install.log"
+          Write-Output $log
           ls ${{ github.workspace }}\packaging\windows
           Get-ChildItem -Path ${{ github.workspace }}\packaging\windows\mariadb-connector-odbc-*.msi
-          $log = "install.log"
           foreach ($msi in Get-ChildItem -Path ${{ github.workspace }}\packaging\windows\mariadb-connector-odbc-*.msi) {
-            $procInstall= Start-Process msiexec.exe -ArgumentList "/i $($msi.FullName) /qn /norestart" -NoNewWindow -PassThru
-            #$procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru 
-            #$procMain.WaitForExit() 
-            #$procLog.Kill()
+            $procInstall= Start-Process msiexec.exe -ArgumentList "/i $($msi.FullName) /qn /norestart /L* `"$log`"" -NoNewWindow -PassThru
+            Start-Sleep -Milliseconds 500
+            if (Test-Path $log) {
+              Get-Content -Path $log -Wait | ForEach-Object {
+                if ($procInstall.HasExited) { break }
+                $_
+              }
+            } else {
+              echo "Log file still does not exist"
+              Start-Sleep -Milliseconds 500
+            }
           }
+          Write-Host "Installer exit code: $($procInstall.ExitCode)"
+
+      - name: Create 64b DSN
+        if: ${{ startsWith(matrix.os, 'windows') && (matrix.arch != '32' || !matrix.arch) }}
+        shell: powershell
+        run: |
           Get-OdbcDriver -Platform "64-bit"
           Add-OdbcDsn -Name $env:TEST_DSN -DriverName "MariaDB ODBC 3.1 Driver" -DsnType "User" -SetPropertyValue @( "SERVER=$env:TEST_SERVER", "DATABASE=$env:TEST_SCHEMA", "USER=$env:TEST_UID", "PASSWORD=$env:TEST_PASSWORD", "PORT=$env:TEST_PORT" )
+
+      - name: Create 32b DSN
+        if: ${{ startsWith(matrix.os, 'windows') && startsWith(matrix.arch, '32') }}
+        shell: powershell
+        run: |
+          Get-OdbcDriver -Platform "32-bit"
+          $powershell32b = "$env:WINDIR\SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
+          $dsn= {
+            Add-OdbcDsn -Name $env:TEST_DSN `
+            -DriverName "MariaDB ODBC 3.1 Driver" `
+            -DsnType "User" `
+            -SetPropertyValue @( "SERVER=$env:TEST_SERVER", "DATABASE=$env:TEST_SCHEMA", "USER=$env:TEST_UID", "PASSWORD=$env:TEST_PASSWORD", "PORT=$env:TEST_PORT" )
+          }
+          & $powershell32b -NoProfile -Command $dsn
 
       - name: Run test suite
         shell: bash
