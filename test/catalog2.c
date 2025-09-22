@@ -352,7 +352,7 @@ ODBC_TEST(t_bug50195)
 
     OK_SIMPLE_STMT(Stmt, dropUser);
     OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS bug50195");
-
+    CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
     return FAIL;
   }
 
