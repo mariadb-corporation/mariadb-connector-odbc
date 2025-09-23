@@ -636,9 +636,9 @@ ODBC_TEST(t_odbc149)
   Val[2].year= 2018;
   Val[2].month= 7;
   Val[2].day= 27;
-
+  diag("About to execute bulk");
   CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
-
+  diag("Running select to verify bulk results");
   OK_SIMPLE_STMT(Stmt, "SELECT id, ts, c, b, w FROM odbc149")
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &idBuf, 0, NULL));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_TIMESTAMP, &Val[1], 0, tsLen));

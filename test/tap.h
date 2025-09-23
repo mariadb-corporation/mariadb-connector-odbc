@@ -31,22 +31,75 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <math.h>
+#include <signal.h>
+
+#define MAX_STACK_FRAMES 64
+
+void diag(const char *fstr, ...);
 
 #ifdef _WIN32
 # define _WINSOCKAPI_
 # include <windows.h>
 # include <shlwapi.h>
+# include <dbghelp.h>
+//# pragma comment(lib, "dbghelp.lib")
+
 
 char* strcasestr(const char* HayStack, const char* Needle)
 {
   return StrStrIA(HayStack, Needle);
 }
+
+
+void print_btrace(int sig)
+{
+  void* callstack[MAX_STACK_FRAMES];
+  SYMBOL_INFO* symbol;
+  IMAGEHLP_LINE64 line;
+  HANDLE process = GetCurrentProcess();
+
+  diag("Caught signal %d", sig);
+  diag("Stack Trace:");
+  SymSetOptions(SYMOPT_LOAD_LINES);
+  SymInitialize(process, NULL, TRUE);
+  
+  memset((void*)&line, 0, sizeof(IMAGEHLP_LINE64));
+  line.SizeOfStruct= sizeof(IMAGEHLP_LINE64);
+
+  symbol = (SYMBOL_INFO*)calloc(sizeof(SYMBOL_INFO) + 256, 1);
+  symbol->MaxNameLen = 255;
+  symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+
+  WORD frames = CaptureStackBackTrace(0, MAX_STACK_FRAMES, callstack, NULL);
+
+  // At 0 index will be btrace itself
+  for (int i = 1; i < frames; ++i)
+  {
+    DWORD64 displacement= 0;
+    SymFromAddr(process, (DWORD64)callstack[i], 0, symbol);
+    if (!SymGetLineFromAddr64(process, (DWORD64)callstack[i], &displacement, &line))
+    {
+      DWORD error= GetLastError();
+      diag("SymGetLineFromAddr64 returned error : %d", error);
+      line.FileName= "<no file name>";
+    }
+    //stderr?
+    printf("%d: %s(%s:%u)\n", i, symbol->Name, line.FileName, line.LineNumber);
+  }
+
+  free(symbol);
+  SymCleanup(process);
+  exit(1);
+}
+
 #else
 
 # include <string.h>
 # include <errno.h>
 # include <wchar.h>
 # include <unistd.h>
+# include <execinfo.h>
+
 # include "ma_conv_charset.h"
 
 /* Mimicking of VS' _snprintf */
@@ -110,6 +163,17 @@ int strcpy_s(char *dest, size_t buffer_size, const char *src)
 #define _strnicmp      strncasecmp
 #define _atoi64(str)   strtoll((str), NULL, 10)
 #define _i64toa(a,b,c) longlong2str((a),(b),(c))
+
+void print_btrace(int sig)
+{
+  void* callstack[MAX_STACK_FRAMES];
+  int frames = backtrace(callstack, MAX_STACK_FRAMES);
+
+  diag("Caught signal %d\n", sig);
+  diag("Stack Trace:\n");
+  backtrace_symbols_fd(callstack, frames, STDERR_FILENO);
+  exit(1);
+}
 
 #endif
 
@@ -307,10 +371,15 @@ void get_env_defaults()
   }
 }
 
-
+/* Reads env defaults, command line options, but also it sets functions to process signals(SIGABRT SIGSEGV)
+ * as all tests run it and run only once. even though not the right place
+ */
 void get_options(int argc, char **argv)
 {
   int  i;
+
+  signal(SIGABRT, print_btrace);
+  signal(SIGSEGV, print_btrace);
 
   get_env_defaults();
 
