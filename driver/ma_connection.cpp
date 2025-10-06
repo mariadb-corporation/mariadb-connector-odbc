@@ -1975,8 +1975,11 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
     break;
   case SQL_SCROLL_CONCURRENCY:
     MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES, StringLengthPtr);
-    break;  
-default:
+    break;
+  case SQL_POSITIONED_STATEMENTS:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_PS_POSITIONED_DELETE | SQL_PS_POSITIONED_UPDATE, StringLengthPtr);
+    break;
+  default:
     MADB_SetError(&Error, MADB_ERR_HY096, nullptr, 0);
     return Error.ReturnValue;
   }

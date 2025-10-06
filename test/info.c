@@ -873,6 +873,7 @@ ODBC_TEST(odbc313)
   return OK;
 }
 
+/* We returned incorrect max size for SQL_VARCHAR/SQL_VARBINARY */
 ODBC_TEST(odbc430)
 {
   CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_VARCHAR));
@@ -911,6 +912,16 @@ ODBC_TEST(driver_ver)
 }
 
 
+ODBC_TEST(odbc475)
+{
+  SQLINTEGER info= 0;
+  CHECK_DBC_RC(Connection, SQLGetInfo(Connection, SQL_POSITIONED_STATEMENTS, &info, 0, NULL));
+  is_num(SQL_PS_POSITIONED_DELETE | SQL_PS_POSITIONED_UPDATE, info);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -938,6 +949,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc313, "odbc313", NORMAL },
   { odbc430, "odbc430", NORMAL },
   { driver_ver, "driver_ver_not_trimmed", NORMAL },
+  { odbc475, "odbc476_SQL_POSITIONED_STATEMENTS", NORMAL },
   { NULL, NULL }
 };
 
