@@ -2052,6 +2052,9 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
   case SQL_SCROLL_CONCURRENCY:
     MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_SCCO_READ_ONLY | SQL_SCCO_OPT_VALUES, StringLengthPtr);
     break;
+  case SQL_POSITIONED_STATEMENTS:
+    MADB_SET_NUM_VAL(SQLINTEGER, InfoValuePtr, SQL_PS_POSITIONED_DELETE | SQL_PS_POSITIONED_UPDATE, StringLengthPtr);
+    break;
 default:
     MADB_SetError(&Dbc->Error, MADB_ERR_HY096, NULL, 0);
     return Dbc->Error.ReturnValue;
