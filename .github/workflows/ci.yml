@@ -151,7 +151,7 @@ jobs:
           $powershell32b = "$env:WINDIR\SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
           $dsn= {
             Add-OdbcDsn -Name $env:TEST_DSN `
-            -DriverName "MariaDB ODBC 3.1 Driver" `
+            -DriverName "MariaDB ODBC 3.2 Driver" `
             -DsnType "User" `
             -SetPropertyValue @( "SERVER=$env:TEST_SERVER", "DATABASE=$env:TEST_SCHEMA", "USER=$env:TEST_UID", "PASSWORD=$env:TEST_PASSWORD", "PORT=$env:TEST_PORT" )
           }

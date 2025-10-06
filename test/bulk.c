@@ -729,6 +729,7 @@ ODBC_TEST(t_odbc235)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc235");
   CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_DROP));
+  wStmt= NULL;
 
   return OK;
 }
