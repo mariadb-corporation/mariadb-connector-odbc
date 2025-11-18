@@ -25,6 +25,27 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ma_odbc_version.h.in
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/maodbcu.rc.in
                ${CMAKE_CURRENT_BINARY_DIR}/maodbcu.rc)
 
+# We need to update submodule if files are not present and still have the oportunity to build using arbitrary commit
+INCLUDE(FindGit)
+IF(NOT GIT_EXECUTABLE)
+  MESSAGE(STATUS "Git has nobeen found")
+ENDIF()
+IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/CMakeLists.txt AND GIT_EXECUTABLE)
+  MESSAGE(STATUS "C/C++ files are not found - updating submodules")
+  EXECUTE_PROCESS(COMMAND "${GIT_EXECUTABLE}" submodule init
+	  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  EXECUTE_PROCESS(COMMAND "${GIT_EXECUTABLE}" submodule update
+	  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+ENDIF()
+IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/CMakeLists.txt)
+  MESSAGE(FATAL_ERROR "No MariaDB Connector/C++ mini branch! Run
+  git submodule init
+  git submodule update
+  Then restart the build.
+")
+ENDIF()
+
+
 SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           ma_api_internal.cpp   
                           ma_error.cpp
@@ -47,30 +68,29 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           ma_typeconv.cpp
                           ma_bulk.cpp
                           ma_codec.cpp
-#                          class/SQLString.cpp
-                          class/Results.cpp
-                          class/TextRow.cpp
-                          class/BinRow.cpp
-                          class/ClientSidePreparedStatement.cpp
-                          class/ServerSidePreparedStatement.cpp
-                          class/SSPSDirectExec.cpp
-                          class/ClientPrepareResult.cpp
-                          class/ServerPrepareResult.cpp
-                          class/CmdInformationSingle.cpp
-                          class/CmdInformationMultiple.cpp
-                          class/CmdInformationBatch.cpp
-                          class/ColumnDefinition.cpp
-                          class/ResultSetText.cpp
-                          class/ResultSetBin.cpp
-                          class/ResultSetMetaData.cpp
-                          class/Parameter.cpp
-                          class/Protocol.cpp
-                          interface/PreparedStatement.cpp
-                          interface/Row.cpp
-                          interface/ResultSet.cpp
-                          interface/PrepareResult.cpp
-                          interface/Exception.cpp
-                          template/CArray.cpp
+                          cppmini/class/Results.cpp
+                          cppmini/class/TextRow.cpp
+                          cppmini/class/BinRow.cpp
+                          cppmini/class/ClientSidePreparedStatement.cpp
+                          cppmini/class/ServerSidePreparedStatement.cpp
+                          cppmini/class/SSPSDirectExec.cpp
+                          cppmini/class/ClientPrepareResult.cpp
+                          cppmini/class/ServerPrepareResult.cpp
+                          cppmini/class/CmdInformationSingle.cpp
+                          cppmini/class/CmdInformationMultiple.cpp
+                          cppmini/class/CmdInformationBatch.cpp
+                          cppmini/class/ColumnDefinition.cpp
+                          cppmini/class/ResultSetText.cpp
+                          cppmini/class/ResultSetBin.cpp
+                          cppmini/class/ResultSetMetaData.cpp
+                          cppmini/class/Parameter.cpp
+                          cppmini/class/Protocol.cpp
+                          cppmini/interface/PreparedStatement.cpp
+                          cppmini/interface/Row.cpp
+                          cppmini/interface/ResultSet.cpp
+                          cppmini/interface/PrepareResult.cpp
+                          cppmini/interface/Exception.cpp
+                          cppmini/template/CArray.cpp
                           )
 
 IF(WIN32)
@@ -102,31 +122,31 @@ IF(WIN32)
                           ma_bulk.h
                           ma_codec.h
                           ma_c_stuff.h
-                          class/SQLString.h
-                          class/Results.h
-                          class/TextRow.h
-                          class/BinRow.h
-                          class/ClientSidePreparedStatement.h
-                          class/ServerSidePreparedStatement.h
-                          class/SSPSDirectExec.h
-                          class/ClientPrepareResult.h
-                          class/ServerPrepareResult.h
-                          class/CmdInformationSingle.h
-                          class/CmdInformationMultiple.h
-                          class/CmdInformationBatch.h
-                          class/ColumnDefinition.h
-                          class/ResultSetText.h
-                          class/ResultSetBin.h
-                          class/ResultSetMetaData.h
-                          class/Parameter.h
-                          class/Protocol.h
-                          interface/PreparedStatement.h
-                          interface/PrepareResult.h
-                          interface/Row.h
-                          interface/ResultSet.h
-                          interface/CmdInformation.h
-                          interface/Exception.h
-                          template/CArray.h
+                          cppmini/class/SQLString.h
+                          cppmini/class/Results.h
+                          cppmini/class/TextRow.h
+                          cppmini/class/BinRow.h
+                          cppmini/class/ClientSidePreparedStatement.h
+                          cppmini/class/ServerSidePreparedStatement.h
+                          cppmini/class/SSPSDirectExec.h
+                          cppmini/class/ClientPrepareResult.h
+                          cppmini/class/ServerPrepareResult.h
+                          cppmini/class/CmdInformationSingle.h
+                          cppmini/class/CmdInformationMultiple.h
+                          cppmini/class/CmdInformationBatch.h
+                          cppmini/class/ColumnDefinition.h
+                          cppmini/class/ResultSetText.h
+                          cppmini/class/ResultSetBin.h
+                          cppmini/class/ResultSetMetaData.h
+                          cppmini/class/Parameter.h
+                          cppmini/class/Protocol.h
+                          cppmini/interface/PreparedStatement.h
+                          cppmini/interface/PrepareResult.h
+                          cppmini/interface/Row.h
+                          cppmini/interface/ResultSet.h
+                          cppmini/interface/CmdInformation.h
+                          cppmini/interface/Exception.h
+                          cppmini/template/CArray.h
                           )
 
   SOURCE_GROUP(Classes REGULAR_EXPRESSION "class/")
@@ -139,8 +159,7 @@ ELSE()
                         ma_conv_charset.cpp)
 ENDIF()
 
-INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/interface" "${CMAKE_CURRENT_SOURCE_DIR}/template" "${CMAKE_CURRENT_SOURCE_DIR}/class" "${CMAKE_CURRENT_BINARY_DIR}")
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/class)
+INCLUDE_DIRECTORIES("${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cppmini" "${CMAKE_CURRENT_SOURCE_DIR}/cppmini/interface" "${CMAKE_CURRENT_SOURCE_DIR}/cppmini/template" "${CMAKE_CURRENT_SOURCE_DIR}/cppmini/class" "${CMAKE_CURRENT_BINARY_DIR}")
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/driver/mariadb-odbc-driver.def.in
                ${CMAKE_BINARY_DIR}/driver/mariadb-odbc-driver-uni.def)

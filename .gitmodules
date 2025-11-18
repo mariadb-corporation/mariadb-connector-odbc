@@ -1,3 +1,6 @@
 [submodule "libmariadb"]
 	path = libmariadb
 	url = https://github.com/MariaDB/mariadb-connector-c.git
+[submodule "driver/cppmini"]
+	path = driver/cppmini
+	url = https://github.com/mariadb-corporation/mariadb-connector-cpp.git
