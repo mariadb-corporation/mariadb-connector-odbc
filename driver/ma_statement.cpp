@@ -3467,13 +3467,18 @@ SQLRETURN MADB_StmtDescribeCol(MADB_Stmt *Stmt, SQLUSMALLINT ColumnNumber, void 
   if (NullablePtr)
     *NullablePtr= Record->Nullable;
 
-  if ((ColumnName || BufferLength) && Record->ColumnName)
+  if ((ColumnName || NameLengthPtr) && Record->ColumnName)
   {
-    size_t Length= MADB_SetString(isWChar ? &Stmt->Connection->Charset : 0, ColumnName, ColumnName ? BufferLength : 0, Record->ColumnName, SQL_NTS, &Stmt->Error); 
+    size_t Length= MADB_SetString(isWChar ? &Stmt->Connection->Charset : 0, ColumnName,
+      ColumnName ? BufferLength : 0, Record->ColumnName, SQL_NTS, &Stmt->Error); 
     if (NameLengthPtr)
+    {
       *NameLengthPtr= (SQLSMALLINT)Length;
-    if (!BufferLength)
-      MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
+    }
+    if (ColumnName && !BufferLength)
+    {
+      MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0);
+    }
   }
   return Stmt->Error.ReturnValue;
 }

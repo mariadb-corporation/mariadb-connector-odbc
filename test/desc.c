@@ -815,7 +815,7 @@ ODBC_TEST(t_odbc216)
   return OK;
 }
 
-/*  */
+/* ODBC-211 SQLDescribeCol return precision=0 for field type decimal(1,0) */
 ODBC_TEST(t_odbc211)
 {
   SQLLEN Size= 0;
@@ -938,6 +938,26 @@ ODBC_TEST(t_odbc211)
 }
 
 
+/*
+  ODBC-480 - SQLDescribeCol does not return column name length if if column name buf ptr
+  and buffer lenght are not 0
+ */
+ODBC_TEST(t_odbc480)
+{
+  SQLSMALLINT colNameLen;
+
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt,
+    "SELECT 1 AS someColumnName1"
+    , SQL_NTS));
+
+  CHECK_STMT_RC(Stmt, SQLDescribeCol(Stmt, 1, NULL, 0, &colNameLen,
+    NULL, NULL, NULL, NULL));
+
+  is_num(colNameLen, sizeof("someColumnName1") - 1);
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_desc_paramset,"t_desc_paramset"},
@@ -959,6 +979,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc213, "t_odbc213_param_type"},
   {t_odbc216, "t_odbc216_fixed_prec_scale"},
   {t_odbc211, "t_odbc211_zero_scale"},
+  {t_odbc480, "t_odbc480_col_name_len"},
   {NULL, NULL}
 };
 
