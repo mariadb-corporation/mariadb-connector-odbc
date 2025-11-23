@@ -977,7 +977,8 @@ ODBC_TEST(t_bug59772)
 #undef ROWS_TO_INSERT
 }
 
-
+/* Enhanced it to also cover ODBC-479 SQLGetData with non-existent column index could crash
+   the driver */
 ODBC_TEST(t_odbcoutparams)
 {
   SQLSMALLINT ncol, i;
@@ -986,6 +987,7 @@ ODBC_TEST(t_odbcoutparams)
   SQLSMALLINT type[]= {SQL_PARAM_INPUT, SQL_PARAM_OUTPUT, SQL_PARAM_INPUT_OUTPUT};
   SQLCHAR     str[20]= "initial value", buff[20];
   SQLHANDLE   hdbc= NULL, hstmt;
+  double      dummy = .0;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
   hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "PSCACHESIZE=0");
@@ -1016,8 +1018,12 @@ ODBC_TEST(t_odbcoutparams)
   
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(hstmt, SQLFetch(hstmt));
+  EXPECT_STMT(hstmt, SQLGetData(hstmt, 133, SQL_C_DOUBLE, &dummy, sizeof(dummy), NULL), SQL_ERROR);
+  CHECK_SQLSTATE(hstmt, "07009");
   is_num(my_fetch_int(hstmt, 1), 1300);
   is_num(my_fetch_int(hstmt, 2), 300);
+  EXPECT_STMT(hstmt, SQLGetData(hstmt, 3, SQL_C_DOUBLE, &dummy, sizeof(dummy), NULL), SQL_ERROR);
+  CHECK_SQLSTATE(hstmt, "07009");
   FAIL_IF(SQLFetch(hstmt) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
@@ -1759,7 +1765,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug49029, "t_bug49029"},
   {t_bug56804, "t_bug56804"},
   {t_bug59772, "t_bug59772"},
-  {t_odbcoutparams, "t_odbcoutparams"},
+  {t_odbcoutparams, "t_odbcoutparams-with_odbc-479"},
   {t_bug14501952, "t_bug14501952"},
   {t_bug14563386, "t_bug14563386"},
   {t_bug14551229, "t_bug14551229"},

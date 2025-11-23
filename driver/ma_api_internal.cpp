@@ -1559,6 +1559,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
   unsigned int i;
   MADB_DescRecord* IrdRec;
+  uint32_t columnCount= 0;
 
   RESET_CANCELED(Stmt);
   /* In case we don't have DM(it check for that) */
@@ -1566,13 +1567,18 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY009, NULL, 0);
   }
-
   /* Bookmark */
   if (Col_or_Param_Num == 0)
   {
     return MADB_GetBookmark(Stmt, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
   }
-
+  /* This parameter validation has to be done before using it as array index
+   * To be on the safer side also checking if metadata is set, and if not - also treating it as index > max 
+   */
+  if (!Stmt->metadata || Col_or_Param_Num > (columnCount= Stmt->metadata->getColumnCount()))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+  }
   /* We don't need this to be checked in case of "internal" use of the GetData, i.e. for internal needs we should always get the data */
   if (Stmt->CharOffset[Col_or_Param_Num - 1] > 0
     && Stmt->CharOffset[Col_or_Param_Num - 1] >= Stmt->Lengths[Col_or_Param_Num - 1])
@@ -1586,7 +1592,7 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   }
 
   /* reset offsets for other columns. Doing that here since "internal" calls should not do that */
-  for (i= 0; i < Stmt->metadata->getColumnCount(); i++)
+  for (i= 0; i < columnCount; i++)
   {
     if (i != Col_or_Param_Num - 1)
     {
