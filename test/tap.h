@@ -75,7 +75,7 @@ void print_btrace(int sig)
   // At 0 index will be btrace itself
   for (int i = 1; i < frames; ++i)
   {
-    DWORD64 displacement= 0;
+    DWORD displacement= 0;
     SymFromAddr(process, (DWORD64)callstack[i], 0, symbol);
     if (!SymGetLineFromAddr64(process, (DWORD64)callstack[i], &displacement, &line))
     {
