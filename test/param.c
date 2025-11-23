@@ -1,6 +1,6 @@
   /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation AB
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -988,7 +988,8 @@ ODBC_TEST(t_bug59772)
 #undef ROWS_TO_INSERT
 }
 
-
+/* Enhanced it to also cover ODBC-479 SQLGetData with non-existent column index could crash
+   the driver */
 ODBC_TEST(t_odbcoutparams)
 {
   SQLSMALLINT ncol, i;
@@ -996,6 +997,7 @@ ODBC_TEST(t_odbcoutparams)
   SQLLEN      len;
   SQLSMALLINT type[]= {SQL_PARAM_INPUT, SQL_PARAM_OUTPUT, SQL_PARAM_INPUT_OUTPUT};
   SQLCHAR     str[20]= "initial value", buff[20];
+  double      dummy= .0;
 
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS t_odbcoutparams");
   OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE t_odbcoutparams("
@@ -1005,8 +1007,6 @@ ODBC_TEST(t_odbcoutparams)
                 "BEGIN "
                 "  SET p_in = p_in*10, p_out = (p_in+p_inout)*10, p_inout = p_inout*10; "
                 "END");
-
-
 
   for (i=0; i < sizeof(par)/sizeof(SQLINTEGER); ++i)
   {
@@ -1024,8 +1024,12 @@ ODBC_TEST(t_odbcoutparams)
   
   /* Only 1 row always - we still can get them as a result */
   CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 133, SQL_C_DOUBLE, &dummy, sizeof(dummy), NULL), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "07009");
   is_num(my_fetch_int(Stmt, 1), 1300);
   is_num(my_fetch_int(Stmt, 2), 300);
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 3, SQL_C_DOUBLE, &dummy, sizeof(dummy), NULL), SQL_ERROR);
+  CHECK_SQLSTATE(Stmt, "07009");
   FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -1727,7 +1731,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug49029, "t_bug49029"},
   {t_bug56804, "t_bug56804"},
   {t_bug59772, "t_bug59772"},
-  {t_odbcoutparams, "t_odbcoutparams"},
+  {t_odbcoutparams, "t_odbcoutparams-with_odbc-479"},
   {t_bug14501952, "t_bug14501952"},
   {t_bug14563386, "t_bug14563386"},
   {t_bug14551229, "t_bug14551229"},

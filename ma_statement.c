@@ -2989,8 +2989,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
   IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, Offset, MADB_DESC_READ);
   if (!IrdRec)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
   }
 
   switch (TargetType) {

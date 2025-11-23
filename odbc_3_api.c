@@ -1563,6 +1563,7 @@ SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
   MADB_Stmt *Stmt= (MADB_Stmt*)StatementHandle;
   unsigned int i;
   MADB_DescRecord *IrdRec;
+  unsigned int columnCount= 0;
 
   if (StatementHandle== SQL_NULL_HSTMT)
     return SQL_INVALID_HANDLE;
@@ -1581,6 +1582,12 @@ SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
     return MADB_GetBookmark(Stmt, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr);
   }
 
+  /* This parameter validation has to be done before using it as array index */
+  if (Col_or_Param_Num > (columnCount= mysql_stmt_field_count(Stmt->stmt)))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_07009, NULL, 0);
+  }
+
   /* We don't need this to be checked in case of "internal" use of the GetData, i.e. for internal needs we should always get the data */
   if ( Stmt->CharOffset[Col_or_Param_Num - 1] > 0
     && Stmt->CharOffset[Col_or_Param_Num - 1] >= Stmt->Lengths[Col_or_Param_Num - 1])
@@ -1594,7 +1601,7 @@ SQLRETURN SQL_API SQLGetData(SQLHSTMT StatementHandle,
   }
 
   /* reset offsets for other columns. Doing that here since "internal" calls should not do that */
-  for (i=0; i < mysql_stmt_field_count(Stmt->stmt); i++)
+  for (i=0; i < columnCount; i++)
   {
     if (i != Col_or_Param_Num - 1)
     {
