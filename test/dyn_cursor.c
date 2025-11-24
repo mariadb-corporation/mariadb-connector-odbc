@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2022 MariaDB Corporation AB
+                2013, 2025 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -753,15 +753,75 @@ ODBC_TEST(my_dynamic_cursor)
   return OK;
 }
 
+
+ODBC_TEST(odbc476)
+{
+  SQLLEN    nlen[15]= { 0 }, nrow[15]= { 0 };
+  char      szData[15][15]= { 0 };
+  SQLINTEGER nData[15];
+
+  if (ForwardOnly == TRUE && NoCache == TRUE)
+  {
+    skip("The test cannot be run if FORWARDONLY and NOCACHE options are selected");
+  }
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc476");
+
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc476 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,"
+  "string_null VARCHAR(255), int32_null INT, INDEX idx_string_null(string_null))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(1,'name 3', 3)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(2,'name 5', 5)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(3,'name 9', 9)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(4,'name 3', 32)");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER)SQL_CONCUR_LOCK, 0));
+
+  // To repeat issue it has to be SELECT string_null
+  OK_SIMPLE_STMT(Stmt, "SELECT id, string_null FROM t_odbc476 "
+    "WHERE string_null='name 3' OR string_null='name 5'");
+
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+  // This fails with "can't build index" if id field or all fields are not selected
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc476 ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)3, 0));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, nrow));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+
+  is_num(nData[0], 2);
+  IS_STR(szData[0], "name 5", 7);
+  is_num(nData[1], 3);
+  IS_STR(szData[1], "name 9", 7);
+  is_num(nData[2], 4);
+  IS_STR(szData[2], "name 3", 7);
+
+  FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "no data found expected");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc476");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_dynamic_pos_cursor, "my_dynamic_pos_cursor",   NORMAL},
   {my_dynamic_pos_cursor1, "my_dynamic_pos_cursor1", NORMAL},
   {my_position, "my_position",                       NORMAL},
-  { my_position1, "my_position1",                    NORMAL },
-  { my_zero_irow_update, "my_zero_irow_update",      NORMAL },
+  {my_position1, "my_position1",                    NORMAL },
+  {my_zero_irow_update, "my_zero_irow_update",      NORMAL },
   {my_zero_irow_delete, "my_zero_irow_delete",       NORMAL},
   {my_dynamic_cursor, "my_dynamic_cursor",           NORMAL},
+  {odbc476, "odbc476-not-enough-info",           NORMAL},
   {NULL, NULL}
 };
 
