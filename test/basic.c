@@ -263,22 +263,18 @@ ODBC_TEST(simple_2)
   return OK;
 }
 
-ODBC_TEST(test_reconnect)
+ODBC_TEST(test_reconnectw)
 {
   SQLHDBC hdbc1;
   SQLRETURN rc;
   int i;
-  SQLWCHAR dsn[256],
-           username[64],
-           passwd[64];
 
   for (i= 0; i < 10; i++)
   {
     rc= SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1);
     CHECK_ENV_RC(Env, rc);
     
-    rc= SQLConnectW(hdbc1, latin_as_sqlwchar((char*)my_dsn, dsn), SQL_NTS, latin_as_sqlwchar((char*)my_uid, username), SQL_NTS,
-                   latin_as_sqlwchar((char*)my_pwd, passwd), SQL_NTS);
+    rc= SQLConnectW(hdbc1, wdsn, SQL_NTS, wuid, SQL_NTS, wpwd, SQL_NTS);
     CHECK_DBC_RC(hdbc1, rc);
     rc= SQLDisconnect(hdbc1);
     CHECK_DBC_RC(hdbc1, rc);
@@ -2180,6 +2176,38 @@ ODBC_TEST(connection_reset)
   return OK;
 }
 
+/* Test of auto-reconnect function */
+ODBC_TEST(t_auto_reconnect)
+{
+  SQLINTEGER connection_id;
+  char buf[64];
+  SQLHDBC  Hdbc;
+  SQLHSTMT Hstmt;
+
+  //SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
+  /* Create a new connection with reconnect option on that we will kill to check if it still functioning */
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+  Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "AUTO_RECONNECT=1");
+  OK_SIMPLE_STMT(Hstmt, "SELECT connection_id()");
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  connection_id= my_fetch_int(Hstmt, 1);
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
+
+  /* From another connection, kill the connection created above */
+  sprintf(buf, "KILL %d", connection_id);
+  CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)buf, SQL_NTS));
+
+  /* Now check that the connection is functioning and it is a new connection */
+  OK_SIMPLE_STMT(Hstmt, "SELECT connection_id()");
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  FAIL_IF(connection_id == my_fetch_int(Hstmt, 1), "Connection wasn't killed? But still functioning");
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeHandle(SQL_HANDLE_DBC, Hdbc));
+
+  return OK;
+}
+
 
 ODBC_TEST(t_odbc399)
 {
@@ -2200,7 +2228,7 @@ MA_ODBC_TESTS my_tests[]=
   {simple_test1,   "Simple test1",   NORMAL},
   {select1000,     "select1000",     NORMAL},
   {simple_2,       "simple_2",       NORMAL},
-  {test_reconnect, "test_reconnect", NORMAL},
+  {test_reconnectw, "test_reConnectW", NORMAL},
   {bug19823,       "bug19823",       NORMAL},
   {t_basic,        "t_basic",        NORMAL},
   {t_reconnect,    "t_reconnect",    NORMAL},
@@ -2241,12 +2269,13 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc384,     "odbc384_namedpipe_plugin", NORMAL},
 #endif
   {t_odbc377,     "odbc377_timeout_attrs",    NORMAL},
-  {t_odbc388,     "odbc388_perfschema_attrs",    NORMAL},
+  {t_odbc388,     "odbc388_perfschema_attrs", NORMAL},
 #ifndef HAVE_NOT_SQLCANCELHANDLE
-  {sqlcancelhandle, "sqlcancelhandle", NORMAL},
+  {sqlcancelhandle, "sqlcancelhandle",        NORMAL},
 #endif
   {connection_reset, "test_SQL_ATTR_RESET_CONNECTION", NORMAL},
-  {t_odbc399,     "odbc399_comment_only",    NORMAL},
+  {t_odbc399,        "odbc399_comment_only",           NORMAL},
+  {t_auto_reconnect, "t_auto_reconnect",               NORMAL},
   {NULL, NULL, 0}
 };
 
