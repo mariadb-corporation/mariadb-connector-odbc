@@ -63,7 +63,8 @@ char* MADB_GetTableName(MADB_Stmt *Stmt)
   return Stmt->TableName;
 }
 
-char *MADB_GetCatalogName(MADB_Stmt *Stmt)
+
+char* MADB_GetCatalogName(MADB_Stmt *Stmt)
 {
   char *CatalogName= nullptr;
   uint32_t i= 0, colCount= 0;
@@ -228,6 +229,7 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString)
   return FALSE;
 }
 
+/* Building WHERE clause based on current row for positional opwration */
 bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName, bool ParameterMarkers)
 {
   int UniqueCount=0, PrimaryCount= 0, TotalPrimaryCount= 0, TotalUniqueCount= 0, TotalTableFieldCount= 0;
@@ -240,8 +242,14 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
   {
     TotalUniqueCount= Stmt->UniqueIndex[0];
     IndexArrIdx= 1;
+    Flag= Stmt->IndexType;
   }
-  else
+  else if (Stmt->IndexType < 0)
+  {
+    MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
+    return true;
+  }
+  else if (Stmt->IndexType == 0)
   {
     for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
     {
@@ -290,22 +298,27 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
     else if (TotalTableFieldCount != MADB_STMT_COLUMN_COUNT(Stmt))
     {
       MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
-      return TRUE;
+      Stmt->IndexType= -1;
+      return true;
     }
     else
     {
       TotalUniqueCount= 0;
     }
 
-    if (TotalUniqueCount != 0)
+    if (TotalUniqueCount)
     {
-      /* First element gets number of columns in the index */
-      Stmt->UniqueIndex= static_cast<unsigned short*>(MADB_ALLOC((TotalUniqueCount + 1) * sizeof(*Stmt->UniqueIndex)));
+      Stmt->UniqueIndex = static_cast<unsigned short*>(MADB_ALLOC((TotalUniqueCount + 1) * sizeof(*Stmt->UniqueIndex)));
       if (Stmt->UniqueIndex == nullptr)
       {
         goto memerror;
       }
       Stmt->UniqueIndex[0]= TotalUniqueCount;
+      Stmt->IndexType= static_cast<char>(Flag);
+    }
+    else
+    {
+      Stmt->IndexType= 1;
     }
   }
 
@@ -340,10 +353,17 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
         if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, nullptr, 0, &StrLength, true)))
         {
           MADB_FREE(Column);
-          return TRUE;
+          return true;
         }
         if (StrLength < 0)
         {
+          // If we have found the index and part of is NULL - that must be unique index with nullable part.
+          // Having that part be actually NULL for current row makes it impossible to use the index
+          if (Flag)
+          {
+            MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
+            return true;
+          }
           DynString.append(" IS NULL");
         }
         else

@@ -325,6 +325,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     Stmt->State= MADB_SS_INITED;
     MADB_CLEAR_ERROR(&Stmt->Error);
     MADB_FREE(Stmt->UniqueIndex);
+    Stmt->IndexType= 0;
     MADB_FREE(Stmt->TableName);
   }
   return SQL_SUCCESS;
@@ -734,8 +735,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
 
   if (DataPtr != nullptr && StrLen_or_Ind < 0 && StrLen_or_Ind != SQL_NTS && StrLen_or_Ind != SQL_NULL_DATA)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY090, nullptr, 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, nullptr, 0);
   }
 
   if (Stmt->DataExecutionType != MADB_DAE_NORMAL)
@@ -750,8 +750,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
     /* Check if we've already sent any data */
     if (false)// we should have some own flags for that, other than MyStmt->stmt->params[Stmt->PutParam].long_data_used)
     {
-      MADB_SetError(&Stmt->Error, MADB_ERR_HY011, nullptr, 0);
-      return Stmt->Error.ReturnValue;
+      return MADB_SetError(&Stmt->Error, MADB_ERR_HY011, nullptr, 0);
     }
     Record->Type= SQL_TYPE_NULL;
     return SQL_SUCCESS;
@@ -760,8 +759,7 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
   /* This normally should be enforced by DM */
   if (DataPtr == nullptr && StrLen_or_Ind != 0)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_HY009, nullptr, 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY009, nullptr, 0);
   }
 /*
   if (StrLen_or_Ind == SQL_NTS)
@@ -824,11 +822,9 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
   MADB_CLEAR_ERROR(&Stmt->Error);
   if (!Stmt->PositionedCursor->result)
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_34000, "Cursor has no result set or is not open", 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_34000, "Cursor has no result set or is not open", 0);
   }
   MADB_StmtDataSeek(Stmt->PositionedCursor, Stmt->PositionedCursor->Cursor.Position);
-  Stmt->Methods->RefreshRowPtrs(Stmt->PositionedCursor);
 
   memcpy(&Stmt->Apd->Header, &Stmt->Ard->Header, sizeof(MADB_Header));
   
@@ -3555,12 +3551,6 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
 }
 /* }}} */
 
-/* {{{ MADB_RefreshRowPtrs */
-SQLRETURN MADB_RefreshRowPtrs(MADB_Stmt *Stmt)
-{
-  return SQL_SUCCESS;// MoveNext(Stmt, 1LL);
-}
-
 /* {{{ MADB_RefreshDynamicCursor */
 SQLRETURN MADB_RefreshDynamicCursor(MADB_Stmt *Stmt)
 {
@@ -3602,7 +3592,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     return MADB_SetError(&Stmt->Error, MADB_ERR_24000, nullptr, 0);
   }
 
-  /* This RowNumber != 1 is based on current SQL_POSITION implementation, and actually does not look to be quite correct
+  /* This RowNumber != 1 - we don't support block cursors with RS streaming. But with forward only we actually could
    */
   if (Stmt->Options.CursorType == SQL_CURSOR_FORWARD_ONLY && Operation == SQL_POSITION && RowNumber != 1)
   {
@@ -3613,33 +3603,43 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, nullptr, 0);
   }
+  // SQL_ADD does not care about RowNumber. But probably the error still should be if it is not 0?
+  if (Operation != SQL_ADD && (RowNumber > Stmt->rs->rowsCount() || (RowNumber == 0 && Operation == SQL_POSITION)))
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
+  }
+  // I wonder if for SQL_ALL that is even correct. Application kinda supposed to change values to insert them. If we arefresh data
+  // from server, we are overwriting those changes. But maybe should just use correct cursor type or SQLBulkOPerations
+  if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC && !SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
+  {
+    return Stmt->Error.ReturnValue;
+  }
 
-  switch(Operation) {
+  switch (Operation) {
   case SQL_POSITION:
     {
-      if (RowNumber < 1 || RowNumber > Stmt->rs->rowsCount())
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
-        return Stmt->Error.ReturnValue;
-      }
-      if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
-          return Stmt->Error.ReturnValue;
-      Stmt->Cursor.Position+= (RowNumber - 1);
+      Stmt->Cursor.Position += (RowNumber - 1);
       MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
     }
-    break;
+  case SQL_REFRESH:
+      /* todo */
+      /* Nothing else to do (at least for now) in this 2 cases */
+      return SQL_SUCCESS;
+  };
+
+  char* TableName= MADB_GetTableName(Stmt);
+  if (!TableName)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_IM001, "Updatable Cursors with multiple tables are not supported", 0);
+  }
+  char* CatalogName= MADB_GetCatalogName(Stmt);
+  
+  switch (Operation) {
   case SQL_ADD:
     {
       MADB_DynString DynStmt;
       SQLRETURN      ret;
-      char          *TableName=   MADB_GetTableName(Stmt);
-      char          *CatalogName= MADB_GetCatalogName(Stmt);
       int            column, param= 0;
-
-      if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
-          return Stmt->Error.ReturnValue;
 
       Stmt->DaeRowNumber= RowNumber;
 
@@ -3721,34 +3721,16 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     break;
   case SQL_UPDATE:
     {
-      char        *TableName= MADB_GetTableName(Stmt);
       my_ulonglong Start=     0, 
                    End=       Stmt->rs->rowsCount();
-      SQLRETURN    result=    SQL_INVALID_HANDLE; /* Just smth we cannot normally get */   
-
-      if (!TableName)
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_IM001, "Updatable Cursors with multiple tables are not supported", 0);
-        return Stmt->Error.ReturnValue;
-      }
+      SQLRETURN    result=    SQL_INVALID_HANDLE; /* Just smth we cannot normally get */
       
       Stmt->AffectedRows= 0;
 
       if ((SQLLEN)RowNumber > Stmt->LastRowFetched)
       {
-        MADB_SetError(&Stmt->Error, MADB_ERR_S1107, nullptr, 0);
-        return Stmt->Error.ReturnValue;
+        return MADB_SetError(&Stmt->Error, MADB_ERR_S1107, nullptr, 0);
       }
-
-      if (RowNumber < 0 || RowNumber > End)
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
-        return Stmt->Error.ReturnValue;
-      }
-
-      if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
-          return Stmt->Error.ReturnValue;
 
       Stmt->DaeRowNumber= MAX(1,RowNumber);
       
@@ -3758,11 +3740,12 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         Stmt->Cursor.Position= 1;
 
       if (RowNumber)
-        Start= End= Stmt->Cursor.Position + RowNumber - 1;
+      {
+        Start= End = Stmt->Cursor.Position + RowNumber - 1;
+      }
       else
       {
         Start= Stmt->Cursor.Position;
-        /* TODO: if num_rows returns 1, End is 0? Start would be 1, no */
         End= MIN(Stmt->rs->rowsCount(), Start + Stmt->Ard->Header.ArraySize - 1);
       }
       /* Stmt->ArrayOffset will be incremented in StmtExecute() */
@@ -3773,7 +3756,6 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       {
         SQLSMALLINT param= 0, column;
         MADB_StmtDataSeek(Stmt, Start);
-        Stmt->Methods->RefreshRowPtrs(Stmt);
         
         /* We don't need to prepare the statement, if SetPos was called
            from SQLParamData() function */
@@ -3839,9 +3821,11 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
             ++param;
           }                             /* End of for(column=0;...) */
           if (Stmt->PutParam == MADB_NEED_DATA)
+          {
             return SQL_NEED_DATA;
-        }                               /* End of if (!ArrayOffset) */ 
-        
+          }
+        }                               /* End of if (!ArrayOffset) */
+
         if (Stmt->DaeStmt->Methods->Execute(Stmt->DaeStmt, FALSE) != SQL_ERROR)
         {
           Stmt->AffectedRows+= Stmt->DaeStmt->AffectedRows;
@@ -3865,29 +3849,15 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
     }
   case SQL_DELETE:
     {
+      SQLRETURN     result = SQL_INVALID_HANDLE; /* Just smth we cannot normally get */
       SQLString     DynamicStmt("DELETE FROM ");
       std::size_t   baseStmtLen;
       SQLULEN       SaveArraySize= Stmt->Ard->Header.ArraySize;
       my_ulonglong  Start=         0,
                     End=           Stmt->rs->rowsCount();
-      char         *TableName=    MADB_GetTableName(Stmt);
-
-      if (!TableName)
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_IM001, "Updatable Cursors with multiple tables are not supported", 0);
-        return Stmt->Error.ReturnValue;
-      }
 
       Stmt->Ard->Header.ArraySize= 1;
-      if (Stmt->Options.CursorType == SQL_CURSOR_DYNAMIC)
-        if (!SQL_SUCCEEDED(Stmt->Methods->RefreshDynamicCursor(Stmt)))
-          return Stmt->Error.ReturnValue;
       Stmt->AffectedRows= 0;
-      if (RowNumber < 0 || RowNumber > End)
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
-        return Stmt->Error.ReturnValue;
-      }
       Start= (RowNumber) ? Stmt->Cursor.Position + RowNumber - 1 : Stmt->Cursor.Position;
       if (SaveArraySize && !RowNumber)
       {
@@ -3898,24 +3868,31 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         End= Start;
       }
       DynamicStmt.reserve(8182);
+      DynamicStmt.append(TableName);
       baseStmtLen= DynamicStmt.length();
       while (Start <= End)
       {
         MADB_StmtDataSeek(Stmt, Start);
-        Stmt->Methods->RefreshRowPtrs(Stmt);
-        DynamicStmt.append(TableName);
-
+        
         if (MADB_DynStrGetWhere(Stmt, DynamicStmt, TableName, false))
         {
-          return Stmt->Error.ReturnValue;
+          MADB_SETPOS_AGG_RESULT(result, Stmt->Error.ReturnValue);
+          /* Continuing to next row. If there is no key - we will get it for all rows and as aggregated result.
+           * if we have unique key and NULL value on part of the key - we need to continue to next row (we wouldn't
+           * stop here before when we did not care about NULL values)
+           */
         }
-
-        std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
-        Stmt->Connection->guard->safeRealQuery(DynamicStmt);
-
-        Stmt->AffectedRows+= mysql_affected_rows(Stmt->Connection->mariadb);
+        else
+        {
+          std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
+          Stmt->Connection->guard->safeRealQuery(DynamicStmt);
+          Stmt->AffectedRows += mysql_affected_rows(Stmt->Connection->mariadb);
+        }
         ++Start;
         DynamicStmt.erase(baseStmtLen);
+        /* Technichally we could combine here all conditions with OR. Other oportunity would be to use
+         * bulk operation, but OR is like way easier to make. But we won't know results for individual rows. 
+         */
       }
       Stmt->Ard->Header.ArraySize= SaveArraySize;
       /* if we have a dynamic cursor we need to adjust the rowset size */
@@ -3923,14 +3900,12 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       {
         Stmt->LastRowFetched-= (unsigned long)Stmt->AffectedRows;
       }
+      /* Making sure we do not return initial value */
+      return result == SQL_INVALID_HANDLE ? SQL_SUCCESS : result;
     }
     break;
-  case SQL_REFRESH:
-    /* todo*/
-    break;
   default:
-    MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Only SQL_POSITION and SQL_REFRESH Operations are supported", 0);
-    return Stmt->Error.ReturnValue;
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Only SQL_POSITION and SQL_REFRESH Operations are supported", 0);
   }
   return SQL_SUCCESS;
 }
@@ -4113,8 +4088,7 @@ struct st_ma_stmt_methods MADB_StmtMethods=
   MADB_StmtParamData,
   MADB_StmtPutData,
   MADB_StmtBulkOperations,
-  MADB_RefreshDynamicCursor,
-  MADB_RefreshRowPtrs
+  MADB_RefreshDynamicCursor
 };
 
 MADB_Stmt::MADB_Stmt(MADB_Dbc* Dbc)

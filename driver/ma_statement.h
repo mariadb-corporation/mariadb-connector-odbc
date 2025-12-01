@@ -95,7 +95,6 @@ struct st_ma_stmt_methods
   SQLRETURN(*PutData)(MADB_Stmt* Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or_Ind);
   SQLRETURN(*BulkOperations)(MADB_Stmt* Stmt, SQLSMALLINT Operation);
   SQLRETURN(*RefreshDynamicCursor)(MADB_Stmt* Stmt);
-  SQLRETURN(*RefreshRowPtrs)(MADB_Stmt* Stmt);
 };
 
 SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt, bool external= true);

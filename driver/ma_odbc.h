@@ -340,6 +340,9 @@ struct MADB_Stmt
   bool                      PositionedCommand= false;
   bool                      RebindParams= false;
   bool                      bind_done= false;
+  char                      IndexType= 0; /* For positional operation - the type of index in the UniqueIndex(value of the
+                                            unique or pri flag) or > 0 if all columns in the table(UniqueIndex==NULL).
+                                            0 - no info, <0 - can't build index */
 
   MADB_Stmt(MADB_Dbc *Connection);
   SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true, bool DirectExecution= false);

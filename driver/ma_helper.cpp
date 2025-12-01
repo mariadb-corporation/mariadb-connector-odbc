@@ -85,6 +85,7 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
   MYSQL_RES   *Res;
   MYSQL_FIELD *Field;
   
+  // It shouldn't be current but the one from the query
   Connection->GetAttr(SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
   p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
@@ -1173,7 +1174,7 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     break;
   case SQL_UPDATE:
     Query.assign("UPDATE `").append(CatalogName).append("`.`").append(TableName).append(1, '`');
-    if (MADB_DynStrUpdateSet(Stmt, Query)|| MADB_DynStrGetWhere(Stmt, Query, TableName, false))
+    if (MADB_DynStrUpdateSet(Stmt, Query) || MADB_DynStrGetWhere(Stmt, Query, TableName, false))
     {
       return Stmt->Error.ReturnValue;
     }

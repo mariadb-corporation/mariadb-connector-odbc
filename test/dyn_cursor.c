@@ -767,44 +767,69 @@ ODBC_TEST(odbc476)
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc476");
 
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc476 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,"
-  "string_null VARCHAR(255), int32_null INT, INDEX idx_string_null(string_null))");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(1,'name 3', 3)");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(2,'name 5', 5)");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(3,'name 9', 9)");
-  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(4,'name 3', 32)");
+  "string_null VARCHAR(255), int32_null INT, UNIQUE INDEX idx_string_null(string_null))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(1, NULL, 3)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(2, 'name 5', 5)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(3, 'name 9', 9)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc476 VALUES(4, NULL, 32)");
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_DYNAMIC, 0));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER)SQL_CONCUR_LOCK, 0));
 
-  // To repeat issue it has to be SELECT string_null
-  OK_SIMPLE_STMT(Stmt, "SELECT id, string_null FROM t_odbc476 "
-    "WHERE string_null='name 3' OR string_null='name 5'");
-
+  OK_SIMPLE_STMT(Stmt, "SELECT string_null FROM t_odbc476 ORDER BY int32_null DESC");
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
   // This fails with "can't build index" if id field or all fields are not selected
-  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE));
+  EXPECT_STMT(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE), SQL_ERROR);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc476 ORDER BY id");
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)3, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)4, 0));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, nrow));
   CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
   CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
 
-  is_num(nData[0], 2);
-  IS_STR(szData[0], "name 5", 7);
-  is_num(nData[1], 3);
-  IS_STR(szData[1], "name 9", 7);
-  is_num(nData[2], 4);
-  IS_STR(szData[2], "name 3", 7);
+  is_num(nData[0], 1);
+  //IS_STR(szData[0], "name 5", 7);
+  is_num(nlen[0], SQL_NULL_DATA);
+  is_num(nData[1], 2);
+  IS_STR(szData[1], "name 5", 7);
+  is_num(nData[2], 3);
+  IS_STR(szData[2], "name 9", 7);
+  is_num(nData[3], 4);
+  is_num(nlen[3], SQL_NULL_DATA);
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "no data found expected");
 
+  // The commented does not work, but it never did it seems. So, leaving it so far
+  //CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  //CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  ///* Now the same but on block cursor. Not null values should be deleted, SQLSetPos should return SQL_SUCCESS_WITH_INFO */
+  //OK_SIMPLE_STMT(Stmt, "SELECT string_null FROM t_odbc476 ORDER BY string_null DESC");
+  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
+  //CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+  //// This fails with "can't build index" if id field or all fields are not selected
+  //EXPECT_STMT(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE), SQL_SUCCESS_WITH_INFO);
+
+  //CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  //OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc476 ORDER BY id");
+  //CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)2, 0));
+  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, nrow));
+  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
+  //CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+
+  //is_num(nData[0], 1);
+  //is_num(nlen[0], SQL_NULL_DATA);
+  //is_num(nData[1], 4);
+  //is_num(nlen[1], SQL_NULL_DATA);
+  //FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "no data found expected");
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
-  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc476");
 
