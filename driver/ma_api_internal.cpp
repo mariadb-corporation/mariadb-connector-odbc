@@ -317,6 +317,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       {
         ret= MADB_FromException(Stmt->Error, e);
       }
+      lock.unlock();
     }
     else
     {
@@ -354,6 +355,7 @@ SQLRETURN MA_SQLCancel(SQLHSTMT StatementHandle)
       {
         ret= MADB_FromException(Stmt->Error, e);
       }
+      lock.unlock();
     }
     else
     {

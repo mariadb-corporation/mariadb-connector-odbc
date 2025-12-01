@@ -60,7 +60,7 @@ SET (ODBC_TESTS
      "basic" "types" "blob" "desc" "info" "tran" "catalog1" "catalog2"
      "use_result" "scroll" "bulk" "prepare" "datetime" "keys"
      "curext" "relative" "unicode" "cursor" "dyn_cursor"
-     "error" "param" "result1" "result2" "multistatement" "mariadb_specific")
+     "error" "param" "result1" "result2" "multistatement" "mariadb_specific" "standalone")
 SET(COMMON_TEST_SOURCES tap.h)
 # Interactive makes sense on WIN32 only atm
 IF (BUILD_INTERACTIVE_TESTS)

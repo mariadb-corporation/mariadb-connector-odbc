@@ -172,8 +172,7 @@ SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
   }
   else
   {
-    MADB_SetError(&Connection->Error, MADB_ERR_08003, nullptr, 0);
-    ret= Connection->Error.ReturnValue;
+    ret= MADB_SetError(&Connection->Error, MADB_ERR_08003, nullptr, 0);
   }
   Connection->ConnOrSrcCharset= nullptr;
 

@@ -207,7 +207,7 @@ static unsigned long defaultOptions= 67108866;
 static unsigned long my_options= 67108866;
 #define CHANGE_DEFAULT_OPTIONS(_NEW_OPTIONS) my_options=defaultOptions=_NEW_OPTIONS
 
-static SQLHANDLE     Env, Connection, Stmt, wConnection, wStmt;
+static SQLHANDLE     Env= NULL, Connection= NULL, Stmt= NULL, wConnection= NULL, wStmt= NULL;
 static SQLINTEGER    OdbcVer= SQL_OV_ODBC3;
 static unsigned int  DmMajor= 0, DmMinor= 0, DmPatch= 0;
 static unsigned int  my_port= 3306;
@@ -1188,6 +1188,87 @@ int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
 
   return OK;
 }
+
+
+int run_tests_bare(MA_ODBC_TESTS* tests)
+{
+  int         rc, i= 1, failed= 0;
+  const char* comment;
+  SQLWCHAR* buff_before_test;
+
+  utf16= (little_endian() ? &utf16le : &utf16be);
+  utf32= (little_endian() ? &utf32le : &utf32be);
+
+  if (sizeof(SQLWCHAR) == 4)
+  {
+    DmUnicode= utf32;
+  }
+  else
+  {
+    DmUnicode= utf16;
+  }
+
+  if (utf8 == NULL || utf16 == NULL || utf32 == NULL)
+  {
+    fprintf(stdout, "HALT! Could not load charset info %p %p %p\n", utf8, utf16, utf32);
+    return 1;
+  }
+
+  wdsn= str2sqlwchar_on_gbuff((const char*)my_dsn, strlen((const char*)my_dsn) + 1, utf8, DmUnicode);
+  wuid= str2sqlwchar_on_gbuff((const char*)my_uid, strlen((const char*)my_uid) + 1, utf8, DmUnicode);
+  wpwd= str2sqlwchar_on_gbuff((const char*)my_pwd, strlen((const char*)my_pwd) + 1, utf8, DmUnicode);
+  wschema= str2sqlwchar_on_gbuff((const char*)my_schema, strlen((const char*)my_schema) + 1, utf8, DmUnicode);
+  wservername= str2sqlwchar_on_gbuff((const char*)my_servername, strlen((const char*)my_servername) + 1, utf8, DmUnicode);
+  wdrivername= str2sqlwchar_on_gbuff((const char*)my_drivername, strlen((const char*)my_drivername) + 1, utf8, DmUnicode);
+  wstrport= str2sqlwchar_on_gbuff((const char*)ma_strport, strlen((const char*)ma_strport) + 1, utf8, DmUnicode);
+  wadd_connstr= str2sqlwchar_on_gbuff((const char*)add_connstr, strlen((const char*)add_connstr) + 1, utf8, DmUnicode);
+
+  fprintf(stdout, "1..%d\n", tests_planned);
+  while (tests->title)
+  {
+    buff_before_test= buff_pos;
+
+    if (tests->skip_condition != NULL && tests->skip_condition())
+    {
+      rc= SKIP;
+    }
+    else
+    {
+      rc= tests->my_test();
+    }
+    comment = "";
+    if (rc != SKIP && tests->test_type != NORMAL)
+    {
+      comment= comments[tests->test_type][rc];
+      rc= OK;
+    }
+    else if (rc == FAIL)
+    {
+      failed++;
+    }
+
+    fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++, tests->title, comment);
+    tests++;
+
+    /* Relieving tests from restoring my_options and/or add_connstr. Also, a test may fail */
+    my_options= defaultOptions;
+    add_connstr= storedAddConnstr;
+    /* reset Statement */
+    fflush(stdout);
+  }
+
+  if (wConnection)
+  {
+    SQLDisconnect(wConnection);
+    SQLFreeHandle(SQL_HANDLE_DBC, wConnection);
+  }
+  ODBC_Disconnect(Env, Connection, Stmt);
+
+  if (failed)
+    return 1;
+  return 0;
+}
+
 
 int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
 {
