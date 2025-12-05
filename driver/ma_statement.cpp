@@ -2756,8 +2756,8 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY109, nullptr, 0);
   }
-  /* Will it be set with all dummies? */
-  if (Stmt->result[Offset].is_null && *Stmt->result[Offset].is_null != '\0')
+
+  if (Stmt->rs->isNull(Col_or_Param_Num))
   {
     if (!StrLen_or_IndPtr)
     {
@@ -2985,6 +2985,10 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
         Bind.length=       &Bind.length_value;
 
         Stmt->rs->get(&Bind, Offset, Stmt->CharOffset[Offset]);
+        //Should not happen
+        if (IsNull) {
+          break;
+        }
 
         if (InternalUse)
         {
@@ -2998,16 +3002,16 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
           }
           *StrLen_or_IndPtr= Stmt->Lengths[Offset] - Stmt->CharOffset[Offset];
         }
-
-        MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
-
-        return SQL_SUCCESS_WITH_INFO;
+        return MADB_SetError(&Stmt->Error, MADB_ERR_01004, nullptr, 0);
       }
 
       if (Stmt->rs->get(&Bind, Offset, CurrentOffset))
       {
-        MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
-        return Stmt->Error.ReturnValue;
+        return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
+      }
+      // Should not happen
+      if (IsNull) {
+        break;
       }
       /* Dirty temporary hack before we know what is going on. Yes, there is nothing more eternal, than temporary
          It's not that bad, after all */
@@ -3160,6 +3164,14 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
     return MADB_SetError(&Stmt->Error, MADB_ERR_22003, oor.what(), 0);
   }
 
+  if (IsNull)
+  {
+    if (!StrLen_or_IndPtr)
+    {
+      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, nullptr, 0);
+    }
+    *StrLen_or_IndPtr = SQL_NULL_DATA;
+  }
   /* Marking fixed length fields to be able to return SQL_NO_DATA on subsequent calls, as standard prescribes
      "SQLGetData cannot be used to return fixed-length data in parts. If SQLGetData is called more than one time
       in a row for a column containing fixed-length data, it returns SQL_NO_DATA for all calls after the first."
@@ -3168,16 +3180,6 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT     StatementHandle,
   {
     Stmt->CharOffset[Offset]= MAX((unsigned long)Bind.buffer_length, Bind.length_value);
   }
-
-  if (IsNull)
-  {
-    if (!StrLen_or_IndPtr)
-    {
-      return MADB_SetError(&Stmt->Error, MADB_ERR_22002, nullptr, 0);
-    }
-    *StrLen_or_IndPtr= SQL_NULL_DATA;
-  }
-
   return Stmt->Error.ReturnValue;
 }
 /* }}} */
@@ -3618,8 +3620,8 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   switch (Operation) {
   case SQL_POSITION:
     {
-      Stmt->Cursor.Position += (RowNumber - 1);
-      MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position);
+      //Stmt->Cursor.Position += (RowNumber - 1);
+      MADB_StmtDataSeek(Stmt, Stmt->Cursor.Position + RowNumber - 1);
     }
   case SQL_REFRESH:
       /* todo */
@@ -3887,6 +3889,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
           std::lock_guard<std::mutex> localScopeLock(Stmt->Connection->guard->getLock());
           Stmt->Connection->guard->safeRealQuery(DynamicStmt);
           Stmt->AffectedRows += mysql_affected_rows(Stmt->Connection->mariadb);
+          MADB_SETPOS_AGG_RESULT(result, SQL_SUCCESS);
         }
         ++Start;
         DynamicStmt.erase(baseStmtLen);

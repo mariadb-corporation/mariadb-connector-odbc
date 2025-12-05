@@ -2184,7 +2184,7 @@ ODBC_TEST(t_auto_reconnect)
   SQLHDBC  Hdbc;
   SQLHSTMT Hstmt;
 
-  //SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
+  SKIPIF(IsMaxScale || IsSkySqlHa, "Doesn't make sense with Maxscale, as we kill connection from MaxScale to one of servers, and our connection to MaxScale persists");
   /* Create a new connection with reconnect option on that we will kill to check if it still functioning */
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
   Hstmt = DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "AUTO_RECONNECT=1");

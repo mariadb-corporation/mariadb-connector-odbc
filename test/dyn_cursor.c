@@ -802,30 +802,36 @@ ODBC_TEST(odbc476)
 
   FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "no data found expected");
 
-  // The commented does not work, but it never did it seems. So, leaving it so far
-  //CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
-  //CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  ///* Now the same but on block cursor. Not null values should be deleted, SQLSetPos should return SQL_SUCCESS_WITH_INFO */
-  //OK_SIMPLE_STMT(Stmt, "SELECT string_null FROM t_odbc476 ORDER BY string_null DESC");
-  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
-  //CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
-  //// This fails with "can't build index" if id field or all fields are not selected
-  //EXPECT_STMT(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE), SQL_SUCCESS_WITH_INFO);
+  /* Now the same but on block cursor. Not null values should be deleted, SQLSetPos should return SQL_SUCCESS_WITH_INFO */
+  OK_SIMPLE_STMT(Stmt, "SELECT string_null FROM t_odbc476 ORDER BY string_null DESC"); // To make NULL go last
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
 
-  //CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  // Setting position to first NULL value. From here this is also and mostly test for ODBC-482
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 3, SQL_POSITION, SQL_LOCK_NO_CHANGE));
+  // Now we should be able to SQLGetData from that row. Gonna use the same buffer
+  nlen[2]= 0;
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 1, SQL_C_CHAR, &szData[2], sizeof(szData[2]), &nlen[2]));
+  is_num(SQL_NULL_DATA, nlen[2]);
+  // This fails with "can't build index" if id field or all fields are not selected
+  EXPECT_STMT(Stmt, SQLSetPos(Stmt, 0, SQL_DELETE, SQL_LOCK_NO_CHANGE), SQL_SUCCESS_WITH_INFO);
 
-  //OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc476 ORDER BY id");
-  //CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)2, 0));
-  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, nrow));
-  //CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
-  //CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  //is_num(nData[0], 1);
-  //is_num(nlen[0], SQL_NULL_DATA);
-  //is_num(nData[1], 4);
-  //is_num(nlen[1], SQL_NULL_DATA);
-  //FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "no data found expected");
+  OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_odbc476 ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)2, 0));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &nData, 0, nrow));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, szData, sizeof(szData[0]), nlen));
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 1));
+
+  is_num(nData[0], 1);
+  is_num(nlen[0], SQL_NULL_DATA);
+  is_num(nData[1], 4);
+  is_num(nlen[1], SQL_NULL_DATA);
+  FAIL_IF(SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1) != SQL_NO_DATA_FOUND, "no data found expected");
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
@@ -846,7 +852,7 @@ MA_ODBC_TESTS my_tests[]=
   {my_zero_irow_update, "my_zero_irow_update",      NORMAL },
   {my_zero_irow_delete, "my_zero_irow_delete",       NORMAL},
   {my_dynamic_cursor, "my_dynamic_cursor",           NORMAL},
-  {odbc476, "odbc476-not-enough-info",           NORMAL},
+  {odbc476, "odbc476_odbc482-not-enough-info",           NORMAL},
   {NULL, NULL}
 };
 
