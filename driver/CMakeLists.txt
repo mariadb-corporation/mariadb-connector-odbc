@@ -30,14 +30,14 @@ INCLUDE(FindGit)
 IF(NOT GIT_EXECUTABLE)
   MESSAGE(STATUS "Git has nobeen found")
 ENDIF()
-IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/CMakeLists.txt AND GIT_EXECUTABLE)
+IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/class AND GIT_EXECUTABLE)
   MESSAGE(STATUS "C/C++ files are not found - updating submodules")
   EXECUTE_PROCESS(COMMAND "${GIT_EXECUTABLE}" submodule init
-	  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   EXECUTE_PROCESS(COMMAND "${GIT_EXECUTABLE}" submodule update
-	  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 ENDIF()
-IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/CMakeLists.txt)
+IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/class)
   MESSAGE(FATAL_ERROR "No MariaDB Connector/C++ mini branch! Run
   git submodule init
   git submodule update
@@ -45,29 +45,7 @@ IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cppmini/CMakeLists.txt)
 ")
 ENDIF()
 
-
-SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
-                          ma_api_internal.cpp   
-                          ma_error.cpp
-                          ma_connection.cpp
-                          ma_helper.cpp
-                          ma_debug.cpp
-                          ma_dsn.c
-                          ma_driver.cpp
-                          ma_info.cpp
-                          ma_environment.cpp
-                          ma_parse.cpp
-                          ma_catalog.cpp
-                          ma_statement.cpp
-                          ma_desc.cpp
-                          ma_string.cpp
-                          ma_result.cpp
-                          ma_common.c
-                          ma_server.cpp
-                          ma_legacy_helpers.cpp
-                          ma_typeconv.cpp
-                          ma_bulk.cpp
-                          ma_codec.cpp
+SET(MARIADB_CPPMINI_FILES
                           cppmini/class/Results.cpp
                           cppmini/class/TextRow.cpp
                           cppmini/class/BinRow.cpp
@@ -92,7 +70,66 @@ SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
                           cppmini/interface/Exception.cpp
                           cppmini/template/CArray.cpp
                           )
+# Propogating it to the parent level as it needed for source package generation. If we wet it for parent_scope in first place,
+# it won't be visible in this scope                        
+SET(MARIADB_CPPMINI_FILES ${MARIADB_CPPMINI_FILES} PARENT_SCOPE)
 
+SET(MARIADB_CPPMINI_HEADERS
+                          cppmini/class/SQLString.h
+                          cppmini/class/Results.h
+                          cppmini/class/TextRow.h
+                          cppmini/class/BinRow.h
+                          cppmini/class/ClientSidePreparedStatement.h
+                          cppmini/class/ServerSidePreparedStatement.h
+                          cppmini/class/SSPSDirectExec.h
+                          cppmini/class/ClientPrepareResult.h
+                          cppmini/class/ServerPrepareResult.h
+                          cppmini/class/CmdInformationSingle.h
+                          cppmini/class/CmdInformationMultiple.h
+                          cppmini/class/CmdInformationBatch.h
+                          cppmini/class/ColumnDefinition.h
+                          cppmini/class/ResultSetText.h
+                          cppmini/class/ResultSetBin.h
+                          cppmini/class/ResultSetMetaData.h
+                          cppmini/class/Parameter.h
+                          cppmini/class/pimpls.h
+                          cppmini/class/Protocol.h
+                          cppmini/class/lru/lrucache.h
+                          cppmini/class/lru/pscache.h
+                          cppmini/interface/PreparedStatement.h
+                          cppmini/interface/PrepareResult.h
+                          cppmini/interface/Row.h
+                          cppmini/interface/ResultSet.h
+                          cppmini/interface/CmdInformation.h
+                          cppmini/interface/Exception.h
+                          cppmini/template/CArray.h
+                          )
+SET(MARIADB_CPPMINI_HEADERS ${MARIADB_CPPMINI_HEADERS} PARENT_SCOPE)
+
+SET (MARIADB_ODBC_SOURCES odbc_3_api.cpp
+                          ma_api_internal.cpp   
+                          ma_error.cpp
+                          ma_connection.cpp
+                          ma_helper.cpp
+                          ma_debug.cpp
+                          ma_dsn.c
+                          ma_driver.cpp
+                          ma_info.cpp
+                          ma_environment.cpp
+                          ma_parse.cpp
+                          ma_catalog.cpp
+                          ma_statement.cpp
+                          ma_desc.cpp
+                          ma_string.cpp
+                          ma_result.cpp
+                          ma_common.c
+                          ma_server.cpp
+                          ma_legacy_helpers.cpp
+                          ma_typeconv.cpp
+                          ma_bulk.cpp
+                          ma_codec.cpp
+                          ${MARIADB_CPPMINI_FILES}
+                          )
 IF(WIN32)
   SET(ODBC_LIBS odbc32)
   SET(ODBC_INSTLIBS odbccp32)
@@ -122,31 +159,7 @@ IF(WIN32)
                           ma_bulk.h
                           ma_codec.h
                           ma_c_stuff.h
-                          cppmini/class/SQLString.h
-                          cppmini/class/Results.h
-                          cppmini/class/TextRow.h
-                          cppmini/class/BinRow.h
-                          cppmini/class/ClientSidePreparedStatement.h
-                          cppmini/class/ServerSidePreparedStatement.h
-                          cppmini/class/SSPSDirectExec.h
-                          cppmini/class/ClientPrepareResult.h
-                          cppmini/class/ServerPrepareResult.h
-                          cppmini/class/CmdInformationSingle.h
-                          cppmini/class/CmdInformationMultiple.h
-                          cppmini/class/CmdInformationBatch.h
-                          cppmini/class/ColumnDefinition.h
-                          cppmini/class/ResultSetText.h
-                          cppmini/class/ResultSetBin.h
-                          cppmini/class/ResultSetMetaData.h
-                          cppmini/class/Parameter.h
-                          cppmini/class/Protocol.h
-                          cppmini/interface/PreparedStatement.h
-                          cppmini/interface/PrepareResult.h
-                          cppmini/interface/Row.h
-                          cppmini/interface/ResultSet.h
-                          cppmini/interface/CmdInformation.h
-                          cppmini/interface/Exception.h
-                          cppmini/template/CArray.h
+                          ${MARIADB_CPPMINI_HEADERS}
                           )
 
   SOURCE_GROUP(Classes REGULAR_EXPRESSION "class/")
@@ -230,9 +243,9 @@ ELSE()
 ENDIF()
 
 SET_TARGET_PROPERTIES(${LIBRARY_NAME} PROPERTIES
-	                    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+                        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
                       # Specifically on Windows, to have implib in the same place as the dll
-	                    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+                        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
                       LANGUAGE CXX)
 MESSAGE(STATUS "All linked targets/external dependencies: ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES}")
 TARGET_LINK_LIBRARIES(${LIBRARY_NAME} ${MARIADB_CLIENT_TARGET_NAME} ${ODBC_INSTLIBS} ${PLATFORM_DEPENDENCIES})

@@ -486,7 +486,7 @@ namespace mariadb
     uint32_t need2terminate= length == 0 || row[length - 1] != '\0' ? 1 : 0;
 
     if (it.value() && it.getDescRec()->OctetLength > 0) {
-      if (it.getDescRec()->OctetLength < length + need2terminate) {
+      if (static_cast<SQLULEN>(it.getDescRec()->OctetLength) < length + need2terminate) {
         CALC_ALL_FLDS_RC(Stmt->aggRc, MADB_SetError(&Stmt->Error, MADB_ERR_01004, NULL, 0));
         std::memcpy(it.value(), row, static_cast<std::size_t>(it.getDescRec()->OctetLength - 1));
         ((char*)it.value())[static_cast<std::size_t>(it.getDescRec()->OctetLength - 1)]= '\0';

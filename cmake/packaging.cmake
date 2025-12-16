@@ -76,14 +76,43 @@ Makefile$
 
 # Build source packages
 IF(GIT_BUILD_SRCPKG OR ODBC_GIT_BUILD_SRCPKG)
-  IF(WIN32)
-    EXECUTE_PROCESS(COMMAND git archive --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip --worktree-attributes -v HEAD)
-  ELSE()
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip -v HEAD)
-    EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar -v HEAD)
-    EXECUTE_PROCESS(COMMAND gzip -9 -f ${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar)
+  # Assuming that git available and assuming on Windoews that all required unix tools came along with git(as they usualyy do). But actually we use only cmake functionality
+  SET(TMP_SRCPKG_DIR "tmp_src_pkg")
+  EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=tar --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar -v HEAD
+  OUTPUT_QUIET)
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E remove_directory ${TMP_SRCPKG_DIR}
+                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E make_directory ${TMP_SRCPKG_DIR}
+                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E
+      tar "cf" ${CMAKE_BINARY_DIR}/cppmini.tar ${MARIADB_CPPMINI_FILES} ${MARIADB_CPPMINI_HEADERS}
+                  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/driver")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E
+                  tar "xf" ${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar
+                  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${TMP_SRCPKG_DIR}")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E
+                  tar "xf" ${CMAKE_BINARY_DIR}/cppmini.tar
+                  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${TMP_SRCPKG_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME}/driver")
+  #EXECUTE_PROCESS(COMMAND git archive --format=tar --prefix="cppmini/" --output=${CMAKE_BINARY_DIR}/cppmini.tar HEAD -- *.cpp *.h 
+  #                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/driver/cppmini")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/cppmini.tar")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E remove "${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar")
+  IF(NOT WIN32)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E
+                    tar "zcf" ${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME}.tar.gz ${CPACK_SOURCE_PACKAGE_FILE_NAME}
+                    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${TMP_SRCPKG_DIR}")
+
   ENDIF()
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E
+                  tar "cf" "${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip"
+                     --format=zip ${CPACK_SOURCE_PACKAGE_FILE_NAME}
+                  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/${TMP_SRCPKG_DIR}")
+  EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E remove_directory ${TMP_SRCPKG_DIR}
+                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+  #EXECUTE_PROCESS(COMMAND git archive ${GIT_BRANCH} --format=zip --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ --output=${CPACK_SOURCE_PACKAGE_FILE_NAME}.zip -v HEAD)
+  # Should we exit right here?
 ENDIF()
+
 IF(WIN32)
   SET(DEFAULT_GENERATOR "ZIP")
 ELSE()
