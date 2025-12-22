@@ -63,6 +63,7 @@ SET(MARIADB_CPPMINI_FILES
                           cppmini/class/ResultSetMetaData.cpp
                           cppmini/class/Parameter.cpp
                           cppmini/class/Protocol.cpp
+                          cppmini/class/unique_key.cpp
                           cppmini/interface/PreparedStatement.cpp
                           cppmini/interface/Row.cpp
                           cppmini/interface/ResultSet.cpp
@@ -82,6 +83,7 @@ SET(MARIADB_CPPMINI_HEADERS
                           cppmini/class/ClientSidePreparedStatement.h
                           cppmini/class/ServerSidePreparedStatement.h
                           cppmini/class/SSPSDirectExec.h
+                          cppmini/class/unique_key.h
                           cppmini/class/ClientPrepareResult.h
                           cppmini/class/ServerPrepareResult.h
                           cppmini/class/CmdInformationSingle.h

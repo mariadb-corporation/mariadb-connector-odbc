@@ -24,12 +24,10 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
 int MADB_ConvertAnsi2Unicode(Client_Charset* cc, const char *AnsiString, SQLLEN AnsiLength, 
                              SQLWCHAR *UnicodeString, SQLLEN UnicodeLength, 
                              SQLLEN *LengthIndicator, BOOL IsNull, MADB_Error *Error);
-char*     MADB_GetTableName(MADB_Stmt *Stmt);
-char*     MADB_GetCatalogName(MADB_Stmt *Stmt);
 bool      MADB_DynStrUpdateSet(MADB_Stmt *Stmt, SQLString& DynString);
 my_bool   MADB_DynStrInsertSet(MADB_Stmt *Stmt, MADB_DynString *DynString);
-bool      MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString& DynString, char *TableName, bool ParameterMarkers);
-my_bool   MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String);
+bool      MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString& DynString, bool ParameterMarkers);
+my_bool   MADB_DynStrAppendQuoted(MADB_DynString *DynString, const char *String);
 my_bool   MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString);
 my_bool   MADB_DynStrGetValues(MADB_Stmt *Stmt, MADB_DynString *DynString);
 SQLWCHAR* MADB_ConvertToWchar(const char *Ptr, SQLLEN PtrLength, Client_Charset* cc);

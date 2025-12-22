@@ -691,7 +691,7 @@ ODBC_TEST(t_pos_datetime_delete1)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_delete");
 
-  rc = SQLAllocStmt(Connection,&hstmt1);
+  rc= SQLAllocStmt(Connection,&hstmt1);
   CHECK_DBC_RC(Connection,rc);
 
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_pos_delete(id int not null default '0',\
@@ -704,17 +704,17 @@ ODBC_TEST(t_pos_datetime_delete1)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(id) VALUES(4)");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_pos_delete(id) VALUES(5)");
 
-  rc = SQLTransact(NULL, Connection, SQL_COMMIT);
+  rc= SQLTransact(NULL, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_delete");
 
   IS(6 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   SQLSetStmtAttr(Stmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
@@ -725,49 +725,49 @@ ODBC_TEST(t_pos_datetime_delete1)
   SQLSetStmtAttr(hstmt1, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_DYNAMIC, 0);
   SQLSetStmtAttr(hstmt1, SQL_SIMULATE_CURSOR, (SQLPOINTER) SQL_SC_NON_UNIQUE, 0);
 
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu_cur",8);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"venu_cur",8);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, &cur_type, 0, NULL);
+  rc= SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, &cur_type, 0, NULL);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_delete");
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&int_data,0,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&int_data,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,3,NULL,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,3,NULL,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
   fprintf(stdout,"current_row: %d\n", int_data);
   IS(int_data == 2);
 
-  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(hstmt1, "DELETE FROM t_pos_delete WHERE CURRENT OF venu_cur");
 
-  rc = SQLRowCount(hstmt1,&row_count);
+  rc= SQLRowCount(hstmt1,&row_count);
   CHECK_STMT_RC(hstmt1,rc);
   fprintf(stdout, "rows affected: %d\n", (int)row_count);
   IS(row_count == 1);
 
-  rc = SQLExtendedFetch(Stmt, SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt, SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
   fprintf(stdout,"current_row: %d\n", int_data);
 
-  rc = SQLExtendedFetch(Stmt, SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt, SQL_FETCH_NEXT,1,NULL,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
   fprintf(stdout,"current_row: %d\n", int_data);
 
-  /*rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
+  /*rc= SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,NULL,NULL);
   CHECK_STMT_RC(Stmt,rc);*/
 
-  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(hstmt1, "DELETE FROM t_pos_delete WHERE CURRENT OF venu_cur");
 
-  rc = SQLRowCount(hstmt1,&row_count);
+  rc= SQLRowCount(hstmt1,&row_count);
   CHECK_STMT_RC(hstmt1,rc);
   fprintf(stdout, "rows affected: %d\n", (int)row_count);
   IS(row_count == 1);
@@ -776,17 +776,17 @@ ODBC_TEST(t_pos_datetime_delete1)
   SQLFreeStmt(Stmt,SQL_CLOSE);
   SQLFreeStmt(hstmt1,SQL_CLOSE);
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_pos_delete");
 
   IS(4 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(hstmt1,SQL_DROP);
+  rc= SQLFreeStmt(hstmt1,SQL_DROP);
   CHECK_STMT_RC(hstmt1,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_pos_delete");
@@ -802,31 +802,31 @@ ODBC_TEST(t_getcursor)
   SQLCHAR curname[50];
   SQLSMALLINT nlen;
 
-  rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt1);
+  rc= SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt1);
   CHECK_DBC_RC(Connection, rc);
-  rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt2);
+  rc= SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt2);
   CHECK_DBC_RC(Connection, rc);
-  rc = SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt3);
+  rc= SQLAllocHandle(SQL_HANDLE_STMT,Connection,&hstmt3);
   CHECK_DBC_RC(Connection, rc);
 
-  rc = SQLGetCursorName(hstmt1, curname, 50, &nlen);
+  rc= SQLGetCursorName(hstmt1, curname, 50, &nlen);
   if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
   {
     fprintf(stdout,"default cursor name  : %s(%d)\n", curname, nlen);
     is_num(nlen, 8);
     IS_STR(curname,"SQL_CUR0", 9);
 
-    rc = SQLGetCursorName(hstmt3, curname, 50, &nlen);
+    rc= SQLGetCursorName(hstmt3, curname, 50, &nlen);
     CHECK_STMT_RC(hstmt1, rc);
     fprintf(stdout,"default cursor name  : %s(%d)\n", curname, nlen);
 
-    rc = SQLGetCursorName(hstmt1,curname, 4, &nlen);
+    rc= SQLGetCursorName(hstmt1,curname, 4, &nlen);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
     fprintf(stdout,"truncated cursor name: %s(%d)\n", curname, nlen);
     is_num(nlen, 8);
     IS_STR(curname, "SQL", 4);
 
-    rc = SQLGetCursorName(hstmt1, curname, 0, &nlen);
+    rc= SQLGetCursorName(hstmt1, curname, 0, &nlen);
     FAIL_IF(rc != SQL_SUCCESS_WITH_INFO, "expected success with info");
     fprintf(stdout, "untouched cursor name: %s(%d)\n", curname, nlen);
     IS(nlen == 8);
@@ -836,21 +836,21 @@ ODBC_TEST(t_getcursor)
     is_num(nlen, 8);
     IS_STR(curname, "SQL_CUR", 8);
 
-    rc = SQLGetCursorName(hstmt1,curname, 9, &nlen);
+    rc= SQLGetCursorName(hstmt1,curname, 9, &nlen);
     fprintf(stdout, "full cursor name     : %s(%d)\n", curname, nlen);
     is_num(nlen, 8);
     IS_STR(curname, "SQL_CUR0", 9);
   }
 
-  rc = SQLSetCursorName(hstmt1, (SQLCHAR *)"venucur123", 7);
+  rc= SQLSetCursorName(hstmt1, (SQLCHAR *)"venucur123", 7);
   CHECK_STMT_RC(hstmt1, rc);
 
-  rc = SQLGetCursorName(hstmt1, curname, 8, &nlen);
+  rc= SQLGetCursorName(hstmt1, curname, 8, &nlen);
   CHECK_STMT_RC(hstmt1, rc);
   is_num(nlen, 7);
   IS_STR(curname, "venucur", 8);
 
-  rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt1);
+  rc= SQLFreeHandle(SQL_HANDLE_STMT, hstmt1);
   CHECK_STMT_RC(hstmt1, rc);
 
   return OK;
@@ -1087,78 +1087,78 @@ ODBC_TEST(tmysql_setpos_upd)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(400,'MySQL4')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos VALUES(300,'MySQL3')");
 
-  rc = SQLTransact(NULL, Connection, SQL_COMMIT);
+  rc= SQLTransact(NULL, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos");
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,NULL);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE,3,&pcrow,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE,3,&pcrow,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" pcrow:%d\n",pcrow);
 
   diag(" row1:%d,%s\n",nData,szData);
 
-  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
   nData = 1000;
   strcpy((char *)szData , "updated");
 
-  rc = SQLSetPos(Stmt,3,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,3,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
   FAIL_IF(rc != SQL_ERROR, "expected error");
     
-  rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" rows affected:%d\n",nlen);
 
-  rc = SQLFreeStmt(Stmt, SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt, SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos");
 
   myrowcount(Stmt);
 
-  rc = SQLFreeStmt(Stmt, SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt, SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DELETE FROM tmysql_setpos WHERE col2 = 'updated'");
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
   diag("\n total rows affected:%d",nlen);
   IS(nlen == 1);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos");
 
   IS(5 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos");
@@ -1181,74 +1181,74 @@ ODBC_TEST(tmysql_setpos_add)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_add VALUES(100,'MySQL1')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos_add VALUES(300,'MySQL3')");
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos_add");
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,NULL);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,&pcrow,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt,SQL_FETCH_NEXT,1,&pcrow,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
   nData = 1000;
   strcpy((char *)szData , "insert-new1");
 
-  rc = SQLSetPos(Stmt,3,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,3,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
   strcpy((char *)szData , "insert-new2");
-  rc = SQLSetPos(Stmt,1,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
   strcpy((char *)szData , "insert-new3");
-  rc = SQLSetPos(Stmt,0,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,0,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
   strcpy((char *)szData , "insert-new4");
-  rc = SQLSetPos(Stmt,10,SQL_ADD,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,10,SQL_ADD,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("rows affected:%d\n",nlen);
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt,"SELECT * FROM tmysql_setpos_add");
 
   IS(6 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos_add");
@@ -1667,39 +1667,39 @@ ODBC_TEST(tmysql_mtab_setpos_del)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t2 VALUES(3,'t2_two')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_t2 VALUES(4,'t2_three')");
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
   /* FULL JOIN */
   OK_SIMPLE_STMT(Stmt, "select tmysql_t1.*,tmysql_t2.* from tmysql_t1,tmysql_t2");
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,&nlen);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,3,&pcrow,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,3,&pcrow,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" pcrow:%d\n",pcrow);
 
   diag(" row1:%d,%s\n",nData,szData);
 
-  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
   /* not yet supported..*/
-  rc = SQLSetPos(Stmt,2,SQL_DELETE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,2,SQL_DELETE,SQL_LOCK_NO_CHANGE);
   FAIL_IF(rc != SQL_ERROR, "error expected");
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_t1, tmysql_t2");
@@ -1719,7 +1719,7 @@ ODBC_TEST(tmysql_setpos_pkdel)
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos1");
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE tmysql_setpos1(col1 int primary key, col2 varchar(30))");
@@ -1728,53 +1728,53 @@ ODBC_TEST(tmysql_setpos_pkdel)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos1 VALUES(300,'MySQL3')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO tmysql_setpos1 VALUES(400,'MySQL4')");
  
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos1");
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,100,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,&nlen);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,100,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,4,&pcrow,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,4,&pcrow,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" pcrow:%d\n",pcrow);
 
   diag(" row1:%d,%s\n",nData,szData);
 
-  rc = SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_POSITION,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" rows affected:%d\n",nlen);
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM tmysql_setpos1");
 
   IS( 3 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS tmysql_setpos1");
@@ -1995,7 +1995,7 @@ ODBC_TEST(t_setpos_upd_bug1)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_setpos_upd_bug1(fname,lname) VALUES('monty','widenius')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO t_setpos_upd_bug1(fname,lname) VALUES('mr.','venu')");
 
-  rc = SQLTransact(NULL, Connection, SQL_COMMIT);
+  rc= SQLTransact(NULL, Connection, SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -2004,28 +2004,28 @@ ODBC_TEST(t_setpos_upd_bug1)
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_upd_bug1 order by id asc");
 
-  rc = SQLNumResultCols(Stmt,&pccol);
+  rc= SQLNumResultCols(Stmt,&pccol);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" total columns:%d\n",pccol);
 
-  rc = SQLBindCol(Stmt,1,SQL_C_SLONG,&id,4,&id_len);
+  rc= SQLBindCol(Stmt,1,SQL_C_SLONG,&id,4,&id_len);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,fname,6,&f_len);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,fname,6,&f_len);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,3,SQL_C_CHAR,lname,20,&l_len);
+  rc= SQLBindCol(Stmt,3,SQL_C_CHAR,lname,20,&l_len);
   CHECK_STMT_RC(Stmt,rc);
 
   diag("type: %d", SQL_C_TIMESTAMP);
-  rc = SQLBindCol(Stmt,4,SQL_C_TIMESTAMP,&ts,16,&ts_len);
+  rc= SQLBindCol(Stmt,4,SQL_C_TIMESTAMP,&ts,16,&ts_len);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLColAttribute(Stmt,1,SQL_COLUMN_TABLE_NAME,szTable,sizeof(szTable),NULL,NULL);
+  rc= SQLColAttribute(Stmt,1,SQL_COLUMN_TABLE_NAME,szTable,sizeof(szTable),NULL,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,0,NULL,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt,SQL_FETCH_FIRST,0,NULL,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_QUERY_TIMEOUT, (SQLPOINTER)30, 0));
@@ -2033,45 +2033,45 @@ ODBC_TEST(t_setpos_upd_bug1)
   strcpy((char *)fname , "updated");
   strcpy((char *)lname , "updated01234567890");
 
-  rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&len);
+  rc= SQLRowCount(Stmt,&len);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" rows affected:%d\n",len);
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_upd_bug1");
 
   myrowcount(Stmt);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DELETE FROM t_setpos_upd_bug1 WHERE fname = 'update'");
 
-  rc = SQLRowCount(Stmt,&len);
+  rc= SQLRowCount(Stmt,&len);
   CHECK_STMT_RC(Stmt,rc);
   diag("\n total rows affceted:%d",len);
   IS(len == 1);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM t_setpos_upd_bug1");
 
   IS(2 == myrowcount(Stmt));
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_setpos_upd_bug1");
@@ -2095,25 +2095,25 @@ ODBC_TEST(my_setpos_upd_pk_order)
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_setpos_upd_pk_order VALUES(100,'MySQL1')");
   OK_SIMPLE_STMT(Stmt, "INSERT INTO my_setpos_upd_pk_order VALUES(200,'MySQL2')");
 
-  rc = SQLTransact(NULL,Connection,SQL_COMMIT);
+  rc= SQLTransact(NULL,Connection,SQL_COMMIT);
   CHECK_DBC_RC(Connection,rc);
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
                                 (SQLPOINTER)SQL_CURSOR_STATIC, 0));
 
-  rc = SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
+  rc= SQLSetCursorName(Stmt, (SQLCHAR *)"venu",SQL_NTS);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_setpos_upd_pk_order");
 
-  rc = SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
+  rc= SQLBindCol(Stmt,1,SQL_C_LONG,&nData,0,NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData),NULL);
+  rc= SQLBindCol(Stmt,2,SQL_C_CHAR,szData,sizeof(szData),NULL);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,2,&pcrow,&rgfRowStatus);
+  rc= SQLExtendedFetch(Stmt,SQL_FETCH_ABSOLUTE,2,&pcrow,&rgfRowStatus);
   CHECK_STMT_RC(Stmt,rc);
 
   diag(" row1:%d,%s\n",nData,szData);
@@ -2121,35 +2121,35 @@ ODBC_TEST(my_setpos_upd_pk_order)
   nData = 1000;
   strcpy((char *)szData , "updated");
 
-  rc = SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
+  rc= SQLSetPos(Stmt,1,SQL_UPDATE,SQL_LOCK_NO_CHANGE);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
 
   is_num(1, nlen);
 
-  rc = SQLFreeStmt(Stmt,SQL_UNBIND);
+  rc= SQLFreeStmt(Stmt,SQL_UNBIND);
   CHECK_STMT_RC(Stmt,rc);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "SELECT * FROM my_setpos_upd_pk_order");
 
   myrowcount(Stmt);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DELETE FROM my_setpos_upd_pk_order WHERE col2 = 'updated'");
 
-  rc = SQLRowCount(Stmt,&nlen);
+  rc= SQLRowCount(Stmt,&nlen);
   CHECK_STMT_RC(Stmt,rc);
   diag("\n total rows affceted:%d",nlen);
   IS(nlen == 1);
 
-  rc = SQLFreeStmt(Stmt,SQL_CLOSE);
+  rc= SQLFreeStmt(Stmt,SQL_CLOSE);
   CHECK_STMT_RC(Stmt,rc);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS my_setpos_upd_pk_order");

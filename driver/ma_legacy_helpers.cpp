@@ -195,7 +195,7 @@ bool MADB_DynstrRealloc(MADB_DynString *str, size_t additional_size)
 
 bool MADB_DynstrAppend(MADB_DynString *str, const char *append)
 {
-  return MADB_DynstrAppendMem(str,append,strlen(append));
+  return MADB_DynstrAppendMem(str, append, strlen(append));
 }
 
 

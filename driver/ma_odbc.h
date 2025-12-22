@@ -287,7 +287,7 @@ private:
 // Stmt has to know few things about connection and descriptor
 #include "ma_connection.h"
 #include "ma_desc.h"
-#define xxx sizeof(std::mutex)
+
 struct MADB_Stmt
 {
   MADB_QUERY                Query;
@@ -312,8 +312,6 @@ struct MADB_Stmt
   MYSQL_BIND                *params= nullptr;
   unsigned long             *CharOffset= nullptr;
   unsigned long             *Lengths= nullptr;
-  char                      *TableName= nullptr;
-  char                      *CatalogName= nullptr;
   MADB_ShortTypeInfo        *ColsTypeFixArr= nullptr;
   /* Application Descriptors */
   MADB_Desc *Apd= nullptr;
@@ -326,7 +324,8 @@ struct MADB_Stmt
   MADB_Desc *IIrd;
   MADB_Desc *IIpd;
 
-  unsigned short            *UniqueIndex= nullptr; /* Insdexes of columns that make best available unique identifier */
+  Unique::key               UniqueIndex; /* Insdexes of columns that make best available unique identifier
+                                            for positional operations */
   SQLSETPOSIROW             DaeRowNumber= 0;
   int32_t                   ArrayOffset= 0;
   uint32_t                  MultiStmtNr= 0;
@@ -340,9 +339,6 @@ struct MADB_Stmt
   bool                      PositionedCommand= false;
   bool                      RebindParams= false;
   bool                      bind_done= false;
-  char                      IndexType= 0; /* For positional operation - the type of index in the UniqueIndex(value of the
-                                            unique or pri flag) or > 0 if all columns in the table(UniqueIndex==NULL).
-                                            0 - no info, <0 - can't build index */
 
   MADB_Stmt(MADB_Dbc *Connection);
   SQLRETURN Prepare(const char* StatementText, SQLINTEGER TextLength, bool ServerSide= true, bool DirectExecution= false);

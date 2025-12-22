@@ -19,6 +19,7 @@
 #include "ma_odbc.h"
 #include <stdint.h>
 #include "class/ResultSetMetaData.h"
+#include "class/unique_key.h"
 #include "interface/PreparedStatement.h"
 #include "Protocol.h"
 
@@ -71,48 +72,6 @@ int  MADB_GetWCharType(int Type)
   default:
     return Type;
   }
-}
-
-/* Returns total number of columns, and columns count in the primary key and in the unique key
-   TODO: if there are >1 of unique keys, this will go wrong */
-int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCount, int *UniqueKeysCount)
-{
-  int         Count= -1;
-  int         i;
-  char        StmtStr[512];
-  char        *p= StmtStr;
-  char        Database[68]= {'\0'};
-  MYSQL_RES   *Res;
-  MYSQL_FIELD *Field;
-  
-  // It shouldn't be current but the one from the query
-  Connection->GetAttr(SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
-  if (Database[0] != '\0')
-  {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
-  }
-  p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
-  std::lock_guard<std::mutex> localScopeLock(Connection->guard->getLock());
-  Connection->guard->safeRealQuery({StmtStr, (std::size_t)(p - StmtStr)});
-  if ((Res= mysql_store_result(Connection->mariadb)) != nullptr)
-  {
-    Count= mysql_field_count(Connection->mariadb);
-    for (i= 0; i < Count; ++i)
-    {
-      Field= mysql_fetch_field_direct(Res, i);
-      if (Field->flags & PRI_KEY_FLAG)
-      {
-        ++*PrimaryKeysCount;
-      }
-      if (Field->flags & UNIQUE_KEY_FLAG)
-      {
-        ++*UniqueKeysCount;
-      }
-    }
-    mysql_free_result(Res);
-  }
-  return Count;
 }
 
 
@@ -1135,8 +1094,6 @@ size_t MADB_GetHexString(char *BinaryBuffer, size_t BinaryLength,
 
 SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
 {
-  char      *TableName=   MADB_GetTableName(Stmt);
-  char      *CatalogName= MADB_GetCatalogName(Stmt);
   SQLString Query;
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -1151,30 +1108,43 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
     return MADB_CopyError(&Stmt->Error, &Stmt->Connection->Error);
   }
 
-  Query.reserve(1024);
-  switch(Operation)
-  {
+  if (Operation != SQL_ADD && !Stmt->UniqueIndex) {
+    // For SQL_ADD we don't need index, and reading index means additional query(ies) to the server, i.e. rather expensive
+    Stmt->UniqueIndex.reset(new mariadb::unique_key(Stmt->Connection->guard.get(), Stmt->metadata));
+  }
+  Query.reserve(8192);
+
+  switch(Operation) {
+
   case SQL_ADD:
+  {
+    // This constructor does not read index info but only verifies that only one table is used
+    mariadb::unique_key tableInfo(Stmt->metadata);
     // Should it really be CatalogName
-    Query.assign("INSERT INTO `").append(CatalogName).append("`.`").append(TableName).append(1,'`');
+    Query.assign("INSERT INTO `").append(tableInfo.getSchema()).append("`.`").append(tableInfo.getTable()).append(1, '`');
     if (MADB_DynStrUpdateSet(Stmt, Query))
     {
       return Stmt->Error.ReturnValue;
     }
     Stmt->DataExecutionType= MADB_DAE_ADD;
+  }
     break;
+
   case SQL_DELETE:
-    Query.assign("DELETE FROM `").append(CatalogName).append("`.`").append(TableName).append(1, '`');
-    if (MADB_DynStrGetWhere(Stmt, Query, TableName, false))
+    Query.assign("DELETE FROM `").append(Stmt->UniqueIndex->getSchema()).append("`.`").
+      append(Stmt->UniqueIndex->getTable()).append(1, '`');
+    if (MADB_DynStrGetWhere(Stmt, Query, false))
     {
       return Stmt->Error.ReturnValue;
     }
 
     Stmt->DataExecutionType= MADB_DAE_DELETE;
     break;
+
   case SQL_UPDATE:
-    Query.assign("UPDATE `").append(CatalogName).append("`.`").append(TableName).append(1, '`');
-    if (MADB_DynStrUpdateSet(Stmt, Query) || MADB_DynStrGetWhere(Stmt, Query, TableName, false))
+    Query.assign("UPDATE `").append(Stmt->UniqueIndex->getSchema()).append("`.`").
+      append(Stmt->UniqueIndex->getTable()).append(1, '`');
+    if (MADB_DynStrUpdateSet(Stmt, Query) || MADB_DynStrGetWhere(Stmt, Query, false))
     {
       return Stmt->Error.ReturnValue;
     }
