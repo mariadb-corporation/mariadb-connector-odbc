@@ -24,6 +24,7 @@
 #include "ResultSetMetaData.h"
 #include "interface/Exception.h"
 #include "Protocol.h"
+#include "class/unique_key.h"
 
 #include "ma_odbc.h"
 
@@ -110,9 +111,6 @@ void MADB_DropStmt(MADB_Stmt *Stmt, bool external= true)
   MADB_FREE(Stmt->params);
   MADB_FREE(Stmt->result);
   MADB_FREE(Stmt->Cursor.Name);
-  MADB_FREE(Stmt->CatalogName);
-  MADB_FREE(Stmt->TableName);
-  MADB_FREE(Stmt->UniqueIndex);
   /* For explicit descriptors we only remove reference to the stmt*/
   if (Stmt->Apd->AppType)
   {
@@ -277,6 +275,8 @@ MADB_Stmt *MADB_FindCursor(MADB_Stmt *Stmt, const char *CursorName)
 ResultSetMetaData* FetchMetadata(MADB_Stmt *Stmt, bool early)
 {
   delete Stmt->metadata;
+  // unique_key references metadata. TODO: Need to do smth about this
+  Stmt->UniqueIndex.reset();
   /* TODO early probably is not needed here at all */
   if (early)
   {
@@ -324,9 +324,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     Stmt->PositionedCommand= 0;
     Stmt->State= MADB_SS_INITED;
     MADB_CLEAR_ERROR(&Stmt->Error);
-    MADB_FREE(Stmt->UniqueIndex);
-    Stmt->IndexType= 0;
-    MADB_FREE(Stmt->TableName);
+    Stmt->UniqueIndex.reset();
   }
   return SQL_SUCCESS;
 }
@@ -569,7 +567,6 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
      */
   if ((CursorName= MADB_ParseCursorName(&Query, &WhereOffset)))
   {
-    char *TableName;
     /* Make sure we have a delete or update statement
        MADB_QUERY_DELETE and MADB_QUERY_UPDATE defined in the enum to have the same value
        as SQL_UPDATE and SQL_DELETE, respectively */
@@ -589,10 +586,9 @@ SQLRETURN MADB_Stmt::Prepare(const char *StatementText, SQLINTEGER TextLength, b
       goto cleanandexit;
     }
 
-    TableName= MADB_GetTableName(PositionedCursor);
-    SQLString StmtStr(Query.RefinedText.c_str(),WhereOffset);
+    SQLString StmtStr(Query.RefinedText.c_str(), WhereOffset);
     StmtStr.reserve(8192);
-    if (MADB_DynStrGetWhere(PositionedCursor, StmtStr, TableName, true))
+    if (MADB_DynStrGetWhere(PositionedCursor, StmtStr, true))
     {
       goto cleanandexit;
     }
@@ -834,8 +830,11 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
 
   for (j= 1; j < MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor) + 1; ++j)
   {
-    if (Stmt->PositionedCursor->UniqueIndex == nullptr ||
-      (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx] + 1))
+    // unique_key methods use 0 based indexes
+    if (!Stmt->PositionedCursor->UniqueIndex ||
+      (Stmt->PositionedCursor->UniqueIndex->exists() && 
+        IndexIdx <= static_cast<SQLSMALLINT>(Stmt->PositionedCursor->UniqueIndex->fieldCount()) &&
+        j == Stmt->PositionedCursor->UniqueIndex->fieldIndex(IndexIdx - 1) + 1))
     {
       SQLLEN Length;
       MADB_DescRecord* Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
@@ -845,7 +844,7 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, bool ExecDirect)
       if (Stmt->PositionedCursor->UniqueIndex != nullptr)
       {
         ParamNumber= /* Param ordnum in pos.cursor condition */IndexIdx +
-                     /* Num of params in main stmt */(Stmt->ParamCount - Stmt->PositionedCursor->UniqueIndex[0]);
+                     /* Num of params in main stmt */(Stmt->ParamCount - Stmt->PositionedCursor->UniqueIndex->fieldCount());
         ++IndexIdx;
       }
       else
@@ -3628,20 +3627,18 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       /* Nothing else to do (at least for now) in this 2 cases */
       return SQL_SUCCESS;
   };
-
-  char* TableName= MADB_GetTableName(Stmt);
-  if (!TableName)
-  {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_IM001, "Updatable Cursors with multiple tables are not supported", 0);
+  /*SQL_ADD does not need to know the index */
+  if (Operation != SQL_ADD && !Stmt->UniqueIndex) {
+    Stmt->UniqueIndex.reset(new mariadb::unique_key(Stmt->Connection->guard.get(), Stmt->metadata));
   }
-  char* CatalogName= MADB_GetCatalogName(Stmt);
-  
   switch (Operation) {
   case SQL_ADD:
     {
       MADB_DynString DynStmt;
       SQLRETURN      ret;
       int            column, param= 0;
+      // This constructor does not read index info but only verifies that only one table is used
+      mariadb::unique_key tableInfo(Stmt->metadata);
 
       Stmt->DaeRowNumber= RowNumber;
 
@@ -3654,9 +3651,9 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         MADB_StmtInit(Stmt->Connection, (SQLHANDLE *)&Stmt->DaeStmt, false);
 
         if (MADB_InitDynamicString(&DynStmt, "INSERT INTO ", 8192, 1024) ||
-            MADB_DynStrAppendQuoted(&DynStmt, CatalogName) ||
+            MADB_DynStrAppendQuoted(&DynStmt, tableInfo.getSchema().c_str()) ||
             MADB_DynstrAppend(&DynStmt, ".") ||
-            MADB_DynStrAppendQuoted(&DynStmt, TableName)||
+            MADB_DynStrAppendQuoted(&DynStmt, tableInfo.getTable().c_str()) ||
             MADB_DynStrInsertSet(Stmt, &DynStmt))
         {
           MADB_DynstrFree(&DynStmt);
@@ -3852,7 +3849,7 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
   case SQL_DELETE:
     {
       SQLRETURN     result = SQL_INVALID_HANDLE; /* Just smth we cannot normally get */
-      SQLString     DynamicStmt("DELETE FROM ");
+      SQLString     DynamicStmt;
       std::size_t   baseStmtLen;
       SQLULEN       SaveArraySize= Stmt->Ard->Header.ArraySize;
       my_ulonglong  Start=         0,
@@ -3869,14 +3866,15 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
       {
         End= Start;
       }
-      DynamicStmt.reserve(8182);
-      DynamicStmt.append(TableName);
+      DynamicStmt.reserve(8192);
+      DynamicStmt.append("DELETE FROM `", 13).append(Stmt->UniqueIndex->getSchema()).append("`.`", 3).
+        append(Stmt->UniqueIndex->getTable()).append("`", 1);
       baseStmtLen= DynamicStmt.length();
       while (Start <= End)
       {
         MADB_StmtDataSeek(Stmt, Start);
         
-        if (MADB_DynStrGetWhere(Stmt, DynamicStmt, TableName, false))
+        if (MADB_DynStrGetWhere(Stmt, DynamicStmt, false))
         {
           MADB_SETPOS_AGG_RESULT(result, Stmt->Error.ReturnValue);
           /* Continuing to next row. If there is no key - we will get it for all rows and as aggregated result.

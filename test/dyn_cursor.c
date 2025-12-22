@@ -92,14 +92,13 @@ ODBC_TEST(my_dynamic_pos_cursor)
   strcpy((char*)szData,"updated");
   nData = 300;
 
-  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_UNLOCK);
+  rc= SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_UNLOCK);
   FAIL_IF(rc!=SQL_ERROR,"Error expected");
 
-  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_EXCLUSIVE);
+  rc= SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_EXCLUSIVE);
   FAIL_IF(rc!=SQL_ERROR,"Error expected")
     
-  rc= SQLSetPos(Stmt,1,SQL_DELETE,SQL_LOCK_NO_CHANGE);
-  CHECK_STMT_RC(Stmt,rc);
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE));
 
   rc= SQLRowCount(Stmt, &nRowCount);
   CHECK_STMT_RC(Stmt, rc);

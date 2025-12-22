@@ -21,88 +21,11 @@
 
 #include "ResultSetMetaData.h"
 #include "interface/ResultSet.h"
+#include "class/unique_key.h"
 
 extern MARIADB_CHARSET_INFO*  DmUnicodeCs;
 
-char* MADB_GetTableName(MADB_Stmt *Stmt)
-{
-  char *TableName= nullptr;
-  uint32_t  i= 0, colCount= 0;
-  const MYSQL_FIELD *Field= nullptr;
-
-  if (Stmt->TableName && Stmt->TableName[0])
-  {
-    return Stmt->TableName;
-  }
-  if (!Stmt->rs)
-  {
-    return nullptr;
-  }
-
-  colCount= Stmt->metadata->getColumnCount();
-  Field= Stmt->metadata->getFields();
-  for (i=0; i < colCount; i++)
-  {
-    if (Field[i].org_table)
-    {
-      if (!TableName)
-      {
-        TableName= Field[i].org_table;
-      }
-      if (strcmp(TableName, Field[i].org_table))
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Couldn't identify unique table name", 0);
-        return nullptr;
-      }
-    }
-  }
-  if (TableName)
-  {
-    Stmt->TableName= _strdup(TableName);
-  }
-  return Stmt->TableName;
-}
-
-
-char* MADB_GetCatalogName(MADB_Stmt *Stmt)
-{
-  char *CatalogName= nullptr;
-  uint32_t i= 0, colCount= 0;
-  const MYSQL_FIELD* Field= nullptr;
-
-  if (Stmt->CatalogName && Stmt->CatalogName[0])
-  {
-    return Stmt->CatalogName;
-  }
-  if (!Stmt->metadata)
-  {
-    return nullptr;
-  }
-
-  colCount= Stmt->metadata->getColumnCount();
-  Field= Stmt->metadata->getFields();
-  for (i=0; i < colCount; i++)
-  {
-    if (Field[i].org_table)
-    {
-      if (!CatalogName)
-        CatalogName= Field[i].db;
-      if (strcmp(CatalogName, Field[i].db))
-      {
-        MADB_SetError(&Stmt->Error, MADB_ERR_HY000, "Couldn't identify unique catalog name", 0);
-        return nullptr;
-      }
-    }
-  }
-  if (CatalogName)
-  {
-    Stmt->CatalogName= _strdup(CatalogName);
-  }
-  return Stmt->CatalogName;
-}
-
-
-my_bool MADB_DynStrAppendQuoted(MADB_DynString *DynString, char *String)
+my_bool MADB_DynStrAppendQuoted(MADB_DynString *DynString, const char *String)
 {
   if (MADB_DynstrAppendMem(DynString, "`", 1) ||
     MADB_DynstrAppend(DynString, String) ||
@@ -230,165 +153,77 @@ my_bool MADB_DynStrGetColumns(MADB_Stmt *Stmt, MADB_DynString *DynString)
 }
 
 /* Building WHERE clause based on current row for positional opwration */
-bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName, bool ParameterMarkers)
+bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, bool ParameterMarkers)
 {
-  int UniqueCount=0, PrimaryCount= 0, TotalPrimaryCount= 0, TotalUniqueCount= 0, TotalTableFieldCount= 0;
-  int i, Flag= 0, IndexArrIdx= 0;
-  char *Column= nullptr, *Escaped= nullptr;
-  SQLLEN StrLength;
-  unsigned long EscapedLength;
-
-  if (Stmt->UniqueIndex != nullptr)
+  if (!Stmt->UniqueIndex)
   {
-    TotalUniqueCount= Stmt->UniqueIndex[0];
-    IndexArrIdx= 1;
-    Flag= Stmt->IndexType;
+    Stmt->UniqueIndex.reset(new mariadb::unique_key(Stmt->Connection->guard.get(),
+      Stmt->metadata ? Stmt->metadata : FetchMetadata(Stmt)));
   }
-  else if (Stmt->IndexType < 0)
+
+  if (!Stmt->UniqueIndex->exists())
   {
-    MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
-    return true;
+     MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
+     return true;
   }
-  else if (Stmt->IndexType == 0)
+  
+  if (ParameterMarkers)
   {
-    for (i= 0; i < MADB_STMT_COLUMN_COUNT(Stmt); i++)
-    {
-      const MYSQL_FIELD* field= FetchMetadata(Stmt)->getField(i);
-      if (field->flags & PRI_KEY_FLAG)
-      {
-        ++PrimaryCount;
-      }
-      if (field->flags & UNIQUE_KEY_FLAG)
-      {
-        ++UniqueCount;
-      }
-    }
+    DynString.reserve(DynString.length() + Stmt->UniqueIndex->getWhereClauseLenEstim(24) +
+      8/*" LIMIT 1"*/);
+    DynString.append(Stmt->UniqueIndex->getWhereClause()).append(" LIMIT 1", 8);
+    return false;
+  }
+  DynString.reserve(DynString.length() + Stmt->UniqueIndex->getWhereClauseLenEstim(24));
 
-    TotalTableFieldCount= MADB_KeyTypeCount(Stmt->Connection, TableName, &TotalPrimaryCount, &TotalUniqueCount);
+  DynString.append(" WHERE ");
+  auto count= Stmt->UniqueIndex->fieldCount();
+  SQLLEN strLen;
+ 
+  for (uint32_t i= 0; i < count; ++i)
+  {
+    auto name= Stmt->UniqueIndex->fieldName(i);
+    auto index= Stmt->UniqueIndex->fieldIndex(i) + 1;
+    if (i)
+    {
+      DynString.append(" AND ", 5);
+    }
+    DynString.append(name);
 
-    if (TotalTableFieldCount < 0)
+    if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, index, SQL_C_CHAR, nullptr, 0, &strLen, true)))
     {
-      /* Error. Expecting that the called function has set the error */
-      return TRUE;
-    }
-    /* We need to use all columns, otherwise it will be difficult to map fields for Positioned Update */
-    if (PrimaryCount != TotalPrimaryCount)
-    {
-      PrimaryCount= 0;
-    }
-    if (UniqueCount != TotalUniqueCount)
-    {
-      UniqueCount= 0;
-    }
-
-    /* if no primary or unique key is in the cursor, the cursor must contain all
-       columns from table in TableName */
-       /* We use unique index if we do not have primary. TODO: If there are more than one unique index - we are in trouble */
-    if (PrimaryCount != 0)
-    {
-      Flag= PRI_KEY_FLAG;
-      /* Changing meaning of TotalUniqueCount from field count in unique index to field count in *best* unique index(that can be primary as well) */
-      TotalUniqueCount= PrimaryCount;
-    }
-    else if (UniqueCount != 0)
-    {
-      Flag= UNIQUE_KEY_FLAG;
-      /* TotalUniqueCount is equal UniqueCount */
-    }
-    else if (TotalTableFieldCount != MADB_STMT_COLUMN_COUNT(Stmt))
-    {
-      MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
-      Stmt->IndexType= -1;
       return true;
     }
-    else
+    if (strLen < 0)
     {
-      TotalUniqueCount= 0;
-    }
-
-    if (TotalUniqueCount)
-    {
-      Stmt->UniqueIndex = static_cast<unsigned short*>(MADB_ALLOC((TotalUniqueCount + 1) * sizeof(*Stmt->UniqueIndex)));
-      if (Stmt->UniqueIndex == nullptr)
+      // If we have found the index and part of is NULL - that must be unique index with nullable part.
+      // Having that part be actually NULL for current row makes it impossible to use the index
+      // As a matter of fact - we should do the same with all field row identification as well
+      if (Stmt->UniqueIndex->isIndex())
       {
-        goto memerror;
+        MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
+        return true;
       }
-      Stmt->UniqueIndex[0]= TotalUniqueCount;
-      Stmt->IndexType= static_cast<char>(Flag);
+      DynString.append(" IS NULL");
     }
     else
     {
-      Stmt->IndexType= 1;
+      auto colVal= static_cast<char*>(MADB_CALLOC(strLen + 1));
+      Stmt->Methods->GetData(Stmt, index, SQL_C_CHAR, colVal, strLen + 1, &strLen, true);
+      auto escaped= static_cast<char*>(MADB_CALLOC(2 * strLen + 1));
+      auto escapedLen= mysql_real_escape_string(Stmt->Connection->mariadb, escaped, colVal, (unsigned long)strLen);
+
+      DynString.append("= '").append(escaped, escapedLen).append("'");
+
+      MADB_FREE(colVal);
+      MADB_FREE(escaped);
     }
   }
 
-  DynString.append(" WHERE 1");
-
-  /* If we already know index columns - we walk through column index values stored in Stmt->UniqueIndex, all columns otherwise */
-  for (i= IndexArrIdx == 0 ? 0 : Stmt->UniqueIndex[1];
-    IndexArrIdx == 0 ? i < MADB_STMT_COLUMN_COUNT(Stmt) : IndexArrIdx <= Stmt->UniqueIndex[0];
-    i= IndexArrIdx == 0 ? i + 1 : (++IndexArrIdx > Stmt->UniqueIndex[0] ? 0 /* Doesn't really matter what we set here - loop won't go further,
-                                                                               we just don't want to read past Stmt->UniqueIndex allocated area */
-                                                                        : Stmt->UniqueIndex[IndexArrIdx]))
-  {
-    const MYSQL_FIELD *field= Stmt->metadata->getField(i);
-
-    /* If we have already index columns, or column has right flag(primary or unique) set, or there is no good index */
-    if ( IndexArrIdx != 0 || field->flags & Flag || Flag == 0)
-    {
-      /* Storing index information */
-      if (Flag != 0)
-      {
-        /* Complicated(aka silly) way not to introduce another variable to store arr index for writing to the arr */
-        Stmt->UniqueIndex[Stmt->UniqueIndex[0] - (--TotalUniqueCount)]= i;
-      }
-      DynString.append(" AND ").append(field->org_name);
-
-      if (ParameterMarkers)
-      {
-        DynString.append("=?");
-      }
-      else
-      { 
-        if (!SQL_SUCCEEDED(Stmt->Methods->GetData(Stmt, i+1, SQL_C_CHAR, nullptr, 0, &StrLength, true)))
-        {
-          MADB_FREE(Column);
-          return true;
-        }
-        if (StrLength < 0)
-        {
-          // If we have found the index and part of is NULL - that must be unique index with nullable part.
-          // Having that part be actually NULL for current row makes it impossible to use the index
-          if (Flag)
-          {
-            MADB_SetError(&Stmt->Error, MADB_ERR_S1000, "Can't build index for update/delete", 0);
-            return true;
-          }
-          DynString.append(" IS NULL");
-        }
-        else
-        {
-          Column= static_cast<char*>(MADB_CALLOC(StrLength + 1));
-          Stmt->Methods->GetData(Stmt,i+1, SQL_C_CHAR, Column, StrLength + 1, &StrLength, true);
-          Escaped= static_cast<char*>(MADB_CALLOC(2 * StrLength + 1));
-          EscapedLength= mysql_real_escape_string(Stmt->Connection->mariadb, Escaped, Column, (unsigned long)StrLength);
-
-          DynString.append("= '").append(Escaped).append("'");
-
-          MADB_FREE(Column);
-          MADB_FREE(Escaped);
-        }
-      }
-    }
-  }
-
-  DynString.append(" LIMIT 1");
-  MADB_FREE(Column);
-
+  DynString.append(" LIMIT 1", 8);
   return false;
 
 memerror:
-  MADB_FREE(Column);
   MADB_SetError(&Stmt->Error, MADB_ERR_HY001, nullptr, 0);
 
   return true;
