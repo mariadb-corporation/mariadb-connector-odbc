@@ -1897,7 +1897,7 @@ ODBC_TEST(odbc391)
   SQLINTEGER len;
   BOOL found= FALSE;
   SQLCHAR  dropUser[24 + sizeof(my_host)], createUser[52 + sizeof(my_host)], grantAll[40 + sizeof(my_host)], revokeSelect[48 + sizeof(my_host)];
-  SQLUSMALLINT nullable= (SQLUSMALLINT)((ServerNotOlderThan(Connection, 10, 10, 2) || IsMysql) ? SQL_NULLABLE : SQL_NO_NULLS);
+  SQLUINTEGER nullable= ((ServerNotOlderThan(Connection, 10, 10, 2) || IsMysql) ? SQL_NULLABLE : SQL_NO_NULLS);
   SQLRETURN rc;
   if (iOdbc() && OdbcVer == SQL_OV_ODBC2)
   {
@@ -1946,7 +1946,7 @@ ODBC_TEST(odbc391)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   CHECK_STMT_RC(Stmt, SQLSpecialColumns(Stmt, SQL_ROWVER,  dbname, (SQLSMALLINT)dbnameLen, NULL, 0,
-    tname, (SQLSMALLINT)tnameLen, SQL_SCOPE_TRANSACTION, nullable));
+    tname, (SQLSMALLINT)tnameLen, SQL_SCOPE_TRANSACTION, (SQLUSMALLINT)nullable));
   rc= SQLFetch(Stmt);
   if (rc == SQL_NO_DATA)
   {

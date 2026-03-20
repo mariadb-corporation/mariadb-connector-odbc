@@ -725,7 +725,7 @@ ODBC_TEST(t_bug9927)
 {
   SQLCHAR col[10];
   SQLRETURN rc;
-  SQLUSMALLINT Nullable= (SQLUSMALLINT)((ServerNotOlderThan(Connection, 10, 10, 2) || IsMysql) ?
+  SQLUINTEGER Nullable= ((ServerNotOlderThan(Connection, 10, 10, 2) || IsMysql) ?
     SQL_NULLABLE : SQL_NO_NULLS);
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_bug9927");
@@ -735,7 +735,7 @@ ODBC_TEST(t_bug9927)
   /* Not sure which exactly version that was introduced, but 10.11.2 is first ga */
   CHECK_STMT_RC(Stmt, SQLSpecialColumnsW(Stmt, SQL_ROWVER, NULL, 0,
                                    NULL, 0, LW("t_bug9927"), SQL_NTS,
-                                   0, Nullable));
+                                   0, (SQLUSMALLINT)Nullable));
   rc= SQLFetch(Stmt);
   if (rc == SQL_NO_DATA)
   {
