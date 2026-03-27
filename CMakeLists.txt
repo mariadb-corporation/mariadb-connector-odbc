@@ -296,6 +296,11 @@ IF(WIN32)
     ENDIF()
   ENDIF()
 ELSE()
+  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    # This has to be for iOdbc only - the header does that job, we add it fro all ARM builds
+    SET(MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
+      iodbc_arm.c)
+  ENDIF()
   SEARCH_LIBRARY(LIB_MATH floor m)
   SET(PLATFORM_DEPENDENCIES ${PLATFORM_DEPENDENCIES} ${LIB_MATH})
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}

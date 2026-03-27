@@ -3241,7 +3241,7 @@ SQLRETURN MADB_StmtGetData(SQLHSTMT StatementHandle,
       }
       else  /* IrdRec->InternalBuffer == NULL && Stmt->Lengths[Offset] == 0 */
       {
-        CharLength= CharLength= (Stmt->Lengths[Offset] - Stmt->CharOffset[Offset]) / sizeof(SQLWCHAR);
+        CharLength= (Stmt->Lengths[Offset] - Stmt->CharOffset[Offset]) / sizeof(SQLWCHAR);
           /*SqlwcsLen((SQLWCHAR*)((char*)IrdRec->InternalBuffer + Stmt->CharOffset[Offset]), -1);*/
       }
 
