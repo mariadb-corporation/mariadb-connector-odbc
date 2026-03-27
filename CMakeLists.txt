@@ -175,7 +175,7 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
 
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/driver ${CMAKE_SOURCE_DIR}/libmariadb/include)
   INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/driver ${CMAKE_BINARY_DIR}/libmariadb/include)
-  SET(PLUGINS_LIST dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password client_ed25519)
+  SET(PLUGINS_LIST dialog caching_sha2_password auth_gssapi_client sha256_password mysql_clear_password client_ed25519 parsec)
   IF(APPLE)
     SET_TARGET_PROPERTIES(${PLUGINS_LIST}
                           PROPERTIES XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
@@ -193,7 +193,7 @@ IF(NOT USE_SYSTEM_INSTALLED_LIB)
             COMPONENT ConCLib)
     MESSAGE(STATUS "Configuring to install libmariadb to ${INSTALL_LIBDIR}")
     IF(NOT ALL_PLUGINS_STATIC)
-      SET(OWN_PLUGINS_LIST mysql_clear_password dialog client_ed25519 sha256_password caching_sha2_password)
+      SET(OWN_PLUGINS_LIST mysql_clear_password dialog client_ed25519 sha256_password caching_sha2_password parsec)
       IF (PLUGINS_DYNAMIC)
         # The list from CC is visible for us
         SET(PLUGINS_LIST ${PLUGINS_DYNAMIC})
