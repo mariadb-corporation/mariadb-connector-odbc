@@ -1449,6 +1449,8 @@ SQLRETURN SQL_API SQLSetStmtOption(SQLHSTMT StatementHandle,
 }
 /* }}} */
 
+// Assuming __aarch64__ also defined on Applle and main problem here iOdbc
+#if !defined(__aarch64__) || !defined(_IODBCUNIX_H)
 /* {{{ SQLSpecialColumns */
 SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
     SQLUSMALLINT IdentifierType,
@@ -1461,15 +1463,6 @@ SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
     SQLUSMALLINT Scope,
     SQLUSMALLINT Nullable)
 {
-  CHECK_STMT_CLEAR_ERROR(StatementHandle);
-#ifdef _ACTIONS_TRACE_
-#ifdef __APPLE__
-  if (getenv("GITHUB_ACTIONS") != NULL && strncmp(getenv("GITHUB_ACTIONS"), "true", 4) == 0 && IdentifierType == SQL_ROWVER)
-  {
-    printf("# -- Nullable: %hu)\n", Nullable);
-  }
-#endif // __APPLE__
-#endif
   return MA_SQLSpecialColumns(StatementHandle, IdentifierType, CatalogName, NameLength1,
     SchemaName, NameLength2, TableName, NameLength3, Scope, Nullable);
 }
@@ -1487,18 +1480,11 @@ SQLRETURN SQL_API SQLSpecialColumnsW(SQLHSTMT StatementHandle,
     SQLUSMALLINT Scope,
     SQLUSMALLINT Nullable)
 {
-#ifdef _ACTIONS_TRACE_
-#ifdef __APPLE__
-  if (getenv("GITHUB_ACTIONS") != NULL && strncmp(getenv("GITHUB_ACTIONS"), "true", 4) == 0 && IdentifierType == SQL_ROWVER)
-  {
-    printf("# -- Nullable: %hu)\n", Nullable);
-  }
-#endif // __APPLE__
-#endif
   return MA_SQLSpecialColumnsW(StatementHandle, IdentifierType, CatalogName, NameLength1,
     SchemaName, NameLength2, TableName, NameLength3, Scope, Nullable);
 }
 /* }}} */
+#endif
 
 /* {{{ SQLStatistics */
 SQLRETURN SQL_API SQLStatistics(SQLHSTMT StatementHandle,

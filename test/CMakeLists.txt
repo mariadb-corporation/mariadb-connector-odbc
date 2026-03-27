@@ -95,7 +95,7 @@ TARGET_LINK_LIBRARIES(odbc_connstring ${ODBC_LIBS} ${ODBC_INSTLIBS} ${PLATFORM_D
 IF (WIN32)
   TARGET_LINK_LIBRARIES(odbc_connstring dbghelp)
 ENDIF()
-
 ADD_TEST(odbc_connstring ${EXECUTABLE_OUTPUT_PATH}/odbc_connstring)
 SET_TESTS_PROPERTIES(odbc_connstring PROPERTIES TIMEOUT 120)
+
 SET_TESTS_PROPERTIES(odbc_basic odbc_catalog2 odbc_cursor odbc_multistatement  PROPERTIES TIMEOUT 450)

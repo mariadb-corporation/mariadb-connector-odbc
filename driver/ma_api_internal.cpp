@@ -2556,6 +2556,7 @@ SQLRETURN MA_SQLSpecialColumns(SQLHSTMT StatementHandle,
   SQLUSMALLINT Nullable)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  MADB_CLEAR_ERROR(&Stmt->Error);
   try
   {
     return Stmt->Methods->SpecialColumns(Stmt, IdentifierType, (char*)CatalogName, NameLength1,
@@ -2593,6 +2594,7 @@ SQLRETURN MA_SQLSpecialColumnsW(SQLHSTMT StatementHandle,
     * CpTable= NULL;
   SQLULEN CpLength1= 0, CpLength2= 0, CpLength3= 0;
 
+  MADB_CLEAR_ERROR(&Stmt->Error);
   try
   {
     if (CatalogName != NULL)
