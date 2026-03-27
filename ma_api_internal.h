@@ -88,5 +88,27 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
     SQLPOINTER ValuePtr,
     SQLINTEGER StringLength);
 
+SQLRETURN MA_SQLSpecialColumns(SQLHSTMT StatementHandle,
+  SQLUSMALLINT IdentifierType,
+  SQLCHAR* CatalogName,
+  SQLSMALLINT NameLength1,
+  SQLCHAR* SchemaName,
+  SQLSMALLINT NameLength2,
+  SQLCHAR* TableName,
+  SQLSMALLINT NameLength3,
+  SQLUSMALLINT Scope,
+  SQLUSMALLINT Nullable);
+
+SQLRETURN MA_SQLSpecialColumnsW(SQLHSTMT StatementHandle,
+  SQLUSMALLINT IdentifierType,
+  SQLWCHAR* CatalogName,
+  SQLSMALLINT NameLength1,
+  SQLWCHAR* SchemaName,
+  SQLSMALLINT NameLength2,
+  SQLWCHAR* TableName,
+  SQLSMALLINT NameLength3,
+  SQLUSMALLINT Scope,
+  SQLUSMALLINT Nullable);
+
 #endif
 

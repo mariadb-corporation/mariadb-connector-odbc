@@ -438,7 +438,7 @@ SQLRETURN MA_SQLSetConnectAttr(SQLHDBC ConnectionHandle,
 }
 /* }}} */
 
-/* {{{ SQLSetStmtAttr */
+/* {{{ MA_SQLSetStmtAttr */
 SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
     SQLINTEGER Attribute,
     SQLPOINTER ValuePtr,
@@ -458,6 +458,69 @@ SQLRETURN MA_SQLSetStmtAttr(SQLHSTMT StatementHandle,
   ret= Stmt->Methods->SetAttr(Stmt, Attribute, ValuePtr, StringLength);
 
   MDBUG_C_RETURN(Stmt->Connection, ret, &Stmt->Error);
+}
+/* }}} */
+
+/* {{{ MA_SQLSpecialColumns */
+SQLRETURN MA_SQLSpecialColumns(SQLHSTMT StatementHandle,
+  SQLUSMALLINT IdentifierType,
+  SQLCHAR* CatalogName,
+  SQLSMALLINT NameLength1,
+  SQLCHAR* SchemaName,
+  SQLSMALLINT NameLength2,
+  SQLCHAR* TableName,
+  SQLSMALLINT NameLength3,
+  SQLUSMALLINT Scope,
+  SQLUSMALLINT Nullable)
+{
+  MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  MADB_CLEAR_ERROR(&Stmt->Error);
+  return Stmt->Methods->SpecialColumns(Stmt, IdentifierType, (char*)CatalogName, NameLength1,
+      (char*)SchemaName, NameLength2,
+      (char*)TableName, NameLength3, Scope, Nullable);
+}
+/* }}} */
+
+/* {{{ MA_SQLSpecialColumnsW */
+SQLRETURN MA_SQLSpecialColumnsW(SQLHSTMT StatementHandle,
+  SQLUSMALLINT IdentifierType,
+  SQLWCHAR* CatalogName,
+  SQLSMALLINT NameLength1,
+  SQLWCHAR* SchemaName,
+  SQLSMALLINT NameLength2,
+  SQLWCHAR* TableName,
+  SQLSMALLINT NameLength3,
+  SQLUSMALLINT Scope,
+  SQLUSMALLINT Nullable)
+{
+  MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
+  SQLRETURN ret;
+  char* CpCatalog= NULL,
+    * CpSchema= NULL,
+    * CpTable= NULL;
+  SQLULEN CpLength1= 0, CpLength2= 0, CpLength3= 0;
+
+  MADB_CLEAR_ERROR(&Stmt->Error);
+  if (CatalogName != NULL)
+  {
+    CpCatalog= MADB_ConvertFromWChar(CatalogName, NameLength1, &CpLength1, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (SchemaName != NULL)
+  {
+    CpSchema= MADB_ConvertFromWChar(SchemaName, NameLength2, &CpLength2, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+  if (TableName != NULL)
+  {
+    CpTable= MADB_ConvertFromWChar(TableName, NameLength3, &CpLength3, Stmt->Connection->ConnOrSrcCharset, NULL);
+  }
+
+  ret= Stmt->Methods->SpecialColumns(Stmt, IdentifierType, CpCatalog, (SQLSMALLINT)CpLength1, CpSchema,
+    (SQLSMALLINT)CpLength2, CpTable, (SQLSMALLINT)CpLength3, Scope, Nullable);
+
+  MADB_FREE(CpCatalog);
+  MADB_FREE(CpSchema);
+  MADB_FREE(CpTable);
+  return ret;
 }
 /* }}} */
 
