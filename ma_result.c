@@ -195,7 +195,6 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
     return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
   }
   Stmt->Connection->Methods->TrackSession(Stmt->Connection);
-  MADB_StmtResetResultStructures(Stmt);
 
   if (mysql_stmt_field_count(Stmt->stmt) == 0)
   {
@@ -205,7 +204,7 @@ SQLRETURN MADB_StmtMoreResults(MADB_Stmt *Stmt)
   else
   {
     unsigned int ServerStatus;
-
+    MADB_StmtResetResultStructures(Stmt);
     MADB_DescSetIrdMetadata(Stmt, mysql_fetch_fields(FetchMetadata(Stmt)), mysql_stmt_field_count(Stmt->stmt));
     Stmt->AffectedRows= 0;
 
