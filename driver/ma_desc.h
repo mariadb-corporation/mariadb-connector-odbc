@@ -89,10 +89,10 @@ public:
   }
   inline void* move(std::size_t pos) {
     int64_t offset= (static_cast<int64_t>(pos) - position)*lengthOffset;
-    if (indicatorPtr != octetLengthPtr) {
+    if (indicatorPtr && indicatorPtr != octetLengthPtr) {
       indicatorPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(indicatorPtr) + offset);
     }
-    octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + offset);
+    octetLengthPtr && (octetLengthPtr= reinterpret_cast<SQLLEN*>(reinterpret_cast<char*>(octetLengthPtr) + offset));
     offset= (static_cast<int64_t>(pos) - position)*valueOffset;
     position= pos;
     return (valuePtr= (void*)((char*)valuePtr + offset));

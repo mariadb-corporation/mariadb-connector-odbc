@@ -24,15 +24,25 @@
 #include "ResultSetMetaData.h"
 #include "class/Protocol.h"
 
-/* {{{ MADB_StmtResetResultStructures */
+/* {{{ MADB_StmtResetResultStructures
+ * it's supposed to be called in case of resultset only, i.e. columnCount is not 0.
+ */
 void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
 {
   uint32_t columnCount= Stmt->metadata ? Stmt->metadata->getColumnCount() : 0;
   Stmt->CharOffset= (unsigned long *)MADB_REALLOC((char *)Stmt->CharOffset,
     sizeof(long) * columnCount);
+  if (!Stmt->CharOffset)
+  {
+    throw MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
   memset(Stmt->CharOffset, 0, sizeof(long) * columnCount);
   Stmt->Lengths= (unsigned long *)MADB_REALLOC((char *)Stmt->Lengths,
     sizeof(long) * columnCount);
+  if (!Stmt->Lengths)
+  {
+    throw MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
+  }
   memset(Stmt->Lengths, 0, sizeof(long) * columnCount);
 
   Stmt->LastRowFetched= 0;
@@ -182,6 +192,7 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
       {
         FetchMetadata(Stmt);
       }
+      MADB_StmtResetResultStructures(Stmt);
       MADB_DescSetIrdMetadata(Stmt, Stmt->metadata->getFields(), Stmt->metadata->getColumnCount());
       Stmt->AffectedRows= -1;
     }
@@ -201,8 +212,6 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   catch (int32_t /*rc*/) {
     ret= MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt.get());
   }
-
-  MADB_StmtResetResultStructures(Stmt);
 
   return ret;
 }
