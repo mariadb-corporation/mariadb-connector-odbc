@@ -2531,7 +2531,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     }  /* End of switch on fetch result */
 
     ++Stmt->LastRowFetched;
-    ++Stmt->PositionedCursor;
 
     /*Conversion etc. At this point, after fetch we can have RowResult either SQL_SUCCESS or SQL_SUCCESS_WITH_INFO */
     switch (MADB_FixFetchedValues(Stmt, RowNum, SaveCursor))
