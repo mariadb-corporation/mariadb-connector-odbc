@@ -2292,7 +2292,6 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       RowResult= MADB_SetError(&Stmt->Error, MADB_ERR_22003, oor.what(), 0);
     } /* end of catch block */
     ++Stmt->LastRowFetched;
-    ++Stmt->PositionedCursor;
 
     /*Conversion etc. At this point, after fetch we can have RowResult either SQL_SUCCESS or SQL_SUCCESS_WITH_INFO */
     switch (Stmt->FixFetchedValues(RowNum, SaveCursor))
