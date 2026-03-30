@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2016, 2025 MariaDB Corporation AB
+                2016, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -258,13 +258,6 @@ ODBC_TEST(all_other_fields_test)
   char connstr4dsn[512], *opt_value, IntValue[20], *BoolValue= "1";
   int i= 5; /* After Options. Assuming that fields before Options are tested in other test(s) */
 
-  if (Travis)
-  {
-    /* As already said - ini cache is buggy in UnixODBC, and it fails with UnixODBC version we have availabe in Travis tests.
-       It's possible to change the test to pass in similar way as we did in some other tests - by either writing and reading
-       the (new) DSN only once, or by creating new DSN for each keyword. */
-    skip("Skipping with test in Travis");
-  }
   if (!MADB_DSN_Exists(DsnName))
   {
     if (GithubActionsOnMacos)
@@ -332,7 +325,7 @@ ODBC_TEST(all_other_fields_test)
     case DSN_TYPE_OPTION:
       /* IsNamedPipe is switched off when TcpIp is switched on(since TcpIp goes after NamedPipe in the DsnKeys.
          Do detect IsNamedPipe, comparing its offset in the MADB_Dsn with offset recorded in the DsnKeys */
-      is_num(*(my_bool*)((char*)Dsn + DsnKeys[i].DsnOffset), DsnKeys[i].DsnOffset == (size_t)&((MADB_Dsn*)NULL)->IsNamedPipe ? 0 : 1);
+      is_num(*(my_bool*)((char*)Dsn + DsnKeys[i].DsnOffset), DsnKeys[i].DsnOffset == (unsigned int)((char*)&Dsn->IsNamedPipe - (char*)Dsn) ? 0 : 1);
     case DSN_TYPE_CBOXGROUP:
       break;
     }
