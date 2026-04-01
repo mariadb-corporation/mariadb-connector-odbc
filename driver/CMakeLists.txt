@@ -170,7 +170,7 @@ ELSE()
   IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
     # This has to be for iOdbc only - the header does that job, we add it for all ARM builds
     SET(MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
-      iodbc_arm.c)
+      iodbc_arm.cpp)
   ENDIF()
   SET (MARIADB_ODBC_SOURCES ${MARIADB_ODBC_SOURCES}
                         ma_platform_posix.cpp

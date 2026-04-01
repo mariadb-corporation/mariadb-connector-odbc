@@ -22,6 +22,8 @@
 #include "ma_api_internal.h"
 #include "ma_debug.h"
 
+bool MADB_ValidateDescFieldAccess(SQLHDESC DescriptorHandle, SQLSMALLINT FieldIdentifier, SQLPOINTER ValuePtr);
+
 extern "C" {
 /* {{{ SQLAllocHandle */
 SQLRETURN SQL_API SQLAllocHandle(SQLSMALLINT HandleType,

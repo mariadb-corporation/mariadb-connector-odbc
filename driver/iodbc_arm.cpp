@@ -34,44 +34,46 @@
 #define SQL_INVALID_HANDLE          (-2)
 #endif
 
-// The only purpose of this gunctions is only to read stack parameters correctly and pass them further
-/* {{{ SQLSpecialColumns */
-SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
-    SQLUSMALLINT IdentifierType,
-    SQLCHAR *CatalogName,
-    SQLSMALLINT NameLength1,
-    SQLCHAR *SchemaName,
-    SQLSMALLINT NameLength2,
-    SQLCHAR *TableName,
-    SQLSMALLINT NameLength3,
-    SQLUINTEGER Scope,
-    SQLUINTEGER Nullable)
-{
-  if (!StatementHandle)
-    return SQL_INVALID_HANDLE;
-  return MA_SQLSpecialColumns(StatementHandle,IdentifierType, CatalogName, NameLength1, SchemaName, NameLength2,
-                                       TableName, NameLength3, (SQLUSMALLINT)Scope, (SQLUSMALLINT)Nullable);
-}
-/* }}} */
+extern "C" {
+  // The only purpose of this gunctions is only to read stack parameters correctly and pass them further
+  /* {{{ SQLSpecialColumns */
+  SQLRETURN SQL_API SQLSpecialColumns(SQLHSTMT StatementHandle,
+      SQLUSMALLINT IdentifierType,
+      SQLCHAR *CatalogName,
+      SQLSMALLINT NameLength1,
+      SQLCHAR *SchemaName,
+      SQLSMALLINT NameLength2,
+      SQLCHAR *TableName,
+      SQLSMALLINT NameLength3,
+      SQLUINTEGER Scope,
+      SQLUINTEGER Nullable)
+  {
+    if (!StatementHandle)
+      return SQL_INVALID_HANDLE;
+    return MA_SQLSpecialColumns(StatementHandle,IdentifierType, CatalogName, NameLength1, SchemaName, NameLength2,
+                                         TableName, NameLength3, (SQLUSMALLINT)Scope, (SQLUSMALLINT)Nullable);
+  }
+  /* }}} */
 
-/* {{{ SQLSpecialColumnsW */
-SQLRETURN SQL_API SQLSpecialColumnsW(SQLHSTMT StatementHandle,
-    SQLUSMALLINT IdentifierType,
-    SQLWCHAR *CatalogName,
-    SQLSMALLINT NameLength1,
-    SQLWCHAR *SchemaName,
-    SQLSMALLINT NameLength2,
-    SQLWCHAR *TableName,
-    SQLSMALLINT NameLength3,
-    SQLUINTEGER Scope,
-    SQLUINTEGER Nullable)
-{
-  if (!StatementHandle)
-    return SQL_INVALID_HANDLE;
+  /* {{{ SQLSpecialColumnsW */
+  SQLRETURN SQL_API SQLSpecialColumnsW(SQLHSTMT StatementHandle,
+      SQLUSMALLINT IdentifierType,
+      SQLWCHAR *CatalogName,
+      SQLSMALLINT NameLength1,
+      SQLWCHAR *SchemaName,
+      SQLSMALLINT NameLength2,
+      SQLWCHAR *TableName,
+      SQLSMALLINT NameLength3,
+      SQLUINTEGER Scope,
+      SQLUINTEGER Nullable)
+  {
+    if (!StatementHandle)
+      return SQL_INVALID_HANDLE;
 
-  return MA_SQLSpecialColumnsW(StatementHandle,IdentifierType, CatalogName, NameLength1, SchemaName, NameLength2,
-                                       TableName, NameLength3, (SQLUSMALLINT)Scope, (SQLUSMALLINT)Nullable);
+    return MA_SQLSpecialColumnsW(StatementHandle,IdentifierType, CatalogName, NameLength1, SchemaName, NameLength2,
+                                         TableName, NameLength3, (SQLUSMALLINT)Scope, (SQLUSMALLINT)Nullable);
+  }
+  /* }}} */
 }
-/* }}} */
 #endif  // _IODBCUNIX_H
 #endif  // __aarch64__
