@@ -259,11 +259,17 @@ ODBC_TEST(sqlchar)
   FAIL_IF(SQLFetch(hstmt1) != SQL_NO_DATA_FOUND, "eof expected");
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
+#ifndef MEMCHECK_SKIP_TEST
   // We probably could do that in driver as well, TODO: but do we really need
   if (using_dm())
   {
+#if defined(__has_feature) && __has_feature(memory_sanitizer)
+    diag("Skipping invalid-handle check under MSan");
+#else
     is_num(SQLFreeHandle(SQL_HANDLE_STMT, hstmt1), SQL_INVALID_HANDLE);
+#endif
   }
+#endif
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
 
