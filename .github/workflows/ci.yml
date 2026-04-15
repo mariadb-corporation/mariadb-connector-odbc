@@ -22,7 +22,7 @@ env:
   MYSQL_TEST_DB: testo
   TEST_DRIVER: ${{ github.workspace }}/driver/libmaodbc.so
   TEST_DSN: maodbc_test
-  TEST_UID: root
+  TEST_UID: testuser
   TEST_SERVER: mariadb.example.com
   TEST_PASSWORD: "heyPassw+-_20oRd"
   TEST_PORT: 3306
