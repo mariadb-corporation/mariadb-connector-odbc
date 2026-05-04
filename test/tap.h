@@ -285,6 +285,11 @@ void get_env_defaults()
     storedAddConnstr= add_connstr;
   }
 
+  if ((env_val= getenv("MAXSCALE_TAG")) != NULL && env_val[0] != '\0')
+  {
+    IsMaxScale= TRUE;
+  }
+
   if ((env_val= getenv("srv")))
   {
     if (strcmp(env_val, "maxscale") == 0)
@@ -1075,6 +1080,21 @@ int ReadInfoOneTime(HDBC Connection, HSTMT Stmt)
     && _strnicmp(DbmsName, "MySQL", 5) == 0)
   {
     IsMysql= TRUE;
+  }
+
+  if (!IsMaxScale)
+  {
+    SQLCHAR maxscale_version[64];
+    SQLLEN  ind;
+    if (SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)"SELECT @@maxscale_version", SQL_NTS))
+     && SQL_SUCCEEDED(SQLFetch(Stmt))
+     && SQL_SUCCEEDED(SQLGetData(Stmt, 1, SQL_C_CHAR, maxscale_version, sizeof(maxscale_version), &ind))
+     && ind > 0)
+    {
+      IsMaxScale= TRUE;
+      diag("MaxScale version: %s", maxscale_version);
+    }
+    SQLFreeStmt(Stmt, SQL_CLOSE);
   }
 
   /* Verifying, if we have the connection has forced FORWARD_ONLY cursors */

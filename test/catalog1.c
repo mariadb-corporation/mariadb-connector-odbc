@@ -770,6 +770,8 @@ ODBC_TEST(t_sqltables)
   int         AllTablesCount= 0, Rows;
   SQLCHAR     Buffer[64];
 
+  SKIPIF(IsMaxScale, "MaxScale doesn't immediately update its schema cache after CREATE SCHEMA");
+
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, "DROP SCHEMA IF EXISTS mariadbodbc_sqltables", SQL_NTS)))
   {
     odbc_print_error(SQL_HANDLE_STMT, Stmt);
