@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2017 MariaDB Corporation AB
+   Copyright (C) 2013, 2026 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -31,7 +31,7 @@ MADB_TypeInfo TypeInfoV3[]=
   {"LONGBLOB",SQL_LONGVARBINARY,2147483647,"''","''","NULL",1,1,3,0,0,0,"LONGBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
   {"BLOB",SQL_LONGVARBINARY,65535,"''","''","NULL",1,1,3,0,0,0,"BLOB",0,0,0,0,10, SQL_LONGVARBINARY},
   {"TINYBLOB",SQL_LONGVARBINARY,255,"''","''","NULL",1,1,3,0,0,0,"TINYBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"VARBINARY",SQL_VARBINARY,65535,"''","''","'length'",1,1,3,0,0,0,"VARBINARY",0,0,0,0,10, SQL_VARBINARY},
+  {"VARBINARY",SQL_VARBINARY,65532,"''","''","'length'",1,1,3,0,0,0,"VARBINARY",0,0,0,0,10, SQL_VARBINARY},
   {"BINARY",SQL_BINARY,255,"''","''","'length'",1,1,3,0,0,0,"BINARY",0,0,0,0,10, SQL_BINARY},
   {"LONG VARCHAR",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
   {"MEDIUMTEXT",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"MEDIUMTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
@@ -53,15 +53,20 @@ MADB_TypeInfo TypeInfoV3[]=
   {"DOUBLE",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE",-308,308,0,0,10, SQL_DOUBLE},
   {"DOUBLE PRECISION",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE PRECISION",-308,308,0,0,10, SQL_DOUBLE},
   {"REAL",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"REAL",-308,308,0,0,10, SQL_DOUBLE},
-  {"VARCHAR",SQL_VARCHAR,65535,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_VARCHAR},
-  {"ENUM",SQL_VARCHAR,65535,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
-  {"SET",SQL_VARCHAR,64,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
+  {"VARCHAR",SQL_VARCHAR,65532,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_VARCHAR},
+  /* There are no direct limitations for set/enum values. There is indeirect limit by table definition max
+     length. That effectively make the max length of string representation for these types ~65216 */
+  {"ENUM",SQL_VARCHAR,65216,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
+  {"SET",SQL_VARCHAR,65216,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
   {"DATE",SQL_TYPE_DATE,10,"''","''","NULL",1,0,3,0,0,0,"DATE",0,0,0,0,10, SQL_DATETIME},
-  {"TIME",SQL_TYPE_TIME,8,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
-  {"DATETIME",SQL_TYPE_TIMESTAMP,16,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
-  {"TIMESTAMP",SQL_TYPE_TIMESTAMP,16,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
+  /* COLUMN_SIZE is 17 because MariaDB TIME type can have negative time with up to 859 hours and microseconds.
+     Even though SQL_TIME is not supposed to have microseconds and hours beyond 0-23, this value's main purpose
+     is probably to allow app to allocate the buffer to accommodate the value from such a field as a string */
+  {"TIME",SQL_TYPE_TIME,17,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
+  {"DATETIME",SQL_TYPE_TIMESTAMP,26,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
+  {"TIMESTAMP",SQL_TYPE_TIMESTAMP,26,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
   {"CHAR",SQL_WCHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_WCHAR},
-  {"VARCHAR",SQL_WVARCHAR,255,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
+  {"VARCHAR",SQL_WVARCHAR,65532,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
   {"LONG VARCHAR",SQL_WLONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
   {NULL,0,0,NULL,NULL,NULL,0,0,0,0,0,0,NULL,0,0,0,0,0}
 };
@@ -79,7 +84,7 @@ MADB_TypeInfo TypeInfoV2[]=
   {"LONGBLOB",SQL_LONGVARBINARY,2147483647,"''","''","NULL",1,1,3,0,0,0,"LONGBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
   {"BLOB",SQL_LONGVARBINARY,65535,"''","''","NULL",1,1,3,0,0,0,"BLOB",0,0,0,0,10, SQL_LONGVARBINARY},
   {"TINYBLOB",SQL_LONGVARBINARY,255,"''","''","NULL",1,1,3,0,0,0,"TINYBLOB",0,0,0,0,10, SQL_LONGVARBINARY},
-  {"VARBINARY",SQL_VARBINARY,65535,"''","''","'length'",1,1,3,0,0,0,"VARBINARY",0,0,0,0,10, SQL_VARBINARY},
+  {"VARBINARY",SQL_VARBINARY,65532,"''","''","'length'",1,1,3,0,0,0,"VARBINARY",0,0,0,0,10, SQL_VARBINARY},
   {"BINARY",SQL_BINARY,255,"''","''","'length'",1,1,3,0,0,0,"BINARY",0,0,0,0,10, SQL_BINARY},
   {"LONG VARCHAR",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
   {"MEDIUMTEXT",SQL_LONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"MEDIUMTEXT",0,0,0,0,10, SQL_LONGVARCHAR},
@@ -101,15 +106,15 @@ MADB_TypeInfo TypeInfoV2[]=
   {"DOUBLE",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE",-308,308,0,0,10, SQL_DOUBLE},
   {"DOUBLE PRECISION",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"DOUBLE PRECISION",-308,308,0,0,10, SQL_DOUBLE},
   {"REAL",SQL_DOUBLE,17,"","","'precision,scale'",1,0,3,0,0,1,"REAL",-308,308,0,0,10, SQL_DOUBLE},
-  {"VARCHAR",SQL_VARCHAR,65535,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_VARCHAR},
-  {"ENUM",SQL_VARCHAR,65535,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
-  {"SET",SQL_VARCHAR,64,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
+  {"VARCHAR",SQL_VARCHAR,65532,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_VARCHAR},
+  {"ENUM",SQL_VARCHAR,65216,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
+  {"SET",SQL_VARCHAR,65216,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
   {"DATE",SQL_DATE,10,"''","''","NULL",1,0,3,0,0,0,"DATE",0,0,0,0,10, SQL_DATETIME},
-  {"TIME",SQL_TIME,18,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
-  {"DATETIME",SQL_TIMESTAMP,27,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
-  {"TIMESTAMP",SQL_TIMESTAMP,27,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
+  {"TIME",SQL_TIME,17,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
+  {"DATETIME",SQL_TIMESTAMP,26,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
+  {"TIMESTAMP",SQL_TIMESTAMP,26,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
   {"CHAR",SQL_WCHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_WCHAR},
-  {"VARCHAR",SQL_WVARCHAR,255,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
+  {"VARCHAR",SQL_WVARCHAR,65532,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
   {"LONG VARCHAR",SQL_WLONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_WLONGVARCHAR},
   {NULL,0,0,NULL,NULL,NULL,0,0,0,0,0,0,NULL,0,0,0,0,0}
 };
