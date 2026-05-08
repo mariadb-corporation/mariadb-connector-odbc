@@ -912,21 +912,8 @@ ODBC_TEST(t_bug14414)
 
 /**
  Bug #30939: SQLGetTypeInfo returns 6 instead of 8 for COLUMN_SIZE for
- SQL_TYPE_TIME
+ SQL_TYPE_TIME - the testcase is covered by test t_bug30626 in the info suite.
 */
-ODBC_TEST(t_bug30939)
-{
-  CHECK_STMT_RC(Stmt, SQLGetTypeInfo(Stmt, SQL_TYPE_TIME));
-
-  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
-
-  is_num(my_fetch_int(Stmt, 3), 8);
-
-  FAIL_IF(SQLFetch(Stmt) != SQL_NO_DATA, "eof expected");
-
-  return OK;
-}
-
 
 /**
  Bug #31009: Wrong SQL_DESC_LITERAL_PREFIX for date-time types
@@ -1774,7 +1761,6 @@ MA_ODBC_TESTS my_tests[]=
   {t_bug30081,    "t_bug30081",  NORMAL},
   {t_datecolumns, "t_datecolumns", NORMAL},
   {t_bug14414,    "t_bug14414",  NORMAL},
-  {t_bug30939,    "t_bug30939",  NORMAL},
   {t_bug31009,    "t_bug31009",  NORMAL},
   {t_bug37342,    "t_bug37342",  NORMAL},
   {t_bug60646,    "t_bug60646",  NORMAL},

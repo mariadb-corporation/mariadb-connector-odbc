@@ -259,11 +259,18 @@ ODBC_TEST(sqlchar)
 
   CHECK_STMT_RC(hstmt1, SQLFreeStmt(hstmt1, SQL_DROP));
 // This check creates lots of noise with valgrind from inside unixODBC
+#ifndef __has_feature
+#  define __has_feature(x) 0
+#endif
 #ifndef MEMCHECK_SKIP_TEST
   // We probably could do that in driver as well, TODO: but do we really need
   if (using_dm())
   {
+#if defined(__clang__) && __has_feature(memory_sanitizer)
+    diag("Skipping invalid-handle check under MSan");
+#else
     is_num(SQLFreeHandle(SQL_HANDLE_STMT, hstmt1), SQL_INVALID_HANDLE);
+#endif
   }
 #endif
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));

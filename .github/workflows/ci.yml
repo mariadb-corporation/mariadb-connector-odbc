@@ -38,7 +38,7 @@ jobs:
     if: |
       github.event_name != 'schedule' ||
       github.ref == 'refs/heads/master' ||
-      startsWith(github.ref, 'refs/heads/develop')  ||
+      startsWith(github.ref, 'refs/heads/develop') ||
       startsWith(github.ref, 'refs/heads/odbc-')
     outputs:
       matrix: ${{ steps.set-matrix.outputs.final-matrix }}
