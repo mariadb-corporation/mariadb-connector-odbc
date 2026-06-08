@@ -413,13 +413,19 @@ SQLRETURN MADB_Char2Sql(MADB_Stmt *Stmt, MADB_DescRecord *CRec, void* DataPtr, S
     MADB_TsConversionIsPossible(Stmt, &Ts, SqlRec->ConciseType, &Stmt->Error, MADB_ERR_22018, isTime);
     return MADB_Timestamp2Sql(Stmt, CRec, (void*)&Ts, Length, SqlRec, MaBind, Buffer, LengthPtr);
   }
+  case SQL_BINARY:
+  case SQL_VARBINARY:
+  case SQL_LONGVARBINARY:
+    *LengthPtr= (unsigned long)Length;
+    *Buffer= DataPtr;
+    MaBind->buffer_type= MYSQL_TYPE_BLOB;
+    break;
   default:
     /* Bulk shouldn't get here, thus logic for single paramset execution */
     *LengthPtr= (unsigned long)Length;
     *Buffer= DataPtr;
     MaBind->buffer_type= MYSQL_TYPE_STRING;
   }
-
   return SQL_SUCCESS;
 }
 /* }}} */

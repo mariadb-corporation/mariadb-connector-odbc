@@ -1,6 +1,6 @@
   /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2025 MariaDB Corporation plc
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1750,6 +1750,47 @@ ODBC_TEST(odbc450)
 }
 
 
+ODBC_TEST(odbc494_mbcs_binary_param_escaping)
+{
+  const char charsets[][6]= { "big5", "gbk", "sjis", "cp932" };
+  const SQLCHAR bData[]= { 0xa1, '\'', ' ', '+', ' ', '1', '0', ' ', '-', '-', ' ' };
+  SQLCHAR buff[sizeof(bData)];
+  size_t i;
+
+  for (i= 0; i < sizeof(charsets) / sizeof(charsets[0]); ++i)
+  {
+    SQLHANDLE dbh= NULL;
+    SQLHANDLE stmt= NULL;
+    SQLLEN len= sizeof(bData);
+    SQLLEN fetchedLen= 0;
+
+    diag("Testing charset %s", charsets[i]);
+    CHECK_ENV_RC(Env, SQLAllocConnect(Env, &dbh));
+    stmt= ConnectWithCharset(&dbh, charsets[i], "EDSERVER=0");
+    FAIL_IF(!stmt, "Could not establish connection");
+
+    CHECK_STMT_RC(stmt, SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,
+      SQL_BINARY, sizeof(bData), 0, (SQLPOINTER)bData, sizeof(bData), &len));
+
+    CHECK_STMT_RC(stmt, SQLExecDirect(stmt, (SQLCHAR*)"SELECT ?", SQL_NTS));
+    CHECK_STMT_RC(stmt, SQLFetch(stmt));
+    CHECK_STMT_RC(stmt, SQLGetData(stmt, 1, SQL_C_BINARY, (SQLPOINTER)buff,
+      sizeof(buff), &fetchedLen));
+
+    is_num(fetchedLen, sizeof(bData));
+    FAIL_IF(memcmp((const void*)buff, (const void*)bData, sizeof(bData)) != 0,
+      "comparison failed");
+    EXPECT_STMT(stmt, SQLFetch(stmt), SQL_NO_DATA);
+
+    CHECK_STMT_RC(stmt, SQLFreeStmt(stmt, SQL_DROP));
+    CHECK_DBC_RC(dbh, SQLDisconnect(dbh));
+    CHECK_DBC_RC(dbh, SQLFreeConnect(dbh));
+  }
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_init_table, "my_init_table"},
@@ -1780,7 +1821,8 @@ MA_ODBC_TESTS my_tests[]=
   {timestruct_param, "timestruct_param-seconds"},
   {consequent_direxec, "consequent_direxec"},
   {odbc279, "odbc-279-timestruct"},
-  {odbc450, "ODBC-450-putdata_after_ps"},
+  {odbc450, "odbc-450-putdata_after_ps"},
+  {odbc494_mbcs_binary_param_escaping, "odbc-494-mbcs_binary_param_escaping"},
   {NULL, NULL}
 };
 
