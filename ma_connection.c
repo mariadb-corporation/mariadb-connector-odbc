@@ -1091,7 +1091,8 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   }
   else
   {
-    mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &selectedIntOption);
+    static const unsigned int localInfileAuto= 2;
+    mysql_optionsv(Connection->mariadb, MYSQL_OPT_LOCAL_INFILE, &localInfileAuto);
   }
 
   if (!SQL_SUCCEEDED(MADB_DbcCoreConnect(Connection, Connection->mariadb, Dsn, &Connection->Error, client_flags)))
