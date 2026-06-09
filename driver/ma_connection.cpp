@@ -1036,7 +1036,8 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
   }
   else
   {
-    mysql_optionsv(mariadb, MYSQL_OPT_LOCAL_INFILE, &selectedIntOption);
+    static const unsigned int localInfileAuto= 2;
+    mysql_optionsv(mariadb, MYSQL_OPT_LOCAL_INFILE, &localInfileAuto);
   }
 
   // Protocol and encryption settings go in CoreConnect()
