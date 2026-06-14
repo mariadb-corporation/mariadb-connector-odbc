@@ -840,7 +840,7 @@ DWORD WINAPI cancel_in_one_second(LPVOID arg)
 {
   HSTMT Stmt= (HSTMT)arg;
 
-  Sleep(1000);
+  Sleep(2000);
 
   if (SQLCancel(Stmt) != SQL_SUCCESS)
     diag("SQLCancel failed!");
@@ -872,7 +872,7 @@ ODBC_TEST(sqlcancel_threaded)
   if (IsMysql || (ForwardOnly == TRUE && NoCache == TRUE))
   {
     /**/
-    OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+    OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(7)");
     if (IsMysql)
     {
       CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
@@ -937,7 +937,7 @@ void *cancel_in_one_second(void *arg)
 {
   HSTMT *Stmt= arg;
 
-  sleep(1);
+  sleep(2);
 
   if (SQLCancel(Stmt) != SQL_SUCCESS)
     diag("SQLCancel failed!");
@@ -956,7 +956,7 @@ ODBC_TEST(sqlcancel_threaded)
   if (IsMysql || RSSTREAMING)
   {
     /**/
-    OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(5)");
+    OK_SIMPLE_STMT(Stmt, "SELECT SLEEP(7)");
     if (IsMysql)
     {
       /* Not sure what is happening, but on travis this gives sequence error that is very strange, and I can't repeat it locally */

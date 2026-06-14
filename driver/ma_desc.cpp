@@ -931,14 +931,16 @@ SQLRETURN MADB_DescSetField(SQLHDESC DescriptorHandle,
       DescRecord->Precision= (SQLSMALLINT)(SQLLEN)ValuePtr;
       break;
     case SQL_DESC_SCALE:
-      if ((SQLSMALLINT)(SQLLEN)ValuePtr > MADB_MAX_SCALE)
+      DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
+      if (DescRecord->Scale > MADB_MAX_SCALE)
       {
         DescRecord->Scale= MADB_MAX_SCALE;
         ret= MADB_SetError(&Desc->Error, MADB_ERR_01S02, nullptr, 0); 
       }
-      else
+      else if (DescRecord->Scale < -MADB_MAX_SCALE)
       {
-        DescRecord->Scale= (SQLSMALLINT)(SQLLEN)ValuePtr;
+        DescRecord->Scale= -MADB_MAX_SCALE;
+        ret= MADB_SetError(&Desc->Error, MADB_ERR_01S02, NULL, 0); 
       }
       break;
     case SQL_DESC_TYPE:

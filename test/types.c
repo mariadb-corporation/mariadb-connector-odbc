@@ -1480,6 +1480,25 @@ ODBC_TEST(t_bigint_as_double)
 }
 
 
+ODBC_TEST(t_odbc496)
+{
+  SQL_NUMERIC_STRUCT  sendVal;
+
+  sendVal.sign= 1;
+  sendVal.precision= 13;
+  sendVal.scale= 4;
+  memcpy(sendVal.val, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", SQL_MAX_NUMERIC_LEN);
+
+  FAIL_IF(SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_NUMERIC, SQL_DECIMAL, 19, -128,
+    &sendVal, sizeof(SQL_NUMERIC_STRUCT), NULL) != SQL_SUCCESS_WITH_INFO,
+    "SQL_SUCCESS_WITH_INFO expected - scale value should have been changed to default");
+  // This used to cause buffer overflow and heap corruption. This would eigher crash or detected by sanitizers.
+  OK_SIMPLE_STMT(Stmt, "SELECT ?");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_longlong1,        "t_longlong1",       NORMAL},
@@ -1511,6 +1530,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc_double,      "t_fetch_double",    NORMAL},
   {t_odbc322,          "odbc322_decimal_as_numeric",     NORMAL},
   {t_bigint_as_double, "odbc448_bigint_as_double", NORMAL},
+  {t_odbc496,          "odbc495_small_negative_scale", NORMAL},
   {NULL, NULL, NORMAL}
 };
 

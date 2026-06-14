@@ -27,7 +27,7 @@
 #define BV(_STRCONST) mariadb::bytes_view(_STRCONST, sizeof(_STRCONST))
 #define XBV(_STRCONST) BV(#_STRCONST)
 
-static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), Null, ten("10", 3), empty("",1),
+static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), six("6", 2), Null, ten("10", 3), empty("",1),
   sqlwchar("-8", 3), sqlwvarchar("-9", 3), sqlwlongvarchar("-10", 4), sqlbit("-7", 3), sqltinyint("-6", 3),
   sqlbigint("-5", 3), sqllongvarbinary("-4", 3), sqlvarbinary("-3", 3), sqlbinary("-2", 3), sqllongvarchar("-1", 3); // They defined as (-8) etc, and that's not parsed well as int
 
@@ -106,11 +106,11 @@ static std::vector <std::vector<mariadb::bytes_view>> TypeInfoV3=
     BV(XSTR(SQL_VARCHAR))},
   {XBV(DATE),BV(XSTR(SQL_TYPE_DATE)),ten,empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATE),zero,zero,zero,zero,ten,
     BV(XSTR(SQL_DATETIME))},
-  {XBV(TIME),BV(XSTR(SQL_TYPE_TIME)),XBV(17),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TIME),zero,zero,zero,zero,ten,
+  {XBV(TIME),BV(XSTR(SQL_TYPE_TIME)),XBV(17),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TIME),zero,six,zero,zero,ten,
     BV(XSTR(SQL_DATETIME))},
-  {XBV(DATETIME),BV(XSTR(SQL_TYPE_TIMESTAMP)),XBV(26),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATETIME),zero,zero,zero,zero,
+  {XBV(DATETIME),BV(XSTR(SQL_TYPE_TIMESTAMP)),XBV(26),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATETIME),zero,six,zero,zero,
     ten, BV(XSTR(SQL_DATETIME))},
-  {XBV(TIMESTAMP),BV(XSTR(SQL_TYPE_TIMESTAMP)),XBV(26),empty,empty,XBV(scale),one,zero,three,zero,zero,zero,XBV(TIMESTAMP),zero,zero,
+  {XBV(TIMESTAMP),BV(XSTR(SQL_TYPE_TIMESTAMP)),XBV(26),empty,empty,XBV(scale),one,zero,three,zero,zero,zero,XBV(TIMESTAMP),zero,six,
     zero,zero,ten, BV(XSTR(SQL_DATETIME))},
   {XBV(CHAR),sqlwchar,XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(CHAR),zero,zero,zero,zero,ten,
     sqlwchar},
@@ -196,11 +196,11 @@ static std::vector<std::vector<mariadb::bytes_view>> TypeInfoV2=
     BV(XSTR(SQL_VARCHAR))},
   {XBV(DATE),BV(XSTR(SQL_DATE)),ten,empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATE),zero,zero,zero,zero,ten,
     BV(XSTR(SQL_DATETIME))},
-  {XBV(TIME),BV(XSTR(SQL_TIME)),XBV(17),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TIME),zero,zero,zero,zero,ten,
+  {XBV(TIME),BV(XSTR(SQL_TIME)),XBV(17),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(TIME),zero,six,zero,zero,ten,
     BV(XSTR(SQL_DATETIME))},
-  {XBV(DATETIME),BV(XSTR(SQL_TIMESTAMP)),XBV(26),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATETIME),zero,zero,zero,zero,ten,
+  {XBV(DATETIME),BV(XSTR(SQL_TIMESTAMP)),XBV(26),empty,empty,Null,one,zero,three,zero,zero,zero,XBV(DATETIME),zero,six,zero,zero,ten,
     BV(XSTR(SQL_DATETIME))},
-  {XBV(TIMESTAMP),BV(XSTR(SQL_TIMESTAMP)),XBV(26),empty,empty,XBV(scale),one,zero,three,zero,zero,zero,XBV(TIMESTAMP),zero,zero,zero,zero,
+  {XBV(TIMESTAMP),BV(XSTR(SQL_TIMESTAMP)),XBV(26),empty,empty,XBV(scale),one,zero,three,zero,zero,zero,XBV(TIMESTAMP),zero,six,zero,zero,
     ten, BV(XSTR(SQL_DATETIME))},
   {XBV(CHAR),sqlwchar,XBV(255),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(CHAR),zero,zero,zero,zero,ten, sqlwchar},
   {XBV(VARCHAR),sqlwvarchar,XBV(65532),empty,empty,XBV(length),one,zero,three,zero,zero,zero,XBV(VARCHAR),zero,zero,zero,zero,ten, sqlwvarchar},
