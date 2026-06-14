@@ -62,9 +62,9 @@ MADB_TypeInfo TypeInfoV3[]=
   /* COLUMN_SIZE is 17 because MariaDB TIME type can have negative time with up to 859 hours and microseconds.
      Even though SQL_TIME is not supposed to have microseconds and hours beyond 0-23, this value's main purpose
      is probably to allow app to allocate the buffer to accommodate the value from such a field as a string */
-  {"TIME",SQL_TYPE_TIME,17,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
-  {"DATETIME",SQL_TYPE_TIMESTAMP,26,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
-  {"TIMESTAMP",SQL_TYPE_TIMESTAMP,26,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
+  {"TIME",SQL_TYPE_TIME,17,"''","''","NULL",1,0,3,0,0,0,"TIME",0,6,0,0,10, SQL_DATETIME},
+  {"DATETIME",SQL_TYPE_TIMESTAMP,26,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,6,0,0,10, SQL_DATETIME},
+  {"TIMESTAMP",SQL_TYPE_TIMESTAMP,26,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,6,0,0,10, SQL_DATETIME},
   {"CHAR",SQL_WCHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_WCHAR},
   {"VARCHAR",SQL_WVARCHAR,65532,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
   {"LONG VARCHAR",SQL_WLONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_LONGVARCHAR},
@@ -110,9 +110,9 @@ MADB_TypeInfo TypeInfoV2[]=
   {"ENUM",SQL_VARCHAR,65216,"''","''","NULL",1,0,3,0,0,0,"ENUM",0,0,0,0,10, SQL_VARCHAR},
   {"SET",SQL_VARCHAR,65216,"''","''","NULL",1,0,3,0,0,0,"SET",0,0,0,0,10, SQL_VARCHAR},
   {"DATE",SQL_DATE,10,"''","''","NULL",1,0,3,0,0,0,"DATE",0,0,0,0,10, SQL_DATETIME},
-  {"TIME",SQL_TIME,17,"''","''","NULL",1,0,3,0,0,0,"TIME",0,0,0,0,10, SQL_DATETIME},
-  {"DATETIME",SQL_TIMESTAMP,26,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,0,0,0,10, SQL_DATETIME},
-  {"TIMESTAMP",SQL_TIMESTAMP,26,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,0,0,0,10, SQL_DATETIME},
+  {"TIME",SQL_TIME,17,"''","''","NULL",1,0,3,0,0,0,"TIME",0,6,0,0,10, SQL_DATETIME},
+  {"DATETIME",SQL_TIMESTAMP,26,"''","''","NULL",1,0,3,0,0,0,"DATETIME",0,6,0,0,10, SQL_DATETIME},
+  {"TIMESTAMP",SQL_TIMESTAMP,26,"''","''","'scale'",1,0,3,0,0,0,"TIMESTAMP",0,6,0,0,10, SQL_DATETIME},
   {"CHAR",SQL_WCHAR,255,"''","''","'length'",1,0,3,0,0,0,"CHAR",0,0,0,0,10, SQL_WCHAR},
   {"VARCHAR",SQL_WVARCHAR,65532,"''","''","'length'",1,0,3,0,0,0,"VARCHAR",0,0,0,0,10, SQL_WVARCHAR},
   {"LONG VARCHAR",SQL_WLONGVARCHAR,16777215,"''","''","NULL",1,0,3,0,0,0,"LONG VARCHAR",0,0,0,0,10, SQL_WLONGVARCHAR},

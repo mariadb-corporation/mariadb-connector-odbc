@@ -291,9 +291,10 @@ ODBC_TEST(t_bug16653)
 /*
   Bug #30626 - No result record for SQLGetTypeInfo for TIMESTAMP
   Extended to cover ODBC-492. Column size for temporal types has to be length in chars for representation with max possible
-   precision. i.e. in case of MariaDB this is 26 for SQL_TYPE_TIMESTAMP
-   It covers the case of the bug 30939 in datetime(the test for it has been removed)
-   ODBC-430 is covered as well(and it is corrected by ODBC-492
+  precision. i.e. in case of MariaDB this is 26 for SQL_TYPE_TIMESTAMP
+  It covers the case of the bug 30939 in datetime(the test for it has been removed)
+  ODBC-430 is covered as well(and it is corrected by ODBC-492
+  Extended to cover ODBC-495 as well - MAXIMUM_SCALE wasnt set for temporal types
 */
 ODBC_TEST(t_bug30626)
 {
@@ -309,6 +310,8 @@ ODBC_TEST(t_bug30626)
   {
     ++counter;
     is_num(my_fetch_int(Stmt, 3), 26/*YYYY-MM-DD HH:MM:SS.FFFFFF*/);
+    is_num(my_fetch_int(Stmt, 14), 0); /* MINIMUM_SCALE */
+    is_num(my_fetch_int(Stmt, 15), 6); /* MAXIMUM_SCALE */
   }
   is_num(counter, 2);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
@@ -318,6 +321,8 @@ ODBC_TEST(t_bug30626)
      Even though SQL_TIME is not supposed to have microseconds and hours beyond 0-23, this value's main purpose
      is probably to allow app to allocate the buffer to accommodate the value from such a field as a string */
   is_num(my_fetch_int(Stmt, 3), 17/*[-]HHH:MM:SS.FFFFFF*/);
+  is_num(my_fetch_int(Stmt, 14), 0); /* MINIMUM_SCALE */
+  is_num(my_fetch_int(Stmt, 15), 6); /* MAXIMUM_SCALE */
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
@@ -369,6 +374,8 @@ ODBC_TEST(t_bug30626)
   {
     ++counter;
     is_num(my_fetch_int(Stmt1, 3), 26);
+    is_num(my_fetch_int(Stmt1, 14), 0); /* MINIMUM_SCALE */
+    is_num(my_fetch_int(Stmt1, 15), 6); /* MAXIMUM_SCALE */
   }
   is_num(counter, 2);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
@@ -376,6 +383,8 @@ ODBC_TEST(t_bug30626)
   CHECK_STMT_RC(Stmt1, SQLGetTypeInfo(Stmt1, SQL_TIME));
   CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
   is_num(my_fetch_int(Stmt1, 3), 17/*[-]HHH:MM:SS.FFFFFF*/);
+  is_num(my_fetch_int(Stmt1, 14), 0); /* MINIMUM_SCALE */
+  is_num(my_fetch_int(Stmt1, 15), 6); /* MAXIMUM_SCALE */
   EXPECT_STMT(Stmt1, SQLFetch(Stmt1), SQL_NO_DATA);
   CHECK_STMT_RC(Stmt1, SQLFreeStmt(Stmt1, SQL_CLOSE));
 
@@ -964,7 +973,7 @@ MA_ODBC_TESTS my_tests[]=
   { t_bug31055, "t_bug31055", NORMAL },
   { t_bug3780, "t_bug3780", NORMAL },
   { t_bug16653, "t_bug16653", NORMAL },
-  { t_bug30626, "t_bug30626-odbc492-bug30939-odbc430", NORMAL },
+  { t_bug30626, "t_bug30626-odbc492-bug30939-odbc430-odbc495", NORMAL },
   { t_bug43855, "t_bug43855", NORMAL },
   { t_bug46910, "t_bug46910", NORMAL },
   { t_bug11749093, "t_bug11749093", NORMAL },
