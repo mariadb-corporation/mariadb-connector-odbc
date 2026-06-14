@@ -31,7 +31,7 @@ static mariadb::bytes_view zero("0", 2), one("1", 2), three("3", 2), Null, ten("
   sqlwchar("-8", 3), sqlwvarchar("-9", 3), sqlwlongvarchar("-10", 4), sqlbit("-7", 3), sqltinyint("-6", 3),
   sqlbigint("-5", 3), sqllongvarbinary("-4", 3), sqlvarbinary("-3", 3), sqlbinary("-2", 3), sqllongvarchar("-1", 3); // They defined as (-8) etc, and that's not parsed well as int
 
-std::vector <std::vector<mariadb::bytes_view>> TypeInfoV3=
+static std::vector <std::vector<mariadb::bytes_view>> TypeInfoV3=
 {
   {XBV(BIT), sqlbit, one, empty, empty, Null, one, one, three, zero, zero, zero, zero, zero, zero, zero, zero,
     ten, sqlbit},
@@ -120,7 +120,7 @@ std::vector <std::vector<mariadb::bytes_view>> TypeInfoV3=
     zero,zero,ten, sqlwlongvarchar}
 };
 
-std::vector<std::vector<mariadb::bytes_view>> TypeInfoV2=
+static std::vector<std::vector<mariadb::bytes_view>> TypeInfoV2=
 {
   {bytes_view(XBV(BIT), 4), sqlbit, one, empty, empty, Null, one, one, three, zero, zero, zero, zero, zero, zero,
     zero, zero, ten, sqlbit},
@@ -208,16 +208,25 @@ std::vector<std::vector<mariadb::bytes_view>> TypeInfoV2=
     ten, sqlwlongvarchar}
 };
 
-static std::vector<SQLString> TypeInfoColumnName{"TYPE_NAME", "DATA_TYPE", "COLUMN_SIZE", "LITERAL_PREFIX",
-          "LITERAL_SUFFIX", "CREATE_PARAMS", "NULLABLE", "CASE_SENSITIVE", "SEARCHABLE", "UNSIGNED_ATTRIBUTE",
-          "FIXED_PREC_SCALE", "AUTO_UNIQUE_VALUE", "LOCAL_TYPE_NAME", "MINIMUM_SCALE", "MAXIMUM_SCALE", "SQL_DATA_TYPE",
-          "SQL_DATETIME_SUB", "NUM_PREC_RADIX", "INTERVAL_PRECISION"};
-
 #define MA_CONST_LEN(LITERALSTRCONST) sizeof(#LITERALSTRCONST) - 1
 static MADB_ShortTypeInfo gtiDefType[19]= {};
-static std::vector<const MYSQL_FIELD*> TypeInfoColumnType= {
-  &FIELDSTRING, &FIELDSHORT, &FIELDINT, &FIELDSTRING, &FIELDSTRING, &FIELDSTRING, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT,
-  &FIELDSHORT, &FIELDSHORT, &FIELDSTRING, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDINT, &FIELDSHORT };
+
+static const std::vector<SQLString>& GetTypeInfoColumnName()
+{
+  static const std::vector<SQLString> TypeInfoColumnName{"TYPE_NAME", "DATA_TYPE", "COLUMN_SIZE", "LITERAL_PREFIX",
+            "LITERAL_SUFFIX", "CREATE_PARAMS", "NULLABLE", "CASE_SENSITIVE", "SEARCHABLE", "UNSIGNED_ATTRIBUTE",
+            "FIXED_PREC_SCALE", "AUTO_UNIQUE_VALUE", "LOCAL_TYPE_NAME", "MINIMUM_SCALE", "MAXIMUM_SCALE", "SQL_DATA_TYPE",
+            "SQL_DATETIME_SUB", "NUM_PREC_RADIX", "INTERVAL_PRECISION"};
+  return TypeInfoColumnName;
+}
+
+static const std::vector<const MYSQL_FIELD*>& GetTypeInfoColumnType()
+{
+  static const std::vector<const MYSQL_FIELD*> TypeInfoColumnType= {
+    &FIELDSTRING, &FIELDSHORT, &FIELDINT, &FIELDSTRING, &FIELDSTRING, &FIELDSTRING, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT,
+    &FIELDSHORT, &FIELDSHORT, &FIELDSTRING, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDSHORT, &FIELDINT, &FIELDSHORT };
+  return TypeInfoColumnType;
+}
 
 /* {{{ MADB_GetTypeInfo */
 SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
@@ -251,7 +260,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
   Stmt->stmt.reset();
   if (DataType == SQL_ALL_TYPES)
   {
-    Stmt->rs.reset(ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, *TypeInfo));
+    Stmt->rs.reset(ResultSet::createResultSet(GetTypeInfoColumnName(), GetTypeInfoColumnType(), *TypeInfo));
   }
   else
   {
@@ -263,7 +272,7 @@ SQLRETURN MADB_GetTypeInfo(SQLHSTMT StatementHandle,
         row.push_back(cit);
       }
     }
-    Stmt->rs.reset(ResultSet::createResultSet(TypeInfoColumnName, TypeInfoColumnType, row));
+    Stmt->rs.reset(ResultSet::createResultSet(GetTypeInfoColumnName(), GetTypeInfoColumnType(), row));
   }
 
   Stmt->State= MADB_SS_EXECUTED;
