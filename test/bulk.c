@@ -789,6 +789,7 @@ ODBC_TEST(t_odbc460)
       CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
       OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc460");
       CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+      Stmt= NULL;
     }
   } while (++runs < 2);
   return OK;

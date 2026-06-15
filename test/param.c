@@ -1716,6 +1716,7 @@ ODBC_TEST(odbc450)
   SQLLEN ind= SQL_DATA_AT_EXEC;
   SQLPOINTER token= NULL;
 
+  memset(buffer, 'a', sizeof(buffer));
   OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc450");
   OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS ps_odbc450");
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc450(mt MEDIUMTEXT)");

@@ -30,7 +30,6 @@ static const unsigned int selectedIntOption= 1, unselectedIntOption= 0;
 static const my_bool selectedBoolOption= '\1', unselectedBoolOption= '\0';
 const char *AttrPairSeparators= ",", *AttrKeyValueSeparators= "=:";
 
-
 /* used by SQLGetFunctions */
 SQLUSMALLINT MADB_supported_api[]=
 {
@@ -183,14 +182,14 @@ SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
 /* {{{ MADB_DbcSetAttr */
 SQLRETURN MADB_Dbc::SetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength, bool isWChar)
 {
-  if (!this)
-  {
-    /* Todo: check */
-    if (Attribute != SQL_ATTR_TRACE &&
-        Attribute != SQL_ATTR_TRACEFILE)
-      return SQL_INVALID_HANDLE;
-    return SQL_SUCCESS;
-  } 
+  //if (!this)
+  //{
+  //  /* Todo: check */
+  //  if (Attribute != SQL_ATTR_TRACE &&
+  //      Attribute != SQL_ATTR_TRACEFILE)
+  //    return SQL_INVALID_HANDLE;
+  //  return SQL_SUCCESS;
+  //} 
   MADB_CLEAR_ERROR(&Error);
   switch(Attribute) {
   case SQL_ATTR_ACCESS_MODE:
@@ -606,19 +605,16 @@ SQLRETURN MADB_Dbc::EndTran(SQLSMALLINT CompletionType)
 
 /* {{{ MADB_AddInitCommand
 */
-static void MADB_AddInitCommand(MYSQL* mariadb, std::ostringstream &InitCmd, bool MultiStmtAllowed, const char *StmtToAdd)
+static void MADB_AddInitCommand(MYSQL* mariadb, std::string& InitCmd, bool MultiStmtAllowed, const char *StmtToAdd)
 {
-  if (!MultiStmtAllowed)
-  {
+  if (!MultiStmtAllowed) {
     mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, StmtToAdd);
   }
-  else
-  {
-    if (InitCmd.tellp() != 0)
-    {
-      InitCmd << ";";
+  else {
+    if (InitCmd.length() > 0) {
+      InitCmd.append(1, ';');
     }
-    InitCmd << StmtToAdd;
+    InitCmd.append(StmtToAdd);
   }
 }
 
@@ -910,8 +906,9 @@ SQLRETURN MADB_Dbc::CoreConnect(MYSQL* _mariadb, MADB_Dsn *Dsn, MADB_Error* _Err
 SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
 {
   unsigned long client_flags= CLIENT_MULTI_RESULTS;
-  std::ostringstream InitCmd;
-
+  std::string InitCmd;
+  // Should be enough in most case - we need like 48 + optional 41 + init statement.
+  InitCmd.reserve(192);
   MADB_CLEAR_ERROR(&Error);
 
   if (mariadb == nullptr)
@@ -921,7 +918,6 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
       return MADB_SetError(&Error, MADB_ERR_HY001, nullptr, 0);
     }
   }
-
   const char* cs_name= nullptr;
 
   if (!MADB_IS_EMPTY(Dsn->CharacterSet))
@@ -964,44 +960,48 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
     client_flags|= CLIENT_MULTI_STATEMENTS;
   }
 
-  if (Dsn->InitCommand && Dsn->InitCommand[0])
-  {
+  if (Dsn->InitCommand && Dsn->InitCommand[0]) {
     MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), Dsn->InitCommand);
   }
   /* Since sql_auto_is_null is not enough any more for the Access, there is no need to enforce it implicitly */
   if (DSN_OPTION(this, MADB_OPT_FLAG_AUTO_IS_NULL)) /* || Connection->Environment->AppType == ATypeMSAccess) */
   {
-    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION sql_auto_is_null=1");
+    static const char sql_auto_is_null_on[] = { 'S', 'E', 'T', ' ', 'S', 'E', 'S', 'S', 'I', 'O', 'N', ' ', 's', 'q', 'l', '_', 'a', 'u', 't', 'o', '_', 'i', 's', '_', 'n', 'u', 'l', 'l', '=', '1', '\0' };
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), sql_auto_is_null_on);
   }
   else
   {
+    static const char sql_auto_is_null_off[] = { 'S', 'E', 'T', ' ', 'S', 'E', 'S', 'S', 'I', 'O', 'N', ' ', 's', 'q', 'l', '_', 'a', 'u', 't', 'o', '_', 'i', 's', '_', 'n', 'u', 'l', 'l', '=', '0', '\0' };
     /* Not sure if we should do it, but nobody complained */
     /* Turn sql_auto_is_null behavior off.
       For more details see: http://bugs.mysql.com/bug.php?id=47005 */
-    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET SESSION sql_auto_is_null=0");
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), sql_auto_is_null_off);
   }
   /* set autocommit behavior */
   if (AutoCommit != 0)
   {
-    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=1");
+    static const char autocommit_on[] = { 'S', 'E', 'T', ' ', 'a', 'u', 't', 'o', 'c', 'o', 'm', 'm', 'i', 't', '=', '1', '\0' };
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), autocommit_on);
   }
   else
   {
-    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), "SET autocommit=0");
+    static const char autocommit_off[] = { 'S', 'E', 'T', ' ', 'a', 'u', 't', 'o', 'c', 'o', 'm', 'm', 'i', 't', '=', '0', '\0' };
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), autocommit_off);
   }
 
   /* Set isolation level */
   if (TxnIsolation)
   {
-    SQLString query("SET SESSION TRANSACTION ISOLATION LEVEL ");
-    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS),
-      addTxIsolationName2Query(query, static_cast<enum IsolationLevel>(TxnIsolation)).c_str());
+    static const char set_txn_isolation[] = { 'S', 'E', 'T', ' ', 'S', 'E', 'S', 'S', 'I', 'O', 'N', ' ', 'T', 'R', 'A', 'N', 'S', 'A', 'C', 'T', 'I', 'O', 'N', ' ', 'I', 'S', 'O', 'L', 'A', 'T', 'I', 'O', 'N', ' ', 'L', 'E', 'V', 'E', 'L', ' ', '\0' };
+    SQLString query(set_txn_isolation);
+    addTxIsolationName2Query(query, static_cast<enum IsolationLevel>(TxnIsolation));
+    MADB_AddInitCommand(mariadb, InitCmd, DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS), query.c_str());
   }
 
   /* If multistmts allowed - we've put all queries to run in InitCmd. Now need to set it to MYSQL_INIT_COMMAND option */
   if (DSN_OPTION(this, MADB_OPT_FLAG_MULTI_STATEMENTS))
   {
-    mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, InitCmd.str().c_str());
+    mysql_optionsv(mariadb, MYSQL_INIT_COMMAND, InitCmd.c_str());
   }
 
   // Timeouts go in CoreConnect()
@@ -1059,7 +1059,7 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
 
   MADB_SetCapabilities(this, mysql_get_server_version(mariadb), mysql_get_server_name(mariadb));
   {
-    Cache<std::string, ServerPrepareResult> *psCache= nullptr;
+    Cache<std::string, ServerPrepareResult>* psCache= nullptr;
     if (Dsn->PsCacheSize > 0 && Dsn->PsCacheMaxKeyLen > 0)
     {
       psCache= new odbc::PsCache(Dsn->PsCacheSize, Dsn->PsCacheMaxKeyLen);
@@ -1068,8 +1068,7 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
     {
       psCache= new Cache<std::string, ServerPrepareResult>();
     }
-    const char* defaultSchema= getDefaultSchema(Dsn);
-    guard.reset(new Protocol(mariadb, defaultSchema ? defaultSchema : emptyStr, psCache, MADB_GetTxIsolationVarName(this),
+    guard.reset(new Protocol(mariadb, getDefaultSchema(Dsn), psCache, MADB_GetTxIsolationVarName(this),
       TxnIsolation ? static_cast<enum IsolationLevel>(TxnIsolation) : TRANSACTION_REPEATABLE_READ));
   }
 

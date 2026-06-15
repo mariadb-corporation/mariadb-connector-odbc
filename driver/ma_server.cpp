@@ -98,7 +98,9 @@ const char* MADB_GetTxIsolationQuery(MADB_Dbc* Dbc)
 /* {{{  */
 const char* MADB_GetTxIsolationVarName(MADB_Dbc* Dbc)
 {
-  return ((Dbc->ServerCapabilities & MADB_MYSQL_TRANSACTION_ISOLATION) != 0 ? "transaction_isolation" : "tx_isolation");
+  static const char transaction_isolation[] = {'t','r','a','n','s','a','c','t','i','o','n','_','i','s','o','l','a','t','i','o','n', '\0'};
+  static const char tx_isolation[] = { 't','x','_','i','s','o','l','a','t','i','o','n', '\0' };
+  return ((Dbc->ServerCapabilities & MADB_MYSQL_TRANSACTION_ISOLATION) != 0 ? transaction_isolation : tx_isolation);
 }
 /* }}} */
 

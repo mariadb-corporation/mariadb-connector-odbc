@@ -14,7 +14,10 @@ ODBC_TEST(odbc481)
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
   CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_DROP));
+  Stmt= NULL;
   CHECK_DBC_RC(Connection, SQLDisconnect(Connection));
+  SQLFreeHandle(SQL_HANDLE_DBC, Connection);
+  SQLFreeHandle(SQL_HANDLE_ENV, Env);
   return OK;
 }
 

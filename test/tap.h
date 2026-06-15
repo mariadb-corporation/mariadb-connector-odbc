@@ -1277,13 +1277,6 @@ int run_tests_bare(MA_ODBC_TESTS* tests)
     fflush(stdout);
   }
 
-  if (wConnection)
-  {
-    SQLDisconnect(wConnection);
-    SQLFreeHandle(SQL_HANDLE_DBC, wConnection);
-  }
-  ODBC_Disconnect(Env, Connection, Stmt);
-
   if (failed)
     return 1;
   return 0;
