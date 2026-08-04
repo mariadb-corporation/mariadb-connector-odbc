@@ -446,6 +446,7 @@ SQLRETURN MADB_DbcGetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
   case SQL_ATTR_METADATA_ID:
     /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= Dbc->MetadataId;
+    break;
   case SQL_ATTR_ODBC_CURSORS:
     *(SQLULEN*)ValuePtr= SQL_CUR_USE_DRIVER;
     break;

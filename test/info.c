@@ -963,6 +963,45 @@ ODBC_TEST(odbc475)
 }
 
 
+/* ODBC-498 SQL_ATTR_METADATA_ID connection attribute value is not returned correctly by SQLGetConnectAttr */
+ODBC_TEST(odbc498)
+{
+  SQLUINTEGER initial[]= {0xacacacac, 0xacacacac, 0xacacacac}, value= 0xacacacac;
+  SQLULEN stmtAttr= 0xacacacac;
+
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_METADATA_ID, &initial[1],
+    SQL_IS_UINTEGER, NULL));
+  is_num(initial[0], 0xacacacac);
+  is_num(initial[2], 0xacacacac);
+  FAIL_IF(initial[1] != SQL_FALSE && initial[1] != SQL_TRUE, "Only SQL_FALSE or SQL_TRUE are expected");
+
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_METADATA_ID,
+    (SQLPOINTER)(SQLULEN)(initial[1] == SQL_FALSE ? SQL_TRUE : SQL_FALSE), SQL_IS_UINTEGER));
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_METADATA_ID, &value,
+    SQL_IS_UINTEGER, NULL));
+  is_num(value, initial[1] == SQL_FALSE ? SQL_TRUE : SQL_FALSE);
+
+  value= 0xacacacac;
+  // Restore initial value at the same time.
+  CHECK_DBC_RC(Connection, SQLSetConnectAttr(Connection, SQL_ATTR_METADATA_ID,
+    (SQLPOINTER)(SQLULEN)initial[1], SQL_IS_UINTEGER));
+  CHECK_DBC_RC(Connection, SQLGetConnectAttr(Connection, SQL_ATTR_METADATA_ID, &value,
+    SQL_IS_UINTEGER, NULL));
+  is_num(value, initial[1]);
+
+  /* Same for the statement attribute, that is SQLULEN, and not SQLUINTEGER */
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_METADATA_ID, (SQLPOINTER)SQL_TRUE, SQL_IS_UINTEGER));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_METADATA_ID, &stmtAttr, SQL_IS_UINTEGER, NULL));
+  is_num(stmtAttr, SQL_TRUE);
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_METADATA_ID, (SQLPOINTER)SQL_FALSE, SQL_IS_UINTEGER));
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_METADATA_ID, &stmtAttr, SQL_IS_UINTEGER, NULL));
+  is_num(stmtAttr, SQL_FALSE);
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   { t_gettypeinfo, "t_gettypeinfo", NORMAL },
@@ -990,6 +1029,7 @@ MA_ODBC_TESTS my_tests[]=
   { odbc313, "odbc313", NORMAL },
   { driver_ver, "driver_ver_not_trimmed", NORMAL },
   { odbc475, "odbc476_SQL_POSITIONED_STATEMENTS", NORMAL },
+  { odbc498, "odbc498_SQL_ATTR_METADATA_ID", NORMAL },
   { NULL, NULL }
 };
 
