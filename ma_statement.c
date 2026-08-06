@@ -2435,10 +2435,17 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 
     if (Stmt->Options.UseBookmarks && Stmt->Options.BookmarkPtr != NULL)
     {
-      /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*". Can be determined by examining Stmt->Options.BookmarkType */
+      /* TODO: Bookmark can be not only "unsigned long*", but also "unsigned char*".
+         Can be determined by examining Stmt->Options.BookmarkType
+         TODO: Bookmark ptr should be stored/saved in the descriptor, and all pointer calculations should be done in
+         usual way as for other pointers.
+       */
       long *p= (long *)Stmt->Options.BookmarkPtr;
-      p+= RowNum * Stmt->Options.BookmarkLength;
-      *p= (long)Stmt->Cursor.Position;
+      // BindType is non-zero only for row-based binding and is equal the size of row struct.
+      p= (long*)((char*)p + RowNum * (Stmt->Ard->Header.BindType ? Stmt->Ard->Header.BindType : Stmt->Options.BookmarkLength));
+      // For the block cursor rows, the bookmark has to point to the exact row in the result set,
+      // not the beginning of the block. When jumping to the bookmark, that row has to be the first row in the block.
+      *p= (long)Stmt->Cursor.Position + RowNum;
     }
     /************************ Fetch! ********************************/
     if (MADB_STMT_IS_STREAMING(Stmt))
