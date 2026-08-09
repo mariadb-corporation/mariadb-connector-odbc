@@ -852,7 +852,7 @@ SQLRETURN SQL_API SQLGetDescRec(SQLHDESC DescriptorHandle,
     SQLSMALLINT *ScalePtr,
     SQLSMALLINT *NullablePtr)
 {
-  CHECK_STMT_CLEAR_ERROR(DescriptorHandle);
+  CHECK_DESC_CLEAR_ERROR(DescriptorHandle);
   return MADB_DescGetRec(DescriptorHandle, RecNumber, Name, BufferLength, StringLengthPtr, TypePtr, SubTypePtr,
                          LengthPtr, PrecisionPtr, ScalePtr, NullablePtr, FALSE);
 }
@@ -871,7 +871,7 @@ SQLRETURN SQL_API SQLGetDescRecW(SQLHDESC DescriptorHandle,
     SQLSMALLINT *ScalePtr,
     SQLSMALLINT *NullablePtr)
 {
-  CHECK_STMT_CLEAR_ERROR(DescriptorHandle);
+  CHECK_DESC_CLEAR_ERROR(DescriptorHandle);
   return MADB_DescGetRec(DescriptorHandle, RecNumber, (SQLCHAR *)Name, BufferLength, StringLengthPtr, TypePtr, SubTypePtr,
                          LengthPtr, PrecisionPtr, ScalePtr, NullablePtr, TRUE);
 }
