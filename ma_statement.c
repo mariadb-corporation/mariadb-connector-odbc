@@ -1059,10 +1059,11 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       (Stmt->PositionedCursor->UniqueIndex[0] != 0 && IndexIdx <= Stmt->PositionedCursor->UniqueIndex[0] && j == Stmt->PositionedCursor->UniqueIndex[IndexIdx] + 1))
     {
       SQLLEN Length;
-      MADB_DescRecord* Rec = MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
+      // TODO: j is 1-based, and I think MADB_DescGetInternalRecord is 0-based. Smth is wrong
+      MADB_DescRecord *Rec= MADB_DescGetInternalRecord(Stmt->PositionedCursor->Ard, j, MADB_DESC_READ);
       SQLUSMALLINT ParamNumber= 0;
 
-      Length = Rec->OctetLength;
+      Length= Rec->OctetLength;
       if (Stmt->PositionedCursor->UniqueIndex != NULL)
       {
         ParamNumber= /* Param ordnum in pos.cursor condition */IndexIdx + /* Num of params in main stmt */(Stmt->ParamCount - Stmt->PositionedCursor->UniqueIndex[0]);
@@ -1430,7 +1431,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
         {
           MADB_DescRecord *ApdRecord, *IpdRecord;
-
           if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
             (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
           {

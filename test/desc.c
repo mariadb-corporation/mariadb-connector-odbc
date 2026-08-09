@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2019 MariaDB Corporation AB
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -958,6 +958,98 @@ ODBC_TEST(t_odbc480)
   return OK;
 }
 
+/*
+  ODBC-501 - SQLGetDescRec returns wrong record number.
+  Technically it's just a basic SQLGetDescRec use test
+ */
+ODBC_TEST(t_odbc501)
+{
+  SQLHANDLE   Ird, Ard;
+  SQLCHAR     Name[32], ArdBuffer[32];
+  SQLSMALLINT NameLen, Type, SubType, Precision, Scale, Nullable;
+  SQLLEN      Length, NumAttr;
+  SQLSMALLINT i;
+
+  const char* ExpName[]=     { "intCol",     "decCol",     "charCol",    "dtCol" };
+  SQLSMALLINT ExpType[]=     { SQL_INTEGER,  SQL_DECIMAL,  SQL_VARCHAR,  SQL_DATETIME };
+  /* SQL_DESC_DATETIME_INTERVAL_CODE is only meaningful for datetime/interval types */
+  SQLSMALLINT ExpSubType[]=  { 0,            0,            0,            SQL_CODE_TIMESTAMP };
+  SQLSMALLINT ExpScale[]=    { 0,            3,            0,            6 };
+  SQLSMALLINT ExpNullable[]= { SQL_NO_NULLS, SQL_NULLABLE, SQL_NULLABLE, SQL_NULLABLE };
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc500");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc500(intCol int NOT NULL, decCol decimal(10,3),"
+    " charCol varchar(17), dtCol datetime(6))");
+  OK_SIMPLE_STMT(Stmt, "SELECT intCol, decCol, charCol, dtCol FROM t_odbc500");
+
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_IMP_ROW_DESC, &Ird, SQL_IS_POINTER, NULL));
+
+  for (i= 0; i < (SQLSMALLINT)(sizeof(ExpType) / sizeof(SQLSMALLINT)); ++i)
+  {
+    diag("Field #%d", i + 1);
+
+    memset(Name, 'X', sizeof(Name));
+    NameLen= Type= SubType= Precision= Scale= Nullable= (SQLSMALLINT)0x5a5a;
+    Length= (SQLLEN)0x5a5a5a;
+
+    CHECK_DESC_RC(Ird, SQLGetDescRec(Ird, (SQLSMALLINT)(i + 1), Name, sizeof(Name), &NameLen,
+      &Type, &SubType, &Length, &Precision, &Scale, &Nullable));
+
+    IS_STR(Name, ExpName[i], strlen(ExpName[i]) + 1);
+    is_num(NameLen, strlen(ExpName[i]));
+    is_num(Type, ExpType[i]);
+    is_num(SubType, ExpSubType[i]);
+    is_num(Scale, ExpScale[i]);
+    is_num(Nullable, ExpNullable[i]);
+
+    /* Length(SQL_DESC_OCTET_LENGTH) and Precision depend on the server's/connection's charset,
+       thus they are verified against values SQLColAttribute returns for the very same IRD record */
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, (SQLUSMALLINT)(i + 1), SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, &NumAttr));
+    is_num(Length, NumAttr);
+    CHECK_STMT_RC(Stmt, SQLColAttribute(Stmt, (SQLUSMALLINT)(i + 1), SQL_DESC_PRECISION, NULL, 0, NULL, &NumAttr));
+    is_num(Precision, NumAttr);
+  }
+
+  /* All output pointers are optional - nothing may be requested at all */
+  CHECK_DESC_RC(Ird, SQLGetDescRec(Ird, 1, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+
+  /* ... or only some of the values */
+  Type= (SQLSMALLINT)0x5a5a;
+  CHECK_DESC_RC(Ird, SQLGetDescRec(Ird, 2, NULL, 0, NULL, &Type, NULL, NULL, NULL, NULL, NULL));
+  is_num(Type, SQL_DECIMAL);
+
+  /* Truncation of the name has to be reported */
+  memset(Name, 'X', sizeof(Name));
+  NameLen= (SQLSMALLINT)0x5a5a;
+  EXPECT_DESC(Ird, SQLGetDescRec(Ird, 3, Name, 4, &NameLen, NULL, NULL, NULL, NULL, NULL, NULL),
+    SQL_SUCCESS_WITH_INFO);
+  CHECK_SQLSTATE_EX(Ird, SQL_HANDLE_DESC, "01004");
+  IS_STR(Name, "cha", 4);
+  is_num(NameLen, strlen("charCol"));
+
+  /* RecNumber greater than the number of records in the descriptor */
+  EXPECT_DESC(Ird, SQLGetDescRec(Ird, 5, Name, sizeof(Name), &NameLen, &Type, &SubType, &Length,
+    &Precision, &Scale, &Nullable), SQL_NO_DATA);
+
+  /* ARD record has to reflect what SQLBindCol has set */
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_APP_ROW_DESC, &Ard, SQL_IS_POINTER, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, ArdBuffer, sizeof(ArdBuffer), NULL));
+
+  Type= (SQLSMALLINT)0x5a5a;
+  Length= (SQLLEN)0x5a5a5a;
+  CHECK_DESC_RC(Ard, SQLGetDescRec(Ard, 2, NULL, 0, NULL, &Type, NULL, &Length, NULL, NULL, NULL));
+  is_num(Type, SQL_C_CHAR);
+  is_num(Length, sizeof(ArdBuffer));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc500");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_desc_paramset,"t_desc_paramset"},
@@ -980,6 +1072,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc216, "t_odbc216_fixed_prec_scale"},
   {t_odbc211, "t_odbc211_zero_scale"},
   {t_odbc480, "t_odbc480_col_name_len"},
+  {t_odbc501, "t_odbc501_getdescrec"},
   {NULL, NULL}
 };
 
