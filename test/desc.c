@@ -24,7 +24,7 @@
 */
 
 #include "tap.h"
-
+#define UTF16_HIGH_HEAD(x)  ((((unsigned char) (x)) & 0xFC) == 0xD8)
 /*
  * Tests for paramset:
  * SQL_ATTR_PARAMSET_SIZE (apd->array_size)
@@ -1025,7 +1025,10 @@ ODBC_TEST(t_odbc501)
     SQL_SUCCESS_WITH_INFO);
   CHECK_SQLSTATE_EX(Ird, SQL_HANDLE_DESC, "01004");
   IS_STR(Name, "cha", 4);
-  is_num(NameLen, strlen("charCol"));
+  /* The driver returns the full name length, as the specs require. But iOdbc, converting the
+     driver's (truncated) wide string back to ansi for the ansi application, overwrites the
+     length with the length of the string it has just converted */
+  is_num(NameLen, iOdbc() && using_dm() ? (SQLSMALLINT)3 : (SQLSMALLINT)strlen("charCol"));
 
   /* RecNumber greater than the number of records in the descriptor */
   EXPECT_DESC(Ird, SQLGetDescRec(Ird, 5, Name, sizeof(Name), &NameLen, &Type, &SubType, &Length,

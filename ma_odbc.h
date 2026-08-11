@@ -437,6 +437,7 @@ void  CloseClientCharset(Client_Charset *cc);
 } while(0)
 
 #define iOdbc() (sizeof(SQLWCHAR)==4)
+#define UTF16HIGHBYTE(UTF16UNIT) (((UTF16UNIT) >> 8) & 0xFF)
 
 #include <ma_error.h>
 #include <ma_info.h>

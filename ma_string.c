@@ -476,9 +476,10 @@ SQLLEN MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs)
     {
       while (inChars > 0 || (inChars < 0 && *str))
       {
-        result+= cs->mb_charlen(0 + *str);
+        unsigned int charBytes= cs->mb_charlen(0 + *str);
+        result+= charBytes;
         --inChars;
-        str+= cs->mb_charlen(*str);
+        str+= charBytes;
       }
     }
   }
@@ -554,8 +555,15 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
   {
     while (str < end && *str)
     {
-      str+= (DmUnicodeCs->mb_charlen(*str))/sizeof(SQLWCHAR);
-
+      // mb_charlen is byte-oriented. Basically, we need it in case of UTF-16, for UTF32 it's always 1.
+      if (sizeof(SQLWCHAR) == 2)
+      {
+        str+= (DmUnicodeCs->mb_charlen(UTF16HIGHBYTE(*str))) / sizeof(SQLWCHAR);
+      }
+      else
+      {
+        ++str;
+      }
       if (str > end)
       {
         break;
@@ -567,7 +575,7 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
 }
 
 
-/* Length in SQLWCHAR units
+/* Length in SQLWCHAR units. Since lower surrogate cannot be 0, we don't need to check for it.
    @buff_length[in] - size of the str buffer or negative number  */
 SQLLEN SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length)
 {

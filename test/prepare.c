@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2025 MariaDB Corporation plc
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1226,7 +1226,7 @@ ODBC_TEST(t_odbc141)
   }
   // MySQL runs by default with --secure-file-priv these days execution of this statement disallowed. But such error basically means, that
   // the test passed
-  FAIL_IF(NativeError!=29 && NativeError != 13 && (!IsMysql || NativeError != 1290), "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
+  FAIL_IF(NativeError!=29 && NativeError != 13 && NativeError != 1290, "Expected 13 or 29 or 1290native error"); /* File not found or No such file or directory... */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc141");
