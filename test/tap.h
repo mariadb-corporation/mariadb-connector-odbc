@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation plc
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -47,24 +47,6 @@ char* strcasestr(const char* HayStack, const char* Needle)
 # include <wchar.h>
 # include <unistd.h>
 # include "ma_conv_charset.h"
-
-/* Mimicking of VS' _snprintf */
-int _snprintf(char *buffer, size_t count, const char *format, ...)
-{
-    va_list list;
-    va_start(list, format);
-    int result= vsnprintf(buffer, count, format, list);
-
-    va_end(list);
-
-    /* _snprintf returns negative number if buffer is not big enough */
-    if (result > count)
-    {
-      return (int)(count - result - 1);
-    }
-    return result;
-}
-
 
 int strcpy_s(char *dest, size_t buffer_size, const char *src)
 {
@@ -366,7 +348,7 @@ void get_options(int argc, char **argv)
       exit(0);
     }
   }
-  _snprintf(ma_strport, sizeof(ma_strport), "PORT=%u", my_port);
+  snprintf(ma_strport, sizeof(ma_strport), "PORT=%u", my_port);
 }
 
 
@@ -859,7 +841,7 @@ SQLCHAR* ConnectionString(char* buffer, BOOL printIt, const char *dsn, const cha
   /* my_options |= 4; */ /* To enable debug */
   if (UseDsnOnly != FALSE)
   {
-    _snprintf(buffer, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
+    snprintf(buffer, 1024, "DSN=%s", dsn ? dsn : (const char*)my_dsn);
     if (printIt)
     {
       diag(buffer);
@@ -867,7 +849,7 @@ SQLCHAR* ConnectionString(char* buffer, BOOL printIt, const char *dsn, const cha
   }
   else
   {
-    _snprintf(buffer, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
+    snprintf(buffer, 1024, "DSN=%s;UID=%s;PWD={%s};PORT=%u;DATABASE=%s;OPTION=%lu;SERVER=%s;%s", dsn ? dsn : (const char*)my_dsn,
       uid ? uid : (const char*)my_uid, pwd ? pwd : (const char*)my_pwd, port ? port : my_port,
       schema ? schema : (const char*)my_schema, options ? *options : my_options, server ? server : (const char*)my_servername,
       add_parameters ? add_parameters : (const char*)add_connstr);
@@ -967,7 +949,7 @@ SQLHANDLE ConnectWithCharset(SQLHANDLE *conn, const char *charset_name, const ch
 {
   char charset_clause[64];
 
-  _snprintf(charset_clause, sizeof(charset_clause), "CHARSET=%s;%s", charset_name, add_parameters ? add_parameters : "");
+  snprintf(charset_clause, sizeof(charset_clause), "CHARSET=%s;%s", charset_name, add_parameters ? add_parameters : "");
 
   return DoConnect(*conn, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, charset_clause);
 }
@@ -1003,7 +985,7 @@ int reset_changed_server_variables(void)
   {
     if (changed_server_variable[i].name != NULL)
     {
-      int size= _snprintf(query, sizeof(query), set_template, locality[changed_server_variable[i].global],
+      int size= snprintf(query, sizeof(query), set_template, locality[changed_server_variable[i].global],
                           changed_server_variable[i].name, changed_server_variable[i].value);
       if (error == 0 && !SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)query, size)))
       {
@@ -1260,7 +1242,7 @@ int get_show_value(int global, const char * show_type, const char * var_name)
   int size, result;
   char query[512];
 
-  size= _snprintf(query, sizeof(query), show_template, global ? locality[GLOBAL] : locality[LOCAL],
+  size= snprintf(query, sizeof(query), show_template, global ? locality[GLOBAL] : locality[LOCAL],
             show_type, var_name);
 
   /* Using automatically allocated (by the framework) STMT handle*/
@@ -1314,7 +1296,7 @@ int set_variable(int global, const char * var_name, int value)
 
   GET_SERVER_VAR(cur_value, global, var_name);
 
-  size= _snprintf(query, sizeof(query), set_template, global ? locality[GLOBAL] : locality[LOCAL],
+  size= snprintf(query, sizeof(query), set_template, global ? locality[GLOBAL] : locality[LOCAL],
                 var_name, value);
 
   CHECK_STMT_RC(Stmt, SQLExecDirect(Stmt, (SQLCHAR*)query, size));

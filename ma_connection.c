@@ -345,7 +345,7 @@ SQLRETURN MADB_DbcSetAttr(MADB_Dbc *Dbc, SQLINTEGER Attribute, SQLPOINTER ValueP
         if (MADB_IsolationLevel[i].SqlIsolation == (SQLLEN)ValuePtr)
         {
           char StmtStr[128];
-          int len= _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+          int len= snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
                       MADB_IsolationLevel[i].StrIsolation);
           LOCK_MARIADB(Dbc);
           if (mysql_real_query(Dbc->mariadb, StmtStr, (unsigned long)len))
@@ -1050,7 +1050,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     {
       if (MADB_IsolationLevel[i].SqlIsolation == Connection->TxnIsolation)
       {
-        _snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
+        snprintf(StmtStr, sizeof(StmtStr), "SET SESSION TRANSACTION ISOLATION LEVEL %s",
           MADB_IsolationLevel[i].StrIsolation);
         MADB_AddInitCommand(Connection->mariadb, &InitCmd, DSN_OPTION(Connection, MADB_OPT_FLAG_MULTI_STATEMENTS), StmtStr);
         break;
@@ -1104,7 +1104,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
   /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
   if (Connection->PacketSize)
   {
-    /*_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
+    /*snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld", Connection-> PacketSize);
     if (mysql_query(Connection->mariadb, StmtStr))
       goto err;*/
   }
@@ -1125,7 +1125,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
     int len;
 
     char buffer[sizeof("SET session_track_schema=1,session_track_system_variables='autocommit'") + 1/*','*/ + 21/*transaction_isolation*/];
-    len= _snprintf(buffer, sizeof(buffer), "SET session_track_schema=1,session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
+    len= snprintf(buffer, sizeof(buffer), "SET session_track_schema=1,session_track_system_variables='autocommit,%s'", MADB_GetTxIsolationVarName(Connection));
     if (mysql_real_query(Connection->mariadb, buffer, (unsigned long)len)/* ||
       mysql_next_result(Connection->mariadb)*/)
     {
@@ -1502,7 +1502,7 @@ SQLRETURN MADB_DbcGetInfo(MADB_Dbc *Dbc, SQLUSMALLINT InfoType, SQLPOINTER InfoV
       if (Dbc->mariadb)
       {
         ServerVersion= mysql_get_server_version(Dbc->mariadb);
-        _snprintf(Version, sizeof(Version), "%02u.%02u.%06u", ServerVersion / 10000,
+        snprintf(Version, sizeof(Version), "%02u.%02u.%06u", ServerVersion / 10000,
                     (ServerVersion % 10000) / 100, ServerVersion % 100);
       }
       else
@@ -2351,7 +2351,7 @@ void MADB_AddQueryTime(MADB_QUERY* Query, unsigned long long Timeout)
     size_t NewSize= Query->Length + 38 + 20/* max SQLULEN*/ + 1;
     char *NewStr= MADB_ALLOC(NewSize);
 
-    Query->Length= _snprintf(NewStr, NewSize, "SET STATEMENT max_statement_time=%llu FOR %s", Timeout, Query->Original);
+    Query->Length= snprintf(NewStr, NewSize, "SET STATEMENT max_statement_time=%llu FOR %s", Timeout, Query->Original);
 
     MADB_FREE(Query->Original);
     Query->Original= NewStr;

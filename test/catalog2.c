@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2024 MariaDB Corporation AB
+                2017, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -318,10 +318,10 @@ ODBC_TEST(t_bug50195)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
   /* Basically this can be used for Travis as well, and the if's above and below can be removed*/
-  _snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
-  _snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
-  _snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
-  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
+  snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
+  snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
+  snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
   SQLExecDirect(Stmt, dropUser, SQL_NTS);
 
   OK_SIMPLE_STMT(Stmt, createUser);
@@ -1673,14 +1673,14 @@ ODBC_TEST(odbc316)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc316_2(pk INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, fk INTEGER NOT NULL,"
                        "FOREIGN KEY (fk) REFERENCES odbc316_1(pk1))");
 
-  _snprintf(grant, sizeof(grant), "GRANT INSERT (pk1), SELECT (pk1), UPDATE (pk1) ON odbc316_1 TO %s", my_uid);
+  snprintf(grant, sizeof(grant), "GRANT INSERT (pk1), SELECT (pk1), UPDATE (pk1) ON odbc316_1 TO %s", my_uid);
 
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
   {
     /* We could not set col privileges, thus SQLColumnPrivileges will return empty set anyway. There is no sense to test */
     runColumnPrivileges= FALSE;
   }
-  _snprintf(grant, sizeof(grant), "GRANT INSERT, SELECT, UPDATE, DROP ON odbc316_1 TO %s", my_uid);
+  snprintf(grant, sizeof(grant), "GRANT INSERT, SELECT, UPDATE, DROP ON odbc316_1 TO %s", my_uid);
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
   {
     /* We could not set table privileges, thus SQLTablePrivileges will return empty set anyway. There is no sense to test */
@@ -1986,16 +1986,16 @@ ODBC_TEST(odbc391)
   is_num(2, my_print_non_format_result(Stmt));
   /* my_print_non_format_result closes cursor */
 
-  _snprintf(dropUser, sizeof(dropUser), "DROP USER Odbc391@'%s'", my_host);
+  snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
   /* we can have error, if there is simply no such user, and that is supposed to be the case, actually */
   SQLExecDirect(Stmt, dropUser, SQL_NTS);
-  _snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
   CHECK_USER_OPERATION(Stmt, createUser);
-  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  snprintf(grantAll, sizeof(grantAll), "GRANT SELECT ON t_Odbc391 TO Odbc391@'%s'", my_host);
   CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
-  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT(id,ts,a) ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  snprintf(grantAll, sizeof(grantAll), "GRANT SELECT(id,ts,a) ON t_Odbc391 TO Odbc391@'%s'", my_host);
   CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
-  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT(ts) ON t_Odbc391 FROM Odbc391@'%s'", my_host);
+  snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT(ts) ON t_Odbc391 FROM Odbc391@'%s'", my_host);
   CHECK_USER_OPERATIONX(Stmt, revokeSelect, dropUser);
 
   CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen));

@@ -45,23 +45,6 @@ int Usage()
 
 #ifdef _WIN32
 # include "ma_platform_win32.h"
-#else
-
-int _snprintf(char *buffer, size_t count, const char *format, ...)
-{
-  va_list list;
-  va_start(list, format);
-  int result= vsnprintf(buffer, count, format, list);
-
-  va_end(list);
-
-  /* _snprintf returns negative number if buffer is not big enough */
-  if (result > count)
-  {
-    return count - result - 1;
-  }
-  return result;
-}
 #endif
 
 /* Globals */
@@ -243,7 +226,7 @@ int DoSingleRegBranch(HKEY Branch, const char *NewDriverName)
     DsNameLen= sizeof(DsName);
 
     DriverLen= sizeof(DriverName);
-    _snprintf(DsnSubkey, sizeof(DsnSubkey), "Software\\ODBC\\ODBC.INI\\%s", DsName);
+    snprintf(DsnSubkey, sizeof(DsnSubkey), "Software\\ODBC\\ODBC.INI\\%s", DsName);
     if (RegGetValueA(OdbcIni, DsName, "Driver", RRF_RT_REG_SZ, NULL, DriverName, &DriverLen) == ERROR_SUCCESS)
     {
       if (DriverToChange(DriverName))
@@ -270,7 +253,7 @@ int DoSingleRegBranch(HKEY Branch, const char *NewDriverName)
 
   for (i= 0; i < TargetDsnCount; ++i)
   {
-    _snprintf(DsnSubkey, sizeof(DsnSubkey), "Software\\ODBC\\ODBC.INI\\%s", DsnToChange[i]);
+    snprintf(DsnSubkey, sizeof(DsnSubkey), "Software\\ODBC\\ODBC.INI\\%s", DsnToChange[i]);
     OdbcIni= MA_OpenRegKey(Branch, DsnSubkey, FALSE);
     if (OdbcIni != NULL)
     {

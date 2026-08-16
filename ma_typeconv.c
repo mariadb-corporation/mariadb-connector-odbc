@@ -199,12 +199,12 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
   {
     Denominator = DenominatorTable[Scale];// pow(10, Scale);
     char tmp[10 /*1 sign + 1 % + 1 dot + 3 scale + 1f + 1\0 */];
-    _snprintf(tmp, sizeof(tmp), "%s%%.%df", Numeric->sign ? "" : "-", Numeric->scale);
-    _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, tmp, Numerator / Denominator);
+    snprintf(tmp, sizeof(tmp), "%s%%.%df", Numeric->sign ? "" : "-", Numeric->scale);
+    snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, tmp, Numerator / Denominator);
   }
   else
   {
-    _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, "%s%llu", Numeric->sign ? "" : "-", Numerator);
+    snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, "%s%llu", Numeric->sign ? "" : "-", Numerator);
     /* Checking Truncation for negative/zero scale before adding 0 */
     Length= strlen(Buffer) - (Numeric->sign ? 0 : 1);
     if (Length > Numeric->precision)

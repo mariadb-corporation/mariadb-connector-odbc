@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2014,2024 MariaDB Corporation plc
+   Copyright (C) 2014,2026 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -62,7 +62,7 @@ const char* GetDefaultLogDir()
     DefaultLogDir= tmp;
   }
 
-  _snprintf(LogFile, sizeof(LogFile), "%s\\MAODBC.LOG", DefaultLogDir);
+  snprintf(LogFile, sizeof(LogFile), "%s\\MAODBC.LOG", DefaultLogDir);
  
   return LogFile;
 }

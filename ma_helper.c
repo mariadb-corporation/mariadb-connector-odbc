@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2022 MariaDB Corporation AB
+   Copyright (C) 2013, 2026 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -171,12 +171,12 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
   MYSQL_FIELD *Field;
   
   Connection->Methods->GetAttr(Connection, SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
+  p+= snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
   }
-  p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
+  p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
   LOCK_MARIADB(Connection);
   if (SQL_SUCCEEDED(MADB_RealQuery(Connection, StmtStr, (p - StmtStr), &Connection->Error)) &&
      (Res= mysql_store_result(Connection->mariadb)) != NULL)
@@ -1151,7 +1151,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
         return MADB_ERR_22003;
       }
       /* Assuming that buffer is always big enough */
-      digits_count= _snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
+      digits_count= snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
       if (digits_count > number->precision)
         return MADB_ERR_22003;
     }

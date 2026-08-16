@@ -1280,7 +1280,7 @@ ODBC_TEST(t_mdev16708)
   {
     skip("The test requires min 10.6.0 version");
   }
-  _snprintf(query, sizeof(query), "USE `%s`", my_schema);
+  snprintf(query, sizeof(query), "USE `%s`", my_schema);
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, query, SQL_NTS));
   /* USE in particular won't support parameters */
   /* CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, my_schema, strlen(dbname), NULL)); */

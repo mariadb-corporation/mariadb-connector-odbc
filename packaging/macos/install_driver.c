@@ -26,27 +26,9 @@
 #ifdef _WIN32
 # include <windows.h>
 # include <Shlwapi.h>
-#else
-
-int _snprintf(char *buffer, size_t count, const char *format, ...)
-{
-  va_list list;
-  va_start(list, format);
-  int result= vsnprintf(buffer, count, format, list);
-
-  va_end(list);
-
-  /* _snprintf returns negative number if buffer is not big enough */
-  if (result > count)
-  {
-    return count - result - 1;
-  }
-  return result;
-}
 #endif
 
 #include <odbcinst.h>
-
 
 
 int Usage()
@@ -114,7 +96,7 @@ int main(int argc, char** argv)
   /*SQLConfigDriver(NULL, ODBC_REMOVE_DRIVER, DriverName, NULL, NULL, 0, NULL);*/
   SQLRemoveDriver(DriverName, FALSE, &UsageCount);
   printf("Installing driver %s in %s as %s\n", DriverFileName, DriverDir, DriverName);
-  _snprintf(DriverDescr, sizeof(DriverDescr), "%s%cDriver=%s%cDescription=%s%cThreading=0%c", DriverName, '\0', DriverLocation, '\0', DriverDescription, '\0', '\0');
+  snprintf(DriverDescr, sizeof(DriverDescr), "%s%cDriver=%s%cDescription=%s%cThreading=0%c", DriverName, '\0', DriverLocation, '\0', DriverDescription, '\0', '\0');
 
 
   if (SQLInstallDriverEx(DriverDescr, DriverDir, OutLocation, sizeof(OutLocation), NULL, ODBC_INSTALL_COMPLETE, NULL) == FALSE)

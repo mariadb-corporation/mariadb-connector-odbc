@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2022 MariaDB Corporation AB
+   Copyright (C) 2013,2026 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -719,7 +719,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       }
       else
       {
-        SQLINTEGER newTextLength= _snprintf(tmp, offset + 21, "%.*s=%llu",
+        SQLINTEGER newTextLength= snprintf(tmp, offset + 21, "%.*s=%llu",
           offset, Stmt->Query.RefinedText, Stmt->Connection->LastInsertId);
         SQLRETURN rc;
         unsigned long long preserve= Stmt->Connection->LastInsertId;
@@ -831,7 +831,7 @@ SQLRETURN MADB_StmtPrepare(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER Text
       char *p;
       STMT_STRING(Stmt)= realloc((char *)STMT_STRING(Stmt), strlen(STMT_STRING(Stmt)) + 40);
       p= STMT_STRING(Stmt) + STMT_LENGTH(Stmt);
-      STMT_LENGTH(Stmt)+= _snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
+      STMT_LENGTH(Stmt)+= snprintf(p, 40, " LIMIT %zd", Stmt->Options.MaxRows);
     }
 
     Stmt->Connection->Methods->AddQueryTime(&Stmt->Query, Stmt->Options.Timeout);
@@ -3879,7 +3879,7 @@ SQLRETURN MADB_GetCursorName(MADB_Stmt *Stmt, void *CursorName, SQLSMALLINT Buff
   if (!Stmt->Cursor.Name)
   {
     Stmt->Cursor.Name= (char *)MADB_CALLOC(MADB_MAX_CURSOR_NAME);
-    _snprintf(Stmt->Cursor.Name, MADB_MAX_CURSOR_NAME, "SQL_CUR%d", 
+    snprintf(Stmt->Cursor.Name, MADB_MAX_CURSOR_NAME, "SQL_CUR%d", 
                 Stmt->Connection->CursorCount++);
   }
   Length= (SQLSMALLINT)MADB_SetString(isWChar ? &Stmt->Connection->Charset : 0, CursorName,
