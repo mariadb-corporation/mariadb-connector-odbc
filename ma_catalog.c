@@ -177,6 +177,17 @@ static int AddOaOrIdCondition(MADB_Stmt* Stmt, void* buffer, size_t bufferLen, c
 
 #define SCHEMA_PARAMETER_ERRORS_ALLOWED(STMT) ((STMT)->Connection->Dsn->NeglectSchemaParam == 0)
 
+/* Object names are limited to 64 characters, i.e. to NAME_LEN bytes. Besides the fact, that a longer
+   name cannot match any object anyway, AddPvCondition and AddOaCondition escape the value into the
+   buffer of the fixed 2*NAME_LEN + 1 size, and a longer value would overrun it. Thus all name
+   parameters, that are used for the query construction, have to be verified before that.
+   The length has to be adjusted(ADJUST_LENGTH) prior to the check - otherwise SQL_NTS slips through.
+   TODO: Here we compare the octet length, while in fact the character length is limited. Comparing with
+   either NAME_CHAR_LEN or NAME_LEN does not make quite sense, but if > NAME_LEN, then it is for sure
+   too big */
+#define ERROR_IF_TOO_LONG_NAME(STMT, LEN) if ((LEN) > NAME_LEN)\
+  return MADB_SetError(&(STMT)->Error, MADB_ERR_HY090, "Object names are limited to " XSTR(NAME_LEN) " bytes", 0)
+
 /* {{{ MADB_StmtColumnPrivileges */
 SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
                                     char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
@@ -197,6 +208,13 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
+
   p= StmtStr;
   p+= snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL as TABLE_SCHEM, TABLE_NAME,"
                                  "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
@@ -247,6 +265,10 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   p= StmtStr;
   p+= snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
@@ -306,12 +328,8 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   ADJUST_LENGTH(TableName, TableNameLength);
   ADJUST_LENGTH(TableType, TableTypeLength);
 
-  /* TODO: Here we need compare character length in fact. Comparing with both either NAME_CHAR_LEN or NAME_LEN don't make quite sense, but
-     if > NAME_LEN, then it is for sure too big */
-  if (CatalogNameLength > NAME_LEN || TableNameLength > NAME_LEN)
-  {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
-  }
+  ERROR_IF_TOO_LONG_NAME(Stmt, CatalogNameLength);
+  ERROR_IF_TOO_LONG_NAME(Stmt, TableNameLength);
   /* Schemas are not supported. Thus error except special cases of SQLTables use*/
 
   if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && SchemaNameLength > 1
@@ -452,6 +470,10 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   //if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
   p= CONSTSTRMOV(StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
@@ -531,6 +553,13 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  /* Has to be done before anything is allocated - the macro returns from the function */
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
 
   ColumnsPart = MADB_CALLOC(Length);
   if (ColumnsPart == NULL)
@@ -557,10 +586,6 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 
   if (MADB_DYNAPPENDCONST(&StmtStr, MADB_CATALOG_COLUMNSp4))
     goto dynerror;
-
-  ADJUST_LENGTH(CatalogName, NameLength1);
-  ADJUST_LENGTH(TableName, NameLength3);
-  ADJUST_LENGTH(ColumnName, NameLength4);
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
@@ -674,6 +699,13 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  /* Has to be done before the query is allocated - the macro returns from the function */
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(ProcName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
 
   if (!(p= MADB_ProcedureColumns(Stmt, &StmtStr, &Length)))
   {
@@ -741,6 +773,10 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   p= StmtStr;
   p+= snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,"
@@ -800,6 +836,10 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   p+= snprintf(p, sizeof(StmtStr), "SELECT NULL AS SCOPE, COLUMN_NAME, %s %s"MADB_SQLDATATYPE_END","
                            "DATA_TYPE TYPE_NAME,"
@@ -885,6 +925,11 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(ProcName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+
   p= StmtStr;
 
   p+= snprintf(p, sizeof(StmtStr), "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
@@ -957,6 +1002,11 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   ADJUST_LENGTH(FKCatalogName, NameLength4);
 
   ADJUST_LENGTH(FKTableName, NameLength6);
+
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength6);
 
   /* modified from JDBC driver */
   MADB_InitDynamicString(&StmtStr,

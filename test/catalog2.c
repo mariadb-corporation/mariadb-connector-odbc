@@ -2035,6 +2035,96 @@ ODBC_TEST(odbc435)
 }
 
 
+/* Length of the longest name the server can have - 64 characters of maximum 4 bytes each(NAME_LEN) */
+#define ODBC504_MAX_NAME_LEN 256
+/* Each of the calls in odbc504 has to be rejected by the driver with HY090(S1009 for an ODBC2 application) */
+#define ODBC504_EXPECT_HY090(_Call) do {\
+    EXPECT_STMT(Stmt, (_Call), SQL_ERROR);\
+    CHECK_SQLSTATE(Stmt, IS_ODBC3() ? "HY090" : "S1009");\
+  } while(0)
+
+/*
+  ODBC-504 - The name parameters of the catalog functions, that the driver uses to construct the query,
+  cannot be longer than the maximum name length the server supports. Such name is not only useless -
+  it also overruns the fixed size buffer, where the driver escapes the value. Thus it has to be
+  rejected with HY090 before the query is constructed
+ */
+ODBC_TEST(odbc504)
+{
+  char TooLong[ODBC504_MAX_NAME_LEN + 2], MaxLen[ODBC504_MAX_NAME_LEN + 1];
+
+  memset(TooLong, 'a', sizeof(TooLong) - 1);
+  TooLong[sizeof(TooLong) - 1]= '\0';
+  memset(MaxLen, 'a', sizeof(MaxLen) - 1);
+  MaxLen[sizeof(MaxLen) - 1]= '\0';
+
+  /* SQLTables */
+  ODBC504_EXPECT_HY090(SQLTables(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLTables(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  /* The length does not have to be SQL_NTS for the driver to catch it */
+  ODBC504_EXPECT_HY090(SQLTables(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, (SQLSMALLINT)strlen(TooLong), NULL, 0));
+
+  /* SQLColumns */
+  ODBC504_EXPECT_HY090(SQLColumns(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLColumnPrivileges - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLColumnPrivileges(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumnPrivileges(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumnPrivileges(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLTablePrivileges */
+  ODBC504_EXPECT_HY090(SQLTablePrivileges(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLTablePrivileges(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLStatistics - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLStatistics(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS,
+                                     SQL_INDEX_ALL, SQL_QUICK));
+  ODBC504_EXPECT_HY090(SQLStatistics(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
+
+  /* SQLPrimaryKeys - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLPrimaryKeys(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLPrimaryKeys(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLSpecialColumns - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLSpecialColumns(Stmt, SQL_BEST_ROWID, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0,
+                                         (SQLCHAR*)"t_odbc504", SQL_NTS, SQL_SCOPE_CURROW, SQL_NULLABLE));
+  ODBC504_EXPECT_HY090(SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS,
+                                         SQL_SCOPE_CURROW, SQL_NULLABLE));
+
+  /* SQLProcedures */
+  ODBC504_EXPECT_HY090(SQLProcedures(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"p_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLProcedures(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLProcedureColumns */
+  ODBC504_EXPECT_HY090(SQLProcedureColumns(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"p_odbc504", SQL_NTS,
+                                           NULL, 0));
+  ODBC504_EXPECT_HY090(SQLProcedureColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLProcedureColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"p_odbc504", SQL_NTS,
+                                           (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLForeignKeys - PKTableName or FKTableName is required */
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS,
+                                      NULL, 0, NULL, 0, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0,
+                                      (SQLCHAR*)"t_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* The name of the maximum allowed length is not an error - it simply matches nothing */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR*)MaxLen, SQL_NTS, NULL, 0, (SQLCHAR*)MaxLen, SQL_NTS, NULL, 0));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)MaxLen, SQL_NTS, (SQLCHAR*)MaxLen, SQL_NTS));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -2066,6 +2156,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc361, "odbc361_unique_with_nulls",        NORMAL},
   {odbc391, "odbc391_mixed_case_names",         NORMAL},
   {odbc435, "odbc435_PK_flds_order_and_seq_num",NORMAL},
+  {odbc504, "odbc504_too_long_name_parameters",  NORMAL},
   {NULL, NULL}
 };
 
