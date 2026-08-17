@@ -3570,6 +3570,117 @@ ODBC_TEST(odbc356)
 }
 
 
+/* ODBC-505 - Column names in the WHERE clause of the query, that the driver generates for a
+   positioned operation, have to be quoted. Otherwise a name containing special characters breaks
+   the query, or, what is way worse, silently changes its meaning */
+ODBC_TEST(odbc505)
+{
+  SQLLEN       RowCount, Length;
+  SQLINTEGER   Id;
+  SQLCHAR      Val[32];
+  SQLULEN      pcrow;
+  SQLUSMALLINT rgfRowStatus;
+  SQLHSTMT     posStmt;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc505");
+  /* The primary key name starts with the name of another column of the same table, and the rest of
+     it is separated by the comment start character. Thus, if the driver does not quote the name in
+     the generated "DELETE FROM t_odbc505 WHERE 1 AND `id#pk`= '2' LIMIT 1", the server only sees
+     "DELETE FROM t_odbc505 WHERE 1 AND id", and deletes every row with non-zero id instead */
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc505(`id#pk` INT NOT NULL PRIMARY KEY, id INT NOT NULL,"
+                       " `val -- 1` VARCHAR(32))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc505 VALUES(1,1,'Row1'),(2,2,'Row2'),(3,3,'Row3'),(4,4,'Row4')");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE,
+                                     (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR*)"odbc505cursor", SQL_NTS));
+
+  /* 1) SQLSetPos(SQL_DELETE) - the WHERE clause is the only part of the query that contains
+        the key column name */
+  OK_SIMPLE_STMT(Stmt, "SELECT `id#pk`, `val -- 1` FROM t_odbc505 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &Id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, Val, sizeof(Val), &Length));
+
+  CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 2, &pcrow, &rgfRowStatus));
+  is_num(Id, 2);
+
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  /* Exactly one row has to be deleted */
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* ... and it has to be the row the cursor was positioned on */
+  OK_SIMPLE_STMT(Stmt, "SELECT `id#pk`, `val -- 1` FROM t_odbc505 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 4);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* 2) SQLSetPos(SQL_UPDATE) - uses the very same WHERE clause */
+  OK_SIMPLE_STMT(Stmt, "SELECT `id#pk`, `val -- 1` FROM t_odbc505 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &Id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, Val, sizeof(Val), &Length));
+
+  CHECK_STMT_RC(Stmt, SQLExtendedFetch(Stmt, SQL_FETCH_ABSOLUTE, 2, &pcrow, &rgfRowStatus));
+  is_num(Id, 3);
+
+  strcpy((char*)Val, "Updated");
+  Length= SQL_NTS;
+  CHECK_STMT_RC(Stmt, SQLSetPos(Stmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE));
+  CHECK_STMT_RC(Stmt, SQLRowCount(Stmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_UNBIND));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT `id#pk`, `val -- 1` FROM t_odbc505 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  IS_STR(my_fetch_str(Stmt, Val, 2), "Row1", sizeof("Row1"));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  IS_STR(my_fetch_str(Stmt, Val, 2), "Updated", sizeof("Updated"));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 4);
+  IS_STR(my_fetch_str(Stmt, Val, 2), "Row4", sizeof("Row4"));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* 3) "WHERE CURRENT OF" - the same WHERE clause, but built with parameter markers */
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &posStmt));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT `id#pk`, `val -- 1` FROM t_odbc505 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_LAST, 1L));
+
+  OK_SIMPLE_STMT(posStmt, "DELETE FROM t_odbc505 WHERE CURRENT OF odbc505cursor");
+  CHECK_STMT_RC(posStmt, SQLRowCount(posStmt, &RowCount));
+  is_num(RowCount, 1);
+
+  CHECK_STMT_RC(posStmt, SQLFreeHandle(SQL_HANDLE_STMT, posStmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT `id#pk` FROM t_odbc505 ORDER BY 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc505");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_positioned_cursor, "my_positioned_cursor",     NORMAL},
@@ -3624,6 +3735,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc276, "odbc276-bin_update", NORMAL, SkipIfRsStreaming},
   {odbc289, "odbc289-fech_after_close", NORMAL},
   {odbc356, "odbc356-key_cursor", NORMAL, SkipIfRsStreaming},
+  {odbc505, "odbc505-quoted_key_name", NORMAL, SkipIfRsStreaming},
   {NULL, NULL, 0, NULL}
 };
 

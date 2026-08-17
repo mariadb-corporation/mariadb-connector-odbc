@@ -342,7 +342,7 @@ bool MADB_DynStrGetWhere(MADB_Stmt *Stmt, SQLString &DynString, char *TableName,
         /* Complicated(aka silly) way not to introduce another variable to store arr index for writing to the arr */
         Stmt->UniqueIndex[Stmt->UniqueIndex[0] - (--TotalUniqueCount)]= i;
       }
-      DynString.append(" AND ").append(field->org_name);
+      DynString.append(" AND `").append(field->org_name).append(1, '`');
 
       if (ParameterMarkers)
       {
