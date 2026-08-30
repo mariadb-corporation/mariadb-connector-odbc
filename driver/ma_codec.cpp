@@ -35,7 +35,7 @@ namespace mariadb
   }
 
   IndicatorMapper::IndicatorMapper(MADB_Stmt *Stmt) :
-    statusArr(Stmt->Apd->Header.ArrayStatusPtr + Stmt->ArrayOffset),
+    statusArr(Stmt->Apd->Header.ArrayStatusPtr ? Stmt->Apd->Header.ArrayStatusPtr + Stmt->ArrayOffset : nullptr),
     indPtr(Stmt->Ipd->Header.Count, nullptr), // For all statement parameters, not only for bound by the application
                                              // (Ipd vs Apd)
     arrStep(getArrayStep(Stmt->Apd->Header, sizeof(SQLLEN)))
