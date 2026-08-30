@@ -1294,28 +1294,31 @@ end:
 
 }
 
-
+/* RowNumber -1 means to walk all rows */
 int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber)
 {
   int             i;
   MADB_DescRecord *Record;
+  SQLULEN row= RowNumber > 1 ? RowNumber - 1 : 0,
+    lastRow= RowNumber == -1 ? Desc->Header.ArraySize : row + 1;
 
-  for (i= InitialParam > -1 ? InitialParam + 1 : 0; i < Desc->Header.Count; i++)
+  for (; row < lastRow; ++row)
   {
-    if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
+    for (i= InitialParam > -1 ? InitialParam + 1 : 0; i < Desc->Header.Count; i++)
     {
-      if (Record->OctetLengthPtr)
+      if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
       {
-        /* Stmt->DaeRowNumber is 1 based */
-        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
-        if (PARAM_IS_DAE(OctetLength))
+        if (Record->OctetLengthPtr)
         {
-          return i;
+          SQLLEN* OctetLength = (SQLLEN*)GetBindOffset(Desc, Record, Record->OctetLengthPtr, row, sizeof(SQLLEN));
+          if (PARAM_IS_DAE(OctetLength))
+          {
+            return i;
+          }
         }
       }
     }
   }
-
   return MADB_NOPARAM;
 }
 

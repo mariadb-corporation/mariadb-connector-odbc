@@ -272,7 +272,9 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
     SQLLEN          *OctetLengthPtr= NULL;
     void            *DataPtr= NULL;
     MYSQL_BIND      *MaBind= &Stmt->params[i - ParamOffset];
-    SQLULEN         row, Start= Stmt->ArrayOffset;
+    /* The bulk operation is not used if the array has any DAE parameter, thus it is never resumed,
+       and always converts the whole array starting from its very first paramset */
+    SQLULEN         row;
 
     if ((CRec= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
       (SqlRec= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
@@ -324,7 +326,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
           IndIdx= 0;
         }
 
-        for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+        for (row= 0; row < Stmt->Apd->Header.ArraySize; ++row)
         {
           if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
           {
@@ -340,7 +342,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       }
 
       /* We either have skipped rows or need to convert parameter values/convert array */
-      for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
+      for (row= 0; row < Stmt->Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
       {
         void *Buffer= (char*)MaBind->buffer + row*MaBind->buffer_length;
         void **BufferPtr= (void**)Buffer; /* For the case when Buffer points to the pointer already */
@@ -380,6 +382,7 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
       }
     }
   }
-  return MADB_DoExecute(Stmt, FALSE);
+  /* The bulk operation never has DAE parameters, and thus nothing has been pushed yet */
+  return MADB_DoExecute(Stmt, FALSE, FALSE);
 }
 /* }}} */

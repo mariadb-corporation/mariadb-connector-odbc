@@ -20,12 +20,14 @@
 
 #define MADB_MIN_QUERY_LEN 5
 
+/* defined below */
+static void MADB_FreePositionedParamValues(MADB_Stmt *Stmt);
+
 /* defined at the end of file */
 struct st_ma_stmt_methods MADB_StmtMethods;
 struct st_ma_stmt_rsstore MADB_StmtCacher;
 struct st_ma_stmt_rsstore MADB_StmtStreamer;
 struct st_ma_stmt_rsstore MADB_StmtStreamerNotAbleCacheTheRest;
-
 
 /* {{{ MADB_CacheCurrentRow
  * We can store the rest of the resultset with mysql_stmt_store_result, but we are losing current(last fetched) row.
@@ -36,6 +38,7 @@ int MADB_CacheCurrentRow(MADB_Stmt* Stmt)
 {
   return 1;
 }
+/* }}} */
 
 /* {{{ MADB_CacheRs
  * Default RS caching method. It's also used for caching rest of the RS in the case of caching is disabled, and then streaming has been started, but
@@ -362,6 +365,7 @@ SQLRETURN MADB_StmtFree(MADB_Stmt *Stmt, SQLUSMALLINT Option)
     MADB_FREE(Stmt->CatalogName);
     MADB_FREE(Stmt->TableName);
     MADB_FREE(Stmt->UniqueIndex);
+    MADB_FreePositionedParamValues(Stmt);
     ResetMetadata(&Stmt->metadata, NULL);
 
     /* For explicit descriptors we only remove reference to the stmt*/
@@ -451,7 +455,7 @@ BOOL MADB_CheckIfExecDirectPossible(MADB_Stmt *Stmt)
 {
   return MADB_ServerSupports(Stmt->Connection, MADB_CAPABLE_EXEC_DIRECT)
       && !(Stmt->Apd->Header.ArraySize > 1)                              /* With array of parameters exec_direct will be not optimal */
-      && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;
+      && MADB_FindNextDaeParam(Stmt->Apd, -1, -1) == MADB_NOPARAM;
 }
 /* }}} */
 
@@ -463,9 +467,10 @@ BOOL MADB_BulkInsertPossible(MADB_Stmt *Stmt)
       && (Stmt->Apd->Header.ArraySize > 1)
       && (Stmt->Apd->Header.BindType == SQL_PARAM_BIND_BY_COLUMN)        /* First we support column-wise binding */
       && (Stmt->Query.QueryType == MADB_QUERY_INSERT || Stmt->Query.QueryType == MADB_QUERY_UPDATE)
-      && MADB_FindNextDaeParam(Stmt->Apd, -1, 1) == MADB_NOPARAM;        /* TODO: should be not very hard ot optimize to use bulk in this
+      && MADB_FindNextDaeParam(Stmt->Apd, -1, -1) == MADB_NOPARAM;        /* TODO: should be not very hard ot optimize to use bulk in this
                                                                          case for chunks of the array, delimitered by param rows with DAE
-                                                                         In particular, MADB_FindNextDaeParam should consider Stmt->ArrayOffset */
+                                                                         In particular, MADB_FindNextDaeParam should be able to start from
+                                                                         the paramset, the operation is resumed from */
 }
 /* }}} */
 /* {{{ MADB_StmtExecDirect */
@@ -489,7 +494,6 @@ SQLRETURN MADB_StmtExecDirect(MADB_Stmt *Stmt, char *StatementText, SQLINTEGER T
       return ret;
     }
   }
-
   /* For multistmt we don't use mariadb_stmt_execute_direct so far */
   if (QUERY_IS_MULTISTMT(Stmt->Query))
   {
@@ -571,7 +575,6 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     MADB_FREE(Stmt->result);
     MADB_FREE(Stmt->CharOffset);
     MADB_FREE(Stmt->Lengths);
-    RESET_DAE_STATUS(Stmt);
     if (MADB_STMT_SHOULD_STREAM(Stmt))
     {
       MakeStmtStreamer(Stmt);
@@ -600,6 +603,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     MADB_CLEAR_ERROR(&Stmt->Error);
     MADB_FREE(Stmt->UniqueIndex);
     MADB_FREE(Stmt->TableName);
+    RESET_DAE_STATUS(Stmt);
   }
   return SQL_SUCCESS;
 }
@@ -898,11 +902,13 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
       if (Record->OctetLengthPtr)
       {
         /* Stmt->DaeRowNumber is 1 based */
-        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN));
+        SQLLEN *OctetLength = (SQLLEN *)GetBindOffset(Desc, Record, Record->OctetLengthPtr,
+          Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, sizeof(SQLLEN));
         if (PARAM_IS_DAE(OctetLength))
         {
           Stmt->PutDataRec= Record;
-          *ValuePtrPtr = GetBindOffset(Desc, Record, Record->DataPtr, Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, Record->OctetLength);
+          *ValuePtrPtr = GetBindOffset(Desc, Record, Record->DataPtr,
+            Stmt->DaeRowNumber > 1 ? Stmt->DaeRowNumber - 1 : 0, Record->OctetLength);
           Stmt->PutParam= i;
 
           return SQL_NEED_DATA;
@@ -910,7 +916,6 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
       }
     }
   }
-
   /* reset status, otherwise SQLSetPos and SQLExecute will fail */
   MARK_DAE_DONE(Stmt);
   if (Stmt->DataExecutionType == MADB_DAE_ADD || Stmt->DataExecutionType == MADB_DAE_UPDATE)
@@ -920,8 +925,16 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
 
   switch (Stmt->DataExecutionType) {
   case MADB_DAE_NORMAL:
+    /* We need to decrement RowsProcessed to avoid counting current row twice - it has been already
+       counted in and the call to Execute will count it again */
+    if (Stmt->Ipd->Header.RowsProcessedPtr)
+    {
+      --*Stmt->Ipd->Header.RowsProcessedPtr;
+    }
     ret= Stmt->Methods->Execute(Stmt, FALSE);
-    RESET_DAE_STATUS(Stmt);
+    if (ret == SQL_NEED_DATA) {
+      return MADB_StmtParamData(Stmt, ValuePtrPtr);
+    }
     break;
   case MADB_DAE_UPDATE:
     ret= Stmt->Methods->SetPos(Stmt, Stmt->DaeRowNumber, SQL_UPDATE, SQL_LOCK_NO_CHANGE, 1);
@@ -936,7 +949,6 @@ SQLRETURN MADB_StmtParamData(MADB_Stmt *Stmt, SQLPOINTER *ValuePtrPtr)
     ret= SQL_ERROR;
   }
   /* Interesting should we reset if execution failed? */
-
   return ret;
 }
 /* }}} */
@@ -1029,14 +1041,33 @@ SQLRETURN MADB_StmtPutData(MADB_Stmt *Stmt, SQLPOINTER DataPtr, SQLLEN StrLen_or
 }
 /* }}} */
 
+/* {{{ MADB_FreePositionedParamValues
+ * Releases the buffers, that hold the values of the "WHERE CURRENT OF" condition parameters */
+static void MADB_FreePositionedParamValues(MADB_Stmt *Stmt)
+{
+  unsigned int i;
+  char        *p;
+
+  for (i= 0; i < Stmt->PositionedParamValues.elements; ++i)
+  {
+    MADB_GetDynamic(&Stmt->PositionedParamValues, (char*)&p, i);
+    MADB_FREE(p);
+  }
+  MADB_DeleteDynamic(&Stmt->PositionedParamValues);
+}
+/* }}} */
+
 /* {{{ MADB_ExecutePositionedUpdate */
 SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
   SQLSMALLINT   j, IndexIdx= 1;
   SQLRETURN     ret;
-  MADB_DynArray DynData;
   MADB_Stmt     *SaveCursor;
   char          *p;
+  /* If the application has supplied the value of the DAE parameter, and SQLParamData has brought us
+     back, then the condition parameters are bound and handed over already, and it only remains to
+     execute. Rebuilding them would only invalidate what the C/C has got */
+  BOOL          Resuming= MADB_RESUMING_DAE(Stmt);
 
   MADB_CLEAR_ERROR(&Stmt->Error);
   if (!Stmt->PositionedCursor->result)
@@ -1051,7 +1082,11 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
   
   Stmt->AffectedRows= 0;
   
-  MADB_InitDynamicArray(&DynData, sizeof(char *), 8, 8);
+  if (!Resuming)
+  {
+  /* Buffers of a previous operation, that has been abandoned in the middle */
+  MADB_FreePositionedParamValues(Stmt);
+  MADB_InitDynamicArray(&Stmt->PositionedParamValues, sizeof(char *), 8, 8);
 
   for (j= 1; j < MADB_STMT_COLUMN_COUNT(Stmt->PositionedCursor) + 1; ++j)
   {
@@ -1079,12 +1114,14 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
       {
         Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, NULL, 0, &Length, TRUE);
         p = (char*)MADB_CALLOC(Length + 2);
-        MADB_InsertDynamic(&DynData, (char*)&p);
+        MADB_InsertDynamic(&Stmt->PositionedParamValues, (char*)&p);
         Stmt->Methods->GetData(Stmt->PositionedCursor, j, SQL_CHAR, p, Length + 1, NULL, TRUE);
         Stmt->Methods->BindParam(Stmt, ParamNumber, SQL_PARAM_INPUT, SQL_CHAR, SQL_CHAR, 0, 0, p, Length, NULL);
       }
     }
   }
+  }                       /* End of if (!Resuming) */
+
   SaveCursor= Stmt->PositionedCursor;
   Stmt->PositionedCursor= NULL;
 
@@ -1099,12 +1136,12 @@ SQLRETURN MADB_ExecutePositionedUpdate(MADB_Stmt *Stmt, BOOL ExecDirect)
     Stmt->Apd->Header.Count-= MADB_POS_COMM_IDX_FIELD_COUNT(Stmt);
   }
 
-  for (j=0; j < (int)DynData.elements; j++)
+  /* The buffers must not be released while the execution is suspended - the bind array has been
+     handed over to the C/C already, and it points to them */
+  if (ret != SQL_NEED_DATA)
   {
-    MADB_GetDynamic(&DynData, (char *)&p, j);
-    MADB_FREE(p);
+    MADB_FreePositionedParamValues(Stmt);
   }
-  MADB_DeleteDynamic(&DynData);
 
   if (Stmt->PositionedCursor->Options.CursorType == SQL_CURSOR_DYNAMIC && 
      (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO))
@@ -1190,16 +1227,17 @@ static void ResetInternalLength(MADB_Stmt *Stmt, unsigned int ParamOffset)
 }
 /* }}} */
 
-/* {{{ MADB_DoExecute */
-/* Actually executing on the server, doing required actions with C API, and processing execution result */
-SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
+/* {{{ MADB_PushParams
+ * Handing the bind array of the current paramset over to the C/C.
+ * It has to be done before the values of the DAE parameters of that paramset are sent with
+ * mysql_stmt_send_long_data. mysql_stmt_bind_param resets the mark, that the parameter's value has
+ * been sent already, and the C/C would then put such parameter into the row packet as well, shifting
+ * everything, that follows it, by one value */
+static void MADB_PushParams(MADB_Stmt *Stmt, BOOL ExecDirect)
 {
-  SQLRETURN ret= SQL_SUCCESS;
-
-  /**************************** mysql_stmt_bind_param **********************************/
   if (ExecDirect)
   {
-    /* Use datatype same as MYSQL_STMT->prebind_param */ 
+    /* Use datatype same as MYSQL_STMT->prebind_param */
     unsigned int pCount = (unsigned int)Stmt->ParamCount;
     mysql_stmt_attr_set(Stmt->stmt, STMT_ATTR_PREBIND_PARAMS, &pCount);
   }
@@ -1209,6 +1247,22 @@ SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   if (Stmt->ParamCount)
   {
     mysql_stmt_bind_param(Stmt->stmt, Stmt->params);
+  }
+}
+/* }}} */
+
+/* {{{ MADB_DoExecute */
+/* Actually executing on the server, doing required actions with C API, and processing execution result
+   @ParamsPushed[in] - the caller has already handed the bind array over with MADB_PushParams, and we
+                       must not do that again - see the comment there */
+SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, BOOL ExecDirect, BOOL ParamsPushed)
+{
+  SQLRETURN ret= SQL_SUCCESS;
+
+  /**************************** mysql_stmt_bind_param **********************************/
+  if (!ParamsPushed)
+  {
+    MADB_PushParams(Stmt, ExecDirect);
   }
 
   /**************************** mysql_stmt_execute *************************************/
@@ -1276,7 +1330,10 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   unsigned int ParamOffset=   0; /* for multi statements */
                /* Will use it for STMT_ATTR_ARRAY_SIZE and as indicator if we are deploying MariaDB bulk insert feature */
   unsigned int MariadbArrSize= MADB_BulkInsertPossible(Stmt) != FALSE ? (unsigned int)Stmt->Apd->Header.ArraySize : 0;
-  SQLULEN      j, Start= Stmt->ArrayOffset;
+  SQLULEN      j, Start= 0;
+  /* Whether the paramset we start at is converted and handed over to the C/C already - that is the
+     case if we resume the operation, that has been interrupted by a DAE parameter */
+  BOOL         ParamsPushed= FALSE;
   /* For multistatement direct execution */
   char        *CurQuery= Stmt->Query.RefinedText, *QueriesEnd= Stmt->Query.RefinedText + Stmt->Query.RefinedLength;
 
@@ -1293,6 +1350,25 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
   {
     return MADB_ExecutePositionedUpdate(Stmt, ExecDirect);
   }
+
+  /* Only SQLParamData re-enters the execution of the array, that has been interrupted by a DAE
+     parameter, and only it has to continue from the paramset we have stopped at. Anything else
+     starts from the very first one. DaeRowNumber alone does not tell us that: the SQLSetPos
+     operations count their rows in it as well and leave it set, and the dynamic cursor refresh
+     re-executes this very statement in the middle of those. Thus we also require the DAE status to
+     be the one, that MARK_DAE_DONE in SQLParamData has just set(and only it can make DAE_DONE true -
+     every other writer of PutParam leaves it below ParamCount), and no SQLSetPos DAE operation to
+     be in progress on the handle.
+     DaeRowNumber is 1 based, and is forgotten right away - it is only set again if we run into a
+     DAE parameter below, so an operation, that ends for any other reason, leaves nothing behind */
+  if (MADB_RESUMING_DAE(Stmt))
+  {
+    Start= (SQLULEN)Stmt->DaeRowNumber - 1;
+    /* That paramset has been converted and pushed before we asked for the data, and re-pushing it
+       now would undo the values the application has sent in the meantime */
+    ParamsPushed= TRUE;
+  }
+  Stmt->DaeRowNumber= 0;
 
   /* Stmt->params was allocated during prepare, but could be cleared
      by SQLResetStmt. In latter case we need to allocate it again */
@@ -1321,7 +1397,9 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
 
   Stmt->AffectedRows= 0;
 
-  if (Stmt->Ipd->Header.RowsProcessedPtr)
+  //  If param array had DAE, we can have Execute called >1 time. We need to collect all rows and
+  // Not to reset after each row with DAE has been processed.
+  if (Stmt->Ipd->Header.RowsProcessedPtr && !(Stmt->PutParam > MADB_NO_DATA_NEEDED))
   {
     *Stmt->Ipd->Header.RowsProcessedPtr= 0;
   }
@@ -1399,7 +1477,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       }
       /* Suboptimal, but more reliable and simple */
       MADB_CleanBulkOperData(Stmt, ParamOffset);
-      Stmt->ArrayOffset+= (int)Stmt->Apd->Header.ArraySize;
       if (Stmt->Ipd->Header.RowsProcessedPtr)
       {
         *Stmt->Ipd->Header.RowsProcessedPtr= *Stmt->Ipd->Header.RowsProcessedPtr + Stmt->Apd->Header.ArraySize;
@@ -1409,8 +1486,17 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
     else
     {
       /* Convert and bind parameters */
-      for (j= Start; j < Start + Stmt->Apd->Header.ArraySize; ++j)
+      for (j= Start; j < Stmt->Apd->Header.ArraySize; ++j)
       {
+        /* The first parameter of this paramset, that the application has to give the value for */
+        int  DaeParam=     MADB_NOPARAM;
+        BOOL DoExecDirect= ExecDirect && MADB_CheckIfExecDirectPossible(Stmt);
+        /* Only the paramset, that we resume the interrupted operation at, is converted and pushed
+           already - it only remains to execute it */
+        BOOL Resuming=     ParamsPushed;
+
+        ParamsPushed= FALSE;
+
         /* "... In an IPD, this SQLUINTEGER * header field points to a buffer containing the number
            of sets of parameters that have been processed, including error sets. ..." */
         if (Stmt->Ipd->Header.RowsProcessedPtr)
@@ -1419,77 +1505,99 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         }
 
         if (Stmt->Apd->Header.ArrayStatusPtr &&
-          Stmt->Apd->Header.ArrayStatusPtr[j - Start] == SQL_PARAM_IGNORE)
+          Stmt->Apd->Header.ArrayStatusPtr[j] == SQL_PARAM_IGNORE)
         {
           if (Stmt->Ipd->Header.ArrayStatusPtr)
           {
-            Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= SQL_PARAM_UNUSED;
+            Stmt->Ipd->Header.ArrayStatusPtr[j]= SQL_PARAM_UNUSED;
           }
           continue;
         }
 
-        for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
+        if (!Resuming)
         {
-          MADB_DescRecord *ApdRecord, *IpdRecord;
-          if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
-            (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
+          for (i= ParamOffset; i < ParamOffset + MADB_STMT_PARAM_COUNT(Stmt); ++i)
           {
-            /* check if parameter was bound */
-            if (!ApdRecord->inUse)
+            MADB_DescRecord *ApdRecord, *IpdRecord;
+            if ((ApdRecord= MADB_DescGetInternalRecord(Stmt->Apd, i, MADB_DESC_READ)) &&
+              (IpdRecord= MADB_DescGetInternalRecord(Stmt->Ipd, i, MADB_DESC_READ)))
             {
-              IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
-              goto end;
-            }
-
-            if (MADB_ConversionSupported(ApdRecord, IpdRecord) == FALSE)
-            {
-              IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
-              goto end;
-            }
-
-            Stmt->params[i-ParamOffset].length= NULL;
-
-            ret= MADB_C2SQL(Stmt, ApdRecord, IpdRecord, j - Start, &Stmt->params[i-ParamOffset]);
-            if (!SQL_SUCCEEDED(ret))
-            {
-              if (ret == SQL_NEED_DATA)
+              /* check if parameter was bound */
+              if (!ApdRecord->inUse)
               {
-                IntegralRc= ret;
-                ErrorCount= 0;
-                Stmt->PutParam= MADB_NEED_DATA;
+                IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07002, NULL, 0);
+                goto end;
               }
-              else
+
+              if (MADB_ConversionSupported(ApdRecord, IpdRecord) == FALSE)
               {
+                IntegralRc= MADB_SetError(&Stmt->Error, MADB_ERR_07006, NULL, 0);
+                goto end;
+              }
+
+              Stmt->params[i-ParamOffset].length= NULL;
+
+              ret= MADB_C2SQL(Stmt, ApdRecord, IpdRecord, j, &Stmt->params[i-ParamOffset]);
+              if (!SQL_SUCCEEDED(ret))
+              {
+                if (ret == SQL_NEED_DATA)
+                {
+                  /* We cannot stop here - the rest of the paramset has to be converted, and the
+                     whole bind array pushed, before the application starts sending the values */
+                  if (DaeParam == MADB_NOPARAM)
+                  {
+                    DaeParam= (int)i;
+                  }
+                  continue;
+                }
                 ++ErrorCount;
+                goto end;
               }
-              goto end;
+              CALC_ALL_ROWS_RC(IntegralRc, ret, j - Start);
             }
-            CALC_ALL_ROWS_RC(IntegralRc, ret, j - Start);
+          }                 /* End of for() on parameters */
+
+          if (Stmt->RebindParams && MADB_STMT_PARAM_COUNT(Stmt))
+          {
+            Stmt->stmt->bind_param_done= 1;
+            Stmt->RebindParams= FALSE;
           }
-        }                 /* End of for() on parameters */
 
-        if (Stmt->RebindParams && MADB_STMT_PARAM_COUNT(Stmt))
-        {
-          Stmt->stmt->bind_param_done= 1;
-          Stmt->RebindParams= FALSE;
-        }
+          /* The paramset is complete now, and can be handed over. That has to happen before the
+             application sends the values of its DAE parameters, and must not be repeated after */
+          MADB_PushParams(Stmt, DoExecDirect);
 
-        ret= MADB_DoExecute(Stmt, ExecDirect && MADB_CheckIfExecDirectPossible(Stmt));
+          if (DaeParam != MADB_NOPARAM)
+          {
+            IntegralRc= SQL_NEED_DATA;
+            ErrorCount= 0;
+            /* Just to save few iterations in SQLParamData - it starts from the next parameter */
+            Stmt->PutParam= DaeParam - 1;
+            /* The paramset, that SQLParamData has to ask the data for, and that we have to resume
+               this operation from. DaeRowNumber is 1 based */
+            Stmt->DaeRowNumber= j + 1;
+            goto end;
+          }
+        }                 /* End of if (!Resuming) */
 
-        ++Stmt->ArrayOffset;
+        ret= MADB_DoExecute(Stmt, DoExecDirect, TRUE);
+
         /* We need to unset InternalLength, i.e. reset dae length counters for next stmt.
    However that length is not used anywhere, and is not clear what is it needed for */
         ResetInternalLength(Stmt, ParamOffset);
+        // For param array with DAE parameters we have to reset DAE status after each row execution
+        // to enable DAE for the next row.
+        RESET_DAE_STATUS(Stmt);
 
         if (!SQL_SUCCEEDED(ret))
         {
           ++ErrorCount;
           if (Stmt->Ipd->Header.ArrayStatusPtr)
           {
-            Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= 
-              (j == Start + Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
+            Stmt->Ipd->Header.ArrayStatusPtr[j]= 
+              (j == Stmt->Apd->Header.ArraySize - 1) ? SQL_PARAM_ERROR : SQL_PARAM_DIAG_UNAVAILABLE;
           }
-          if (j == Start + Stmt->Apd->Header.ArraySize - 1)
+          if (j == Stmt->Apd->Header.ArraySize - 1)
           {
             /* What if this is multistatement? */
             goto end;
@@ -1524,7 +1632,7 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
           }
           if (Stmt->Ipd->Header.ArrayStatusPtr)
           {
-            Stmt->Ipd->Header.ArrayStatusPtr[j - Start]= SQL_PARAM_SUCCESS;
+            Stmt->Ipd->Header.ArrayStatusPtr[j]= SQL_PARAM_SUCCESS;
           }
         }
       }     /* End of for() thru paramsets(parameters array) */
@@ -1547,9 +1655,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
       }
     }
   }       /* End of for() on statements(Multistatmt) */
-  
-  /* All rows processed, so we can unset ArrayOffset */
-  Stmt->ArrayOffset= 0;
 
   if (Stmt->MultiStmts)
   {
@@ -1574,7 +1679,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, BOOL ExecDirect)
         return MADB_SetNativeError(&Stmt->Error, SQL_HANDLE_STMT, Stmt->stmt);
       }
     }
-    
     /* I don't think we can reliably establish the fact that we do not need to re-fetch the metadata, thus we are re-fetching always
        The fact that we have resultset has been established above in "if" condition(fields count is > 0) */
     FetchMetadata(Stmt);
@@ -2615,7 +2719,7 @@ SQLRETURN MADB_StmtGetAttr(MADB_Stmt *Stmt, SQLINTEGER Attribute, SQLPOINTER Val
     *(SQLPOINTER *)ValuePtr= (SQLPOINTER)Stmt->Ipd->Header.ArrayStatusPtr;
     break;
   case SQL_ATTR_PARAMS_PROCESSED_PTR:
-    *(SQLPOINTER *)ValuePtr= (SQLPOINTER)(SQLULEN)Stmt->Ipd->Header.BindType;
+    *(SQLPOINTER *)ValuePtr= (SQLPOINTER)(SQLULEN)Stmt->Ipd->Header.RowsProcessedPtr;
     break;
   case SQL_ATTR_PARAMSET_SIZE:
     *(SQLULEN *)ValuePtr= Stmt->Apd->Header.ArraySize;
@@ -4110,15 +4214,15 @@ SQLRETURN MADB_StmtSetPos(MADB_Stmt* Stmt, SQLSETPOSIROW RowNumber, SQLUSMALLINT
         Stmt->Cursor.Position= 1;
 
       if (RowNumber)
-        Start= End= Stmt->Cursor.Position + RowNumber -1;
+      {
+        Start= End= Stmt->Cursor.Position + RowNumber - 1;
+      }
       else
       {
         Start= Stmt->Cursor.Position;
         /* TODO: if num_rows returns 1, End is 0? Start would be 1, no */
         End= MIN(mysql_stmt_num_rows(Stmt->stmt)-1, Start + Stmt->Ard->Header.ArraySize - 1);
       }
-      /* Stmt->ArrayOffset will be incremented in StmtExecute() */
-      Start+= Stmt->ArrayOffset;
 
       /* TODO: SQL_ATTR_ROW_STATUS_PTR should be filled */
       while (Start <= End)

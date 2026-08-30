@@ -967,6 +967,116 @@ ODBC_TEST(odbc359)
 }
 
 
+/** ODBC-507 Data-at-execution parameters in the parameter array. The driver has to walk thru the
+    paramsets requesting the data for each DAE parameter of each of them. The pointer, that it gives
+    to the application, has to be the one of the buffer of that very paramset - that is the only way
+    for the application to tell, which value is requested
+ */
+#define ODBC507_ROWS 4
+ODBC_TEST(odbc507)
+{
+  SQLINTEGER  Id[ODBC507_ROWS]=    { 1, 2, 3, 4 };
+  /* The cells, that are given at the execution time, are left empty here */
+  SQLCHAR     A[ODBC507_ROWS][16]= { "a1", "a2",   "",  "a4" },
+              B[ODBC507_ROWS][16]= { "b1", "", "",    "b4" };
+  SQLLEN      AInd[ODBC507_ROWS], BInd[ODBC507_ROWS];
+  const char *ExpA[ODBC507_ROWS]=  { "a1", "a2", "dae-a3", "a4" },
+             *ExpB[ODBC507_ROWS]=  { "b1", "dae-b2", "dae-b3", "b4" };
+  /* Ordinary parameters around the DAE ones - vcf sits between the two parameters, that the 3rd
+     paramset gives at the execution time, and intf goes after the last DAE parameter of any
+     paramset. The driver has to skip them looking for the next value to request */
+  SQLCHAR     Vcf[ODBC507_ROWS][16]= { "vcf1", "vcf2", "vcf3", "vcf4" };
+  SQLLEN      VcfInd[ODBC507_ROWS];
+  SQLINTEGER  Intf[ODBC507_ROWS]=    { 11, 22, 33, 44 };
+
+  /* The DAE cells in the order the driver is expected to ask for them - by the paramset, and by the
+     parameter number inside the paramset */
+  struct {
+    SQLPOINTER  Buffer;
+    const char *Value;
+  } Dae[]= { {B[1], "dae-b2"}, {A[2], "dae-a3"}, {B[2], "dae-b3"} };
+  const unsigned int DaeCount= sizeof(Dae)/sizeof(Dae[0]);
+  SQLULEN      ParamsProcessed= 0;
+  SQLPOINTER   Token;
+  SQLCHAR      Buffer[512];
+  unsigned int i;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS odbc507");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc507(id INT NOT NULL PRIMARY KEY, a MEDIUMTEXT,"
+                       " vcf VARCHAR(15), b MEDIUMTEXT, intf INT)");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  for (i= 0; i < ODBC507_ROWS; ++i)
+  {
+    AInd[i]=   (SQLLEN)strlen((char*)A[i]);
+    BInd[i]=   (SQLLEN)strlen((char*)B[i]);
+    VcfInd[i]= (SQLLEN)strlen((char*)Vcf[i]);
+  }
+  /* 1st and 4th paramsets have no DAE parameter at all, the 2nd has one, and the 3rd has two, and
+     the first of them is not the parameter, that the 2nd paramset asks for */
+  BInd[1]= SQL_LEN_DATA_AT_EXEC(0);
+  AInd[2]= SQL_LEN_DATA_AT_EXEC(0);
+  BInd[2]= SQL_LEN_DATA_AT_EXEC(0);
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO odbc507(id, a, vcf, b, intf)"
+                                                " VALUES(?, ?, ?, ?, ?)", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)ODBC507_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMS_PROCESSED_PTR, &ParamsProcessed, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0,
+                                       Id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 0, 0,
+                                       A, sizeof(A[0]), AInd));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR,
+                                       sizeof(Vcf[0]) - 1, 0, Vcf, sizeof(Vcf[0]), VcfInd));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 0, 0,
+                                       B, sizeof(B[0]), BInd));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 5, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0,
+                                       Intf, 0, NULL));
+
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_NEED_DATA);
+
+  for (i= 0; i < DaeCount; ++i)
+  {
+    diag("DAE param #%u, Expected Token %p", i + 1, Dae[i].Buffer);
+    EXPECT_STMT(Stmt, SQLParamData(Stmt, &Token), SQL_NEED_DATA);
+    if (Token != Dae[i].Buffer)
+    {
+      diag("\tthe driver asks for the buffer %p, while %p(of the \"%s\" value) is expected",
+        Token, Dae[i].Buffer, Dae[i].Value);
+      return FAIL;
+    }
+    CHECK_STMT_RC(Stmt, SQLPutData(Stmt, (SQLPOINTER)Dae[i].Value, (SQLLEN)strlen(Dae[i].Value)));
+  }
+  /* All the requested values have been given - that finishes the execution */
+  CHECK_STMT_RC(Stmt, SQLParamData(Stmt, &Token));
+  is_num(ParamsProcessed, ODBC507_ROWS);
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, a, vcf, b, intf FROM odbc507 ORDER BY id");
+  for (i= 0; i < ODBC507_ROWS; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(my_fetch_int(Stmt, 1), Id[i]);
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 2, SQL_C_CHAR, Buffer, sizeof(Buffer), NULL));
+    IS_STR(Buffer, ExpA[i], strlen(ExpA[i]) + 1);
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_CHAR, Buffer, sizeof(Buffer), NULL));
+    IS_STR(Buffer, Vcf[i], strlen((char*)Vcf[i]) + 1);
+    CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 4, SQL_C_CHAR, Buffer, sizeof(Buffer), NULL));
+    IS_STR(Buffer, ExpB[i], strlen(ExpB[i]) + 1);
+    is_num(my_fetch_int(Stmt, 5), Intf[i]);
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc507");
+
+  return OK;
+}
+#undef ODBC507_ROWS
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_blob, "t_blob"},
@@ -983,6 +1093,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc_26, "t_odbc_26"},
   {t_blob_reading_in_chunks, "t_blob_reading_in_chunks"},
   { odbc359, "odbc359"},
+  { odbc507, "odbc507"},
   {NULL, NULL}
 };
 

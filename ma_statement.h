@@ -113,7 +113,7 @@ struct st_ma_stmt_rsstore
 SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt);
 SQLUSMALLINT MapColAttributeDescType(SQLUSMALLINT FieldIdentifier);
 MYSQL_RES*   FetchMetadata          (MADB_Stmt *Stmt);
-SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect);
+SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, BOOL ExecDirect, BOOL ParamsPushed);
 void         MakeStmtCacher         (MADB_Stmt* Stmt);
 SQLRETURN    MADB_RealQuery         (MADB_Dbc* Dbc, char* StatementText, size_t TextLength, MADB_Error* Error);
 void         MADB_CloseCursor       (MADB_Stmt *Stmt);
