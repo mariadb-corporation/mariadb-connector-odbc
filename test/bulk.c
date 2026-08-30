@@ -731,6 +731,108 @@ ODBC_TEST(t_odbc235)
 #undef MAODBC_ROWS
 
 
+#define ODBC506_ROWS 3
+/* How many paramsets of the interrupted operation the server has actually got */
+#define ODBC506_INSERTED (ODBC506_ROWS - 1)
+
+/* The paramset of the row-wise bound array. Its layout does not matter - what matters is that the
+   binding is row-wise */
+typedef struct {
+  SQLINTEGER Id;
+  SQLLEN     IdLen;
+  SQLCHAR    Val[16];
+  SQLLEN     ValLen;
+} odbc506_paramset;
+
+/*
+  ODBC-506 - The driver kept the progress(the offset in the parameter arrays) of the parameter array
+  operation, that had been interrupted by an error on its very last paramset. It is only reset after
+  the array has been processed to its end, and that never happened for such operation. The next array
+  operation on the same handle then started at that stale offset instead of the beginning of the
+  arrays
+ */
+ODBC_TEST(t_odbc506)
+{
+  odbc506_paramset Param[ODBC506_ROWS];
+  SQLINTEGER       Id[ODBC506_ROWS];
+  SQLCHAR          Val[ODBC506_ROWS][16], Buffer[32], Expected[16];
+  SQLLEN           ValLen[ODBC506_ROWS];
+  unsigned int     i;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc506");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc506(id INT NOT NULL PRIMARY KEY, val VARCHAR(15) NOT NULL)");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* ---- The operation, that is interrupted on its very last paramset ---- */
+  for (i= 0; i < ODBC506_ROWS; ++i)
+  {
+    Param[i].Id=     (SQLINTEGER)(i + 1);
+    Param[i].IdLen=  sizeof(SQLINTEGER);
+    _snprintf((char*)Param[i].Val, sizeof(Param[i].Val), "row%u", i + 1);
+    Param[i].ValLen= strlen((char*)Param[i].Val);
+  }
+  /* The last paramset duplicates the PK value of the first one */
+  Param[ODBC506_ROWS - 1].Id= Param[0].Id;
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"INSERT INTO t_odbc506(id, val) VALUES(?, ?)", SQL_NTS));
+  /* The row-wise binding stops the driver from sending the array to the server as a single bulk
+     operation, and makes it to loop thru the paramsets advancing the offset */
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_BIND_TYPE, (SQLPOINTER)sizeof(odbc506_paramset), 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)ODBC506_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0,
+                                       &Param[0].Id, 0, &Param[0].IdLen));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR,
+                                       sizeof(Param[0].Val) - 1, 0, Param[0].Val,
+                                       sizeof(Param[0].Val), &Param[0].ValLen));
+  /* Only the last paramset fails, thus this is not a complete failure of the operation */
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_SUCCESS_WITH_INFO);
+  CHECK_SQLSTATE(Stmt, "23000");
+
+  /* ---- The next array operation on the same handle ---- */
+  for (i= 0; i < ODBC506_ROWS; ++i)
+  {
+    Id[i]= (SQLINTEGER)(ODBC506_ROWS + i + 1);
+    _snprintf((char*)Val[i], sizeof(Val[i]), "col%u", i + 1);
+    ValLen[i]= strlen((char*)Val[i]);
+  }
+  /* Switching to the column-wise binding invalidates the interrupted operation, and lets the driver
+     to use the server's bulk operation. Converting the values of the array, the driver walks its own
+     bind buffers from the offset it has stopped at - i.e. past their end, unless the offset of the
+     interrupted operation has been reset */
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_BIND_TYPE, (SQLPOINTER)SQL_PARAM_BIND_BY_COLUMN, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, Id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR,
+                                       sizeof(Val[0]) - 1, 0, Val, sizeof(Val[0]), ValLen));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+
+  /* Every paramset of both operations, but the failed one, has to be in the table */
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_odbc506 ORDER BY id");
+  for (i= 0; i < ODBC506_INSERTED; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(my_fetch_int(Stmt, 1), i + 1);
+    _snprintf((char*)Expected, sizeof(Expected), "row%u", i + 1);
+    IS_STR(my_fetch_str(Stmt, Buffer, 2), Expected, strlen((char*)Expected) + 1);
+  }
+  for (i= 0; i < ODBC506_ROWS; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(my_fetch_int(Stmt, 1), ODBC506_ROWS + i + 1);
+    _snprintf((char*)Expected, sizeof(Expected), "col%u", i + 1);
+    IS_STR(my_fetch_str(Stmt, Buffer, 2), Expected, strlen((char*)Expected) + 1);
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc506");
+
+  return OK;
+}
+#undef ODBC506_INSERTED
+#undef ODBC506_ROWS
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bulk_insert_nts, "t_bulk_insert_nts"},
@@ -743,6 +845,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_bulk_delete, "t_bulk_delete"},
   {t_odbc149, "odbc149_ts_col_insert" },
   {t_odbc235, "odbc235_bulk_with_longtext"},
+  {t_odbc506, "odbc506_array_offset_reset"},
   {NULL, NULL}
 };
 
