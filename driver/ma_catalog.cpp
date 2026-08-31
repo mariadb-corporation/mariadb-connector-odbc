@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2021,2024 MariaDB Corporation AB
+   Copyright (C) 2021,2026 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -71,7 +71,7 @@ static int AddPvCondition(MADB_Dbc *dbc, void* buffer, size_t bufferLen, char* v
     return 0;
   }
 
-  return _snprintf((char*)buffer, bufferLen, " LIKE '%.*s' ", len, escaped);
+  return snprintf((char*)buffer, bufferLen, " LIKE '%.*s' ", len, escaped);
 }
 /* }}} */
 
@@ -157,7 +157,7 @@ static int AddOaCondition(MADB_Dbc *Dbc, void* buffer, size_t bufferLen, char* v
     return 0;
   }
 
-  return _snprintf((char*)buffer, bufferLen, "%s%.*s' ", compare, len, escaped);
+  return snprintf((char*)buffer, bufferLen, "%s%.*s' ", compare, len, escaped);
 }
 /* }}} */
 
@@ -185,7 +185,7 @@ static int AddIdCondition(void* buffer, size_t bufferLen, char* value, SQLSMALLI
 
     return 0; /* Doesn't really matter in case of dynamic string */
   }
-  return _snprintf((char*)buffer, bufferLen, "=`%.*s` ", (int)len, value);
+  return snprintf((char*)buffer, bufferLen, "=`%.*s` ", (int)len, value);
 }
 /* }}} */
 
@@ -244,6 +244,17 @@ static int AddOaOrIdCondition(MADB_Stmt* Stmt, void* buffer, size_t bufferLen, c
 
 #define SCHEMA_PARAMETER_ERRORS_ALLOWED(STMT) ((STMT)->Connection->Dsn->NeglectSchemaParam == 0)
 
+/* Object names are limited to 64 characters, i.e. to NAME_LEN bytes. Besides the fact, that a longer
+   name cannot match any object anyway, AddPvCondition and AddOaCondition escape the value into the
+   buffer of the fixed 2*NAME_LEN + 1 size, and a longer value would overrun it. Thus all name
+   parameters, that are used for the query construction, have to be verified before that.
+   The length has to be adjusted(ADJUST_LENGTH) prior to the check - otherwise SQL_NTS slips through.
+   TODO: Here we compare the octet length, while in fact the character length is limited. Comparing with
+   either NAME_CHAR_LEN or NAME_LEN does not make quite sense, but if > NAME_LEN, then it is for sure
+   too big */
+#define ERROR_IF_TOO_LONG_NAME(STMT, LEN) if ((LEN) > NAME_LEN)\
+  return MADB_SetError(&(STMT)->Error, MADB_ERR_HY090, "Object names are limited to " XSTR(NAME_LEN) " bytes", 0)
+
 /* {{{ MADB_StmtColumnPrivileges */
 SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT NameLength1,
                                     char *SchemaName, SQLSMALLINT NameLength2, char *TableName,
@@ -264,37 +275,44 @@ SQLRETURN MADB_StmtColumnPrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
+
   p= StmtStr;
-  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL as TABLE_SCHEM, TABLE_NAME,"
+  p+= snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL as TABLE_SCHEM, TABLE_NAME,"
                                  "COLUMN_NAME, NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE,"
                                  "IS_GRANTABLE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE ");
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
     if (CatalogName)
     {
       p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
     p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
 
     if (ColumnName)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND COLUMN_NAME");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND COLUMN_NAME");
       p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), ColumnName, NameLength4);
     }
 
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, PRIVILEGE");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)(p - StmtStr));
 }
@@ -314,34 +332,38 @@ SQLRETURN MADB_StmtTablePrivileges(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLI
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   p= StmtStr;
-  p+= _snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
+  p+= snprintf(StmtStr, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, "
                                   "NULL AS GRANTOR, GRANTEE, PRIVILEGE_TYPE AS PRIVILEGE, IS_GRANTABLE "
                                   "FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE ");
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
     if (CatalogName)
     {
       p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE()");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE()");
     }
     if (TableName)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), " AND TABLE_NAME");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), " AND TABLE_NAME");
       p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
     }
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEM, TABLE_NAME, PRIVILEGE");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, (SQLINTEGER)(p - StmtStr));
 }
@@ -373,12 +395,8 @@ SQLRETURN MADB_StmtTables(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Catalo
   ADJUST_LENGTH(TableName, TableNameLength);
   ADJUST_LENGTH(TableType, TableTypeLength);
 
-  /* TODO: Here we need compare character length in fact. Comparing with both either NAME_CHAR_LEN or NAME_LEN don't make quite sense, but
-     if > NAME_LEN, then it is for sure too big */
-  if (CatalogNameLength > NAME_LEN || TableNameLength > NAME_LEN)
-  {
-    return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, "Table and catalog names are limited to 64 chars", 0);
-  }
+  ERROR_IF_TOO_LONG_NAME(Stmt, CatalogNameLength);
+  ERROR_IF_TOO_LONG_NAME(Stmt, TableNameLength);
   /* Schemas are not supported. Thus error except special cases of SQLTables use*/
 
   if (SchemaName != NULL && *SchemaName != '\0' && *SchemaName != '%' && SchemaNameLength > 1
@@ -528,6 +546,10 @@ SQLRETURN MADB_StmtStatistics(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   //if (Stmt->Connection->Environment->AppType == ATypeMSAccess)
   p= CONSTSTRMOV(StmtStr, "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,TABLE_NAME, "
@@ -607,13 +629,20 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  /* Has to be done before anything is allocated - the macro returns from the function */
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
 
   ColumnsPart= static_cast<char*>(MADB_CALLOC(Length));
   if (ColumnsPart == NULL)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
-  _snprintf(ColumnsPart, Length, MADB_CATALOG_COLUMNSp3, OctetsPerChar);
+  snprintf(ColumnsPart, Length, MADB_CATALOG_COLUMNSp3, OctetsPerChar);
 
   MADB_InitDynamicString(&StmtStr, "", 8192, 1024);
  
@@ -633,10 +662,6 @@ SQLRETURN MADB_StmtColumns(MADB_Stmt *Stmt,
 
   if (MADB_DYNAPPENDCONST(&StmtStr, MADB_CATALOG_COLUMNSp4))
     goto dynerror;
-
-  ADJUST_LENGTH(CatalogName, NameLength1);
-  ADJUST_LENGTH(TableName, NameLength3);
-  ADJUST_LENGTH(ColumnName, NameLength4);
 
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
@@ -729,7 +754,7 @@ char* MADB_ProcedureColumns(MADB_Stmt* Stmt, char** Query, size_t* Length)
     p= strncpy(p, p3, p3len) + p3len;
     p= strncpy(p, MADB_SQLDATATYPE_END, sizeof(MADB_SQLDATATYPE_END) - 1) +
       sizeof(MADB_SQLDATATYPE_END) - 1;
-    p+= _snprintf(p, *Length - (p - *Query), p5, OctetsPerChar);
+    p+= snprintf(p, *Length - (p - *Query), p5, OctetsPerChar);
   }
   return p;
 }
@@ -750,6 +775,13 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  /* Has to be done before the query is allocated - the macro returns from the function */
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(ProcName, NameLength3);
+  ADJUST_LENGTH(ColumnName, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
 
   if (!(p= MADB_ProcedureColumns(Stmt, &StmtStr, &Length)))
   {
@@ -759,34 +791,34 @@ SQLRETURN MADB_StmtProcedureColumns(MADB_Stmt *Stmt, char *CatalogName, SQLSMALL
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p+= _snprintf(p, Length - (p - StmtStr), "WHERE 0");
+    p+= snprintf(p, Length - (p - StmtStr), "WHERE 0");
   }
   else
   {
-    p+= _snprintf(p, Length - (p - StmtStr), "WHERE SPECIFIC_SCHEMA");
+    p+= snprintf(p, Length - (p - StmtStr), "WHERE SPECIFIC_SCHEMA");
     if (CatalogName)
       p+= AddOaOrIdCondition(Stmt, p, Length - (p - StmtStr), CatalogName, NameLength1);
     else
-      p+= _snprintf(p, Length - (p - StmtStr), "=DATABASE() ");
+      p+= snprintf(p, Length - (p - StmtStr), "=DATABASE() ");
     if (ProcName && ProcName[0])
     {
-      p+= _snprintf(p, Length - (p - StmtStr), "AND SPECIFIC_NAME");
+      p+= snprintf(p, Length - (p - StmtStr), "AND SPECIFIC_NAME");
       p+= AddPvOrIdCondition(Stmt, p, Length - (p - StmtStr), ProcName, NameLength3);
     }
     if (ColumnName)
     {
       if (ColumnName[0])
       {
-        p+= _snprintf(p, Length - (p - StmtStr), "AND PARAMETER_NAME");
+        p+= snprintf(p, Length - (p - StmtStr), "AND PARAMETER_NAME");
         p+= AddPvOrIdCondition(Stmt, p, Length - (p - StmtStr), ColumnName, NameLength4);
       }
       else
       {
-        p+= _snprintf(p, Length - (p - StmtStr), "AND PARAMETER_NAME IS NULL ");
+        p+= snprintf(p, Length - (p - StmtStr), "AND PARAMETER_NAME IS NULL ");
       }
     }
 
-    p+= _snprintf(p, Length - (p - StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
+    p+= snprintf(p, Length - (p - StmtStr), " ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME, ORDINAL_POSITION");
   }
   ret= Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 
@@ -817,20 +849,24 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
   p= StmtStr;
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,"
+  p+= snprintf(p, sizeof(StmtStr), "SELECT TABLE_SCHEMA AS TABLE_CAT,NULL AS TABLE_SCHEM,"
                            "TABLE_NAME,COLUMN_NAME, ORDINAL_POSITION KEY_SEQ,"
                            "'PRIMARY' PK_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE "
                            "CONSTRAINT_NAME='PRIMARY' AND ");
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
-    _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
+    snprintf(p, sizeof(StmtStr) - (p - StmtStr), "0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "TABLE_SCHEMA");
     /* Empty catalog name means table without catalog(schema). MariaDB/MySQL do not have such. Thus should be empty resultset.
        TABLE_SCHEMA='' will do the job. TODO: that can be done without sending query to the server.
        Catalog(schema) cannot be a search pattern. Thus= and not LIKE here */
@@ -843,11 +879,11 @@ SQLRETURN MADB_StmtPrimaryKeys(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT N
       /* If Catalog is NULL we return for current DB. If no schema(aka catalog here) is selected, then that means
          table without schema. Since we don't have such tables, that means empty resultset.
          TODO: We should be aboe to construct resultset - empty in this case, avoiding sending query to the server */
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
     p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), " ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -876,8 +912,12 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(TableName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
 
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT NULL AS SCOPE, COLUMN_NAME, %s %s" MADB_SQLDATATYPE_END ","
+  p+= snprintf(p, sizeof(StmtStr), "SELECT NULL AS SCOPE, COLUMN_NAME, %s %s" MADB_SQLDATATYPE_END ","
                            "DATA_TYPE TYPE_NAME,"
                            "CASE" 
                            "  WHEN DATA_TYPE in ('bit', 'tinyint', 'smallint', 'year', 'mediumint', 'int',"
@@ -895,35 +935,35 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL)
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND 0");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND 0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_SCHEMA");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_SCHEMA");
     if (CatalogName)
     {
       p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), CatalogName, NameLength1);
     }
     else
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
     if (TableName && TableName[0])
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND TABLE_NAME");
       p+= AddOaOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), TableName, NameLength3);
     }
 
     if (Nullable == SQL_NO_NULLS)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND IS_NULLABLE <> 'YES' ");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND IS_NULLABLE <> 'YES' ");
     }
 
     if (IdentifierType == SQL_BEST_ROWID)
     {
       /* If some of columns of a unique index can be NULL, this unique key cannot be SQL_BEST_ROWID since it can't
        "allows any row in the specified table to be uniquely identified" */
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr),
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr),
         "AND (COLUMN_KEY='PRI' OR COLUMN_KEY= 'UNI' AND IS_NULLABLE<>'YES' AND "
            "(SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS s1 LEFT JOIN INFORMATION_SCHEMA.STATISTICS s2 USING(INDEX_NAME)"
            " WHERE s1.TABLE_SCHEMA=c.TABLE_SCHEMA AND s1.TABLE_NAME=c.TABLE_NAME AND s1.COLUMN_NAME=c.COLUMN_NAME "
@@ -931,9 +971,9 @@ SQLRETURN MADB_StmtSpecialColumns(MADB_Stmt *Stmt, SQLUSMALLINT IdentifierType,
     }
     else if (IdentifierType == SQL_ROWVER)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND DATA_TYPE='timestamp' AND EXTRA LIKE '%%CURRENT_TIMESTAMP%%' ");
     }
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_KEY");
   }
 #ifdef _ACTIONS_TRACE_
 #ifdef __APPLE__
@@ -961,9 +1001,14 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_HYC00, "Schemas are not supported. Use CatalogName parameter instead", 0);
   }
+  ADJUST_LENGTH(CatalogName, NameLength1);
+  ADJUST_LENGTH(ProcName, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+
   p= StmtStr;
 
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
+  p+= snprintf(p, sizeof(StmtStr), "SELECT ROUTINE_SCHEMA AS PROCEDURE_CAT, NULL AS PROCEDURE_SCHEM, "
                            "SPECIFIC_NAME PROCEDURE_NAME, NULL NUM_INPUT_PARAMS, "
                            "NULL NUM_OUTPUT_PARAMS, NULL NUM_RESULT_SETS, "
                            "ROUTINE_COMMENT REMARKS, "
@@ -976,11 +1021,11 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, otherwise the error would have been already thrown */
   if (SchemaName != NULL && *SchemaName == '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr)- (p - StmtStr), "WHERE 0");
+    p+= snprintf(p, sizeof(StmtStr)- (p - StmtStr), "WHERE 0");
   }
   else
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "WHERE ROUTINE_SCHEMA");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "WHERE ROUTINE_SCHEMA");
     /* Catalog is ordinary argument, but schema is pattern value. Since we treat is catalog as a schema, using more permissive PV here
        On other hand we do not do this everywhere. Need to be consistent */
     if (CatalogName != NULL)
@@ -989,15 +1034,15 @@ SQLRETURN MADB_StmtProcedures(MADB_Stmt *Stmt, char *CatalogName, SQLSMALLINT Na
     }
     else
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "=DATABASE() ");
     }
     if (ProcName != NULL)
     {
-      p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND SPECIFIC_NAME");
+      p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "AND SPECIFIC_NAME");
       p+= AddPvOrIdCondition(Stmt, p, sizeof(StmtStr) - (p - StmtStr), ProcName, NameLength3);
     }
 
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), " ORDER BY ROUTINE_SCHEMA, SPECIFIC_NAME");
   }
   return Stmt->Methods->ExecDirect(Stmt, StmtStr, SQL_NTS);
 }
@@ -1074,6 +1119,11 @@ SQLRETURN MADB_StmtForeignKeys(MADB_Stmt *Stmt, char *PKCatalogName, SQLSMALLINT
   ADJUST_LENGTH(PKTableName, NameLength3);
   ADJUST_LENGTH(FKCatalogName, NameLength4);
   ADJUST_LENGTH(FKTableName, NameLength6);
+
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength1);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength3);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength4);
+  ERROR_IF_TOO_LONG_NAME(Stmt, NameLength6);
 
   part3 << "WHERE 1";
   /* Empty schema name means tables w/out schema. We could get here only if it is empty string, 

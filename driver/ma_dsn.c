@@ -482,14 +482,14 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
       }
       case DSN_TYPE_INT:
         {
-          _snprintf(Value ,32, "%d", *(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
+          snprintf(Value ,32, "%d", *(int *)((char *)Dsn + DsnKeys[i].DsnOffset));
           ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Value, "ODBC.INI");
         }
         break;
       case DSN_TYPE_CBOXGROUP:
       case DSN_TYPE_RBGROUP:
         {
-          _snprintf(Value, 32, "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
+          snprintf(Value, 32, "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
           ret= SQLWritePrivateProfileString(Dsn->DSNName, DsnKeys[i].DsnKey, Value, "ODBC.INI");
         }
         break;
@@ -514,7 +514,7 @@ my_bool MADB_SaveDSN(MADB_Dsn *Dsn)
     i++;
   }
   /* Save Options */
-  _snprintf(Value ,32, "%d", Dsn->Options);
+  snprintf(Value ,32, "%d", Dsn->Options);
   if (!(ret= SQLWritePrivateProfileString(Dsn->DSNName, "OPTIONS", Value, "ODBC.INI")))
   {
     SQLInstallerError(1,&ErrNum, Dsn->ErrorMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
@@ -728,7 +728,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
       case DSN_TYPE_INT:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], int))
         {
-          _snprintf(IntVal, sizeof(IntVal), "%d", *GET_FIELD_PTR(Dsn, &DsnKeys[i], int));
+          snprintf(IntVal, sizeof(IntVal), "%d", *GET_FIELD_PTR(Dsn, &DsnKeys[i], int));
           Value= IntVal;
         }
         break;
@@ -754,7 +754,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
       case DSN_TYPE_RBGROUP:
         if (*GET_FIELD_PTR(Dsn, &DsnKeys[i], char))
         {
-          _snprintf(IntVal, sizeof(IntVal), "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
+          snprintf(IntVal, sizeof(IntVal), "%hu", (short)*GET_FIELD_PTR(Dsn, &DsnKeys[i], char));
           Value= IntVal;
         }
         break;
@@ -767,7 +767,7 @@ SQLULEN MADB_DsnToString(MADB_Dsn *Dsn, char *OutString, SQLULEN OutLength)
     if (Value)
     {
       my_bool isSpecial= (strchr(Value, ' ') ||  strchr(Value, ';') || strchr(Value, '@'));
-      CpyLength= _snprintf(TmpStr + TotalLength, 1024 - TotalLength, "%s%s=%s%s%s", (TotalLength) ? ";" : "",
+      CpyLength= snprintf(TmpStr + TotalLength, 1024 - TotalLength, "%s%s=%s%s%s", (TotalLength) ? ";" : "",
                              DsnKeys[i].DsnKey, isSpecial ? "{" : "", Value, isSpecial ? "}" : "");
       TotalLength+= CpyLength;
     }

@@ -1946,13 +1946,13 @@ SQLRETURN MA_SQLNativeSqlW(SQLHDBC ConnectionHandle,
   SQLINTEGER* TextLength2Ptr)
 {
   MADB_Dbc* Conn= (MADB_Dbc*)ConnectionHandle;
-  SQLINTEGER Length= (TextLength1 == SQL_NTS) ? SqlwcsCharLen(InStatementText, (SQLLEN)-1) : TextLength1;
+  // Specs say it should be chars, but spesc are from the ucs2 times when char=unit. Plus, here it was always
+  // units - we copy given number of units, and given the bug that weh had in SqlwcsCharLen(that was here in
+  // place of SqlwcsLen), it calculated real surrogate pairs as 2 units, so it was always units.
+  SQLINTEGER Length= (TextLength1 == SQL_NTS) ? (SQLINTEGER)SqlwcsLen(InStatementText, (SQLLEN)-1) : TextLength1;
 
   if (TextLength2Ptr)
     *TextLength2Ptr= Length;
-
-  if (OutStatementText && BufferLength < Length)
-    MADB_SetError(&Conn->Error, MADB_ERR_01004, NULL, 0);
 
   if (OutStatementText && BufferLength < Length)
     MADB_SetError(&Conn->Error, MADB_ERR_01004, NULL, 0);

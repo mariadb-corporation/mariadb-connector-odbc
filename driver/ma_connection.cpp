@@ -444,6 +444,7 @@ SQLRETURN MADB_Dbc::GetAttr(SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGE
   case SQL_ATTR_METADATA_ID:
     /* SQL_ATTR_METADATA_ID is SQLUINTEGER attribute on connection level, but SQLULEN on statement level :/ */
     *(SQLUINTEGER *)ValuePtr= MetadataId;
+    break;
   case SQL_ATTR_ODBC_CURSORS:
     *(SQLULEN*)ValuePtr= SQL_CUR_USE_DRIVER;
     break;
@@ -1052,7 +1053,7 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
   /* I guess it is better not to do that at all. Besides SQL_ATTR_PACKET_SIZE is actually not for max packet size */
   if (PacketSize)
   {
-    /*_snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld",  PacketSize);
+    /*snprintf(StmtStr, 128, "SET GLOBAL max_allowed_packet=%ld",  PacketSize);
     if (mysql_query(mariadb, StmtStr))
       goto err;*/
   }
@@ -1423,7 +1424,7 @@ SQLRETURN MADB_Dbc::GetInfo(SQLUSMALLINT InfoType, SQLPOINTER InfoValuePtr,
       if (mariadb)
       {
         ServerVersion= mysql_get_server_version(mariadb);
-        _snprintf(Version, sizeof(Version), "%02u.%02u.%06u", ServerVersion / 10000,
+        snprintf(Version, sizeof(Version), "%02u.%02u.%06u", ServerVersion / 10000,
                     (ServerVersion % 10000) / 100, ServerVersion % 100);
       }
       else

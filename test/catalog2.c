@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2017, 2024 MariaDB Corporation AB
+                2017, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -320,10 +320,10 @@ ODBC_TEST(t_bug50195)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE bug50195 (i INT NOT NULL)");
 
   /* Basically this can be used for Travis as well, and the if's above and below can be removed*/
-  _snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
-  _snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
-  _snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
-  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
+  snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
+  snprintf(createUser, sizeof(createUser), "CREATE USER bug50195@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  snprintf(grantAll, sizeof(grantAll), "GRANT ALL ON bug50195 TO bug50195@'%s'", my_host);
+  snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT ON bug50195 FROM bug50195@'%s'", my_host);
   SQLExecDirect(Stmt, dropUser, SQL_NTS);
 
   OK_SIMPLE_STMT(Stmt, createUser);
@@ -1712,14 +1712,14 @@ ODBC_TEST(odbc316)
   OK_SIMPLE_STMT(Stmt, "CREATE TABLE odbc316_2(pk INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, fk INTEGER NOT NULL,"
                        "FOREIGN KEY (fk) REFERENCES odbc316_1(pk1))");
 
-  _snprintf(grant, sizeof(grant), "GRANT INSERT (pk1), SELECT (pk1), UPDATE (pk1) ON odbc316_1 TO %s", my_uid);
+  snprintf(grant, sizeof(grant), "GRANT INSERT (pk1), SELECT (pk1), UPDATE (pk1) ON odbc316_1 TO %s", my_uid);
 
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
   {
     /* We could not set col privileges, thus SQLColumnPrivileges will return empty set anyway. There is no sense to test */
     runColumnPrivileges= FALSE;
   }
-  _snprintf(grant, sizeof(grant), "GRANT INSERT, SELECT, UPDATE, DROP ON odbc316_1 TO %s", my_uid);
+  snprintf(grant, sizeof(grant), "GRANT INSERT, SELECT, UPDATE, DROP ON odbc316_1 TO %s", my_uid);
   if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, grant, SQL_NTS)))
   {
     /* We could not set table privileges, thus SQLTablePrivileges will return empty set anyway. There is no sense to test */
@@ -2025,16 +2025,16 @@ ODBC_TEST(odbc391)
   is_num(2, my_print_non_format_result(Stmt));
   /* my_print_non_format_result closes cursor */
 
-  _snprintf(dropUser, sizeof(dropUser), "DROP USER Odbc391@'%s'", my_host);
+  snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
   /* we can have error, if there is simply no such user, and that is supposed to be the case, actually */
   SQLExecDirect(Stmt, dropUser, SQL_NTS);
-  _snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
+  snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);
   CHECK_USER_OPERATION(Stmt, createUser);
-  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  snprintf(grantAll, sizeof(grantAll), "GRANT SELECT ON t_Odbc391 TO Odbc391@'%s'", my_host);
   CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
-  _snprintf(grantAll, sizeof(grantAll), "GRANT SELECT(id,ts,a) ON t_Odbc391 TO Odbc391@'%s'", my_host);
+  snprintf(grantAll, sizeof(grantAll), "GRANT SELECT(id,ts,a) ON t_Odbc391 TO Odbc391@'%s'", my_host);
   CHECK_USER_OPERATIONX(Stmt, grantAll, dropUser);
-  _snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT(ts) ON t_Odbc391 FROM Odbc391@'%s'", my_host);
+  snprintf(revokeSelect, sizeof(revokeSelect), "REVOKE SELECT(ts) ON t_Odbc391 FROM Odbc391@'%s'", my_host);
   CHECK_USER_OPERATIONX(Stmt, revokeSelect, dropUser);
 
   CHECK_STMT_RC(Stmt, SQLTablePrivileges(Stmt, dbname, (SQLSMALLINT)dbnameLen, NULL, 0, tname, (SQLSMALLINT)tnameLen));
@@ -2074,6 +2074,96 @@ ODBC_TEST(odbc435)
 }
 
 
+/* Length of the longest name the server can have - 64 characters of maximum 4 bytes each(NAME_LEN) */
+#define ODBC504_MAX_NAME_LEN 256
+/* Each of the calls in odbc504 has to be rejected by the driver with HY090(S1009 for an ODBC2 application) */
+#define ODBC504_EXPECT_HY090(_Call) do {\
+    EXPECT_STMT(Stmt, (_Call), SQL_ERROR);\
+    CHECK_SQLSTATE(Stmt, IS_ODBC3() ? "HY090" : "S1009");\
+  } while(0)
+
+/*
+  ODBC-504 - The name parameters of the catalog functions, that the driver uses to construct the query,
+  cannot be longer than the maximum name length the server supports. Such name is not only useless -
+  it also overruns the fixed size buffer, where the driver escapes the value. Thus it has to be
+  rejected with HY090 before the query is constructed
+ */
+ODBC_TEST(odbc504)
+{
+  char TooLong[ODBC504_MAX_NAME_LEN + 2], MaxLen[ODBC504_MAX_NAME_LEN + 1];
+
+  memset(TooLong, 'a', sizeof(TooLong) - 1);
+  TooLong[sizeof(TooLong) - 1]= '\0';
+  memset(MaxLen, 'a', sizeof(MaxLen) - 1);
+  MaxLen[sizeof(MaxLen) - 1]= '\0';
+
+  /* SQLTables */
+  ODBC504_EXPECT_HY090(SQLTables(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLTables(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  /* The length does not have to be SQL_NTS for the driver to catch it */
+  ODBC504_EXPECT_HY090(SQLTables(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, (SQLSMALLINT)strlen(TooLong), NULL, 0));
+
+  /* SQLColumns */
+  ODBC504_EXPECT_HY090(SQLColumns(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLColumnPrivileges - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLColumnPrivileges(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumnPrivileges(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLColumnPrivileges(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLTablePrivileges */
+  ODBC504_EXPECT_HY090(SQLTablePrivileges(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLTablePrivileges(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLStatistics - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLStatistics(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS,
+                                     SQL_INDEX_ALL, SQL_QUICK));
+  ODBC504_EXPECT_HY090(SQLStatistics(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK));
+
+  /* SQLPrimaryKeys - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLPrimaryKeys(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLPrimaryKeys(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLSpecialColumns - TableName is mandatory */
+  ODBC504_EXPECT_HY090(SQLSpecialColumns(Stmt, SQL_BEST_ROWID, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0,
+                                         (SQLCHAR*)"t_odbc504", SQL_NTS, SQL_SCOPE_CURROW, SQL_NULLABLE));
+  ODBC504_EXPECT_HY090(SQLSpecialColumns(Stmt, SQL_BEST_ROWID, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS,
+                                         SQL_SCOPE_CURROW, SQL_NULLABLE));
+
+  /* SQLProcedures */
+  ODBC504_EXPECT_HY090(SQLProcedures(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"p_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLProcedures(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLProcedureColumns */
+  ODBC504_EXPECT_HY090(SQLProcedureColumns(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"p_odbc504", SQL_NTS,
+                                           NULL, 0));
+  ODBC504_EXPECT_HY090(SQLProcedureColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLProcedureColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)"p_odbc504", SQL_NTS,
+                                           (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* SQLForeignKeys - PKTableName or FKTableName is required */
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, (SQLCHAR*)"t_odbc504", SQL_NTS,
+                                      NULL, 0, NULL, 0, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0, NULL, 0, NULL, 0));
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS, NULL, 0,
+                                      (SQLCHAR*)"t_odbc504", SQL_NTS));
+  ODBC504_EXPECT_HY090(SQLForeignKeys(Stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR*)TooLong, SQL_NTS));
+
+  /* The name of the maximum allowed length is not an error - it simply matches nothing */
+  CHECK_STMT_RC(Stmt, SQLTables(Stmt, (SQLCHAR*)MaxLen, SQL_NTS, NULL, 0, (SQLCHAR*)MaxLen, SQL_NTS, NULL, 0));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLColumns(Stmt, NULL, 0, NULL, 0, (SQLCHAR*)MaxLen, SQL_NTS, (SQLCHAR*)MaxLen, SQL_NTS));
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bug37621, "t_bug37621", NORMAL},
@@ -2105,6 +2195,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc361, "odbc361_unique_with_nulls",        NORMAL},
   {odbc391, "odbc391_mixed_case_names",         NORMAL},
   {odbc435, "odbc435_PK_flds_order_and_seq_num",NORMAL},
+  {odbc504, "odbc504_too_long_name_parameters",  NORMAL},
   {NULL, NULL}
 };
 

@@ -202,12 +202,12 @@ size_t MADB_ConvertNumericToChar(SQL_NUMERIC_STRUCT *Numeric, char *Buffer, int 
   {
     Denominator= DenominatorTable[Scale];// pow(10, Scale);
     char tmp[10 /*1 sign + 1 % + 1 dot + 3 scale + 1f + 1\0 */];
-    _snprintf(tmp, sizeof(tmp), "%s%%.%df", Numeric->sign ? "" : "-", Numeric->scale);
-    _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, tmp, Numerator / Denominator);
+    snprintf(tmp, sizeof(tmp), "%s%%.%df", Numeric->sign ? "" : "-", Numeric->scale);
+    snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, tmp, Numerator / Denominator);
   }
   else
   {
-    _snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, "%s%llu", Numeric->sign ? "" : "-", Numerator);
+    snprintf(Buffer, MADB_CHARSIZE_FOR_NUMERIC, "%s%llu", Numeric->sign ? "" : "-", Numerator);
     /* Checking Truncation for negative/zero scale before adding 0 */
     Length= strlen(Buffer) - (Numeric->sign ? 0 : 1);
     if (Length > Numeric->precision)
@@ -776,17 +776,16 @@ SQLRETURN MADB_C2SQL(MADB_Stmt* Stmt, MADB_DescRecord *CRec, MADB_DescRecord *Sq
 
   if (PARAM_IS_DAE(OctetLengthPtr))
   {
-    if (!DAE_DONE(Stmt))
-    {
-      return SQL_NEED_DATA;
-    }
-    else
-    {
-      MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
-      /* I guess we can live w/out this. Keeping it so far for safety */
-      MaBind->long_data_used= '\1';
-      return SQL_SUCCESS;
-    }
+    /* The value of such parameter is sent to the server on its own with mysql_stmt_send_long_data,
+       and the C/C does not put the parameter into the row packet at all. But the type still has to
+       be set in the bind - the types are sent for all the parameters. We should not set long_data_used  - 
+       this field is privately owned by C/C(mysql_stmt_bind_param resets it,
+       it is marked by mysql_stmt_send_long_data and mysql_stmt_execute, that consumes and resets the mark)
+    */
+    MaBind->buffer_type= MADB_GetMaDBTypeAndLength(CRec->ConciseType, &MaBind->is_unsigned, &MaBind->buffer_length);
+    /* The caller has to finish the paramset and to push it before the application starts sending
+       the value(s) */
+    return DAE_DONE(Stmt) ? SQL_SUCCESS : SQL_NEED_DATA;
   }    /* -- End of DAE parameter processing -- */
 
   if (IndicatorPtr && MADB_ProcessIndicator(Stmt, *IndicatorPtr, CRec->DefaultValue, MaBind))

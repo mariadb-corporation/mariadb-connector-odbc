@@ -1,0 +1,7 @@
+{
+  "skip-analysis-in-path": [
+    ".*test.*",
+    ".*libmariadb.*",
+  ]
+  "skip-analysis-in-path-skips-compilation": true
+}

@@ -101,7 +101,8 @@ SQLRETURN    MADB_StmtInit          (MADB_Dbc *Connection, SQLHANDLE *pHStmt, bo
 void         MADB_DeleteDaeStmt     (MADB_Stmt *Stmt);
 ResultSetMetaData* FetchMetadata    (MADB_Stmt *Stmt, bool early= false);
 SQLRETURN    MADB_DoExecuteBatch();
-SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt);
+void         MADB_PushParams        (MADB_Stmt *Stmt);
+SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, bool ParamsPushed= false);
 void         MADB_CloseCursor       (MADB_Stmt *Stmt);
 
 #define MADB_MAX_CURSOR_NAME 64 * 4 + 1

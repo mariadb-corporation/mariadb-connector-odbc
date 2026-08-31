@@ -182,7 +182,7 @@ ODBC_TEST(defaults_via_connstring)
     /* Testing only for the value different to the one recorded as default in 1st test,
      * assuming that value has been tested 
      */
-    _snprintf(addOption, sizeof(addOption), "%s=%d", connstringOption[i],
+    snprintf(addOption, sizeof(addOption), "%s=%d", connstringOption[i],
       attributesTestDefault[i] == SQL_FALSE ? 1 : 0);
     CHECK_ENV_RC(Env, SQLAllocConnect(Env, &conn));
     stmt= DoConnect(conn, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, addOption);

@@ -162,8 +162,10 @@ char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
     strcpy_s(error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, MARIADB_ODBC_ERR_PREFIX);
     if (dbc != NULL && dbc->mariadb != NULL)
     {
-      error->PrefixLen += _snprintf(error->SqlErrorMsg + error->PrefixLen,
-        SQL_MAX_MESSAGE_LENGTH + 1 - error->PrefixLen, "[%s]", mysql_get_server_info(dbc->mariadb)); 
+      // We need to limit the lenght of server since it comes from the server, and we can't always trust
+      // the server(mitm/hijacking). 32 characters looks to be enough for descriptive version strng.
+      error->PrefixLen += snprintf(error->SqlErrorMsg + error->PrefixLen,
+        SQL_MAX_MESSAGE_LENGTH + 1 - error->PrefixLen, "[%.32s]", mysql_get_server_info(dbc->mariadb)); 
     }
   }
   return error->SqlErrorMsg + error->PrefixLen;

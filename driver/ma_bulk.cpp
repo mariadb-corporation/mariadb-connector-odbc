@@ -284,7 +284,7 @@ bool MADB_Stmt::setParamRowCallback(ParamCodec* callback)
 SQLRETURN MADB_Stmt::doBulkOldWay(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, SQLLEN* IndicatorPtr, SQLLEN* OctetLengthPtr, void* DataPtr,
   MYSQL_BIND* MaBind, unsigned int& IndIdx, unsigned int ParamOffset)
 {
-  SQLULEN row, Start= ArrayOffset;
+  SQLULEN row;
   unsigned long Dummy;
   /* Well, specs kinda say, that both values and lenghts arrays should be set(in instruction to param array operations)
          But there is no error/sqlstate for the case if any of those pointers is not set. Thus we assume that is possible */
@@ -309,7 +309,7 @@ SQLRETURN MADB_Stmt::doBulkOldWay(uint32_t parNr, MADB_DescRecord* CRec, MADB_De
   }
 
   /* We either have skipped rows or need to convert parameter values/convert array */
-  for (row= Start; row < Start + Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
+  for (row= 0; row < Apd->Header.ArraySize; ++row, DataPtr= (char*)DataPtr + CRec->OctetLength)
   {
     void *Buffer= (char*)MaBind->buffer + row * MaBind->buffer_length;
     void **BufferPtr= (void**)Buffer; /* For the case when Buffer points to the pointer already */
@@ -520,13 +520,13 @@ SQLRETURN MADB_ExecuteBulk(MADB_Stmt *Stmt, unsigned int ParamOffset)
   {
     if (!useCallbacks)
     {
-      SQLULEN row, Start= Stmt->ArrayOffset;
+      SQLULEN row;
       if (IndIdx == (unsigned int)-1)
       {
         IndIdx= 0;
       }
 
-      for (row= Start; row < Start + Stmt->Apd->Header.ArraySize; ++row)
+      for (row= 0; row < Stmt->Apd->Header.ArraySize; ++row)
       {
         if (Stmt->Apd->Header.ArrayStatusPtr[row] == SQL_PARAM_IGNORE)
         {

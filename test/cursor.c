@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2025 MariaDB Corporation plc
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1526,7 +1526,7 @@ ODBC_TEST(tmysql_pos_update_ex3)
 
   CHECK_DBC_RC(Connection, SQLAllocStmt(Connection, &hstmt1));
 
-  _snprintf((char*)sql, sizeof(sql),
+  snprintf((char*)sql, sizeof(sql),
     "UPDATE t_pos_updex3 SET a = 999, b = ? WHERE CURRENT OF %s", cursor);
 
   /* In case of RS streaming this returns not the error this test expects. Thus the error should be verified to be
@@ -3681,6 +3681,268 @@ ODBC_TEST(odbc505)
 }
 
 
+/* ODBC-499 - buffer overflows in case of array fetch. And in general bookmarks did not work in case of array fetch,
+   and even less they worked in case of row-wise array binding(but less chance of buffer overflows).
+   Also we lacked proper test of bookmarks mechanichs, so the test does it all - remembering bookmarks of all rows
+   jumping to them, checking if the jump is correct. For single row fetch and for column- and row- array bindings */
+#define ODBC499_ROWS 4
+#define ODBC499_BMK_SIZE sizeof(SQLULEN)
+/* Extra elements in the end of the bookmarks array. They are never bound, and have to stay intact - i.e. the driver
+   may not write outside of the array, that is ODBC499_ROWS elements long */
+#define ODBC499_GUARD_ROWS 12
+
+/* The structure for the row-wise binding. All buffers of the row, including the bookmark and the indicators,
+   are its members */
+typedef struct
+{
+  SQLCHAR    bmk[ODBC499_BMK_SIZE];
+  SQLLEN     bmkLen;
+  SQLINTEGER id;
+  SQLLEN     idLen;
+  SQLCHAR    val[16];
+  SQLLEN     valLen;
+} ODBC499_ROW;
+
+ODBC_TEST(odbc499)
+{
+  /* The bmk array is used to remember bookmarks of all rows, and it is also bound as the bookmark column in case
+     of the array fetch. Extending the array to catch buffer overflow */
+  SQLCHAR     bookmark[ODBC499_BMK_SIZE], bmk[ODBC499_ROWS + ODBC499_GUARD_ROWS][ODBC499_BMK_SIZE];
+  SQLLEN      bmkLen[ODBC499_ROWS], idLen[ODBC499_ROWS], valLen[ODBC499_ROWS];
+  SQLINTEGER  id= 0, idArr[ODBC499_ROWS];
+  SQLCHAR     val[16], valArr[ODBC499_ROWS][16];
+  SQLUSMALLINT rowStatus[ODBC499_ROWS];
+  SQLULEN     rowsFetched= 0, bindType= 0;
+  /* Same as with the bmk array - the tail elements are the guard, and the driver may not touch them */
+  ODBC499_ROW rowArr[ODBC499_ROWS + ODBC499_GUARD_ROWS];
+  const char* value[ODBC499_ROWS]= {"one", "two", "three", "four"};
+  /* Arbitrary order, in which the rows are fetched by their bookmarks */
+  const int   order[ODBC499_ROWS]= {2, 0, 3, 1};
+  /* Offsets to the bookmark of the 2nd row(index 1), that all result in a valid position */
+  const SQLLEN offset[]= {0, 1, 2, -1};
+  int         i, j, row;
+
+  SKIPIF(ForwardOnly, "The test requires scrollable cursor");
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc499");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc499(id INT NOT NULL PRIMARY KEY, val VARCHAR(15) NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc499 VALUES(1, 'one'), (2, 'two'), (3, 'three'), (4, 'four')");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_USE_BOOKMARKS, (SQLPOINTER)SQL_UB_VARIABLE, 0));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_odbc499 ORDER BY id");
+
+  memset(bookmark, 0, sizeof(bookmark));
+  memset(bmk, 0, sizeof(bmk));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 0, SQL_C_VARBOOKMARK, bookmark, sizeof(bookmark), bmkLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, idLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, val, sizeof(val), valLen));
+
+  /* Walking thru the resultset and remembering the bookmark of each row */
+  for (i= 0; i < ODBC499_ROWS; ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(id, i + 1);
+    IS_STR(val, value[i], strlen(value[i]) + 1);
+    memcpy(bmk[i], bookmark, sizeof(bookmark));
+    /* Bookmarks of different rows have to be different */
+    for (j= 0; j < i; ++j)
+    {
+      FAIL_IF(memcmp(bmk[i], bmk[j], sizeof(bookmark)) == 0, "Rows have equal bookmarks");
+    }
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  /* The driver is supposed to take the bookmark to fetch by from the buffer, that SQL_ATTR_FETCH_BOOKMARK_PTR
+     points to. We use here the very buffer, that is bound as the bookmark column, so the test works also if the
+     driver takes the bookmark from the bound buffer */
+  if (!SQL_SUCCEEDED(SQLSetStmtAttr(Stmt, SQL_ATTR_FETCH_BOOKMARK_PTR, bookmark, SQL_IS_POINTER)))
+  {
+    diag("SQL_ATTR_FETCH_BOOKMARK_PTR is not supported - relying on the buffer bound as the bookmark column");
+  }
+
+  /* Fetching rows by their bookmarks in arbitrary order. Note, that each fetch overwrites the bookmark buffer
+     with the bookmark of the fetched row, and thus it has to be set anew before each fetch */
+  for (i= 0; i < ODBC499_ROWS; ++i)
+  {
+    row= order[i];
+    memcpy(bookmark, bmk[row], sizeof(bookmark));
+    id= 0;
+    val[0]= '\0';
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, 0));
+    is_num(id, row + 1);
+    IS_STR(val, value[row], strlen(value[row]) + 1);
+  }
+
+  /* Now the same bookmark, but with different offsets */
+  for (i= 0; i < (int)(sizeof(offset)/sizeof(offset[0])); ++i)
+  {
+    row= 1 + (int)offset[i];
+    memcpy(bookmark, bmk[1], sizeof(bookmark));
+    id= 0;
+    val[0]= '\0';
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, offset[i]));
+    is_num(id, row + 1);
+    IS_STR(val, value[row], strlen(value[row]) + 1);
+  }
+
+  /* Offsets, that move the cursor outside of the resultset - after its end and before its start */
+  memcpy(bookmark, bmk[1], sizeof(bookmark));
+  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, ODBC499_ROWS - 1), SQL_NO_DATA);
+  memcpy(bookmark, bmk[1], sizeof(bookmark));
+  EXPECT_STMT(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, -2), SQL_NO_DATA);
+
+  /* The cursor has to be still usable after that */
+  memcpy(bookmark, bmk[ODBC499_ROWS - 1], sizeof(bookmark));
+  id= 0;
+  val[0]= '\0';
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, 0));
+  is_num(id, ODBC499_ROWS);
+  IS_STR(val, value[ODBC499_ROWS - 1], strlen(value[ODBC499_ROWS - 1]) + 1);
+
+  /* Now the same with the array fetch - all rows of the resultset are fetched at once, and the bookmarks
+     of all of them are expected in the bmk array */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)ODBC499_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROWS_FETCHED_PTR, &rowsFetched, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_STATUS_PTR, rowStatus, 0));
+  /* Column-wise binding is what we need here, and it is also the default */
+  CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_TYPE, &bindType, SQL_IS_UINTEGER, NULL));
+  is_num(bindType, SQL_BIND_BY_COLUMN);
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_odbc499 ORDER BY id");
+
+  memset(bmk, 0, sizeof(bmk));
+  memset(idArr, 0, sizeof(idArr));
+  memset(valArr, 0, sizeof(valArr));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 0, SQL_C_VARBOOKMARK, bmk, ODBC499_BMK_SIZE, bmkLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, idArr, 0, idLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, valArr, sizeof(valArr[0]), valLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(rowsFetched, ODBC499_ROWS);
+
+  for (i= 0; i < ODBC499_ROWS; ++i)
+  {
+    is_num(rowStatus[i], SQL_ROW_SUCCESS);
+    is_num(idArr[i], i + 1);
+    IS_STR(valArr[i], value[i], strlen(value[i]) + 1);
+    /* Bookmarks of different rows of the rowset have to be different */
+    for (j= 0; j < i; ++j)
+    {
+      if (memcmp(bmk[i], bmk[j], ODBC499_BMK_SIZE) == 0)
+      {
+        diag("Bookmark[%d]%llu=Bookmark[%d]%llu", i,*(unsigned long long*)bmk[i],
+          j, *(unsigned long long*)bmk[j]);
+        FAIL_IF(1, "Rows of the rowset have equal bookmarks");
+      }
+    }
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  /* The driver may not write bookmarks past the end of the bound array */
+  for (i= ODBC499_ROWS; i < ODBC499_ROWS + ODBC499_GUARD_ROWS; ++i)
+  {
+    for (j= 0; j < (int)ODBC499_BMK_SIZE; ++j)
+    {
+      FAIL_IF(bmk[i][j] != 0, "The bookmarks array has been written past its end");
+    }
+  }
+
+  /* Verifying the bookmarks we've just got - each of them has to position the cursor on its row. Switching back
+     to the single row fetch, and binding the bookmark column to the standalone buffer, so the bmk array stays intact */
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 0, SQL_C_VARBOOKMARK, bookmark, sizeof(bookmark), bmkLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, idLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, val, sizeof(val), valLen));
+
+  for (i= 0; i < ODBC499_ROWS; ++i)
+  {
+    row= order[i];
+    memcpy(bookmark, bmk[row], ODBC499_BMK_SIZE);
+    id= 0;
+    val[0]= '\0';
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, 0));
+    is_num(rowsFetched, 1);
+    is_num(id, row + 1);
+    IS_STR(val, value[row], strlen(value[row]) + 1);
+  }
+
+  /* And now the same array fetch, but with the row-wise binding - all buffers of a row are the members of the
+     ODBC499_ROW structure, and the driver has to stride over the array of them by the structure size */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)ODBC499_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_TYPE, (SQLPOINTER)sizeof(ODBC499_ROW), 0));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, val FROM t_odbc499 ORDER BY id");
+
+  memset(rowArr, 0, sizeof(rowArr));
+  /* In case of the row-wise binding all buffers are those of the 1st element of the array */
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 0, SQL_C_VARBOOKMARK, rowArr[0].bmk, ODBC499_BMK_SIZE, &rowArr[0].bmkLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &rowArr[0].id, 0, &rowArr[0].idLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, rowArr[0].val, sizeof(rowArr[0].val), &rowArr[0].valLen));
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(rowsFetched, ODBC499_ROWS);
+
+  for (i= 0; i < ODBC499_ROWS; ++i)
+  {
+    is_num(rowStatus[i], SQL_ROW_SUCCESS);
+    is_num(rowArr[i].id, i + 1);
+    IS_STR(rowArr[i].val, value[i], strlen(value[i]) + 1);
+    for (j= 0; j < i; ++j)
+    {
+      if (memcmp(rowArr[i].bmk, rowArr[j].bmk, ODBC499_BMK_SIZE) == 0)
+      {
+        diag("Bookmark[%d]%llu=Bookmark[%d]%llu", i, *(unsigned long long*)rowArr[i].bmk,
+          j, *(unsigned long long*)rowArr[j].bmk);
+        FAIL_IF(1, "Rows of the rowset have equal bookmarks");
+      }
+    }
+  }
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  /* The driver may not write past the end of the bound array of the structures */
+  for (i= ODBC499_ROWS; i < ODBC499_ROWS + ODBC499_GUARD_ROWS; ++i)
+  {
+    for (j= 0; j < (int)sizeof(ODBC499_ROW); ++j)
+    {
+      FAIL_IF(((SQLCHAR*)&rowArr[i])[j] != 0, "The array of the row structures has been written past its end");
+    }
+  }
+
+  /* Verifying the bookmarks, that the row-wise fetch has returned */
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)1, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_ROW_BIND_TYPE, (SQLPOINTER)SQL_BIND_BY_COLUMN, 0));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 0, SQL_C_VARBOOKMARK, bookmark, sizeof(bookmark), bmkLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 1, SQL_C_LONG, &id, 0, idLen));
+  CHECK_STMT_RC(Stmt, SQLBindCol(Stmt, 2, SQL_C_CHAR, val, sizeof(val), valLen));
+
+  for (i= 0; i < ODBC499_ROWS; ++i)
+  {
+    row= order[i];
+    memcpy(bookmark, rowArr[row].bmk, ODBC499_BMK_SIZE);
+    id= 0;
+    val[0]= '\0';
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_BOOKMARK, 0));
+    is_num(rowsFetched, 1);
+    is_num(id, row + 1);
+    IS_STR(val, value[row], strlen(value[row]) + 1);
+  }
+
+  /* Cleaning up */
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_USE_BOOKMARKS, (SQLPOINTER)SQL_UB_OFF, 0));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc499");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_positioned_cursor, "my_positioned_cursor",     NORMAL},
@@ -3735,6 +3997,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc276, "odbc276-bin_update", NORMAL, SkipIfRsStreaming},
   {odbc289, "odbc289-fech_after_close", NORMAL},
   {odbc356, "odbc356-key_cursor", NORMAL, SkipIfRsStreaming},
+  {odbc499, "odbc499-bookmarks", NORMAL, SkipIfRsStreaming},
   {odbc505, "odbc505-quoted_key_name", NORMAL, SkipIfRsStreaming},
   {NULL, NULL, 0, NULL}
 };

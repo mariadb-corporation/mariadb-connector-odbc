@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2025 MariaDB Corporation plc
+   Copyright (C) 2013, 2026 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -87,12 +87,12 @@ int MADB_KeyTypeCount(MADB_Dbc *Connection, char *TableName, int *PrimaryKeysCou
   
   // It shouldn't be current but the one from the query
   Connection->GetAttr(SQL_ATTR_CURRENT_CATALOG, Database, sizeof(Database), NULL, FALSE);
-  p+= _snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
+  p+= snprintf(p, sizeof(StmtStr), "SELECT * FROM ");
   if (Database[0] != '\0')
   {
-    p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
+    p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "`%s`.", Database);
   }
-  p+= _snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
+  p+= snprintf(p, sizeof(StmtStr) - (p - StmtStr), "%s LIMIT 0", TableName);
   std::lock_guard<std::mutex> localScopeLock(Connection->guard->getLock());
   Connection->guard->safeRealQuery({StmtStr, (std::size_t)(p - StmtStr)});
   if ((Res= mysql_store_result(Connection->mariadb)) != nullptr)
@@ -1062,7 +1062,7 @@ int MADB_CharToSQLNumeric(char *buffer, MADB_Desc *Ard, MADB_DescRecord *ArdReco
         return MADB_ERR_22003;
       }
       /* Assuming that buffer is always big enough */
-      digits_count= _snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
+      digits_count= snprintf(digits, sizeof(digits), "%lld", Val/RoundNumber);
       if (digits_count > number->precision)
         return MADB_ERR_22003;
     }
@@ -1190,28 +1190,31 @@ SQLRETURN MADB_DaeStmt(MADB_Stmt *Stmt, SQLUSMALLINT Operation)
   return Stmt->Error.ReturnValue;
 }
 
-
+/* RowNumber -1 means to walk all rows */
 int MADB_FindNextDaeParam(MADB_Desc *Desc, int InitialParam, SQLSMALLINT RowNumber)
 {
   int             i;
   MADB_DescRecord *Record;
+  SQLULEN row= RowNumber > 1 ? RowNumber - 1 : 0,
+    lastRow= RowNumber == -1 ? Desc->Header.ArraySize : row + 1;
 
-  for (i= InitialParam > -1 ? InitialParam + 1 : 0; i < Desc->Header.Count; i++)
+  for (; row < lastRow; ++row)
   {
-    if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
+    for (i= InitialParam > -1 ? InitialParam + 1 : 0; i < Desc->Header.Count; i++)
     {
-      if (Record->OctetLengthPtr)
+      if ((Record= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ)))
       {
-        /* Stmt->DaeRowNumber is 1 based */
-        SQLLEN *OctetLength= (SQLLEN *)GetBindOffset(Desc->Header, Record->OctetLengthPtr, RowNumber > 1 ? RowNumber - 1 : 0, sizeof(SQLLEN));
-        if (PARAM_IS_DAE(OctetLength))
+        if (Record->OctetLengthPtr)
         {
-          return i;
+          SQLLEN* OctetLength= (SQLLEN*)GetBindOffset(Desc->Header, Record->OctetLengthPtr, row, sizeof(SQLLEN));
+          if (PARAM_IS_DAE(OctetLength))
+          {
+            return i;
+          }
         }
       }
     }
   }
-
   return MADB_NOPARAM;
 }
 

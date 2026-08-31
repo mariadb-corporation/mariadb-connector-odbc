@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013, 2024 MariaDB Corporation AB
+   Copyright (C) 2013, 2026 MariaDB Corporation plc
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -626,7 +626,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
 /* }}} */
 
 /* {{{ MADB_DescGetInternalRecord */
-MADB_DescRecord *MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type)
+MADB_DescRecord* MADB_DescGetInternalRecord(MADB_Desc *Desc, SQLSMALLINT RecordNumber, SQLSMALLINT Type)
 {
   MADB_DescRecord *DescRecord;
 
@@ -1044,11 +1044,20 @@ SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
   SQLLEN Length;
 
   MADB_CLEAR_ERROR(&Desc->Error);
-
-  if (!(Record= MADB_DescGetInternalRecord(Desc, RecNumber, MADB_DESC_READ)))
+  if (RecNumber == 0 || RecNumber > Desc->Header.Count)
   {
-    MADB_SetError(&Desc->Error, MADB_ERR_07009, nullptr, 0);
-    return Desc->Error.ReturnValue;
+    // Specs say it has not be SQL_NO_DATA if not existent RecNumber is requested.
+    return SQL_NO_DATA;
+  }
+
+  // MADB_DescGetInternalRecord gets 0 based RecNumber index but at same time it does not consider bookmarks and does not
+  // have bookmark record. For now consider bookmark index as invalid.
+  if (!(Record= MADB_DescGetInternalRecord(Desc, --RecNumber, MADB_DESC_READ)))
+  {
+    //SHouldn't really happen, but leaving it in place - better safe than sorry.
+    // If it happens, it is a bug in the driver.
+    MADB_SetError(&Desc->Error, MADB_ERR_07009, "Descriptor does not exist. Should not happen.", 0);
+    return SQL_NO_DATA;
   }
   
   /* SQL_DESC_NAME */
@@ -1058,24 +1067,42 @@ SQLRETURN MADB_DescGetRec(SQLHDESC Handle,
   Record->Unnamed= SQL_NAMED;
 
   /* SQL_DESC_TYPE */
-  *(SQLSMALLINT *)TypePtr= (SQLSMALLINT)Record->Type;
+  if (TypePtr)
+  {
+    *(SQLSMALLINT*)TypePtr= (SQLSMALLINT)Record->Type;
+  }
 
   /* SQL_DESC_DATETIME_INTERVAL_CODE */
-  *(SQLSMALLINT *)SubTypePtr= Record->DateTimeIntervalCode;
+  if (SubTypePtr)
+  {
+    *(SQLSMALLINT*)SubTypePtr= Record->DateTimeIntervalCode;
+  }
 
   /* SQL_DESC_OCTET_LENGTH */
-  *(SQLLEN *)LengthPtr= (SQLLEN)Record->OctetLength;
+  if (LengthPtr)
+  {
+    *(SQLLEN*)LengthPtr= (SQLLEN)Record->OctetLength;
+  }
 
   /* SQL_DESC_PRECISION */
-  *(SQLSMALLINT *)PrecisionPtr= (SQLSMALLINT)Record->Precision;
+  if (PrecisionPtr)
+  {
+    *(SQLSMALLINT *)PrecisionPtr= (SQLSMALLINT)Record->Precision;
+  }
 
   /* SQL_DESC_SCALE */
-  *(SQLSMALLINT *)ScalePtr= (SQLSMALLINT)Record->Scale;
+  if (ScalePtr)
+  {
+    *(SQLSMALLINT*)ScalePtr= (SQLSMALLINT)Record->Scale;
+  }
 
   /* SQL_DESC_NULLABLE */
-  *(SQLSMALLINT *)NullablePtr= (SQLSMALLINT)Record->Nullable;
-
-  return SQL_SUCCESS;
+  if (NullablePtr)
+  {
+    *(SQLSMALLINT*)NullablePtr= (SQLSMALLINT)Record->Nullable;
+  }
+  // MADB_SetString can set SQL_SUCCESS_WITH_INFO warning if the buffer is too small
+  return Desc->Error.ReturnValue;
 }
 
 DescArrayIterator::DescArrayIterator(MADB_Header& header, MADB_DescRecord& rec, SQLSMALLINT i)

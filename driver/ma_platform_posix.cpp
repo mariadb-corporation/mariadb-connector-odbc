@@ -126,9 +126,19 @@ SQLINTEGER SqlwcsOctetLen(const SQLWCHAR *str, SQLINTEGER *CharLen)
   {
     while (inChars > 0 || (inChars < 0 && *str))
     {
-      result+= DmUnicodeCs->mb_charlen(*str);
+      // mb_charlen is byte-oriented - it should be fed the high byte. Basically that is needed for UTF16 case - with UTF32 all is simple
+      if (sizeof(SQLWCHAR) == 2)
+      {
+        unsigned int charBytesLen= DmUnicodeCs->mb_charlen(UTF16HIGHBYTE(*str));
+        result+= charBytesLen;
+        str+= charBytesLen/sizeof(SQLWCHAR);
+      }
+      else
+      {
+        result+= sizeof(SQLWCHAR); // Just not to use 4
+        ++str;
+      }
       --inChars;
-      str+= DmUnicodeCs->mb_charlen(*str)/sizeof(SQLWCHAR);
     }
   }
 
@@ -195,18 +205,14 @@ char *MADB_ConvertFromWChar(const SQLWCHAR *Ptr, SQLINTEGER PtrLength, SQLULEN *
 
   if (PtrLength == SQL_NTS)
   {
-    /*-1 - to calculate length as of nts */
-    SQLINTEGER InCharLen= -1;
-    PtrOctetLen= SqlwcsOctetLen(Ptr, &InCharLen);
-    /* Allocating +1 character for terminating symbol */
-    AscLen= (InCharLen+1)*cc->cs_info->char_maxlen;
+    PtrLength= SqlwcsLen(Ptr, -1);
   }
-  else
-  {
-    /* PtrLength is in characters. MADB_ConvertString(iconv) needs bytes */
-    PtrOctetLen= SqlwcsOctetLen(Ptr, &PtrLength);
-    AscLen= (PtrLength + (mustBeNullTerminated ? 1 : 0))*cc->cs_info->char_maxlen;
-  }
+  PtrOctetLen= PtrLength*sizeof(SQLWCHAR);
+  /* In worst case for 2 bytes of UTF16 in result, we need 3 bytes of utf8.
+  For ASCII  we need 2 times less(for 2 bytes of UTF16 - 1 byte UTF8,
+  in other cases we need same 2 of 4 bytes. */
+  /* Allocating +1 character for terminating symbol */
+  AscLen= PtrOctetLen*1.5 + 1 /* technically it should be cc->cs_info->char_minlen here, but we can safely use 1 here */;
 
   if (!(AscStr = (char *)MADB_CALLOC(AscLen)))
     return NULL;

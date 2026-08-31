@@ -234,6 +234,12 @@ enum MADB_DaeType {MADB_DAE_NORMAL=0, MADB_DAE_ADD=1, MADB_DAE_UPDATE=2, MADB_DA
 
 #define PARAM_IS_DAE(Len_Ptr) ((Len_Ptr) && (*(Len_Ptr) == SQL_DATA_AT_EXEC || *(Len_Ptr) <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 #define DAE_DONE(Stmt_Hndl) ((Stmt_Hndl)->PutParam >= (Stmt_Hndl)->ParamCount)
+/* The execution continues the one, that has been interrupted by a DAE parameter - the application
+   has supplied the value(s), and SQLParamData has brought us back. Only MARK_DAE_DONE can make
+   DAE_DONE true, and DaeRowNumber is only set by the interrupted execution itself. See the comment
+   in MADB_StmtExecute */
+#define MADB_RESUMING_DAE(Stmt_Hndl) ((Stmt_Hndl)->DataExecutionType == MADB_DAE_NORMAL &&\
+  DAE_DONE(Stmt_Hndl) && (Stmt_Hndl)->DaeRowNumber > 0)
 
 enum MADB_StmtState {MADB_SS_INITED= 0, MADB_SS_PREPARED= 2, MADB_SS_EXECUTED= 3, MADB_SS_OUTPARAMSFETCHED= 4};
 
@@ -327,8 +333,13 @@ struct MADB_Stmt
   MADB_Desc *IIpd;
 
   unsigned short            *UniqueIndex= nullptr; /* Insdexes of columns that make best available unique identifier */
+  /* 1 based number of the row/paramset, the DAE data is currently being put for, and that the
+     interrupted param array operation has to be resumed from. 0 - no DAE operation in progress */
   SQLSETPOSIROW             DaeRowNumber= 0;
-  int32_t                   ArrayOffset= 0;
+  /* Buffers with the values of the "WHERE CURRENT OF" condition parameters. The bind array, that is
+     handed over to the C/C, points to them, and thus they have to live till the execution, that can
+     be postponed by a DAE parameter, is over */
+  MADB_DynArray             PositionedParamValues{};
   uint32_t                  MultiStmtNr= 0;
   uint32_t                  MultiStmtMaxParam= 0;
   int32_t                   PutParam= -2;
@@ -410,6 +421,7 @@ void  CloseClientCharset(Client_Charset *cc);
   delete (a);\
   (a)= nullptr; \
 } while(0)
+#define UTF16HIGHBYTE(UTF16UNIT) (((UTF16UNIT) >> 8) & 0xFF)
 
 #include "ma_error.h"
 #include "ma_info.h"

@@ -1,5 +1,5 @@
 /************************************************************************************
-   Copyright (C) 2013,2025 MariaDB Corporation plc
+   Copyright (C) 2013,2026 MariaDB Corporation plc
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -640,14 +640,14 @@ void MADB_WIN_TestDsn(my_bool ShowSuccess)
       char DbmsName[16], DbmsVer[16];
       SQLGetInfo(Connection, SQL_DBMS_NAME, DbmsName, sizeof(DbmsName), NULL);
       SQLGetInfo(Connection, SQL_DBMS_VER, DbmsVer, sizeof(DbmsVer), NULL);
-      _snprintf(Info, sizeof(Info), "Connection successfully established\n\nServer Information: %s %s\n\nConnection String:\n\n%s", DbmsName, DbmsVer, ConnStr);
+      snprintf(Info, sizeof(Info), "Connection successfully established\n\nServer Information: %s %s\n\nConnection String:\n\n%s", DbmsName, DbmsVer, ConnStr);
       MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
     }
     else if (Connection != NULL)
     {
       SQLCHAR SqlState[6], ErrMsg[SQL_MAX_MESSAGE_LENGTH];
       SQLGetDiagRec(SQL_HANDLE_DBC,   Connection, 1, SqlState, NULL, ErrMsg, SQL_MAX_MESSAGE_LENGTH, NULL);
-      _snprintf(Info, sizeof(Info), "Connection failed: [%s] %s\n\nConnection String:\n\n%s", SqlState, ErrMsg, ConnStr);
+      snprintf(Info, sizeof(Info), "Connection failed: [%s] %s\n\nConnection String:\n\n%s", SqlState, ErrMsg, ConnStr);
       MessageBox(hwndTab[CurrentPage], Info, "Connection test", MB_ICONINFORMATION| MB_OK);
     }
     else

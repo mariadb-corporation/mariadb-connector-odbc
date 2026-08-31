@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2025 MariaDB Corporation plc
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -1223,7 +1223,7 @@ ODBC_TEST(t_odbc141)
   }
   // MySQL runs by default with --secure-file-priv these days execution of this statement disallowed. But such error basically means, that
   // the test passed
-  FAIL_IF(NativeError!=29 && NativeError != 13 && (!IsMysql || NativeError != 1290), "Expected 13 or 29 native error"); /* File not found or No such file or directory... */
+  FAIL_IF(NativeError!=29 && NativeError != 13 && NativeError != 1290, "Expected 13 or 29 or 1290native error"); /* File not found or No such file or directory... */
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
   OK_SIMPLE_STMT(Stmt, "DROP TABLE odbc141");
@@ -1277,7 +1277,7 @@ ODBC_TEST(t_mdev16708)
   {
     skip("The test requires min 10.6.0 version");
   }
-  _snprintf(query, sizeof(query), "USE `%s`", my_schema);
+  snprintf(query, sizeof(query), "USE `%s`", my_schema);
   CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, query, SQL_NTS));
   /* USE in particular won't support parameters */
   /* CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, my_schema, strlen(dbname), NULL)); */
@@ -1360,7 +1360,7 @@ ODBC_TEST(psCache)
   SQLHANDLE hdbc= NULL, hstmt, hstmt2= NULL;
   char cacheParams[64];
 
-  _snprintf(cacheParams, sizeof(cacheParams), "PREPONCLIENT=0;PSCACHESIZE=2;MAXCACHEKEY=%u",
+  snprintf(cacheParams, sizeof(cacheParams), "PREPONCLIENT=0;PSCACHESIZE=2;MAXCACHEKEY=%u",
     (unsigned int)(45 + 1 + strlen(my_schema)));
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
   hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, cacheParams);
@@ -1445,7 +1445,7 @@ ODBC_TEST(t_odbc438)
   const unsigned int cacheSize= 5;
   unsigned int i;
 
-  _snprintf(cacheParams, sizeof(cacheParams), "PREPONCLIENT=0;PSCACHESIZE=%u", cacheSize);
+  snprintf(cacheParams, sizeof(cacheParams), "PREPONCLIENT=0;PSCACHESIZE=%u", cacheSize);
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
   hstmt= DoConnect(hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, cacheParams);
 
@@ -1458,7 +1458,7 @@ ODBC_TEST(t_odbc438)
   {
     int newCount= 0, expectedCount= (i >= cacheSize ? initialCount + cacheSize - 1/*one from initialCount is in our cache - we should not count it twice*/
                                                     : initialCount + i);
-    int len= _snprintf(query, sizeof(query), "SELECT %u", i); 
+    int len= snprintf(query, sizeof(query), "SELECT %u", i); 
     CHECK_STMT_RC(hstmt, SQLPrepare(hstmt, query, len));
     newCount= getPsCount(hdbc);
     is_num(expectedCount, newCount);

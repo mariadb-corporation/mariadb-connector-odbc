@@ -134,7 +134,7 @@ ODBC_TEST(connstring_test)
   IS(SQLRemoveDSNFromIni(DsnName));
   FAIL_IF(MADB_DSN_Exists(DsnName), "DSN exsists!");
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DESCRIPTION={%s};DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;OPTIONS=%u;NO_PROMPT=1", DsnName,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DESCRIPTION={%s};DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;OPTIONS=%u;NO_PROMPT=1", DsnName,
     Description, my_drivername, my_uid, my_pwd, my_servername, ma_strport, MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -176,7 +176,7 @@ ODBC_TEST(connstring_test)
   IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);
 
   /* Checking that value in the connection string prevails over value in the dsn */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;OPTIONS=%u;DESCRIPTION=%s", DsnConnStr, MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;OPTIONS=%u;DESCRIPTION=%s", DsnConnStr, MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
     "Changed description");
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -186,7 +186,7 @@ ODBC_TEST(connstring_test)
   RESET_DSN(Dsn);
 
   /* Same as previous, but also that last ent*/
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;OPTIONS=%u;NO_PROMPT=0;AUTO_RECONNECT=1", DsnConnStr,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;OPTIONS=%u;NO_PROMPT=0;AUTO_RECONNECT=1", DsnConnStr,
     MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE);
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -209,8 +209,8 @@ ODBC_TEST(options_test)
     ++i;
     /* We need new DSN each time, otherwise buggy UnixODBC ini caching will return us wrong data
        (Seems like that will be fixed in 2.3.5) */
-    _snprintf(LocalConnStr, sizeof(LocalConnStr), "DSN=%s%u", LocalDSName, i);
-    _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;DRIVER=%s;OPTIONS=%u", LocalConnStr, my_drivername, bit);
+    snprintf(LocalConnStr, sizeof(LocalConnStr), "DSN=%s%u", LocalDSName, i);
+    snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;DRIVER=%s;OPTIONS=%u", LocalConnStr, my_drivername, bit);
 
     diag("%s:::%s", LocalConnStr, connstr4dsn);
     IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -281,11 +281,11 @@ ODBC_TEST(all_other_fields_test)
     }
     else if (DsnKeys[i].Type == DSN_TYPE_INT)
     {
-      _snprintf(IntValue, sizeof(IntValue), "%u", CharsSum(DsnKeys[i].DsnKey));
+      snprintf(IntValue, sizeof(IntValue), "%u", CharsSum(DsnKeys[i].DsnKey));
       opt_value= IntValue;
     }
 
-    _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;%s=%s", DsnConnStr, DsnKeys[i].DsnKey, opt_value);
+    snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;%s=%s", DsnConnStr, DsnKeys[i].DsnKey, opt_value);
 
     IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
     IS(MADB_SaveDSN(Dsn));
@@ -293,7 +293,7 @@ ODBC_TEST(all_other_fields_test)
   }
 
   /* This fields were out of the loop */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;DESCRIPTION=DESCRIPTION;DRIVER=%s", DsnConnStr, my_drivername);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "%s;DESCRIPTION=DESCRIPTION;DRIVER=%s", DsnConnStr, my_drivername);
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   IS(MADB_SaveDSN(Dsn));
 
@@ -358,7 +358,7 @@ ODBC_TEST(aliases_tests)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DATABASE=%s;OPTIONS=%u", LocalDSName,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DATABASE=%s;OPTIONS=%u", LocalDSName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, options);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -383,7 +383,7 @@ ODBC_TEST(aliases_tests)
   is_num(Dsn->Options,    options);
 
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;USER=user;PASSWORD=password;SERVERNAME=servername;DB=randomdbname;OPTION=%u", LocalDSName, option);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;USER=user;PASSWORD=password;SERVERNAME=servername;DB=randomdbname;OPTION=%u", LocalDSName, option);
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
@@ -416,7 +416,7 @@ ODBC_TEST(dependent_fields)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DB=%s;OPTIONS=%u;TCPIP=1", LocalDSName,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DB=%s;OPTIONS=%u;TCPIP=1", LocalDSName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, MADB_OPT_FLAG_NAMED_PIPE);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
@@ -430,7 +430,7 @@ ODBC_TEST(dependent_fields)
   is_num(Dsn->Options,     0);
 
   /* Now set all values via aliases. In fact we could generate the string automatically, but I guess there is not much need  */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;NamedPipe=1", LocalDSName);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;NamedPipe=1", LocalDSName);
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   is_num(Dsn->IsTcpIp,     0);
@@ -468,14 +468,14 @@ ODBC_TEST(driver_vs_dsn)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DB=%s;OPTIONS=%u", DsnName,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;UID=%s;PWD=%s;SERVER=%s;%s;DB=%s;OPTIONS=%u", DsnName,
     my_drivername, my_uid, my_pwd, my_servername, ma_strport, my_schema, MADB_OPT_FLAG_NAMED_PIPE);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   IS(MADB_SaveDSN(Dsn));
 
   RESET_DSN(Dsn);
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;SERVER=%s;", DsnName, my_drivername, "some.other.host");
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;SERVER=%s;", DsnName, my_drivername, "some.other.host");
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
@@ -501,7 +501,7 @@ ODBC_TEST(odbc_188)
   IS(SQLRemoveDSNFromIni(DsnName));
   FAIL_IF(MADB_DSN_Exists(DsnName), "DSN exsists!");
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s%cDESCRIPTION={%s}%cDRIVER=%s%cUID=%s%cPWD=%s%cSERVER=%s%cPORT=%u%cOPTIONS=%u%cNO_PROMPT=1%c", DsnName, '\0',
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s%cDESCRIPTION={%s}%cDRIVER=%s%cUID=%s%cPWD=%s%cSERVER=%s%cPORT=%u%cOPTIONS=%u%cNO_PROMPT=1%c", DsnName, '\0',
     Description, '\0', my_drivername, '\0', my_uid, '\0', my_pwd, '\0', my_servername, '\0', my_port, '\0', MADB_OPT_FLAG_COMPRESSED_PROTO|MADB_OPT_FLAG_AUTO_RECONNECT, '\0', '\0');
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
@@ -544,7 +544,7 @@ ODBC_TEST(odbc_188)
   IS_STR(Dsn->ServerName, my_servername, strlen((const char*)my_servername) + 1);
 
   /* Checking that value in the connection string prevails over value in the dsn */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cDESCRIPTION=%s%c", DsnConnStr, '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cDESCRIPTION=%s%c", DsnConnStr, '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS,
     '\0', "Changed description", '\0');
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
@@ -554,7 +554,7 @@ ODBC_TEST(odbc_188)
   RESET_DSN(Dsn);
 
   /* Same as previous, but also that last ent*/
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cNO_PROMPT=0%cAUTO_RECONNECT=1%c", DsnConnStr,
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "%s%cOPTIONS=%u%cNO_PROMPT=0%cAUTO_RECONNECT=1%c", DsnConnStr,
     '\0', MADB_OPT_FLAG_NO_PROMPT|MADB_OPT_FLAG_FOUND_ROWS|MADB_OPT_FLAG_FORWARD_CURSOR|MADB_OPT_FLAG_NO_CACHE, '\0', '\0', '\0');
 
   IS(MADB_ReadConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
@@ -575,7 +575,7 @@ ODBC_TEST(odbc_229)
   IS(SQLRemoveDSNFromIni(LocalDSName));
   FAIL_IF(MADB_DSN_Exists(LocalDSName), "DSN exsists!");
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;USE_MYCNF=1", LocalDSName, my_drivername);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;USE_MYCNF=1", LocalDSName, my_drivername);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
@@ -613,7 +613,7 @@ ODBC_TEST(odbc_228)
   IS(SQLRemoveDSNFromIni(LocalDSName));
   FAIL_IF(MADB_DSN_Exists(LocalDSName), "DSN exsists!");
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=TLSv1.1,TLSv1.3;PORT=3307", LocalDSName, my_drivername);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=TLSv1.1,TLSv1.3;PORT=3307", LocalDSName, my_drivername);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
@@ -639,14 +639,14 @@ ODBC_TEST(odbc_228)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=6", LocalDSName, my_drivername);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=6", LocalDSName, my_drivername);
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   is_num(Dsn->TlsVersion, MADB_TLSV12|MADB_TLSV13);
 
   RESET_DSN(Dsn);
 
   /* If not only meaningful bits are set. Maybe that should be an error? */
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=65", LocalDSName, my_drivername);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=65", LocalDSName, my_drivername);
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   is_num(Dsn->TlsVersion & MADB_TLSV11, MADB_TLSV11);
   is_num(Dsn->TlsVersion & MADB_TLSV12, 0);
@@ -654,7 +654,7 @@ ODBC_TEST(odbc_228)
 
   RESET_DSN(Dsn);
 
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=garbage tlsv1.2", LocalDSName, my_drivername);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DSN=%s;DRIVER=%s;TLSVERSION=garbage tlsv1.2", LocalDSName, my_drivername);
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
   is_num(Dsn->TlsVersion, MADB_TLSV12);
 
@@ -674,7 +674,7 @@ ODBC_TEST(odbc_284)
   char connstr4dsn[512];
 
   RESET_DSN(Dsn);
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s;DESCRIPTION=%s ;USER={%s}; SERVER = %s ;PASSWORD={%s}", my_drivername, descr, user, host, pdwWithEscapedBraces);
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s;DESCRIPTION=%s ;USER={%s}; SERVER = %s ;PASSWORD={%s}", my_drivername, descr, user, host, pdwWithEscapedBraces);
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
@@ -684,7 +684,7 @@ ODBC_TEST(odbc_284)
   IS_STR(Dsn->ServerName,  host,    strlen(host) + 1);
 
   RESET_DSN(Dsn);
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s%cDESCRIPTION=%s %cUSER={%s}%c SERVER = %s %cPASSWORD={%s}%c", my_drivername, '\0', descr, '\0', user, '\0', host, '\0', pdwWithEscapedBraces, '\0');
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "DRIVER=%s%cDESCRIPTION=%s %cUSER={%s}%c SERVER = %s %cPASSWORD={%s}%c", my_drivername, '\0', descr, '\0', user, '\0', host, '\0', pdwWithEscapedBraces, '\0');
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, '\0'));
 
@@ -694,7 +694,7 @@ ODBC_TEST(odbc_284)
   IS_STR(Dsn->ServerName, host, strlen(host) + 1);
 
   RESET_DSN(Dsn);
-  _snprintf(connstr4dsn, sizeof(connstr4dsn), "driver={MariaDB ODBC 3.0 Driver};server={127.0.0.1};port=16001;database={test};pwd={}}};uid={root}}};OPTION=131;");
+  snprintf(connstr4dsn, sizeof(connstr4dsn), "driver={MariaDB ODBC 3.0 Driver};server={127.0.0.1};port=16001;database={test};pwd={}}};uid={root}}};OPTION=131;");
 
   IS(MADB_ParseConnString(Dsn, connstr4dsn, SQL_NTS, ';'));
 
@@ -762,7 +762,7 @@ ODBC_TEST(odbc_366)
   char FailoverHost[512];
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc));
 
-  _snprintf(FailoverHost, sizeof(FailoverHost), "%s%s%s:%u", DummyHost, HostsSeparator, my_servername, my_port);
+  snprintf(FailoverHost, sizeof(FailoverHost), "%s%s%s:%u", DummyHost, HostsSeparator, my_servername, my_port);
   hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, FailoverHost, "CONN_TIMEOUT=5");
 
   IS(hstmt != NULL);
@@ -773,7 +773,7 @@ ODBC_TEST(odbc_366)
   CHECK_DBC_RC(hdbc, SQLDisconnect(hdbc));
 
   /* Now good host first */
-  _snprintf(FailoverHost, sizeof(FailoverHost), "%s:%u%s%s", my_servername, my_port, HostsSeparator, DummyHost);
+  snprintf(FailoverHost, sizeof(FailoverHost), "%s:%u%s%s", my_servername, my_port, HostsSeparator, DummyHost);
 
   hstmt = DoConnect(hdbc, FALSE, my_dsn, my_uid, my_pwd, my_port, my_schema, 0, FailoverHost, "CONN_TIMEOUT=5");
 

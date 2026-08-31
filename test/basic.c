@@ -458,7 +458,7 @@ ODBC_TEST(charset_utf8)
 
   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
 
-  in_len= (SQLSMALLINT)_snprintf((char *)conn, sizeof(conn), "DSN=%s;UID=%s;PWD=%s;PORT=%u;CHARSET=utf8",
+  in_len= (SQLSMALLINT)snprintf((char *)conn, sizeof(conn), "DSN=%s;UID=%s;PWD=%s;PORT=%u;CHARSET=utf8",
          my_dsn, my_uid, my_pwd, my_port);
   
   CHECK_ENV_RC(Env, SQLAllocHandle(SQL_HANDLE_DBC, Env, &hdbc1));

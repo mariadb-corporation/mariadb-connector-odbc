@@ -1,6 +1,6 @@
 /*
   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
-                2013, 2024 MariaDB Corporation AB
+                2013, 2026 MariaDB Corporation plc
 
   The MySQL Connector/ODBC is licensed under the terms of the GPLv2
   <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -335,12 +335,16 @@ ODBC_TEST(sqldriverconnect)
   return OK;
 }
 
-
+/* Cobvers also ODBC-502 in its SQLNativeSqlW part */
 ODBC_TEST(sqlnativesql)
 {
   HDBC        hdbc1;
   SQLWCHAR    out[128];
   wchar_t     in[]= L"SELECT * FROM sanja";
+  SQLWCHAR    withFakeSurrogate[]= { 'S','E','L','E','C','T',' '
+    ,0x8fd9,'\0'/*This should be the end. Padding it with couple of SQLWCHARs*/, ' ', '\0'},
+    withSurrogate[]= { 'S','E','L','E','C','T',' ', 0xd83d, 0xde00, '\0' };
+
   SQLINTEGER  len;
 
   CHECK_ENV_RC(Env, SQLAllocConnect(Env, &hdbc1));
@@ -358,6 +362,16 @@ ODBC_TEST(sqlnativesql)
   is_num(len, sizeof(in) / sizeof(wchar_t) - 1);
   IS_WSTR(sqlwchar_to_wchar_t(out), in, 7);
   IS(out[7] == 0);
+
+  CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, withFakeSurrogate, SQL_NTS, out, sizeof(out)/sizeof(SQLWCHAR), &len));
+  is_num(len, 8);
+  IS_WSTR(withFakeSurrogate, out, len);
+  is_num(out[len], 0);
+
+  CHECK_DBC_RC(hdbc1, SQLNativeSqlW(hdbc1, withSurrogate, SQL_NTS, out, sizeof(out) / sizeof(SQLWCHAR), &len));
+  is_num(len, 9);
+  IS_WSTR(withSurrogate, out, len);
+  is_num(out[len], 0);
 
   CHECK_DBC_RC(hdbc1, SQLDisconnect(hdbc1));
   CHECK_DBC_RC(hdbc1, SQLFreeConnect(hdbc1));
@@ -1116,7 +1130,7 @@ ODBC_TEST(t_bug34672)
                                   SQL_WCHAR, 0, 0, chars,
                                   inchars * sizeof(SQLWCHAR), NULL));
 
-  CHECK_STMT_RC(Stmt1, SQLExecDirectW(Stmt1, CW("select ? FROM DUAL"), SQL_NTS));
+  CHECK_STMT_RC(Stmt1, SQLExecDirectW(Stmt1, CW("SELECT ? FROM DUAL"), SQL_NTS));
   CHECK_STMT_RC(Stmt1, SQLFetch(Stmt1));
   CHECK_STMT_RC(Stmt1, SQLGetData(Stmt1, 1, SQL_C_WCHAR, result,
                             sizeof(result), &reslen));
@@ -1871,6 +1885,114 @@ ODBC_TEST(t_odbc443)
 }
 
 
+/* Executes the query from the heap buffer, that is allocated to fit the query exactly. That makes any
+   read of the query text past its terminating null the read past the end of the buffer, and thus
+   catchable by asan/valgrind.
+   @Units[in] - length of the query in SQLWCHAR units including the terminating null */
+SQLRETURN ExecDirectWExactBuffer(SQLHSTMT hStmt, const SQLWCHAR *Query, size_t Units)
+{
+  SQLRETURN rc;
+  SQLWCHAR  *Buffer= (SQLWCHAR*)malloc(Units*sizeof(SQLWCHAR));
+
+  if (Buffer == NULL)
+  {
+    diag("Could not allocate the buffer for the query");
+    return SQL_ERROR;
+  }
+  memcpy(Buffer, Query, Units*sizeof(SQLWCHAR));
+  rc= SQLExecDirectW(hStmt, Buffer, SQL_NTS);
+  free(Buffer);
+
+  return rc;
+}
+
+
+/* Verifies the resultset of the "SELECT 1 AS <U+8FD9>" query - i.e. that the driver has sent exactly
+   the query it was given. Closes the cursor */
+int CheckOdbc502Rs(SQLHSTMT hStmt)
+{
+  SQLWCHAR    ExpectedName[]= {0x8fd9, '\0'}, Name[8];
+  SQLSMALLINT NameLen, DataType, Scale, Nullable;
+  SQLULEN     ColSize;
+
+  CHECK_STMT_RC(hStmt, SQLDescribeColW(hStmt, 1, Name, sizeof(Name)/sizeof(SQLWCHAR), &NameLen,
+                                       &DataType, &ColSize, &Scale, &Nullable));
+  is_num(NameLen, 1);
+  IS_WSTR(Name, ExpectedName, 2);
+  CHECK_STMT_RC(hStmt, SQLFetch(hStmt));
+  is_num(my_fetch_int(hStmt, 1), 1);
+  CHECK_STMT_RC(hStmt, SQLFreeStmt(hStmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
+/* ODBC-502 The driver looked past query's terminating null while converting it to connection charset,
+   if one of charactesrs of the characters had low byte like the high byte of the leading unit of a
+   surrogate pair. That is mainly the case for the unixODBC as on Windows different approach is used. */
+ODBC_TEST(t_odbc502)
+{
+  /* The low byte of the U+8FD9 UTF-16 code unit is 0xD9. i.e. if the whole code unit is (mistakenly)
+     taken for a single byte, the character looks like the leading unit of a surrogate pair, and the
+     driver consumes 2 code units instead of 1, stepping over the terminating null */
+  SQLWCHAR  Query[]=    {'S','E','L','E','C','T',' ','1',' ','A','S',' ', 0x8fd9, '\0'};
+  /* The same query, but the memory right after the terminating null contains characters, that make the
+     query syntactically incorrect. Thus this case catches the bug also w/out asan/valgrind */
+  SQLWCHAR  Padded[]=   {'S','E','L','E','C','T',' ','1',' ','A','S',' ', 0x8fd9, '\0', ',', ',', '\0'};
+  /* Well-formed surrogate pair(U+1F600) as the last character of the query. The trailing comment is the
+     only way to have an arbitrary character at the very end of a valid query */
+  SQLWCHAR  Pair[]=     {'S','E','L','E','C','T',' ','1',' ','-','-',' ', 0xd83d, 0xde00, '\0'};
+  /* ...and the unpaired leading unit - the driver may not go for the trailing unit, that is not there */
+  SQLWCHAR  Unpaired[]= {'S','E','L','E','C','T',' ','1',' ','-','-',' ', 0xd83d, '\0'};
+  size_t    PairUnits=  sizeof(Pair)/sizeof(SQLWCHAR);
+
+  if (iOdbc())
+  {
+    /* SQLWCHAR is UTF-32 in case of iODBC, and the character is a single code unit there */
+    Pair[12]= (SQLWCHAR)0x1F600;
+    Pair[13]= '\0';
+    --PairUnits;
+  }
+
+  /* 1) Nothing but the query in the buffer - the read past the terminating null is the read past the
+        end of the buffer */
+  CHECK_STMT_RC(wStmt, ExecDirectWExactBuffer(wStmt, Query, sizeof(Query)/sizeof(SQLWCHAR)));
+  IS(CheckOdbc502Rs(wStmt));
+
+  /* 2) The query is followed by the characters making it incorrect, if they are read */
+  CHECK_STMT_RC(wStmt, SQLExecDirectW(wStmt, Padded, SQL_NTS));
+  IS(CheckOdbc502Rs(wStmt));
+
+  /* 3) Same, but the length is given, and the terminating null is not included in it */
+  CHECK_STMT_RC(wStmt, SQLExecDirectW(wStmt, Padded, sizeof(Query)/sizeof(SQLWCHAR) - 1));
+  IS(CheckOdbc502Rs(wStmt));
+
+  /* 4) The valid surrogate pair at the very end of the query - the pair has to be consumed as whole,
+        and the driver has to stop at the terminating null right after it */
+  CHECK_STMT_RC(wStmt, ExecDirectWExactBuffer(wStmt, Pair, PairUnits));
+  CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+  is_num(my_fetch_int(wStmt, 1), 1);
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  /* 5) The unpaired leading unit is not a valid character, and the driver does not have to accept such
+        query(iconv won't convert it, while Windows substitutes it with U+FFFD). But it may not read the
+        memory past the terminating null looking for the trailing unit. If the query has been executed,
+        the "bad" character is inside the comment, and the resultset has to be the normal one */
+  if (SQL_SUCCEEDED(ExecDirectWExactBuffer(wStmt, Unpaired, sizeof(Unpaired) / sizeof(SQLWCHAR))))
+  {
+    CHECK_STMT_RC(wStmt, SQLFetch(wStmt));
+    is_num(my_fetch_int(wStmt, 1), 1);
+  }
+  else
+  {
+    diag("The query with an unpaired leading unit has been rejected");
+  }
+  CHECK_STMT_RC(wStmt, SQLFreeStmt(wStmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1,        "test_CONO1",         NORMAL},
@@ -1880,7 +2002,7 @@ MA_ODBC_TESTS my_tests[]=
   {sqlprepare_ansi,   "sqlprepare_ansi",    NORMAL},
   {sqlchar,           "sqlchar",            NORMAL},
   {sqldriverconnect,  "sqldriverconnect",   NORMAL},
-  {sqlnativesql,      "sqlnativesql",       NORMAL},
+  {sqlnativesql,      "sqlnativesql_odbc502",       NORMAL},
   {sqlsetcursorname,  "sqlsetcursorname",   NORMAL, SkipIfRsStreaming},
   {sqlgetcursorname,  "sqlgetcursorname",   NORMAL},
   {sqlcolattribute,   "sqlcolattribute",    NORMAL},
@@ -1906,6 +2028,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc418,         "t_odbc418_0in_string", NORMAL},
   {t_odbc437,         "t_odbc437_stringlen", NORMAL},
   {t_odbc443,         "t_odbc443_SQLGetData_surrogatePair", NORMAL},
+  {t_odbc502,         "t_odbc502_query_past_terminating_null", NORMAL},
 
   {NULL, NULL}
 };
