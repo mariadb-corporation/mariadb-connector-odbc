@@ -599,7 +599,7 @@ SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets)
 
 /* Length in SQLWCHAR units. Since lower surrogate cannot be 0, we don't need to check for it.
    @buff_length[in] - size of the str buffer or negative number  */
-SQLLEN SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length)
+SQLLEN SqlwcsLen(const SQLWCHAR *str, SQLLEN buff_length)
 {
   SQLINTEGER result= 0;
 

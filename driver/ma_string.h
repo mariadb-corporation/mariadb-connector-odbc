@@ -40,7 +40,7 @@ bool      MADB_ValidateStmt(MADB_QUERY *Query);
 SQLLEN     MbstrOctetLen(const char *str, SQLLEN *CharLen, MARIADB_CHARSET_INFO *cs);
 SQLLEN     MbstrCharLen(const char *str, SQLINTEGER OctetLen, MARIADB_CHARSET_INFO *cs);
 SQLINTEGER SqlwcsCharLen(SQLWCHAR *str, SQLLEN octets);
-SQLLEN     SqlwcsLen(SQLWCHAR *str, SQLLEN buff_length);
+SQLLEN     SqlwcsLen(const SQLWCHAR *str, SQLLEN buff_length);
 SQLLEN     SafeStrlen(SQLCHAR *str, SQLLEN buff_length);
 void       StreamWstring (MADB_Stmt* Stmt, SQLUSMALLINT Offset, MADB_DescRecord* IrdRec, MYSQL_BIND& Bind,
                           SQLWCHAR* TargetValuePtr, SQLLEN BufferLength, SQLLEN* StrLen_or_IndPtr);
