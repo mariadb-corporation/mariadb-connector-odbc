@@ -768,7 +768,7 @@ ODBC_TEST(t_odbc506)
   {
     Param[i].Id=     (SQLINTEGER)(i + 1);
     Param[i].IdLen=  sizeof(SQLINTEGER);
-    _snprintf((char*)Param[i].Val, sizeof(Param[i].Val), "row%u", i + 1);
+    snprintf((char*)Param[i].Val, sizeof(Param[i].Val), "row%u", i + 1);
     Param[i].ValLen= strlen((char*)Param[i].Val);
   }
   /* The last paramset duplicates the PK value of the first one */
@@ -792,7 +792,7 @@ ODBC_TEST(t_odbc506)
   for (i= 0; i < ODBC506_ROWS; ++i)
   {
     Id[i]= (SQLINTEGER)(ODBC506_ROWS + i + 1);
-    _snprintf((char*)Val[i], sizeof(Val[i]), "col%u", i + 1);
+    snprintf((char*)Val[i], sizeof(Val[i]), "col%u", i + 1);
     ValLen[i]= strlen((char*)Val[i]);
   }
   /* Switching to the column-wise binding invalidates the interrupted operation, and lets the driver
@@ -812,14 +812,14 @@ ODBC_TEST(t_odbc506)
   {
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     is_num(my_fetch_int(Stmt, 1), i + 1);
-    _snprintf((char*)Expected, sizeof(Expected), "row%u", i + 1);
+    snprintf((char*)Expected, sizeof(Expected), "row%u", i + 1);
     IS_STR(my_fetch_str(Stmt, Buffer, 2), Expected, strlen((char*)Expected) + 1);
   }
   for (i= 0; i < ODBC506_ROWS; ++i)
   {
     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
     is_num(my_fetch_int(Stmt, 1), ODBC506_ROWS + i + 1);
-    _snprintf((char*)Expected, sizeof(Expected), "col%u", i + 1);
+    snprintf((char*)Expected, sizeof(Expected), "col%u", i + 1);
     IS_STR(my_fetch_str(Stmt, Buffer, 2), Expected, strlen((char*)Expected) + 1);
   }
   EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);

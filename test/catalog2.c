@@ -1986,7 +1986,7 @@ ODBC_TEST(odbc391)
   is_num(2, my_print_non_format_result(Stmt));
   /* my_print_non_format_result closes cursor */
 
-  snprintf(dropUser, sizeof(dropUser), "DROP USER bug50195@'%s'", my_host);
+  snprintf(dropUser, sizeof(dropUser), "DROP USER Odbc391@'%s'", my_host);
   /* we can have error, if there is simply no such user, and that is supposed to be the case, actually */
   SQLExecDirect(Stmt, dropUser, SQL_NTS);
   snprintf(createUser, sizeof(createUser), "CREATE USER Odbc391@'%s' IDENTIFIED BY 's3CureP@wd'", my_host);

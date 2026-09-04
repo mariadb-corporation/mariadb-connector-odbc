@@ -409,6 +409,11 @@ ODBC_TEST(t_odbc159)
   {
     expCols[2]= 18; //at least in 8.4
   }
+  else if (ServerNotOlderThan(Connection, 13, 0, 0))
+  {
+    /* INFORMATION_SCHEMA.STATISTICS has 18 columns in 13.0. It's possibly not exactly from 13.0.0 */
+    expCols[2]= 18;
+  }
   else if (ServerNotOlderThan(Connection, 10, 6, 0))
   {
     /* INFORMATION_SCHEMA.STATISTICS has 17 columns in 10.6 */
