@@ -1357,6 +1357,9 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     if (wStmt != NULL)
     {
       SQLFreeStmt(wStmt, SQL_DROP);
+      /* A test may have allocated it on its own(with ODBC_ConnectW). If we don't reset it here, and don't
+         re-allocate below(!ProvideWConnection), it stays dangling, and the next iteration frees it again */
+      wStmt= NULL;
     }
     fprintf(stdout, "%s %d - %s%s\n", test_status[rc], i++,tests->title, comment);
     tests++;
@@ -1365,6 +1368,13 @@ int run_tests_ex(MA_ODBC_TESTS *tests, BOOL ProvideWConnection)
     if (ProvideWConnection)
     {
       SQLAllocHandle(SQL_HANDLE_STMT, wConnection, &wStmt);
+    }
+    else if (wConnection != NULL)
+    {
+      /* The connection has been opened by the test itself - nobody else is going to close it */
+      SQLDisconnect(wConnection);
+      SQLFreeHandle(SQL_HANDLE_DBC, wConnection);
+      wConnection= NULL;
     }
 
     /* Relieving tests from restoring my_options and/or add_connstr. Also, a test may fail */

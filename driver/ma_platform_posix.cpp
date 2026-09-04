@@ -37,23 +37,6 @@ char LogFile[256];
 extern "C" {
 #endif 
 
-/* Mimicking of VS' _snprintf */
-int _snprintf(char *buffer, size_t count, const char *format, ...)
-{
-    va_list list;
-    va_start(list, format);
-    int result= vsnprintf(buffer, count, format, list);
-
-    va_end(list);
-
-    /* _snprintf returns negative number if buffer is not big enough */
-    if (result > count)
-    {
-      return count - result - 1;
-    }
-    return result;
-}
-
 
 int strcpy_s(char *dest, size_t buffer_size, const char *src)
 {
@@ -111,7 +94,7 @@ const char* GetDefaultLogDir()
     DefaultLogDir= tmp;
   }
 
-  _snprintf(LogFile, sizeof(LogFile), "%s/maodbc.log", DefaultLogDir);
+  snprintf(LogFile, sizeof(LogFile), "%s/maodbc.log", DefaultLogDir);
 
   return LogFile;
 }
