@@ -420,7 +420,7 @@ namespace mariadb
     buf.year=  ts->year;
     buf.month= ts->month;
     buf.day=   ts->day;
-    return true;
+    return false;
   }
   /* }}} */
 

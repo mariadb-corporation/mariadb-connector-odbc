@@ -939,6 +939,37 @@ ODBC_TEST(t_odbc512)
   return OK;
 }
 
+
+ODBC_TEST(t_odbc513)
+{
+  SQLCHAR         query[]= "INSERT INTO t_odbc513 (id, val) VALUES (?, ?)";
+  SQLINTEGER      Id[MAODBC_ROWS]= { 2, 1, 3 };
+  SQL_DATE_STRUCT dates[MAODBC_ROWS] = { {2026, 2, 1}, {2026, 2, 2}, {1999, 12, 31} };
+  SQLLEN          valInd[MAODBC_ROWS]= { 0, 0, 0 };
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc513");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc513(id INT NOT NULL PRIMARY KEY, val DATE NOT NULL)");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, query, SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_BIND_TYPE, (SQLPOINTER)SQL_PARAM_BIND_BY_COLUMN, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, Id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_TYPE_DATE, SQL_TYPE_DATE,
+    0, 0, dates, 0, valInd));
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "SELECT COUNT(*) FROM t_odbc513");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc513");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {t_bulk_insert_nts, "t_bulk_insert_nts"},
@@ -954,6 +985,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc460, "odbc460plusOdbc462"},
   {t_odbc506, "odbc506_array_offset_reset"},
   {t_odbc512, "odbc512_reuse_after_error"},
+  {t_odbc513, "odbc513_bulk_date_param_callback"},
   {NULL, NULL}
 };
 
