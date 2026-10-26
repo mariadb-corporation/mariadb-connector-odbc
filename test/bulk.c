@@ -898,6 +898,46 @@ ODBC_TEST(t_odbc506)
 #undef ODBC506_INSERTED
 #undef ODBC506_ROWS
 
+#define MAODBC_ROWS 3
+/*
+  ODBC-512 - Crash on execution of the same prepared statement, i.e. same query and not the same handle,
+  after an error in the execution with param array. The poroblem happened only with PS cache enabled.
+  In this case the driver reused the prepared statement from the cache for the second execution and that
+  statement still had array size > 1. That did not happen if param array operation was successful.
+ */
+ODBC_TEST(t_odbc512)
+{
+  SQLCHAR          query[]= "INSERT INTO t_odbc512 (id, val) VALUES (?, ?)";
+  SQLINTEGER       Id[MAODBC_ROWS]= { 2, 1, 3 };
+  SQLCHAR          Val[MAODBC_ROWS][16]= { "a", "b", "c" };
+  SQLLEN           ValLen[MAODBC_ROWS]= { 1, 1, 1 };
+
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc512");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc512(id INT NOT NULL PRIMARY KEY, val VARCHAR(32) NOT NULL)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc512(id, val) VALUES(1, 'The key we will later duplicate')");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, query, SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAM_BIND_TYPE, (SQLPOINTER)SQL_PARAM_BIND_BY_COLUMN, 0));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)MAODBC_ROWS, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, Id, 0, NULL));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR,
+    sizeof(Val[0]) - 1, 0, Val, sizeof(Val[0]), ValLen));
+  EXPECT_STMT(Stmt, SQLExecute(Stmt), SQL_ERROR);
+  SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+
+  SQLAllocHandle(SQL_HANDLE_STMT, Connection, &Stmt);
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, query, SQL_NTS));
+  SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &Id[2], 0, NULL);
+  SQLBindParameter(Stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 20, 0, Val[2], sizeof(Val[2]), &ValLen[2]);
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc512");
+
+  return OK;
+}
 
 MA_ODBC_TESTS my_tests[]=
 {
@@ -913,6 +953,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc235, "odbc235_bulk_with_longtext"},
   {t_odbc460, "odbc460plusOdbc462"},
   {t_odbc506, "odbc506_array_offset_reset"},
+  {t_odbc512, "odbc512_reuse_after_error"},
   {NULL, NULL}
 };
 
