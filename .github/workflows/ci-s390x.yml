@@ -1,0 +1,131 @@
+---
+name: Run CI Tests (s390x)
+
+on:
+  push:
+    branches:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MYSQL_TEST_HOST: mariadb.example.com
+  MYSQL_TEST_PORT: 3306
+  MYSQL_TEST_USER: testuser
+  MYSQL_TEST_PASSWD: "heyPassw+-_20oRd"
+  MYSQL_TEST_DB: testo
+  TEST_DRIVER: ${{ github.workspace }}/driver/libmaodbc.so
+  TEST_DSN: maodbc_test
+  TEST_UID: testuser
+  TEST_SERVER: mariadb.example.com
+  TEST_PASSWORD: "heyPassw+-_20oRd"
+  TEST_PORT: 3306
+  TEST_SCHEMA: testo
+  ODBCINI: "${{ github.workspace }}/test/odbc.ini"
+  ODBCSYSINI: ${{ github.workspace }}/test
+  ODBCINSTINI: ${{ github.workspace }}/test/odbcinst.ini
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04-s390x
+    # Only run scheduled jobs if we're on the right branch
+    if: |
+      github.event_name != 'schedule' ||
+      github.ref == 'refs/heads/master' ||
+      startsWith(github.ref, 'refs/heads/develop') ||
+      startsWith(github.ref, 'refs/heads/odbc-')
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.final-matrix }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: set-matrix
+        name: build matrix
+        uses: linux-on-ibm-z/connector-ci-build-matrix@s390x-ci
+        with:
+          runs-on-env: 's390x'
+
+  ci:
+    name: ${{ matrix.name }}
+    needs: setup
+    timeout-minutes: 50
+    strategy:
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.continue-on-error || matrix.os == 'macos-latest' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Test Environment
+        id: setup-env
+        uses: mariadb-corporation/connector-ci-setup@master
+        with:
+          db-type: ${{ matrix.db-type }}
+          db-tag: ${{ matrix.db-tag }}
+          test-db-password: ${{ env.MYSQL_TEST_PASSWD }}
+          test-db-database: ${{ env.MYSQL_TEST_DB }}
+          test-db-port: ${{ env.MYSQL_TEST_PORT }}
+          additional-conf: ${{ matrix.additional-conf || '' }}
+          registry-user: ${{ matrix.db-type == 'enterprise' && secrets.ENTERPRISE_USER || (secrets.DOCKER_TOKEN != '' && secrets.DOCKER_LOGIN || '') }}
+          registry-password: ${{ matrix.db-type == 'enterprise' && secrets.ENTERPRISE_TOKEN || secrets.DOCKER_TOKEN }}
+          os: ${{ matrix.os }}
+          maxscale-tag: ${{ matrix.maxscale-tag || ''}}
+
+      - name: make ubuntu
+        if: ${{ startsWith(matrix.os, 'ubuntu-24.04-s390x') }}
+        run: |
+          sudo apt install unixodbc-dev
+          cmake -DCONC_WITH_MSI=OFF -DCONC_WITH_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=OPENSSL .
+          cmake --build . --config RelWithDebInfo 
+
+      - name: Run test suite
+        shell: bash
+        run: |
+          echo "$PWD"
+          
+          chmod 777 test
+          ls -lrta
+          cd ./test
+          echo "$PWD"
+          if [ "$DB_TYPE" = "mysql" ] ; then
+            cp ../libmariadb/caching_sha2_password.* ../
+          fi
+
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            TEST_DRIVER="MariaDB ODBC 3.2 Driver"
+            # INSTALLFOLDER=''
+            ls ./RelWithDebInfo
+            set -ex
+          else
+
+            cat $ODBCINSTINI
+            cat $ODBCINI | grep -v PASSWORD
+
+            ls ../driver/
+            echo "$TEST_DRIVER"
+
+            chmod 666 $ODBCINI $ODBCSYSINI/odbcinst.ini
+            ls -lrt
+          fi
+          ctest --verbose
+
+        env:
+          DB_TYPE: ${{ matrix.db-type }}
+          LOCAL_DB: ${{ steps.setup-env.outputs.database-type }}
+          os: ${{ matrix.os }}
+          TEST_DRIVER: ${{ env.TEST_DRIVER || 'maodbc_test' }}
+          TEST_SOCKET:
+          SSLCERT: ${{ matrix.db-type == 'container' && format('{0}/.github/workflows/certs/server.crt', github.workspace) || '' }}
+          MARIADB_PLUGIN_DIR: ${{ github.workspace }}
+          MAXSCALE_TAG: ${{ matrix.maxscale-tag || '' }}
+
+      - name: clean up container
+        shell: bash
+        run: |
+          podman stop mariadbcontainer && podman rm mariadbcontainer
