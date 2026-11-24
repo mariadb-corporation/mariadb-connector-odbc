@@ -44,6 +44,7 @@ void MADB_StmtResetResultStructures(MADB_Stmt *Stmt)
     throw MADB_SetError(&Stmt->Error, MADB_ERR_HY001, NULL, 0);
   }
   memset(Stmt->Lengths, 0, sizeof(long) * columnCount);
+  Stmt->GetDataColumn= -1;
 
   Stmt->LastRowFetched= 0;
   MADB_STMT_RESET_CURSOR(Stmt);
