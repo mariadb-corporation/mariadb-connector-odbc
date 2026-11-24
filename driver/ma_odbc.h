@@ -142,7 +142,8 @@ typedef struct {
   const char* LiteralPrefix;
   const char* LiteralSuffix;
   const char* LocalTypeName;
-  char* TypeName;
+  const char* TypeName;
+  char* NamesBuffer;
   char* InternalBuffer;  /* used for internal conversion */
   char* DefaultValue;
   char* DaeData;
