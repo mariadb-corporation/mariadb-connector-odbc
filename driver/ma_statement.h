@@ -104,6 +104,7 @@ SQLRETURN    MADB_DoExecuteBatch();
 void         MADB_PushParams        (MADB_Stmt *Stmt);
 SQLRETURN    MADB_DoExecute         (MADB_Stmt *Stmt, bool ParamsPushed= false);
 void         MADB_CloseCursor       (MADB_Stmt *Stmt);
+void         ResetDescIntBuffers    (MADB_Desc *Desc);
 
 #define MADB_MAX_CURSOR_NAME 64 * 4 + 1
 #define MADB_CHECK_STMT_HANDLE(a,b)\

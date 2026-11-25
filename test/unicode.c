@@ -1993,6 +1993,206 @@ ODBC_TEST(t_odbc502)
 }
 
 
+/* Compares SQLWCHAR string with the ASCII one, terminating null included */
+static int WstrIsAscii(const SQLWCHAR *wstr, const char *str)
+{
+  do
+  {
+    if (*wstr++ != (SQLWCHAR)(unsigned char)*str)
+    {
+      return 0;
+    }
+  } while (*str++);
+
+  return 1;
+}
+
+/* Reads next 2 characters of the value. The rest of the value stays in the internal buffer of the driver */
+#define ODBC521_PART(_Stmt, _Col, _Expected, _CharsLeft) do {\
+  SQLWCHAR part[3]; SQLLEN partLen= 0;\
+  EXPECT_STMT(_Stmt, SQLGetData(_Stmt, _Col, SQL_C_WCHAR, part, sizeof(part), &partLen), SQL_SUCCESS_WITH_INFO);\
+  is_num(partLen, (_CharsLeft)*sizeof(SQLWCHAR));\
+  IS(WstrIsAscii(part, _Expected));\
+} while(0)
+
+/* Reads the whole value from its beginning */
+#define ODBC521_FULL(_Stmt, _Col, _Expected) do {\
+  SQLWCHAR full[32]; SQLLEN fullLen= 0;\
+  EXPECT_STMT(_Stmt, SQLGetData(_Stmt, _Col, SQL_C_WCHAR, full, sizeof(full), &fullLen), SQL_SUCCESS);\
+  is_num(fullLen, strlen(_Expected)*sizeof(SQLWCHAR));\
+  IS(WstrIsAscii(full, _Expected));\
+} while(0)
+
+/* ODBC-521 If a value is read with SQLGetData in parts, or needs additional conversion, the driver keeps it in the internal
+   buffer of the column. The buffer has to be gone, when the cursor moves to other row, the statement gets other result set,
+   or is executed again - otherwise the value of the previous row is returned (or the empty string instead of the value) */
+ODBC_TEST(t_odbc521)
+{
+  SQLWCHAR        last[3];
+  SQLLEN          len= 0;
+  SQL_DATE_STRUCT date;
+  SQLINTEGER      id= 1;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_odbc521");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_odbc521 (id INT NOT NULL PRIMARY KEY, a VARCHAR(20), b VARCHAR(20), d VARCHAR(20))");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_odbc521 VALUES (1, 'abcdefgh', 'ijklmnop', '2024-01-02'),"
+                       "(2, 'qrstuvwx', 'yzABCDEF', '2025-03-04'), (3, '12345678', '87654321', '2026-05-06')");
+
+  /* 1. Next row of the same result set */
+  OK_SIMPLE_STMT(Stmt, "SELECT a, b, d FROM t_odbc521 ORDER BY id");
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_PART(Stmt, 1, "ab", 8);
+  /* The rest of the value of the 2nd column is left unread */
+  ODBC521_PART(Stmt, 2, "ij", 8);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 2, "yzABCDEF");
+  /* The date from the string field also uses the internal buffer */
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TYPE_DATE, &date, sizeof(date), &len));
+  is_num(date.year, 2025);
+  is_num(date.month, 3);
+  is_num(date.day, 4);
+  ODBC521_PART(Stmt, 1, "qr", 8);
+
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  /* Reading the value in parts till its end */
+  ODBC521_PART(Stmt, 1, "12", 8);
+  ODBC521_PART(Stmt, 1, "34", 6);
+  ODBC521_PART(Stmt, 1, "56", 4);
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, last, sizeof(last), &len), SQL_SUCCESS);
+  is_num(len, 2*sizeof(SQLWCHAR));
+  IS(WstrIsAscii(last, "78"));
+  EXPECT_STMT(Stmt, SQLGetData(Stmt, 1, SQL_C_WCHAR, last, sizeof(last), &len), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLGetData(Stmt, 3, SQL_C_TYPE_DATE, &date, sizeof(date), &len));
+  is_num(date.year, 2026);
+  is_num(date.month, 5);
+  is_num(date.day, 6);
+  ODBC521_FULL(Stmt, 2, "87654321");
+
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* 2. Other query on the same handle */
+  OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_odbc521 ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_PART(Stmt, 2, "ij", 8);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT id, b FROM t_odbc521 WHERE id=2");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 2, "yzABCDEF");
+  ODBC521_FULL(Stmt, 1, "2");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* 3. The same prepared statement is executed again */
+  CHECK_STMT_RC(Stmt, SQLPrepare(Stmt, (SQLCHAR*)"SELECT a, b FROM t_odbc521 WHERE id=?", SQL_NTS));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &id, 0, NULL));
+
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_PART(Stmt, 1, "ab", 8);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  id= 2;
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 1, "qrstuvwx");
+  ODBC521_PART(Stmt, 2, "yz", 8);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  id= 3;
+  CHECK_STMT_RC(Stmt, SQLExecute(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 2, "87654321");
+  ODBC521_FULL(Stmt, 1, "12345678");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+
+  /* 4. Next result set of the same statement */
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE IF EXISTS p_odbc521");
+  OK_SIMPLE_STMT(Stmt, "CREATE PROCEDURE p_odbc521() "
+                       "BEGIN "
+                       "  SELECT a, b FROM t_odbc521 WHERE id=1;"
+                       "  SELECT a, b FROM t_odbc521 WHERE id=2;"
+                       "END");
+  OK_SIMPLE_STMT(Stmt, "CALL p_odbc521()");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_PART(Stmt, 2, "ij", 8);
+
+  CHECK_STMT_RC(Stmt, SQLMoreResults(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 2, "yzABCDEF");
+  ODBC521_FULL(Stmt, 1, "qrstuvwx");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  /* 5. The cursor returns to the rows it has already been at */
+  if (ForwardOnly != TRUE)
+  {
+    SQLULEN cursorType= SQL_CURSOR_FORWARD_ONLY;
+
+    CHECK_STMT_RC(Stmt, SQLGetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, &cursorType, 0, NULL));
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)SQL_CURSOR_STATIC, 0));
+
+    OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_odbc521 ORDER BY id");
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    ODBC521_PART(Stmt, 1, "12", 8);
+    /* The fetch, that does not get a row, and the cursor is returned to the 1st row after it */
+    EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_FIRST, 0));
+    ODBC521_FULL(Stmt, 1, "abcdefgh");
+    ODBC521_PART(Stmt, 2, "ij", 8);
+
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_ABSOLUTE, 3));
+    ODBC521_FULL(Stmt, 2, "87654321");
+    ODBC521_PART(Stmt, 1, "12", 8);
+
+    CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_PRIOR, 0));
+    ODBC521_FULL(Stmt, 1, "qrstuvwx");
+    ODBC521_FULL(Stmt, 2, "yzABCDEF");
+
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER)cursorType, 0));
+  }
+
+  /* 6. Other query is executed without closing the cursor. Some driver managers (unixODBC) allow that after the end of
+        the result set has been reached, and the driver re-uses the descriptor records in this case */
+  OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_odbc521 WHERE id=1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_PART(Stmt, 2, "ij", 8);
+  EXPECT_STMT(Stmt, SQLFetch(Stmt), SQL_NO_DATA);
+
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)"SELECT a, b FROM t_odbc521 WHERE id=2", SQL_NTS)))
+  {
+    /* The driver manager requires the cursor to be closed */
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_odbc521 WHERE id=2");
+  }
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 2, "yzABCDEF");
+  ODBC521_PART(Stmt, 1, "qr", 8);
+  /* Same, but it is SQLMoreResults, that tells there is nothing more to read */
+  EXPECT_STMT(Stmt, SQLMoreResults(Stmt), SQL_NO_DATA);
+
+  if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)"SELECT a, b FROM t_odbc521 WHERE id=3", SQL_NTS)))
+  {
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    OK_SIMPLE_STMT(Stmt, "SELECT a, b FROM t_odbc521 WHERE id=3");
+  }
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  ODBC521_FULL(Stmt, 1, "12345678");
+  ODBC521_FULL(Stmt, 2, "87654321");
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP PROCEDURE p_odbc521");
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_odbc521");
+
+  return OK;
+}
+
 MA_ODBC_TESTS my_tests[]=
 {
   {test_CONO1,        "test_CONO1",         NORMAL},
@@ -2029,6 +2229,7 @@ MA_ODBC_TESTS my_tests[]=
   {t_odbc437,         "t_odbc437_stringlen", NORMAL},
   {t_odbc443,         "t_odbc443_SQLGetData_surrogatePair", NORMAL},
   {t_odbc502,         "t_odbc502_query_past_terminating_null", NORMAL},
+  {t_odbc521,         "t_odbc521_getdata_internal_buffer", NORMAL},
 
   {NULL, NULL}
 };
