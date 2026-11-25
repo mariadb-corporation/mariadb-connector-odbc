@@ -2443,6 +2443,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   }*/
   memset(Stmt->CharOffset, 0, sizeof(long) * Stmt->metadata->getColumnCount());
   memset(Stmt->Lengths, 0, sizeof(long) * Stmt->metadata->getColumnCount());
+  Stmt->GetDataColumn= -1;
 
   ResetDescIntBuffers(Stmt->Ird);
 
