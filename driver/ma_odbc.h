@@ -318,6 +318,7 @@ struct MADB_Stmt
   MYSQL_BIND                *params= nullptr;
   unsigned long             *CharOffset= nullptr;
   unsigned long             *Lengths= nullptr;
+  int32_t                   GetDataColumn= -1;
   char                      *TableName= nullptr;
   char                      *CatalogName= nullptr;
   MADB_ShortTypeInfo        *ColsTypeFixArr= nullptr;

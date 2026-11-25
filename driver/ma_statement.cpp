@@ -2185,18 +2185,16 @@ SQLUSMALLINT MADB_MapToRowStatus(SQLRETURN rc)
 }
 
 
+/* Frees internal buffers of all records of the descriptor. It goes through all allocated records, and not through Header.Count
+   of them: the count of the IRD is reset when the statement is prepared again, while its records stay and are re-used */
 void ResetDescIntBuffers(MADB_Desc *Desc)
 {
-  MADB_DescRecord *Rec;
-  SQLSMALLINT i;
+  MADB_DescRecord *Rec= (MADB_DescRecord *)Desc->Records.buffer;
+  unsigned int i;
 
-  for (i= 0; i < Desc->Header.Count; ++i)
+  for (i= 0; i < Desc->Records.elements; ++i)
   {
-    Rec= MADB_DescGetInternalRecord(Desc, i, MADB_DESC_READ);
-    if (Rec)
-    {
-      MADB_FREE(Rec->InternalBuffer);
-    }
+    MADB_FREE(Rec[i].InternalBuffer);
   }
 }
 
@@ -2441,10 +2439,25 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   {
     UNLOCK_MARIADB(Stmt->Connection);
   }*/
-  memset(Stmt->CharOffset, 0, sizeof(long) * Stmt->metadata->getColumnCount());
-  memset(Stmt->Lengths, 0, sizeof(long) * Stmt->metadata->getColumnCount());
+  const uint32_t columnCount= Stmt->metadata->getColumnCount();
+  memset(Stmt->CharOffset, 0, sizeof(long) * columnCount);
+  memset(Stmt->Lengths, 0, sizeof(long) * columnCount);
 
-  ResetDescIntBuffers(Stmt->Ird);
+  /* Only the column, that was read by the last SQLGetData call, may have the internal buffer - SQLGetData frees the buffer of
+     previously read column, and "internal" calls of GetData do not allocate it. Thus there is no need to go through all columns
+     for each fetched row */
+  if (Stmt->GetDataColumn >= 0)
+  {
+    if (static_cast<uint32_t>(Stmt->GetDataColumn) < columnCount)
+    {
+      MADB_DescRecord *IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, static_cast<SQLSMALLINT>(Stmt->GetDataColumn), MADB_DESC_READ);
+      if (IrdRec)
+      {
+        MADB_FREE(IrdRec->InternalBuffer);
+      }
+    }
+    Stmt->GetDataColumn= -1;
+  }
 
   return Result;
 }

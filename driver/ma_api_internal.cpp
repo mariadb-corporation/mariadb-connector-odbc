@@ -1559,7 +1559,6 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
   SQLLEN* StrLen_or_IndPtr)
 {
   MADB_Stmt* Stmt= (MADB_Stmt*)StatementHandle;
-  unsigned int i;
   MADB_DescRecord* IrdRec;
   uint32_t columnCount= 0;
 
@@ -1593,18 +1592,20 @@ SQLRETURN MA_SQLGetData(SQLHSTMT StatementHandle,
     return MADB_SetError(&Stmt->Error, MADB_ERR_HY090, NULL, 0);
   }
 
-  /* reset offsets for other columns. Doing that here since "internal" calls should not do that */
-  for (i= 0; i < columnCount; i++)
+  /* Resetting the offset for the other column. Only the column, that was read by previous SQLGetData call may have it. Thus there is
+     no need to go through all columns on each call. Doing that here since "internal" calls should not do that */
+  if (Stmt->GetDataColumn != static_cast<int32_t>(Col_or_Param_Num - 1))
   {
-    if (i != Col_or_Param_Num - 1)
+    if (Stmt->GetDataColumn >= 0 && static_cast<uint32_t>(Stmt->GetDataColumn) < columnCount)
     {
-      IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, i, MADB_DESC_READ);
+      IrdRec= MADB_DescGetInternalRecord(Stmt->Ird, static_cast<SQLSMALLINT>(Stmt->GetDataColumn), MADB_DESC_READ);
       if (IrdRec)
       {
         MADB_FREE(IrdRec->InternalBuffer);
       }
-      Stmt->CharOffset[i]= 0;
+      Stmt->CharOffset[Stmt->GetDataColumn]= 0;
     }
+    Stmt->GetDataColumn= static_cast<int32_t>(Col_or_Param_Num - 1);
   }
 
   try
