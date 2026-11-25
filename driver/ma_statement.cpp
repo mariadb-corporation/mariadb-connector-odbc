@@ -71,6 +71,23 @@ void RemoveStmtRefFromDesc(MADB_Desc *desc, MADB_Stmt *Stmt, BOOL all)
 }
 /* }}} */
 
+/* {{{ MADB_KillableScope */
+MADB_KillableScope::MADB_KillableScope(MADB_Stmt* aStmt) : Stmt(aStmt)
+{
+  uint8_t state= Stmt->CancelState.load();
+  /* If it is killed already, then it is the scope inside of other scope */
+  while (state != MADB_CANCEL_KILLED && !Stmt->CancelState.compare_exchange_weak(state, MADB_CANCEL_KILLABLE));
+}
+
+MADB_KillableScope::~MADB_KillableScope()
+{
+  if (!(Stmt->rs && MADB_STMT_SHOULD_STREAM(Stmt) && !Stmt->rs->isFullyLoaded()))
+  {
+    Stmt->CancelState.store(MADB_CANCEL_NONE);
+  }
+}
+/* }}} */
+
 /* {{{ MADB_CloseCursor
  * Not locking function that does everything needed to close cursoe aka SQLFreeStmt(SQL_CLOSE)
  * Main reason is SQLCancel that acquires the lock and should not release it close cursor
@@ -104,6 +121,7 @@ void MADB_CloseCursor(MADB_Stmt *Stmt)
     RESET_STMT_STATE(Stmt);
     RESET_DAE_STATUS(Stmt);
   }
+  MADB_STMT_NOTHING_TO_CANCEL(Stmt);
 }
 /* }}} */
 
@@ -303,6 +321,7 @@ SQLRETURN MADB_StmtReset(MADB_Stmt* Stmt)
     MDBUG_C_PRINT(Stmt->Connection, "mysql_stmt_free_result(%0x)", Stmt->rs.get());
     Stmt->rs.reset();
   }
+  MADB_STMT_NOTHING_TO_CANCEL(Stmt);
 
   if (Stmt->State >= MADB_SS_PREPARED)
   {
@@ -1016,6 +1035,12 @@ SQLRETURN MADB_Stmt::DoExecuteBatch()
 {
   SQLRETURN ret= SQL_SUCCESS;
 
+  /* Same as in MADB_DoExecute */
+  if (CancelState.load() == MADB_CANCEL_KILLED)
+  {
+    return MADB_SetError(&Error, MADB_ERR_HY008, nullptr, 0);
+  }
+
   stmt->setBatchSize(Bulk.ArraySize);
 
   if (ParamCount)
@@ -1070,6 +1095,12 @@ void MADB_PushParams(MADB_Stmt *Stmt)
 SQLRETURN MADB_DoExecute(MADB_Stmt *Stmt, bool ParamsPushed)
 {
   SQLRETURN ret= SQL_SUCCESS;
+
+  /* SQLCancel came before the query is sent - there is nothing to kill on the server yet, so not sending it */
+  if (Stmt->CancelState.load() == MADB_CANCEL_KILLED)
+  {
+    return MADB_SetError(&Stmt->Error, MADB_ERR_HY008, nullptr, 0);
+  }
 
   Stmt->stmt->setBatchSize(Stmt->Bulk.ArraySize);
 
@@ -1196,6 +1227,8 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, bool ExecDirect)
      case if we resume the operation, that has been interrupted by a DAE parameter */
   bool         ParamsPushed= false;
 
+  MADB_KillableScope KillableScope(Stmt);
+
   MDBUG_C_PRINT(Stmt->Connection, "%sMADB_StmtExecute", "\t->");
 
   MADB_CLEAR_ERROR(&Stmt->Error);
@@ -1238,9 +1271,6 @@ SQLRETURN MADB_StmtExecute(MADB_Stmt *Stmt, bool ExecDirect)
   {
     MADB_SetError(&Stmt->Error, MADB_ERR_HY010, nullptr, 0);
   }
-  /* Interrupting execution if the flag has been set */
-  CANCEL_EXECUTION_IF_NEEDED(Stmt);
-
   Stmt->AffectedRows= 0;
 
   //  If param array had DAE, we can have Execute called >1 time. We need to collect all rows and
@@ -1456,13 +1486,6 @@ end:
     }
   }
 
-  /* The flag is set under the lock. We checked it after acquired the lock here. If it's set now after we released the lock -
-   * means that SQLCancel got lock after we actulally finished execution here, and there is nothing to cancel already.
-   * Important to note, that we don't support sharing of statement between threads(SQLCances is the only case). Thus it can't
-   * be cancelation or execution in the yet another thread. If it is - it's not our problem.
-   * But it's important to reset the flag so we don't cancel something in the future it was not intended for.
-   */
-  Stmt->canceled= false;
   return IntegralRc;
 }
 /* }}} */
@@ -2375,6 +2398,12 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
         {
           UNLOCK_MARIADB(Stmt->Connection);
         }*/
+        /* The (streamed)resultset is read to the end - nothing to kill any more */
+        if (Stmt->CancelState.load(std::memory_order_relaxed) == MADB_CANCEL_KILLABLE)
+        {
+          uint8_t state= MADB_CANCEL_KILLABLE;
+          Stmt->CancelState.compare_exchange_strong(state, MADB_CANCEL_NONE);
+        }
         return SQL_NO_DATA;
       }
       // This is for column results, that can be changed by callbacks(what is done by FixFetchedValues otherwise)
@@ -4220,7 +4249,7 @@ struct st_ma_stmt_methods MADB_StmtMethods=
 MADB_Stmt::MADB_Stmt(MADB_Dbc* Dbc)
   : Connection(Dbc),
     DefaultsResult(nullptr, &mysql_free_result),
-    canceled(false)
+    CancelState(MADB_CANCEL_NONE)
 {
   std::memset(&Error,    0, sizeof(MADB_Error));
   std::memset(&Bulk,     0, sizeof(MADB_BulkOperationInfo));
