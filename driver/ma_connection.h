@@ -33,6 +33,8 @@ struct st_madb_isolation {
 struct MADB_Dbc
 {
   MADB_Error Error;
+  /* Prefix of error messages of statements and descriptors of the connection. It has the server version, once connected */
+  char ErrorPrefix[sizeof(MARIADB_ODBC_ERR_PREFIX) + 34]= MARIADB_ODBC_ERR_PREFIX;
   std::mutex ListsCs;      /*       for operations with lists */
   MADB_Env::ListIterator ListItem;
   Client_Charset Charset= {0,nullptr};
