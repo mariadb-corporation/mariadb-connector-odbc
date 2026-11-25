@@ -164,6 +164,7 @@ SQLRETURN MADB_SQLDisconnect(SQLHDBC ConnectionHandle)
   MADB_DSN_Free(Connection->Dsn);
   Connection->Dsn= nullptr;
   Connection->mariadb= nullptr;
+  strcpy_s(Connection->ErrorPrefix, sizeof(Connection->ErrorPrefix), MARIADB_ODBC_ERR_PREFIX);
   if (Connection->guard && !Connection->guard->isClosed())
   {
     Connection->guard->close();
@@ -1059,6 +1060,11 @@ SQLRETURN MADB_Dbc::ConnectDB(MADB_Dsn *Dsn)
   }
 
   MADB_SetCapabilities(this, mysql_get_server_version(mariadb), mysql_get_server_name(mariadb));
+  {
+    // The length is limited since the version comes from the server, and we can't always trust the server(mitm/hijacking)
+    const char *serverInfo= mysql_get_server_info(mariadb);
+    snprintf(ErrorPrefix, sizeof(ErrorPrefix), MARIADB_ODBC_ERR_PREFIX "[%.32s]", serverInfo != nullptr ? serverInfo : "");
+  }
   {
     Cache<std::string, ServerPrepareResult>* psCache= nullptr;
     if (Dsn->PsCacheSize > 0 && Dsn->PsCacheMaxKeyLen > 0)
