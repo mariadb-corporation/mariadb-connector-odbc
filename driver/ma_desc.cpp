@@ -95,11 +95,13 @@ MADB_Desc *MADB_DescInit(MADB_Dbc *Dbc,enum enum_madb_desc_type DescType, my_boo
   Desc->DescType= DescType;
   MADB_PutErrorPrefix(Dbc, &Desc->Error);
 
-  if (MADB_InitDynamicArray(&Desc->Records, sizeof(MADB_DescRecord), 0, MADB_DESC_INIT_REC_NUM))
-  {
-    MADB_FREE(Desc);
-    return nullptr;
-  }
+  /* Records are allocated when the first one is added. The array is in the same state after MADB_DescFree releases records */
+  Desc->Records.buffer=          nullptr;
+  Desc->Records.elements=        0;
+  Desc->Records.max_element=     0;
+  Desc->Records.alloc_increment= MADB_DESC_INIT_REC_NUM;
+  Desc->Records.size_of_element= sizeof(MADB_DescRecord);
+
   if (isExternal)
   {
     if (MADB_InitDynamicArray(&Desc->Stmts, sizeof(MADB_Stmt**), 0, MADB_DESC_INIT_STMT_NUM))

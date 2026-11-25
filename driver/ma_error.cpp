@@ -151,26 +151,22 @@ MADB_ERROR MADB_ErrorList[] =
 };
 /* }}} */
 
-/* Copies prefix and sets its length. Also sets terminating NULL in SqlState */
-char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
+/* Sets the prefix for error messages of the handle - of its connection, if it is given. Also sets terminating NULL in SqlState */
+void MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error)
 {
   error->SqlState[SQLSTATE_LENGTH]= 0;
-  /* If prefix is already there - we do not write again. One shoud reset error->PrefixLen in order to force */
-  if (error->PrefixLen == 0)
-  {
-    error->PrefixLen= strlen(MARIADB_ODBC_ERR_PREFIX);
-    strcpy_s(error->SqlErrorMsg, SQL_MAX_MESSAGE_LENGTH + 1, MARIADB_ODBC_ERR_PREFIX);
-    if (dbc != NULL && dbc->mariadb != NULL)
-    {
-      // We need to limit the lenght of server since it comes from the server, and we can't always trust
-      // the server(mitm/hijacking). 32 characters looks to be enough for descriptive version strng.
-      error->PrefixLen += snprintf(error->SqlErrorMsg + error->PrefixLen,
-        SQL_MAX_MESSAGE_LENGTH + 1 - error->PrefixLen, "[%.32s]", mysql_get_server_info(dbc->mariadb)); 
-    }
-  }
-  return error->SqlErrorMsg + error->PrefixLen;
+  error->Prefix= dbc != nullptr ? dbc->ErrorPrefix : MARIADB_ODBC_ERR_PREFIX;
 }
 
+/* The prefix is written only when the first error is set */
+static inline void MADB_WriteErrorPrefix(MADB_Error *Error)
+{
+  if (Error->PrefixLen == 0 && Error->Prefix != nullptr)
+  {
+    Error->PrefixLen= strlen(Error->Prefix);
+    memcpy(Error->SqlErrorMsg, Error->Prefix, Error->PrefixLen + 1);
+  }
+}
 
 SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr)
 {
@@ -199,6 +195,7 @@ SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *P
   }
 
   Error->ReturnValue= SQL_ERROR;
+  MADB_WriteErrorPrefix(Error);
   if (Errormsg)
   {
     strcpy_s(Error->SqlErrorMsg + Error->PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Error->PrefixLen, Errormsg);
@@ -228,6 +225,7 @@ SQLRETURN MADB_SetError(MADB_Error  *Error,
   Error->ErrRecord= &MADB_ErrorList[ErrorCode];
   Error->ReturnValue= MADB_ErrorList[ErrorCode].ReturnValue;
 
+  MADB_WriteErrorPrefix(Error);
   if (NativeErrorMsg)
   {
     strcpy_s(Error->SqlErrorMsg + Error->PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Error->PrefixLen, NativeErrorMsg);
@@ -272,6 +270,7 @@ SQLRETURN MADB_GetDiagRec(MADB_Error *Err, SQLSMALLINT RecNumber,
     return SQL_NO_DATA;
  
   InternalError.PrefixLen= 0;
+  InternalError.Prefix= nullptr;
   MADB_CLEAR_ERROR(&InternalError);
 
   /* check if we have to map the SQLState to ODBC version 2 state */
@@ -328,6 +327,7 @@ SQLRETURN MADB_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
     *StringLengthPtr= 0;
 
   Error.PrefixLen= 0;
+  Error.Prefix= nullptr;
   MADB_CLEAR_ERROR(&Error);
 
   switch(HandleType) {
@@ -461,6 +461,7 @@ SQLRETURN MADB_FromException(MADB_Error &Err, SQLException& e)
   }
 
   Err.ReturnValue= SQL_ERROR;
+  MADB_WriteErrorPrefix(&Err);
   strcpy_s(Err.SqlErrorMsg + Err.PrefixLen, SQL_MAX_MESSAGE_LENGTH + 1 - Err.PrefixLen, e.what());
 
   strcpy_s(Err.SqlState, SQLSTATE_LENGTH + 1, SqlState);

@@ -70,6 +70,8 @@
 struct MADB_Error
 {
   size_t PrefixLen;
+  /* The prefix to write, when the first error is set. It belongs to the connection, or is the constant */
+  const char *Prefix;
   struct MADB_ERROR* ErrRecord;
   SQLINTEGER NativeError;
   /* Order number of last requested error record */

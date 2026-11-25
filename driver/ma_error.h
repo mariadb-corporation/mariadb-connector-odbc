@@ -147,7 +147,7 @@ enum enum_madb_error {
   MADB_ERR_S1C00,
 };
 /* Copies prefix and sets its length. Also sets terminating NULL in SqlState */
-char* MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error);
+void MADB_PutErrorPrefix(MADB_Dbc *dbc, MADB_Error *error);
 
 SQLRETURN MADB_SetError(MADB_Error *Error, unsigned int SqlErrorCode, const char *SqlErrorMsg, unsigned int NativeError);
 SQLRETURN MADB_SetNativeError(MADB_Error *Error, SQLSMALLINT HandleType, void *Ptr);
