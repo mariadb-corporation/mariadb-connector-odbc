@@ -1663,13 +1663,13 @@ BOOL MADB_BinaryFieldType(SQLSMALLINT FieldType)
 
 /* {{{ MADB_Stmt::PrepareBind
        Filling bind structures in */
-void MADB_Stmt::PrepareBind(int32_t RowNumber)
+bool MADB_Stmt::PrepareBind(int32_t RowNumber)
 {
   MADB_DescRecord *IrdRec, *ArdRec;
   int             i;
   void            *DataPtr= nullptr;
   bool            canDoCallbacks= Connection->Dsn->ResultCallbacks && !rs->setCallbackData((void*)this),
-    didCallbacks= false;
+    didCallbacks= false, hasBoundColumns= false;
 
   for (i= 0; i < MADB_STMT_COLUMN_COUNT(this); ++i)
   {
@@ -1685,6 +1685,8 @@ void MADB_Stmt::PrepareBind(int32_t RowNumber)
       result[i].flags|= MADB_BIND_DUMMY;
       continue;
     }
+    /* Even if the data pointer is NULL, the application may still need the length or the NULL indicator of the column */
+    hasBoundColumns= true;
 
     DataPtr= (SQLLEN *)GetBindOffset(Ard->Header, ArdRec->DataPtr, RowNumber, ArdRec->OctetLength);
 
@@ -1856,6 +1858,7 @@ void MADB_Stmt::PrepareBind(int32_t RowNumber)
       setResultCodec(new NullRCodec(ArdRec));
     }
   }
+  return hasBoundColumns;
 }
 /* }}} */
 
@@ -2239,6 +2242,7 @@ SQLRETURN MADB_ProcessTruncation(MADB_Stmt *Stmt)
 SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
 {
   unsigned int     RowNum, j;
+  bool             HasBoundColumns= false, BinaryRs= true;
   SQLULEN          Rows2Fetch=  Stmt->Ard->Header.ArraySize, Processed, *ProcessedPtr= &Processed;
   int64_t          SaveCursor= -1;
   SQLRETURN        Result= SQL_SUCCESS, RowResult;
@@ -2302,6 +2306,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
   }
 
   *ProcessedPtr= 0;
+  BinaryRs= Stmt->rs->isBinaryEncoded();
 
   /* We need to return to 1st row in the rowset only if there are >1 rows in it. Otherwise we stay on it anyway */
   if (Rows2Fetch > 1 && Stmt->Options.CursorType != SQL_CURSOR_FORWARD_ONLY)
@@ -2332,7 +2337,7 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     /*************** Setting up BIND structures ********************/
     /* Basically, nothing should happen here, but if happens, then it will happen on each row.
     Thus it's ok to stop */
-    Stmt->PrepareBind(RowNum);
+    HasBoundColumns= Stmt->PrepareBind(RowNum);
 
     /************************ Bind! ********************************/  
     Stmt->rs->bind(Stmt->result);
@@ -2379,9 +2384,17 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
       }
       // This is for column results, that can be changed by callbacks(what is done by FixFetchedValues otherwise)
       Stmt->aggRc= SQL_SUCCESS;
-      if (Stmt->rs->get())
+      if (HasBoundColumns || BinaryRs)
       {
-        RowResult= MADB_ProcessTruncation(Stmt);
+        if (Stmt->rs->get())
+        {
+          RowResult= MADB_ProcessTruncation(Stmt);
+        }
+      }
+      else
+      {
+        /* No buffers to fill - only making the resultset to move its row object to the current row */
+        Stmt->rs->isNull(1);
       }
     }
     catch (int rc)
@@ -2420,14 +2433,17 @@ SQLRETURN MADB_StmtFetch(MADB_Stmt *Stmt)
     ++Stmt->LastRowFetched;
 
     /*Conversion etc. At this point, after fetch we can have RowResult either SQL_SUCCESS or SQL_SUCCESS_WITH_INFO */
-    switch (Stmt->FixFetchedValues(RowNum, SaveCursor))
+    if (HasBoundColumns)
     {
-    case SQL_ERROR:
-      RowResult= SQL_ERROR;
-      break;
-    case SQL_SUCCESS_WITH_INFO:
-      RowResult= SQL_SUCCESS_WITH_INFO;
-    /* And if result of conversions - success, just leaving that we had before */
+      switch (Stmt->FixFetchedValues(RowNum, SaveCursor))
+      {
+      case SQL_ERROR:
+        RowResult= SQL_ERROR;
+        break;
+      case SQL_SUCCESS_WITH_INFO:
+        RowResult= SQL_SUCCESS_WITH_INFO;
+      /* And if result of conversions - success, just leaving that we had before */
+      }
     }
 
     CALC_ALL_ROWS_RC(Result, RowResult, RowNum);

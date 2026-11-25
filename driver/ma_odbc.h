@@ -380,7 +380,7 @@ public:
   SQLRETURN doBulkOldWay(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, SQLLEN* IndicatorPtr, SQLLEN* OctetLengthPtr, void* DataPtr,
     MYSQL_BIND* MaBind, unsigned int& IndIdx/* column with indicator array - needed to skip rows */, unsigned int ParamOffset);
   void setupBulkCallbacks(uint32_t parNr, MADB_DescRecord* CRec, MADB_DescRecord* SqlRec, DescArrayIterator& cit, MYSQL_BIND* MaBind);
-  void PrepareBind(int32_t RowNumber);
+  bool PrepareBind(int32_t RowNumber);
   bool setResultCodec(ResultCodec* codec, unsigned long column=(unsigned long)-1/* "null" row level codec */);
   SQLRETURN FixFetchedValues(int RowNumber, int64_t SaveCursor);
 };
