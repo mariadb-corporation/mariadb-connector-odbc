@@ -301,7 +301,7 @@ struct MADB_Stmt
   MADB_StmtOptions          Options;
   MADB_Error                Error;
   std::mutex                CancelDropSwitch; /* mutex for SQLCancel/SQLFreeStmt(SQL_DROP) */
-  std::atomic_bool          canceled;
+  std::atomic<uint8_t>      CancelState;      /* What SQLCancel has to do, one of MADB_CANCEL_* */
   MADB_Cursor               Cursor;
   MADB_List                 ListItem;
   long long                 AffectedRows= 0;

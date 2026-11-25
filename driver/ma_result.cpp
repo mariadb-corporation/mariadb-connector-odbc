@@ -156,11 +156,12 @@ SQLRETURN MADB_StmtMoreResults(SQLHSTMT StatementHandle)
   MADB_Stmt *Stmt= (MADB_Stmt*)StatementHandle;
   SQLRETURN ret= SQL_SUCCESS;
 
-  RESET_CANCELED(Stmt);
   if (!Stmt->stmt)
   {
     return MADB_SetError(&Stmt->Error, MADB_ERR_08S01, NULL, 0);
   }
+  MADB_STMT_CLOSE_IF_CANCELED(Stmt);
+  MADB_KillableScope KillableScope(Stmt);
 
   /* We can't have it in MADB_StmtResetResultStructures, as it breaks dyn_cursor functionality.
      Thus we free-ing bind structs on move to new result only */

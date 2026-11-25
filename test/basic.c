@@ -835,6 +835,25 @@ ODBC_TEST(sqlcancel_basic)
   return OK;
 }
 
+/* SQLCancel on the statement, that is not being executed, made its next execution to fail with HY008 */
+ODBC_TEST(sqlcancel_idle)
+{
+  CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
+  OK_SIMPLE_STMT(Stmt, "SELECT 1");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 1);
+
+  /* The same with the open cursor. In ODBC 3.x that has no effect, but some DMs consider the cursor closed after that */
+  CHECK_STMT_RC(Stmt, SQLCancel(Stmt));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Stmt, "SELECT 2");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 2);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
 #ifdef _WIN32
 DWORD WINAPI cancel_in_one_second(LPVOID arg)
 {
@@ -1032,6 +1051,59 @@ ODBC_TEST(sqlcancelhandle)
 }
 #endif  // ifndef HAVE_NOT_SQLCANCELHANDLE
 #endif  // ifdef _WIN32
+
+/* SQLCancel closed the cursor of the streamed resultset in its own thread, and that crashed the thread fetching from it */
+ODBC_TEST(sqlcancel_streaming)
+{
+  SQLHDBC   Hdbc;
+  SQLHSTMT  Hstmt;
+  SQLRETURN rc;
+  int       rows= 0;
+#ifdef _WIN32
+  HANDLE    thread;
+#else
+  pthread_t thread;
+#endif
+
+  if (IsMysql)
+  {
+    skip("The test needs the sequence storage engine");
+  }
+  CHECK_ENV_RC(Env, SQLAllocConnect(Env, &Hdbc));
+  Hstmt= DoConnect(Hdbc, FALSE, NULL, NULL, NULL, 0, NULL, NULL, NULL, "STREAMRS=1;FORWARDONLY=1");
+  FAIL_IF(Hstmt == NULL, "Connection error");
+
+  /* Rows are big enough to be sent by the server one by one, and each of them takes 10ms - 10s for all of them */
+  OK_SIMPLE_STMT(Hstmt, "SELECT seq, REPEAT('a', 20000), SLEEP(0.01) FROM seq_1_to_1000");
+#ifdef _WIN32
+  thread= CreateThread(NULL, 0, cancel_in_one_second, Hstmt, 0, NULL);
+#else
+  pthread_create(&thread, NULL, cancel_in_one_second, Hstmt);
+#endif
+  while ((rc= SQLFetch(Hstmt)) == SQL_SUCCESS)
+  {
+    ++rows;
+  }
+#ifdef _WIN32
+  WaitForSingleObject(thread, 10000);
+#else
+  pthread_join(thread, NULL);
+#endif
+  is_num(rc, SQL_ERROR);
+  FAIL_IF(rows >= 1000, "The query has not been canceled");
+
+  /* The statement and the connection have to be usable after that */
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_CLOSE));
+  OK_SIMPLE_STMT(Hstmt, "SELECT 1");
+  CHECK_STMT_RC(Hstmt, SQLFetch(Hstmt));
+  is_num(my_fetch_int(Hstmt, 1), 1);
+
+  CHECK_STMT_RC(Hstmt, SQLFreeStmt(Hstmt, SQL_DROP));
+  CHECK_DBC_RC(Hdbc, SQLDisconnect(Hdbc));
+  CHECK_DBC_RC(Hdbc, SQLFreeConnect(Hdbc));
+
+  return OK;
+}
 
 // Not sure what is this test about. Maybe that SQLDescribeCol does not crash/return error
 // with given parameters combination. Otherwise looks useless.
@@ -2244,6 +2316,8 @@ MA_ODBC_TESTS my_tests[]=
   {setnames_conn,  "setnames_conn",  NORMAL},
   {sqlcancel_basic,"sqlcancel_basic_use", NORMAL},
   {sqlcancel_threaded, "sqlcancel_threaded", NORMAL},
+  {sqlcancel_idle, "sqlcancel_idle", NORMAL},
+  {sqlcancel_streaming, "sqlcancel_streaming", NORMAL},
   {t_bug32014,     "t_bug32014",     NORMAL},
   {t_bug10128,     "t_bug10128",     NORMAL},
   {t_bug32727,     "t_bug32727",     NORMAL},

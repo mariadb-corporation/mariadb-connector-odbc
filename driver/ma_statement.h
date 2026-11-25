@@ -126,10 +126,28 @@ void         MADB_CloseCursor       (MADB_Stmt *Stmt);
 /* Set given Stmt handle as s current RS streamer on the connection */
 #define MADB_STMT_SET_CURRENT_STREAMER(_a) (_a)->Connection->Streamer= (_a)
 #define CALC_ALL_FLDS_RC(_agg_rc, _field_rc) if (_field_rc != SQL_SUCCESS && _agg_rc != SQL_ERROR) _agg_rc= _field_rc
-#define CANCEL_EXECUTION_IF_NEEDED(aStmt) do { if ((aStmt)->canceled) {\
-  (aStmt)->canceled= false;\
-  return MADB_SetError(&aStmt->Error, MADB_ERR_HY008, "Execution canceled by command from other thread", 0);\
-}} while(0)
-#define RESET_CANCELED(aStmt) (aStmt)->canceled= false
+
+/* What SQLCancel, called from other thread, has to do for the statement, or has done already. SQLCancel changes only this
+   state - the statement can be in use in other thread at that moment, and everything else is left to that thread */
+enum : uint8_t {
+  MADB_CANCEL_NONE= 0,  /* Nothing of the statement is running on the server. SQLCancel has no effect, or in ODBC 2.x requests closing of the cursor */
+  MADB_CANCEL_KILLABLE, /* Its query is being executed, or its streamed resultset is not read to the end - KILL at the server */
+  MADB_CANCEL_KILLED,   /* The same, but KILL has been sent already. The late KILL could hit the next query on the connection */
+  MADB_CANCEL_CLOSE     /* Closing of the cursor has been requested(ODBC 2.x) */
+};
+/* For the thread that owns the statement, and only in the beginning of API function - nothing may be using the cursor */
+#define MADB_STMT_CLOSE_IF_CANCELED(aStmt) do { if ((aStmt)->CancelState.load(std::memory_order_relaxed) > MADB_CANCEL_KILLABLE)\
+  MADB_CloseCursor(aStmt); } while(0)
+#define MADB_STMT_NOTHING_TO_CANCEL(aStmt) do { if ((aStmt)->CancelState.load(std::memory_order_relaxed) != MADB_CANCEL_NONE)\
+  (aStmt)->CancelState.store(MADB_CANCEL_NONE); } while(0)
+
+/* Makes the statement killable for the time of the execution, and after it - while its streamed resultset is not read to the end */
+class MADB_KillableScope
+{
+  MADB_Stmt* Stmt;
+public:
+  explicit MADB_KillableScope(MADB_Stmt* aStmt);
+  ~MADB_KillableScope();
+};
 
 #endif /* _ma_statement_h_ */
