@@ -140,17 +140,8 @@ SQLRETURN MADB_DescFree(MADB_Desc *Desc, my_bool RecordsOnly)
  
     if (Desc->DescType == MADB_DESC_IRD)
     {
-      MADB_FREE(Record->CatalogName);
+      MADB_FREE(Record->NamesBuffer);
       MADB_FREE(Record->BaseCatalogName);
-      MADB_FREE(Record->BaseColumnName);
-      MADB_FREE(Record->BaseTableName);
-      MADB_FREE(Record->ColumnName);
-      MADB_FREE(Record->TableName);
-      MADB_FREE(Record->TypeName);
-    }
-    else if(Desc->DescType == MADB_DESC_IPD)
-    {
-      MADB_FREE(Record->TypeName);
     }
   }
   MADB_DeleteDynamic(&Desc->Records);
@@ -182,6 +173,47 @@ return SQL_SUCCESS;
 }
 /* }}} */
 
+/* {{{ MADB_SetIrdRecordNames
+       Copies all names of the column to the single buffer owned by the record. That is 1 allocation per column
+       instead of the allocation for each name. The buffer is re-used if the record already has one. */
+static my_bool MADB_SetIrdRecordNames(MADB_DescRecord *Record, const MYSQL_FIELD *Field)
+{
+  const char *Src[]= {Field->db, Field->table, Field->name, Field->org_table, Field->org_name};
+  const char **Dst[]= {const_cast<const char**>(&Record->CatalogName), const_cast<const char**>(&Record->TableName), &Record->ColumnName,
+                       const_cast<const char**>(&Record->BaseTableName), const_cast<const char**>(&Record->BaseColumnName)};
+  const std::size_t Count= sizeof(Src)/sizeof(Src[0]);
+  std::size_t Len[Count], Total= 0;
+
+  for (std::size_t i= 0; i < Count; ++i)
+  {
+    Len[i]= Src[i] != nullptr ? strlen(Src[i]) + 1 : 0;
+    Total+= Len[i];
+  }
+
+  char *Buffer= static_cast<char*>(MADB_REALLOC(Record->NamesBuffer, Total > 0 ? Total : 1));
+  if (Buffer == nullptr)
+  {
+    return 1;
+  }
+  Record->NamesBuffer= Buffer;
+
+  for (std::size_t i= 0; i < Count; ++i)
+  {
+    if (Src[i] != nullptr)
+    {
+      memcpy(Buffer, Src[i], Len[i]);
+      *Dst[i]= Buffer;
+      Buffer+= Len[i];
+    }
+    else
+    {
+      *Dst[i]= nullptr;
+    }
+  }
+  return 0;
+}
+/* }}} */
+
 /* {{{ MADB_SetIrdRecord */
 my_bool
 MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *Field)
@@ -197,11 +229,10 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
 
   mariadb_get_infov(Stmt->Connection->mariadb, MARIADB_CONNECTION_MARIADB_CHARSET_INFO, (void*)&cs);
 
-  MADB_RESET(Record->CatalogName, Field->db);
-  MADB_RESET(Record->TableName, Field->table);
-  MADB_RESET(Record->ColumnName, Field->name);
-  MADB_RESET(Record->BaseTableName, Field->org_table);
-  MADB_RESET(Record->BaseColumnName, Field->org_name);
+  if (MADB_SetIrdRecordNames(Record, Field))
+  {
+    return 1;
+  }
   Record->AutoUniqueValue= (Field->flags & AUTO_INCREMENT_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->CaseSensitive=   (Field->flags & BINARY_FLAG) ? SQL_TRUE : SQL_FALSE;
   Record->Nullable= ((Field->flags & NOT_NULL_FLAG) &&
@@ -288,13 +319,13 @@ MADB_SetIrdRecord(MADB_Stmt *Stmt, MADB_DescRecord *Record, const MYSQL_FIELD *F
                        Record->ConciseType == SQL_WLONGVARCHAR ||
                        Record->ConciseType == SQL_LONGVARBINARY) ? SQL_PRED_CHAR : SQL_SEARCHABLE;
 
-  Record->DisplaySize= MADB_GetDisplaySize(Field, mariadb_get_charset_by_nr(Field->charsetnr), noBigint);
-  Record->OctetLength= noBigint ? 4 : MADB_GetOctetLength(Field, cs.mbmaxlen);
   FieldCs= mariadb_get_charset_by_nr(Field->charsetnr);
+  Record->DisplaySize= MADB_GetDisplaySize(Field, FieldCs, noBigint);
+  Record->OctetLength= noBigint ? 4 : MADB_GetOctetLength(Field, cs.mbmaxlen);
   Record->Length= MADB_GetDataSize(Record->ConciseType, Field->length, Record->Unsigned == SQL_TRUE,
                                    Record->Precision, Record->Scale, FieldCs!= nullptr ? FieldCs->char_maxlen : 1);
     
-  MADB_RESET(Record->TypeName, MADB_GetTypeName(Field));
+  Record->TypeName= MADB_GetTypeName(Field);
 
   switch(Field->type) {
   case MYSQL_TYPE_BLOB:
@@ -607,7 +638,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->LocalTypeName= "";
     Record->Nullable= SQL_NULLABLE;
     Record->ParameterType= SQL_PARAM_INPUT;
-    MADB_RESET(Record->TypeName, "VARCHAR");
+    Record->TypeName= "VARCHAR";
     Record->Unsigned= SQL_FALSE;
     Record->ColumnName= "";
     break;
@@ -618,7 +649,7 @@ void MADB_DescSetRecordDefaults(MADB_Desc *Desc, MADB_DescRecord *Record)
     Record->ConciseType= SQL_VARCHAR;
     Record->AutoUniqueValue= SQL_FALSE;
     Record->Type= SQL_VARCHAR;
-    MADB_RESET(Record->TypeName, "VARCHAR");
+    Record->TypeName= "VARCHAR";
     Record->Unsigned= SQL_FALSE;
     break;
   }
