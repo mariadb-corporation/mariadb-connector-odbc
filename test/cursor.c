@@ -3943,6 +3943,43 @@ ODBC_TEST(odbc499)
 }
 
 
+/* "--", that is not followed by a whitespace, is not the comment. The rest of the query after it was not parsed,
+   and the connector did not see that this is the positioned command */
+ODBC_TEST(t_positioned_minus_minus)
+{
+  SQLHSTMT hstmt_pos;
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS t_positioned_minus_minus");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE t_positioned_minus_minus (id INT NOT NULL PRIMARY KEY, a INT)");
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO t_positioned_minus_minus VALUES (1, 1), (2, 2)");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  SKIP_IF_FORWARDONLY(Stmt, SQL_CURSOR_DYNAMIC);
+
+  CHECK_STMT_RC(Stmt, SQLSetCursorName(Stmt, (SQLCHAR*)"minuscur", SQL_NTS));
+  OK_SIMPLE_STMT(Stmt, "SELECT id, a FROM t_positioned_minus_minus ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLFetchScroll(Stmt, SQL_FETCH_NEXT, 1L));
+
+  CHECK_DBC_RC(Connection, SQLAllocHandle(SQL_HANDLE_STMT, Connection, &hstmt_pos));
+  OK_SIMPLE_STMT(hstmt_pos, "UPDATE t_positioned_minus_minus SET a= a--10 WHERE CURRENT OF minuscur");
+
+  CHECK_STMT_RC(hstmt_pos, SQLFreeStmt(hstmt_pos, SQL_DROP));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT a FROM t_positioned_minus_minus ORDER BY id");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 11);
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 2);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE t_positioned_minus_minus");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_positioned_cursor, "my_positioned_cursor",     NORMAL},
@@ -3999,6 +4036,7 @@ MA_ODBC_TESTS my_tests[]=
   {odbc356, "odbc356-key_cursor", NORMAL, SkipIfRsStreaming},
   {odbc499, "odbc499-bookmarks", NORMAL, SkipIfRsStreaming},
   {odbc505, "odbc505-quoted_key_name", NORMAL, SkipIfRsStreaming},
+  {t_positioned_minus_minus, "t_positioned_minus_minus", NORMAL},
   {NULL, NULL, 0, NULL}
 };
 

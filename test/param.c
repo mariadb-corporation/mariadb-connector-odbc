@@ -1792,6 +1792,90 @@ ODBC_TEST(odbc494_mbcs_binary_param_escaping)
 }
 
 
+/* The connector looks for parameter markers in the query, if it is not prepared on the server, and has to skip
+   comments for that. "--" begins the comment only if a whitespace or a control character follows it, and '/', that
+   closes the comment, does not begin the next one. Parameter markers after such sequences were lost, and
+   the query was sent to the server with '?' in it */
+ODBC_TEST(t_param_after_comment_like)
+{
+  SQLINTEGER param= 5;
+  unsigned int i;
+  struct {
+    const char *query;
+    int col1;
+    int col2; /* 0 - there is no 2nd column in the result */
+  } testCase[]= {{"SELECT 2--1, ?",        3, 5}, /* 2 minus signs */
+                 {"SELECT 5--?",          10, 0},
+                 {"SELECT 1 /* c */* ?",   5, 0}, /* Multiplication right after the comment */
+                 /* Real comments hide parameter markers as before */
+                 {"SELECT 1 -- c ?\n, ?",  1, 5},
+                 {"SELECT 1 --\n, ?",      1, 5},
+                 {"SELECT 1 --\tc ?\n, ?", 1, 5},
+                 {"SELECT 2 # c ?\n, ?",   2, 5},
+                 {"SELECT 3 /* ? */, ?",   3, 5},
+                 {"SELECT ?, 2 -- tail ?", 5, 2}};
+
+  for (i= 0; i < sizeof(testCase)/sizeof(testCase[0]); ++i)
+  {
+    CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, &param, 0, NULL));
+    if (!SQL_SUCCEEDED(SQLExecDirect(Stmt, (SQLCHAR*)testCase[i].query, SQL_NTS)))
+    {
+      diag("The query failed: %s", testCase[i].query);
+      odbc_print_error(SQL_HANDLE_STMT, Stmt);
+      return FAIL;
+    }
+    CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+    is_num(my_fetch_int(Stmt, 1), testCase[i].col1);
+    if (testCase[i].col2 != 0)
+    {
+      is_num(my_fetch_int(Stmt, 2), testCase[i].col2);
+    }
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+    CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+  }
+
+  /* '/' right after the comment start does not close it - there is no parameter in this query */
+  OK_SIMPLE_STMT(Stmt, "SELECT /*/ ? */ 7");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 7);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  return OK;
+}
+
+
+/* The parser of the connector looks for the VALUES keyword to rewrite the batch of inserts as a single
+   INSERT ... VALUES (...), (...). It compared bytes as signed, and took the last byte of a multibyte character for
+   the keyword boundary. Thus "values" at the end of the table name was the keyword for it, and the batch failed with
+   the syntax error */
+ODBC_TEST(t_batch_values_after_multibyte)
+{
+  SQLINTEGER a[3]= {10, 20, 30};
+
+  /* The table name is "caf" + e with acute(2 bytes in utf8) + "values" */
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE IF EXISTS caf\xc3\xa9values");
+  OK_SIMPLE_STMT(Stmt, "CREATE TABLE caf\xc3\xa9values (a INT)");
+
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)3, 0));
+  CHECK_STMT_RC(Stmt, SQLBindParameter(Stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 0, 0, a, 0, NULL));
+  OK_SIMPLE_STMT(Stmt, "INSERT INTO caf\xc3\xa9values (a) VALUES (?)");
+
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_RESET_PARAMS));
+  CHECK_STMT_RC(Stmt, SQLSetStmtAttr(Stmt, SQL_ATTR_PARAMSET_SIZE, (SQLPOINTER)1, 0));
+
+  OK_SIMPLE_STMT(Stmt, "SELECT COUNT(*), SUM(a) FROM caf\xc3\xa9values");
+  CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+  is_num(my_fetch_int(Stmt, 1), 3);
+  is_num(my_fetch_int(Stmt, 2), 60);
+  CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
+
+  OK_SIMPLE_STMT(Stmt, "DROP TABLE caf\xc3\xa9values");
+
+  return OK;
+}
+
+
 MA_ODBC_TESTS my_tests[]=
 {
   {my_init_table, "my_init_table"},
@@ -1824,6 +1908,8 @@ MA_ODBC_TESTS my_tests[]=
   {odbc279, "odbc-279-timestruct"},
   {odbc450, "odbc-450-putdata_after_ps"},
   {odbc494_mbcs_binary_param_escaping, "odbc-494-mbcs_binary_param_escaping"},
+  {t_param_after_comment_like, "t_param_after_comment_like"},
+  {t_batch_values_after_multibyte, "t_batch_values_after_multibyte"},
   {NULL, NULL}
 };
 

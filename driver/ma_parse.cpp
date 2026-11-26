@@ -497,7 +497,7 @@ const char * StripLeadingComments(const char *Str, std::size_t *Length, bool Ove
     return Str;
   }
 
-  if (strncmp(Str, "--", 2) == 0)
+  if (strncmp(Str, "--", 2) == 0 && (*Length == 2 || static_cast<unsigned char>(Str[2]) <= ' '))
   {
     Res= strchr(Str + 2, '\n');
   }
